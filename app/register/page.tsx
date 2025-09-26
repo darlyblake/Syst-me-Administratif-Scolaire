@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,11 +10,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Save, User, Search } from "lucide-react"
+import { ArrowLeft, Save, User, Search, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { serviceEleves } from "@/services/eleves.service"
 import { serviceParametres } from "@/services/parametres.service"
 import type { DonneesEleve } from "@/types/models"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { useToast } from "@/components/ui/use-toast"
+import { Badge } from "@/components/ui/badge"
 
 interface StudentData {
   id: string
@@ -43,6 +48,7 @@ interface StudentData {
     tenueEPS: boolean
     assurance: boolean
   }
+  optionsPersonnalisees?: string[]
   fraisOptionsSupplementaires: {
     tenueScolaire: number
     carteScolaire: number
@@ -52,39 +58,76 @@ interface StudentData {
   }
 }
 
+// Schéma de validation Zod
+const studentFormSchema = z.object({
+  nom: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
+  prenom: z.string().min(2, "Le prénom doit contenir au moins 2 caractères"),
+  dateNaissance: z.string().min(1, "La date de naissance est requise"),
+  lieuNaissance: z.string().min(2, "Le lieu de naissance doit contenir au moins 2 caractères"),
+  classe: z.string().min(1, "La classe est requise"),
+  classeAncienne: z.string().optional(),
+  nomParent: z.string().min(2, "Le nom du parent doit contenir au moins 2 caractères"),
+  contactParent: z.string().min(8, "Le contact doit contenir au moins 8 caractères"),
+  adresse: z.string().min(10, "L'adresse doit contenir au moins 10 caractères"),
+  searchTerm: z.string().optional(),
+  photo: z.string().optional(),
+  modePaiement: z.enum(["mensuel", "tranches"]),
+  nombreTranches: z.number().optional(),
+  moisPaiement: z.array(z.string()).optional(),
+  optionsSupplementaires: z.object({
+    tenueScolaire: z.boolean(),
+    carteScolaire: z.boolean(),
+    cooperative: z.boolean(),
+    tenueEPS: z.boolean(),
+    assurance: z.boolean(),
+  }),
+  optionsPersonnalisees: z.array(z.string()).optional(),
+})
+
+type StudentFormData = z.infer<typeof studentFormSchema>
+
 export default function RegisterPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { toast } = useToast()
   const inscriptionType = searchParams.get("type") as "inscription" | "reinscription"
   const studentId = searchParams.get("id")
 
-  const [formData, setFormData] = useState({
-    nom: "",
-    prenom: "",
-    dateNaissance: "",
-    lieuNaissance: "",
-    classe: "",
-    classeAncienne: "",
-    nomParent: "",
-    contactParent: "",
-    adresse: "",
-    searchTerm: "",
-    photo: "",
-    // Nouvelles propriétés pour paiement et options
-    modePaiement: "mensuel" as "mensuel" | "tranches",
-    nombreTranches: 3,
-    moisPaiement: [] as string[],
-    optionsSupplementaires: {
-      tenueScolaire: false,
-      carteScolaire: false,
-      cooperative: false,
-      tenueEPS: false,
-      assurance: false,
+  const [existingStudent, setExistingStudent] = useState<DonneesEleve | null>(null)
+  const [isRedoubling, setIsRedoubling] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const form = useForm<StudentFormData>({
+    resolver: zodResolver(studentFormSchema),
+    defaultValues: {
+      nom: "",
+      prenom: "",
+      dateNaissance: "",
+      lieuNaissance: "",
+      classe: "",
+      classeAncienne: "",
+      nomParent: "",
+      contactParent: "",
+      adresse: "",
+      searchTerm: "",
+      photo: "",
+      modePaiement: "mensuel",
+      nombreTranches: 3,
+      moisPaiement: [],
+      optionsSupplementaires: {
+        tenueScolaire: false,
+        carteScolaire: false,
+        cooperative: false,
+        tenueEPS: false,
+        assurance: false,
+      },
+      optionsPersonnalisees: [],
     },
   })
 
-  const [existingStudent, setExistingStudent] = useState<DonneesEleve | null>(null)
-  const [isRedoubling, setIsRedoubling] = useState(false)
+  const { register, setValue, watch, formState: { errors } } = form
+  const formData = watch()
 
   const classes = serviceParametres.obtenirTarification().map(t => t.classe)
 
@@ -95,29 +138,27 @@ export default function RegisterPage() {
       const foundStudent = students.find((s: DonneesEleve) => s.id === studentId)
       if (foundStudent) {
         setExistingStudent(foundStudent)
-        setFormData((prev) => ({
-          ...prev,
-          nom: foundStudent.nom,
-          prenom: foundStudent.prenom,
-          dateNaissance: foundStudent.dateNaissance,
-          lieuNaissance: foundStudent.lieuNaissance || "",
-          classe: foundStudent.classe,
-          classeAncienne: foundStudent.classeAncienne || "",
-          nomParent: foundStudent.nomParent || "",
-          contactParent: foundStudent.contactParent || "",
-          adresse: foundStudent.adresse || "",
-          photo: foundStudent.photo || "",
-          modePaiement: foundStudent.modePaiement || "mensuel",
-          nombreTranches: foundStudent.nombreTranches || 3,
-          moisPaiement: foundStudent.moisPaiement || [],
-          optionsSupplementaires: foundStudent.optionsSupplementaires || {
-            tenueScolaire: false,
-            carteScolaire: false,
-            cooperative: false,
-            tenueEPS: false,
-            assurance: false,
-          },
-        }))
+        setValue("nom", foundStudent.nom)
+        setValue("prenom", foundStudent.prenom)
+        setValue("dateNaissance", foundStudent.dateNaissance)
+        setValue("lieuNaissance", foundStudent.lieuNaissance || "")
+        setValue("classe", foundStudent.classe)
+        setValue("classeAncienne", foundStudent.classeAncienne || "")
+        setValue("nomParent", foundStudent.nomParent || "")
+        setValue("contactParent", foundStudent.contactParent || "")
+        setValue("adresse", foundStudent.adresse || "")
+        setValue("photo", foundStudent.photo || "")
+        setValue("modePaiement", foundStudent.modePaiement || "mensuel")
+        setValue("nombreTranches", foundStudent.nombreTranches || 3)
+        setValue("moisPaiement", foundStudent.moisPaiement || [])
+        setValue("optionsSupplementaires", foundStudent.optionsSupplementaires || {
+          tenueScolaire: false,
+          carteScolaire: false,
+          cooperative: false,
+          tenueEPS: false,
+          assurance: false,
+        })
+        setValue("optionsPersonnalisees", foundStudent.optionsPersonnalisees || [])
       }
     }
   }, [studentId, inscriptionType])
@@ -126,7 +167,32 @@ export default function RegisterPage() {
   const parametres = serviceParametres.obtenirParametres()
   const dateDebut = new Date(parametres.dateDebut)
   const dateFin = new Date(parametres.dateFin)
-  const nombreMois = Math.ceil((dateFin.getTime() - dateDebut.getTime()) / (1000 * 60 * 60 * 24 * 30))
+
+  const genererMoisPeriode = () => {
+    const mois: string[] = []
+    let current = new Date(dateDebut.getFullYear(), dateDebut.getMonth(), 1)
+    while (current <= dateFin) {
+      const nomMois = current.toLocaleDateString('fr-FR', { month: 'long' }).charAt(0).toUpperCase() + current.toLocaleDateString('fr-FR', { month: 'long' }).slice(1)
+      if (!mois.includes(nomMois)) {
+        mois.push(nomMois)
+      }
+      current.setMonth(current.getMonth() + 1)
+    }
+    return mois
+  }
+
+  const moisDisponibles = genererMoisPeriode()
+  const nombreMois = moisDisponibles.length
+
+  // Réinitialiser les mois de paiement quand on change de mode
+  useEffect(() => {
+    if (formData.modePaiement !== "mensuel") {
+      setValue("moisPaiement", [])
+    }
+  }, [formData.modePaiement])
+
+  // Récupérer les paramètres de paiement
+  const parametresPaiement = serviceParametres.obtenirParametresPaiement()
 
   // Prix par niveau (à récupérer des paramètres)
   const getPricing = (classe: string) => {
@@ -134,7 +200,7 @@ export default function RegisterPage() {
     if (fraisClasse) {
       return {
         inscription: fraisClasse.fraisInscription,
-        scolarite: fraisClasse.fraisScolarite
+        scolarite: fraisClasse.fraisScolariteAnnuelle
       }
     }
     return { inscription: 0, scolarite: 0 }
@@ -149,42 +215,51 @@ export default function RegisterPage() {
 
     // Calculer les frais des options supplémentaires
     const optionsPrix = serviceParametres.obtenirOptionsSupplementaires()
+    const optionsPersonnalisees = serviceParametres.obtenirOptionsSupplementairesPersonnalisees()
     const fraisOptions = Object.entries(formData.optionsSupplementaires)
       .filter(([_, selected]) => selected)
-      .reduce((sum, [option]) => sum + optionsPrix[option as keyof typeof optionsPrix], 0)
+      .reduce((sum, [option]) => sum + optionsPrix[option as keyof typeof optionsPrix], 0) +
+      (formData.optionsPersonnalisees || []).reduce((sum, optionId) => {
+        const option = optionsPersonnalisees.find(opt => opt.id === optionId)
+        return sum + (option ? option.prix : 0)
+      }, 0)
 
     let fraisScolarite = 0
     let fraisParMois = 0
-    let tranches: { numero: number; montant: number; mois: string[] }[] = []
+    let tranches: { numero: number; montant: number; dateDebut: string; dateFin: string; pourcentage: number }[] = []
 
     if (formData.modePaiement === "mensuel") {
       // Calcul mensuel basé sur les mois sélectionnés
-      const nombreMoisPayes = formData.moisPaiement.length
+      const nombreMoisPayes = formData.moisPaiement?.length || 0
       if (nombreMoisPayes > 0) {
         fraisParMois = Math.ceil((pricing.scolarite + fraisOptions) / nombreMois)
         fraisScolarite = fraisParMois * nombreMoisPayes
       }
     } else if (formData.modePaiement === "tranches") {
-      // Calcul par tranches basé sur les tranches sélectionnées
-      const tranchesSelectionnees = formData.moisPaiement.filter(m => m.startsWith("Tranche")).length
-      if (tranchesSelectionnees > 0) {
-        const nombreTranches = formData.nombreTranches || 3
-        const montantParTranche = Math.ceil((pricing.scolarite + fraisOptions) / nombreTranches)
-        fraisScolarite = montantParTranche * tranchesSelectionnees
+      // Utiliser les tranches configurées dans les paramètres
+      const tranchesSelectionnees = formData.moisPaiement?.filter(m => m.startsWith("Tranche")).length || 0
+      if (tranchesSelectionnees > 0 && parametresPaiement.tranchesPaiement.length > 0) {
+        const totalPourcentages = parametresPaiement.tranchesPaiement.reduce((sum, tranche) => sum + tranche.pourcentage, 0)
+        const montantTotal = pricing.scolarite + fraisOptions
 
-        // Générer les tranches
-        const moisParTranche = Math.ceil(nombreMois / nombreTranches)
-        for (let i = 0; i < nombreTranches; i++) {
-          const moisDebut = i * moisParTranche
-          const moisFin = Math.min((i + 1) * moisParTranche, nombreMois)
-          const moisTranche = ["Septembre", "Octobre", "Novembre", "Décembre", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin"].slice(moisDebut, moisFin)
+        fraisScolarite = 0
+        tranches = []
 
-          tranches.push({
-            numero: i + 1,
-            montant: montantParTranche,
-            mois: moisTranche
-          })
-        }
+        // Calculer le montant pour chaque tranche sélectionnée
+        parametresPaiement.tranchesPaiement.forEach((trancheConfig, index) => {
+          if (formData.moisPaiement?.includes(`Tranche ${trancheConfig.numero}`)) {
+            const montantTranche = Math.ceil((montantTotal * trancheConfig.pourcentage) / 100)
+            fraisScolarite += montantTranche
+
+            tranches.push({
+              numero: trancheConfig.numero,
+              montant: montantTranche,
+              dateDebut: trancheConfig.dateDebut,
+              dateFin: trancheConfig.dateFin,
+              pourcentage: trancheConfig.pourcentage
+            })
+          }
+        })
       }
     }
 
@@ -206,56 +281,81 @@ export default function RegisterPage() {
     return `ELV-${year}-${nextNumber.toString().padStart(3, "0")}`
   }
 
-  const searchExistingStudent = () => {
-    if (!formData.searchTerm.trim()) {
-      alert("Veuillez saisir un terme de recherche")
+  const searchExistingStudent = async () => {
+    if (!formData.searchTerm?.trim()) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez saisir un terme de recherche",
+        variant: "destructive",
+      })
       return
     }
 
-    const students = serviceEleves.obtenirTousLesEleves()
-    console.log("Students found:", students.length, students)
+    setIsSearching(true)
+    try {
+      const students = serviceEleves.obtenirTousLesEleves()
+      console.log("Students found:", students.length, students)
 
-    if (students.length === 0) {
-      alert("Aucun élève trouvé dans la base de données. Veuillez d'abord inscrire des élèves.")
-      return
-    }
-
-    const searchTerm = formData.searchTerm.toLowerCase().trim()
-    const found = students.find(
-      (s: DonneesEleve) => {
-        const nom = s.nom?.toLowerCase() || ""
-        const prenom = s.prenom?.toLowerCase() || ""
-        const identifiant = s.identifiant?.toLowerCase() || ""
-
-        return nom.includes(searchTerm) ||
-               prenom.includes(searchTerm) ||
-               identifiant.includes(searchTerm)
+      if (students.length === 0) {
+        toast({
+          title: "Aucun élève trouvé",
+          description: "Veuillez d'abord inscrire des élèves dans la base de données.",
+          variant: "destructive",
+        })
+        return
       }
-    )
 
-    if (found) {
-      console.log("Student found:", found)
-      setExistingStudent(found)
-      setFormData((prev) => ({
-        ...prev,
-        nom: found.nom,
-        prenom: found.prenom,
-        dateNaissance: found.dateNaissance,
-        lieuNaissance: found.lieuNaissance || "",
-        classeAncienne: found.classe, // Classe actuelle devient classe ancienne
-        nomParent: found.nomParent || "",
-        contactParent: found.contactParent || "",
-        adresse: found.adresse || "",
-        classe: "", // Nouvelle classe à sélectionner
-      }))
-      setIsRedoubling(false) // Réinitialiser l'état de redoublement
-    } else {
-      alert(`Élève non trouvé avec le terme "${formData.searchTerm}".\n\nSuggestions :\n- Vérifiez l'orthographe\n- Essayez avec le nom complet\n- Utilisez l'identifiant de l'élève\n- Nombre d'élèves dans la base : ${students.length}`)
+      const searchTerm = formData.searchTerm.toLowerCase().trim()
+      const found = students.find(
+        (s: DonneesEleve) => {
+          const nom = s.nom?.toLowerCase() || ""
+          const prenom = s.prenom?.toLowerCase() || ""
+          const identifiant = s.identifiant?.toLowerCase() || ""
+
+          return nom.includes(searchTerm) ||
+                 prenom.includes(searchTerm) ||
+                 identifiant.includes(searchTerm)
+        }
+      )
+
+      if (found) {
+        console.log("Student found:", found)
+        setExistingStudent(found)
+        setValue("nom", found.nom)
+        setValue("prenom", found.prenom)
+        setValue("dateNaissance", found.dateNaissance)
+        setValue("lieuNaissance", found.lieuNaissance || "")
+        setValue("classeAncienne", found.classe) // Classe actuelle devient classe ancienne
+        setValue("nomParent", found.nomParent || "")
+        setValue("contactParent", found.contactParent || "")
+        setValue("adresse", found.adresse || "")
+        setValue("classe", "") // Nouvelle classe à sélectionner
+        setIsRedoubling(false) // Réinitialiser l'état de redoublement
+
+        toast({
+          title: "Élève trouvé",
+          description: `${found.nom} ${found.prenom} a été trouvé et chargé.`,
+        })
+      } else {
+        toast({
+          title: "Élève non trouvé",
+          description: `Aucun élève trouvé avec le terme "${formData.searchTerm}".\n\nSuggestions :\n- Vérifiez l'orthographe\n- Essayez avec le nom complet\n- Utilisez l'identifiant de l'élève\n- Nombre d'élèves dans la base : ${students.length}`,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur s'est produite lors de la recherche.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSearching(false)
     }
   }
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setValue(field as keyof StudentFormData, value)
 
     // Réinitialiser l'état de redoublement si l'utilisateur change manuellement la classe
     if (field === "classe" && value !== formData.classeAncienne) {
@@ -263,132 +363,178 @@ export default function RegisterPage() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (data: StudentFormData) => {
+    setIsSubmitting(true)
+    try {
+      const pricing = getPricing(data.classe)
+      const fraisInscription = inscriptionType === "reinscription" ? pricing.inscription * 0.5 : pricing.inscription
 
-    const pricing = getPricing(formData.classe)
-    const fraisInscription = inscriptionType === "reinscription" ? pricing.inscription * 0.5 : pricing.inscription
-
-    // Calculer les frais des options supplémentaires
-    const optionsPrix = serviceParametres.obtenirOptionsSupplementaires()
-    const fraisOptions = {
-      tenueScolaire: formData.optionsSupplementaires.tenueScolaire ? optionsPrix.tenueScolaire : 0,
-      carteScolaire: formData.optionsSupplementaires.carteScolaire ? optionsPrix.carteScolaire : 0,
-      cooperative: formData.optionsSupplementaires.cooperative ? optionsPrix.cooperative : 0,
-      tenueEPS: formData.optionsSupplementaires.tenueEPS ? optionsPrix.tenueEPS : 0,
-      assurance: formData.optionsSupplementaires.assurance ? optionsPrix.assurance : 0,
-    }
-
-    const totalOptions = Object.values(fraisOptions).reduce((sum, prix) => sum + prix, 0)
-    const totalAPayer = fraisInscription + pricing.scolarite + totalOptions
-
-    // Use calculated fees for fraisScolarite and totalAPayer
-    const fraisCalcules = calculerFrais()
-
-    if (inscriptionType === "reinscription" && existingStudent) {
-      // Vérifier si on vient de la modification (avec ID) ou d'une vraie réinscription
-      const isModification = studentId !== null;
-
-      if (isModification) {
-        // Modification simple : ne changer que les infos élève et parent (pas la classe ni le paiement)
-        const updatedStudent: DonneesEleve = {
-          ...existingStudent,
-          nom: formData.nom,
-          prenom: formData.prenom,
-          dateNaissance: formData.dateNaissance,
-          lieuNaissance: formData.lieuNaissance,
-          // Garder la classe existante
-          classe: existingStudent.classe,
-          classeAncienne: formData.classeAncienne,
-          nomParent: formData.nomParent,
-          contactParent: formData.contactParent,
-          adresse: formData.adresse,
-          photo: formData.photo,
-          // Garder toutes les informations de paiement existantes
-          fraisInscription: existingStudent.fraisInscription,
-          fraisScolarite: existingStudent.fraisScolarite,
-          totalAPayer: existingStudent.totalAPayer,
-          modePaiement: existingStudent.modePaiement,
-          nombreTranches: existingStudent.nombreTranches,
-          moisPaiement: existingStudent.moisPaiement,
-          optionsSupplementaires: existingStudent.optionsSupplementaires,
-          fraisOptionsSupplementaires: existingStudent.fraisOptionsSupplementaires,
-        }
-
-        serviceEleves.modifierEleve(updatedStudent)
-        router.push(`/students`) // Retour à la liste des élèves
-      } else {
-        // Vraie réinscription : mettre à jour la classe et recalculer les frais
-        const updatedStudent: DonneesEleve = {
-          ...existingStudent,
-          nom: formData.nom,
-          prenom: formData.prenom,
-          dateNaissance: formData.dateNaissance,
-          lieuNaissance: formData.lieuNaissance,
-          classe: formData.classe, // Nouvelle classe sélectionnée
-          classeAncienne: formData.classeAncienne, // Classe précédente
-          nomParent: formData.nomParent,
-          contactParent: formData.contactParent,
-          adresse: formData.adresse,
-          typeInscription: inscriptionType,
-          fraisInscription: fraisCalcules.fraisInscription,
-          fraisScolarite: fraisCalcules.fraisScolarite,
-          totalAPayer: fraisCalcules.totalAPayer,
-          identifiant: existingStudent.identifiant,
-          motDePasse: existingStudent.motDePasse,
-          informationsContact: existingStudent.informationsContact,
-          statut: existingStudent.statut,
-          dateInscription: existingStudent.dateInscription,
-          photo: existingStudent.photo,
-          // Nouvelles propriétés pour paiement
-          modePaiement: formData.modePaiement,
-          nombreTranches: formData.modePaiement === "tranches" ? formData.nombreTranches : undefined,
-          moisPaiement: formData.modePaiement === "mensuel" ? formData.moisPaiement : undefined,
-          optionsSupplementaires: formData.optionsSupplementaires,
-          fraisOptionsSupplementaires: fraisOptions,
-        }
-
-        serviceEleves.modifierEleve(updatedStudent)
-        router.push(`/receipt?id=${existingStudent.id}`)
+      // Calculer les frais des options supplémentaires
+      const optionsPrix = serviceParametres.obtenirOptionsSupplementaires()
+      const fraisOptions = {
+        tenueScolaire: data.optionsSupplementaires.tenueScolaire ? optionsPrix.tenueScolaire : 0,
+        carteScolaire: data.optionsSupplementaires.carteScolaire ? optionsPrix.carteScolaire : 0,
+        cooperative: data.optionsSupplementaires.cooperative ? optionsPrix.cooperative : 0,
+        tenueEPS: data.optionsSupplementaires.tenueEPS ? optionsPrix.tenueEPS : 0,
+        assurance: data.optionsSupplementaires.assurance ? optionsPrix.assurance : 0,
       }
-    } else {
-      // Nouveau élève pour inscription
-      const newStudent = serviceEleves.ajouterEleve({
-        nom: formData.nom,
-        prenom: formData.prenom,
-        dateNaissance: formData.dateNaissance,
-        lieuNaissance: formData.lieuNaissance,
-        classe: formData.classe,
-        totalAPayer: fraisCalcules.totalAPayer,
-        informationsContact: {
-          telephone: "",
-          email: "",
-          adresse: formData.adresse,
-        },
-        photo: "",
-        fraisScolarite: fraisCalcules.fraisScolarite,
-        fraisInscription: fraisCalcules.fraisInscription,
-        adresse: formData.adresse,
-        contactParent: formData.contactParent,
-        nomParent: formData.nomParent,
-        classeAncienne: formData.classeAncienne,
-        typeInscription: inscriptionType,
-        statut: "actif",
-        dateInscription: new Date().toISOString(),
-        // Nouvelles propriétés
-        modePaiement: formData.modePaiement,
-        nombreTranches: formData.modePaiement === "tranches" ? formData.nombreTranches : undefined,
-        moisPaiement: formData.modePaiement === "mensuel" ? formData.moisPaiement : undefined,
-        optionsSupplementaires: formData.optionsSupplementaires,
-        fraisOptionsSupplementaires: fraisOptions,
-      })
 
-      router.push(`/receipt?id=${newStudent.id}`)
+      const totalOptions = Object.values(fraisOptions).reduce((sum, prix) => sum + prix, 0)
+      const totalAPayer = fraisInscription + pricing.scolarite + totalOptions
+
+      // Use calculated fees for fraisScolarite and totalAPayer
+      const fraisCalcules = calculerFrais()
+
+      if (inscriptionType === "reinscription" && existingStudent) {
+        // Vérifier si on vient de la modification (avec ID) ou d'une vraie réinscription
+        const isModification = studentId !== null;
+
+        if (isModification) {
+          // Modification complète : mettre à jour toutes les infos, recalculer pour options et paiement
+          const optionsPrix = serviceParametres.obtenirOptionsSupplementaires()
+          const optionsPersonnalisees = serviceParametres.obtenirOptionsSupplementairesPersonnalisees()
+          const fraisOptions = {
+            tenueScolaire: data.optionsSupplementaires.tenueScolaire ? optionsPrix.tenueScolaire : 0,
+            carteScolaire: data.optionsSupplementaires.carteScolaire ? optionsPrix.carteScolaire : 0,
+            cooperative: data.optionsSupplementaires.cooperative ? optionsPrix.cooperative : 0,
+            tenueEPS: data.optionsSupplementaires.tenueEPS ? optionsPrix.tenueEPS : 0,
+            assurance: data.optionsSupplementaires.assurance ? optionsPrix.assurance : 0,
+          }
+          const standardOptionsTotal = Object.values(fraisOptions).reduce((sum, prix) => sum + prix, 0)
+          const personalOptionsTotal = (data.optionsPersonnalisees || []).reduce((sum, optionId) => {
+            const option = optionsPersonnalisees.find(opt => opt.id === optionId)
+            return sum + (option ? option.prix : 0)
+          }, 0)
+          const newOptionsTotal = standardOptionsTotal + personalOptionsTotal
+          const oldStandardOptionsTotal = Object.values(existingStudent.fraisOptionsSupplementaires || {}).reduce((sum, v) => sum + v, 0)
+          const oldPersonalOptionsTotal = (existingStudent.optionsPersonnalisees || []).reduce((sum, optionId) => {
+            const option = optionsPersonnalisees.find(opt => opt.id === optionId)
+            return sum + (option ? option.prix : 0)
+          }, 0)
+          const oldOptionsTotal = oldStandardOptionsTotal + oldPersonalOptionsTotal
+          const newTotalAPayer = existingStudent.totalAPayer - oldOptionsTotal + newOptionsTotal
+
+          const updatedStudent: DonneesEleve = {
+            ...existingStudent,
+            nom: data.nom,
+            prenom: data.prenom,
+            dateNaissance: data.dateNaissance,
+            lieuNaissance: data.lieuNaissance,
+            classe: existingStudent.classe,
+            classeAncienne: existingStudent.classeAncienne,
+            nomParent: data.nomParent,
+            contactParent: data.contactParent,
+            adresse: data.adresse,
+            photo: data.photo,
+            fraisInscription: existingStudent.fraisInscription,
+            fraisScolarite: existingStudent.fraisScolarite,
+            totalAPayer: newTotalAPayer,
+            modePaiement: data.modePaiement,
+            nombreTranches: data.nombreTranches,
+            moisPaiement: data.moisPaiement,
+            optionsSupplementaires: data.optionsSupplementaires,
+            fraisOptionsSupplementaires: fraisOptions,
+            optionsPersonnalisees: data.optionsPersonnalisees,
+          }
+
+          serviceEleves.modifierEleve(updatedStudent)
+          toast({
+            title: "Modification réussie",
+            description: "Les informations de l'élève ont été mises à jour avec les nouveaux paramètres.",
+          })
+          router.push(`/students`) // Retour à la liste des élèves
+        } else {
+          // Vraie réinscription : mettre à jour la classe et recalculer les frais
+          const updatedStudent: DonneesEleve = {
+            ...existingStudent,
+            nom: data.nom,
+            prenom: data.prenom,
+            dateNaissance: data.dateNaissance,
+            lieuNaissance: data.lieuNaissance,
+            classe: data.classe, // Nouvelle classe sélectionnée
+            classeAncienne: data.classeAncienne, // Classe précédente
+            nomParent: data.nomParent,
+            contactParent: data.contactParent,
+            adresse: data.adresse,
+            typeInscription: inscriptionType,
+            fraisInscription: fraisCalcules.fraisInscription,
+            fraisScolarite: fraisCalcules.fraisScolarite,
+            totalAPayer: fraisCalcules.totalAPayer,
+            identifiant: existingStudent.identifiant,
+            motDePasse: existingStudent.motDePasse,
+            informationsContact: existingStudent.informationsContact,
+            statut: existingStudent.statut,
+            dateInscription: new Date().toISOString(),
+            photo: existingStudent.photo,
+            // Nouvelles propriétés pour paiement
+            modePaiement: data.modePaiement,
+            nombreTranches: data.modePaiement === "tranches" ? data.nombreTranches : undefined,
+            moisPaiement: data.modePaiement === "mensuel" ? data.moisPaiement : undefined,
+            optionsSupplementaires: data.optionsSupplementaires,
+            fraisOptionsSupplementaires: fraisOptions,
+            optionsPersonnalisees: data.optionsPersonnalisees,
+          }
+
+          serviceEleves.modifierEleve(updatedStudent)
+          toast({
+            title: "Réinscription réussie",
+            description: "L'élève a été réinscrit avec succès.",
+          })
+          router.push(`/receipt?id=${existingStudent.id}`)
+        }
+      } else {
+        // Nouveau élève pour inscription
+        const newStudent = serviceEleves.ajouterEleve({
+          nom: data.nom,
+          prenom: data.prenom,
+          dateNaissance: data.dateNaissance,
+          lieuNaissance: data.lieuNaissance,
+          classe: data.classe,
+          totalAPayer: fraisCalcules.totalAPayer,
+          informationsContact: {
+            telephone: "",
+            email: "",
+            adresse: data.adresse,
+          },
+          photo: "",
+          fraisScolarite: fraisCalcules.fraisScolarite,
+          fraisInscription: fraisCalcules.fraisInscription,
+          adresse: data.adresse,
+          contactParent: data.contactParent,
+          nomParent: data.nomParent,
+          classeAncienne: data.classeAncienne,
+          typeInscription: inscriptionType,
+          statut: "actif",
+          dateInscription: new Date().toISOString(),
+          // Nouvelles propriétés
+          modePaiement: data.modePaiement,
+          nombreTranches: data.modePaiement === "tranches" ? data.nombreTranches : undefined,
+          moisPaiement: data.modePaiement === "mensuel" ? data.moisPaiement : undefined,
+          optionsSupplementaires: data.optionsSupplementaires,
+          fraisOptionsSupplementaires: fraisOptions,
+          optionsPersonnalisees: data.optionsPersonnalisees,
+        })
+
+        toast({
+          title: "Inscription réussie",
+          description: "L'élève a été inscrit avec succès.",
+        })
+        router.push(`/receipt?id=${newStudent.id}`)
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur s'est produite lors de l'enregistrement.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   const currentPricing = formData.classe ? getPricing(formData.classe) : null
   const optionsPrix = serviceParametres.obtenirOptionsSupplementaires()
+  const optionsPersonnalisees = serviceParametres.obtenirOptionsSupplementairesPersonnalisees()
   const fraisCalcules = calculerFrais()
 
   return (
@@ -440,7 +586,7 @@ export default function RegisterPage() {
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   {/* Informations personnelles */}
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -607,7 +753,7 @@ export default function RegisterPage() {
                     <h3 className="text-lg font-medium text-gray-900">Informations parent/tuteur</h3>
 
                     {/* Pour réinscription - Afficher en lecture seule */}
-                    {inscriptionType === "reinscription" && existingStudent ? (
+                    {inscriptionType === "reinscription" && existingStudent && !studentId ? (
                       <>
                         <div className="space-y-2">
                           <Label>Nom du parent/tuteur</Label>
@@ -631,7 +777,7 @@ export default function RegisterPage() {
                         </div>
                       </>
                     ) : (
-                      /* Pour nouvelle inscription - Champs modifiables */
+                      /* Pour nouvelle inscription et modification - Champs modifiables */
                       <>
                         <div className="space-y-2">
                           <Label htmlFor="nomParent">Nom du parent/tuteur *</Label>
@@ -668,10 +814,9 @@ export default function RegisterPage() {
                     )}
                   </div>
 
-                  {/* Mode de paiement - Masqué en mode modification */}
-                  {!studentId && (
-                    <div className="space-y-4 pt-4 border-t">
-                      <h3 className="text-lg font-medium text-gray-900">Mode de paiement</h3>
+                  {/* Mode de paiement */}
+                  <div className="space-y-4 pt-4 border-t">
+                    <h3 className="text-lg font-medium text-gray-900">Mode de paiement</h3>
 
                     <div className="space-y-2">
                       <Label>Type de paiement *</Label>
@@ -709,31 +854,43 @@ export default function RegisterPage() {
                         </div>
 
                         {/* Sélection des tranches à payer */}
-                        {formData.nombreTranches && (
+                        {parametresPaiement.tranchesPaiement.length > 0 && (
                           <div className="space-y-2">
                             <Label>Tranches à payer *</Label>
-                            <div className="grid grid-cols-2 gap-2">
-                              {Array.from({ length: formData.nombreTranches }, (_, i) => i + 1).map((tranche) => (
-                                <div key={tranche} className="flex items-center space-x-2">
+                            <div className="space-y-2">
+                              {parametresPaiement.tranchesPaiement.map((tranche) => (
+                                <div key={tranche.numero} className="flex items-center space-x-2 p-3 border rounded-lg">
                                   <input
                                     type="checkbox"
-                                    id={`tranche-${tranche}`}
-                                    checked={formData.moisPaiement.includes(`Tranche ${tranche}`)}
+                                    id={`tranche-${tranche.numero}`}
+                                    checked={formData.moisPaiement?.includes(`Tranche ${tranche.numero}`) || false}
                                     onChange={(e) => {
-                                      const trancheLabel = `Tranche ${tranche}`
+                                      const trancheLabel = `Tranche ${tranche.numero}`
+                                      const currentMois = formData.moisPaiement || []
                                       const newTranches = e.target.checked
-                                        ? [...formData.moisPaiement, trancheLabel]
-                                        : formData.moisPaiement.filter(t => t !== trancheLabel)
+                                        ? [...currentMois, trancheLabel]
+                                        : currentMois.filter(t => t !== trancheLabel)
                                       handleInputChange("moisPaiement", newTranches)
                                     }}
                                     className="rounded"
                                   />
-                                  <Label htmlFor={`tranche-${tranche}`} className="text-sm">
-                                    {tranche}ère tranche
-                                  </Label>
+                                  <div className="flex-1">
+                                    <Label htmlFor={`tranche-${tranche.numero}`} className="text-sm font-medium">
+                                      {tranche.numero}ère tranche - {tranche.nom}
+                                    </Label>
+                                    <div className="text-xs text-gray-600">
+                                      Du {tranche.dateDebut ? new Date(tranche.dateDebut).toLocaleDateString('fr-FR') : 'N/A'} au {tranche.dateFin ? new Date(tranche.dateFin).toLocaleDateString('fr-FR') : 'N/A'} ({tranche.pourcentage}%)
+                                    </div>
+                                  </div>
                                 </div>
                               ))}
                             </div>
+                          </div>
+                        )}
+
+                        {parametresPaiement.tranchesPaiement.length === 0 && (
+                          <div className="text-sm text-orange-600 bg-orange-50 p-3 rounded">
+                            ⚠️ Aucune tranche configurée. Veuillez d'abord configurer les tranches de paiement dans les paramètres du système.
                           </div>
                         )}
                       </div>
@@ -743,16 +900,17 @@ export default function RegisterPage() {
                       <div className="space-y-2">
                         <Label>Mois de paiement *</Label>
                         <div className="grid grid-cols-3 gap-2">
-                          {["Septembre", "Octobre", "Novembre", "Décembre", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin"].map((mois) => (
+                          {moisDisponibles.map((mois) => (
                             <div key={mois} className="flex items-center space-x-2">
                               <input
                                 type="checkbox"
                                 id={mois}
-                                checked={formData.moisPaiement.includes(mois)}
+                                checked={formData.moisPaiement?.includes(mois) || false}
                                 onChange={(e) => {
+                                  const currentMois = formData.moisPaiement || []
                                   const newMois = e.target.checked
-                                    ? [...formData.moisPaiement, mois]
-                                    : formData.moisPaiement.filter(m => m !== mois)
+                                    ? [...currentMois, mois]
+                                    : currentMois.filter(m => m !== mois)
                                   handleInputChange("moisPaiement", newMois)
                                 }}
                                 className="rounded"
@@ -763,43 +921,68 @@ export default function RegisterPage() {
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  {/* Options supplémentaires */}
+                  <div className="space-y-4 pt-4 border-t">
+                    <h3 className="text-lg font-medium text-gray-900">Options supplémentaires</h3>
+                    <p className="text-sm text-gray-600">Cochez les options que vous souhaitez ajouter</p>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {[
+                        { key: "tenueScolaire", label: "Tenue scolaire" },
+                        { key: "carteScolaire", label: "Carte scolaire" },
+                        { key: "cooperative", label: "Coopérative" },
+                        { key: "tenueEPS", label: "Tenue EPS" },
+                        { key: "assurance", label: "Assurance" },
+                      ].map((option) => (
+                        <div key={option.key} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={option.key}
+                            checked={formData.optionsSupplementaires[option.key as keyof typeof formData.optionsSupplementaires]}
+                            onChange={(e) => {
+                              const newOptions = {
+                                ...formData.optionsSupplementaires,
+                                [option.key]: e.target.checked
+                              }
+                              handleInputChange("optionsSupplementaires", newOptions)
+                            }}
+                            className="rounded"
+                          />
+                          <Label htmlFor={option.key} className="text-sm">{option.label}</Label>
+                        </div>
+                      ))}
                     </div>
-                  )}
 
-                  {/* Options supplémentaires - Masquées en mode modification */}
-                  {!studentId && (
-                    <div className="space-y-4 pt-4 border-t">
-                      <h3 className="text-lg font-medium text-gray-900">Options supplémentaires</h3>
-                      <p className="text-sm text-gray-600">Cochez les options que vous souhaitez ajouter</p>
-
-                      <div className="grid md:grid-cols-2 gap-4">
-                        {[
-                          { key: "tenueScolaire", label: "Tenue scolaire" },
-                          { key: "carteScolaire", label: "Carte scolaire" },
-                          { key: "cooperative", label: "Coopérative" },
-                          { key: "tenueEPS", label: "Tenue EPS" },
-                          { key: "assurance", label: "Assurance" },
-                        ].map((option) => (
-                          <div key={option.key} className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id={option.key}
-                              checked={formData.optionsSupplementaires[option.key as keyof typeof formData.optionsSupplementaires]}
-                              onChange={(e) => {
-                                const newOptions = {
-                                  ...formData.optionsSupplementaires,
-                                  [option.key]: e.target.checked
-                                }
-                                handleInputChange("optionsSupplementaires", newOptions)
-                              }}
-                              className="rounded"
-                            />
-                            <Label htmlFor={option.key} className="text-sm">{option.label}</Label>
-                          </div>
-                        ))}
+                    {/* Options personnalisées */}
+                    {optionsPersonnalisees.length > 0 && (
+                      <div className="mt-4 pt-4 border-t">
+                        <h4 className="text-sm font-medium text-gray-900 mb-3">Options personnalisées</h4>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {optionsPersonnalisees.map((option) => (
+                            <div key={option.id} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`custom-${option.id}`}
+                                checked={formData.optionsPersonnalisees?.includes(option.id) || false}
+                                onChange={(e) => {
+                                  const newOptions = e.target.checked
+                                    ? [...(formData.optionsPersonnalisees || []), option.id]
+                                    : (formData.optionsPersonnalisees || []).filter(id => id !== option.id)
+                                  setValue("optionsPersonnalisees", newOptions)
+                                }}
+                                className="rounded"
+                              />
+                              <Label htmlFor={`custom-${option.id}`} className="text-sm">
+                                {option.nom} ({option.prix.toLocaleString()} FCFA)
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   <Button
                     type="submit"
@@ -818,119 +1001,132 @@ export default function RegisterPage() {
             </Card>
           </div>
 
-          {/* Récapitulatif des frais - Masqué en mode modification */}
-          {!studentId && (
-            <div className="lg:col-span-1">
-              <Card className="sticky top-4">
-                <CardHeader>
-                  <CardTitle>Récapitulatif des frais</CardTitle>
-                  <CardDescription>
-                    {inscriptionType === "inscription" ? "Nouvelle inscription" : "Réinscription"}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                {currentPricing ? (
-                  <div className="space-y-4">
+          <div className="lg:col-span-1">
+            <Card className="sticky top-4">
+              <CardHeader>
+                <CardTitle>Récapitulatif des frais</CardTitle>
+                <CardDescription>
+                  {studentId ? "Modification" : inscriptionType === "inscription" ? "Nouvelle inscription" : "Réinscription"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+              {currentPricing ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span>Frais d'inscription:</span>
+                    <span className="font-medium">
+                      {fraisCalcules.fraisInscription.toLocaleString()} FCFA
+                    </span>
+                  </div>
+
+                  {fraisCalcules.fraisScolarite > 0 && (
                     <div className="flex justify-between">
-                      <span>Frais d'inscription:</span>
-                      <span className="font-medium">
-                        {fraisCalcules.fraisInscription.toLocaleString()} FCFA
+                      <span>Frais de scolarité:</span>
+                      <span className="font-medium">{fraisCalcules.fraisScolarite.toLocaleString()} FCFA</span>
+                    </div>
+                  )}
+
+                  {/* Détail du paiement mensuel */}
+                  {formData.modePaiement === "mensuel" && fraisCalcules.fraisParMois > 0 && (
+                    <div className="text-sm text-gray-600 bg-blue-50 p-2 rounded">
+                      <div>Frais par mois: {fraisCalcules.fraisParMois.toLocaleString()} FCFA</div>
+                      <div>Mois sélectionnés: {formData.moisPaiement?.length || 0}</div>
+                    </div>
+                  )}
+
+                  {/* Détail du paiement par tranches */}
+                  {formData.modePaiement === "tranches" && fraisCalcules.tranches.length > 0 && (
+                    <div className="text-sm text-gray-600 bg-green-50 p-2 rounded">
+                      <div>Nombre de tranches: {formData.nombreTranches}</div>
+                      <div>Tranches sélectionnées: {formData.moisPaiement?.filter(m => m.startsWith("Tranche")).length || 0}</div>
+                      {fraisCalcules.tranches.map((tranche, index) => (
+                        <div key={index} className="mt-1">
+                          {tranche.numero}ère tranche ({tranche.pourcentage}%): {tranche.montant.toLocaleString()} FCFA
+                          {tranche.dateDebut && tranche.dateFin && (
+                            <div className="text-xs text-gray-500 ml-4">
+                              Du {new Date(tranche.dateDebut).toLocaleDateString('fr-FR')} au {new Date(tranche.dateFin).toLocaleDateString('fr-FR')}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Options supplémentaires sélectionnées */}
+                  {(Object.entries(formData.optionsSupplementaires).some(([_, selected]) => selected) ||
+                    (formData.optionsPersonnalisees && formData.optionsPersonnalisees.length > 0)) && (
+                    <div className="border-t pt-2">
+                      <h4 className="font-medium text-gray-900 mb-2">Options supplémentaires:</h4>
+                      <div className="space-y-1">
+                        {Object.entries(formData.optionsSupplementaires).map(([option, selected]) => {
+                          if (!selected) return null
+                          const optionLabels: { [key: string]: string } = {
+                            tenueScolaire: "Tenue scolaire",
+                            carteScolaire: "Carte scolaire",
+                            cooperative: "Coopérative",
+                            tenueEPS: "Tenue EPS",
+                            assurance: "Assurance"
+                          }
+                          const prix = optionsPrix[option as keyof typeof optionsPrix]
+                          return (
+                            <div key={option} className="flex justify-between text-sm">
+                              <span>{optionLabels[option]}:</span>
+                              <span>{prix.toLocaleString()} FCFA</span>
+                            </div>
+                          )
+                        })}
+                        {/* Options personnalisées sélectionnées */}
+                        {formData.optionsPersonnalisees?.map((optionId) => {
+                          const option = optionsPersonnalisees.find(opt => opt.id === optionId)
+                          if (!option) return null
+                          return (
+                            <div key={option.id} className="flex justify-between text-sm">
+                              <span>{option.nom}:</span>
+                              <span>{option.prix.toLocaleString()} FCFA</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="border-t pt-2">
+                    <div className="flex justify-between text-lg font-bold">
+                      <span>Total à payer:</span>
+                      <span className="text-blue-600">
+                        {fraisCalcules.totalAPayer.toLocaleString()} FCFA
                       </span>
                     </div>
-
-                    {fraisCalcules.fraisScolarite > 0 && (
-                      <div className="flex justify-between">
-                        <span>Frais de scolarité:</span>
-                        <span className="font-medium">{fraisCalcules.fraisScolarite.toLocaleString()} FCFA</span>
-                      </div>
-                    )}
-
-                    {/* Détail du paiement mensuel */}
-                    {formData.modePaiement === "mensuel" && fraisCalcules.fraisParMois > 0 && (
-                      <div className="text-sm text-gray-600 bg-blue-50 p-2 rounded">
-                        <div>Frais par mois: {fraisCalcules.fraisParMois.toLocaleString()} FCFA</div>
-                        <div>Mois sélectionnés: {formData.moisPaiement.length}</div>
-                      </div>
-                    )}
-
-                    {/* Détail du paiement par tranches */}
-                    {formData.modePaiement === "tranches" && fraisCalcules.tranches.length > 0 && (
-                      <div className="text-sm text-gray-600 bg-green-50 p-2 rounded">
-                        <div>Nombre de tranches: {formData.nombreTranches}</div>
-                        <div>Tranches sélectionnées: {formData.moisPaiement.filter(m => m.startsWith("Tranche")).length}</div>
-                        {fraisCalcules.tranches.map((tranche, index) => (
-                          <div key={index} className="mt-1">
-                            {tranche.numero}ère tranche: {tranche.montant.toLocaleString()} FCFA
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Options supplémentaires sélectionnées */}
-                    {Object.entries(formData.optionsSupplementaires).some(([_, selected]) => selected) && (
-                      <div className="border-t pt-2">
-                        <h4 className="font-medium text-gray-900 mb-2">Options supplémentaires:</h4>
-                        <div className="space-y-1">
-                          {Object.entries(formData.optionsSupplementaires).map(([option, selected]) => {
-                            if (!selected) return null
-                            const optionLabels: { [key: string]: string } = {
-                              tenueScolaire: "Tenue scolaire",
-                              carteScolaire: "Carte scolaire",
-                              cooperative: "Coopérative",
-                              tenueEPS: "Tenue EPS",
-                              assurance: "Assurance"
-                            }
-                            const prix = optionsPrix[option as keyof typeof optionsPrix]
-                            return (
-                              <div key={option} className="flex justify-between text-sm">
-                                <span>{optionLabels[option]}:</span>
-                                <span>{prix.toLocaleString()} FCFA</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="border-t pt-2">
-                      <div className="flex justify-between text-lg font-bold">
-                        <span>Total à payer:</span>
-                        <span className="text-blue-600">
-                          {fraisCalcules.totalAPayer.toLocaleString()} FCFA
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Mode de paiement */}
-                    <div className="border-t pt-2">
-                      <div className="text-sm text-gray-600">
-                        <strong>Mode de paiement:</strong>{" "}
-                        {formData.modePaiement === "mensuel"
-                          ? `Mensuel (${formData.moisPaiement.length} mois sélectionnés)`
-                          : `Par tranches (${formData.moisPaiement.filter(m => m.startsWith("Tranche")).length}/${formData.nombreTranches} tranches)`
-                        }
-                      </div>
-                    </div>
-
-                    {inscriptionType === "reinscription" && (
-                      <div className="text-sm text-green-600 bg-green-50 p-2 rounded">
-                        Réduction de 50% sur les frais d'inscription
-                      </div>
-                    )}
-
-                    {fraisCalcules.totalAPayer === 0 && (
-                      <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
-                        Aucun frais calculé - Veuillez sélectionner un mode de paiement et les périodes correspondantes
-                      </div>
-                    )}
                   </div>
-                ) : (
-                  <div className="text-center text-gray-500 py-8">Sélectionnez une classe pour voir les frais</div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-          )}
+
+                  {/* Mode de paiement */}
+                  <div className="border-t pt-2">
+                    <div className="text-sm text-gray-600">
+                      <strong>Mode de paiement:</strong>{" "}
+                      {formData.modePaiement === "mensuel"
+                        ? `Mensuel (${formData.moisPaiement?.length || 0} mois sélectionnés)`
+                        : `Par tranches (${formData.moisPaiement?.filter(m => m.startsWith("Tranche")).length || 0}/${parametresPaiement.tranchesPaiement.length} tranches configurées)`
+                      }
+                    </div>
+                  </div>
+
+                  {inscriptionType === "reinscription" && !studentId && (
+                    <div className="text-sm text-green-600 bg-green-50 p-2 rounded">
+                      Réduction de 50% sur les frais d'inscription
+                    </div>
+                  )}
+
+                  {fraisCalcules.totalAPayer === 0 && (
+                    <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
+                      Aucun frais calculé - Veuillez sélectionner un mode de paiement et les périodes correspondantes
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 py-8">Sélectionnez une classe pour voir les frais</div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

@@ -1,14 +1,23 @@
 /**
  * Service d'authentification
- * Gère la connexion et la déconnexion des utilisateurs
+ * Gère la connexion et la déconnexion des utilisateurs avec gestion de session robuste
  */
 
 import type { Utilisateur, DonneesEleve, DonneesEnseignant } from "@/types/models"
 import { serviceEleves } from "./eleves.service"
 import { serviceEnseignants } from "./enseignants.service"
 
+interface SessionData {
+  utilisateur: Utilisateur
+  timestamp: number
+  expiresAt: number
+}
+
 class ServiceAuthentification {
   private readonly CLE_UTILISATEUR_STOCKAGE = "utilisateur_connecte"
+  private readonly CLE_SAUVEGARDE_STOCKAGE = "sauvegarde_session"
+  private readonly DUREE_SESSION_HEURES = 24 // 24 heures
+  private readonly MARGE_TOLERANCE_MINUTES = 5 // 5 minutes de tolérance
 
   private readonly utilisateursAutorises = [
     {
@@ -18,6 +27,92 @@ class ServiceAuthentification {
       role: "administrateur" as const,
     },
   ]
+
+  /**
+   * Calcule la date d'expiration d'une session
+   */
+  private calculerExpiration(): number {
+    return Date.now() + (this.DUREE_SESSION_HEURES * 60 * 60 * 1000)
+  }
+
+  /**
+   * Vérifie si une session est expirée
+   */
+  private estSessionExpiree(expiresAt: number): boolean {
+    return Date.now() > (expiresAt + (this.MARGE_TOLERANCE_MINUTES * 60 * 1000))
+  }
+
+  /**
+   * Sauvegarde les données de session de manière sécurisée
+   */
+  private sauvegarderSession(utilisateur: Utilisateur): void {
+    const sessionData: SessionData = {
+      utilisateur,
+      timestamp: Date.now(),
+      expiresAt: this.calculerExpiration()
+    }
+
+    try {
+      localStorage.setItem(this.CLE_UTILISATEUR_STOCKAGE, JSON.stringify(sessionData))
+      // Créer une sauvegarde pour récupération
+      localStorage.setItem(this.CLE_SAUVEGARDE_STOCKAGE, JSON.stringify(sessionData))
+    } catch (error) {
+      console.warn("Erreur lors de la sauvegarde de session:", error)
+    }
+  }
+
+  /**
+   * Récupère les données de session avec vérification
+   */
+  private recupererSession(): SessionData | null {
+    try {
+      // Essayer d'abord la session principale
+      const donnees = localStorage.getItem(this.CLE_UTILISATEUR_STOCKAGE)
+      if (donnees) {
+        const sessionData: SessionData = JSON.parse(donnees)
+
+        // Vérifier si la session n'est pas expirée
+        if (!this.estSessionExpiree(sessionData.expiresAt)) {
+          return sessionData
+        } else {
+          // Session expirée, la supprimer
+          this.nettoyerSession()
+        }
+      }
+
+      // Si pas de session valide, essayer la sauvegarde
+      const sauvegarde = localStorage.getItem(this.CLE_SAUVEGARDE_STOCKAGE)
+      if (sauvegarde) {
+        const sessionData: SessionData = JSON.parse(sauvegarde)
+
+        // Vérifier si la sauvegarde n'est pas expirée
+        if (!this.estSessionExpiree(sessionData.expiresAt)) {
+          // Restaurer la session principale
+          this.sauvegarderSession(sessionData.utilisateur)
+          return sessionData
+        }
+      }
+
+      return null
+    } catch (error) {
+      console.warn("Erreur lors de la récupération de session:", error)
+      // En cas d'erreur, essayer de nettoyer et retourner null
+      this.nettoyerSession()
+      return null
+    }
+  }
+
+  /**
+   * Nettoie toutes les données de session
+   */
+  private nettoyerSession(): void {
+    try {
+      localStorage.removeItem(this.CLE_UTILISATEUR_STOCKAGE)
+      localStorage.removeItem(this.CLE_SAUVEGARDE_STOCKAGE)
+    } catch (error) {
+      console.warn("Erreur lors du nettoyage de session:", error)
+    }
+  }
 
   /**
    * Connecte un utilisateur avec ses identifiants
@@ -44,7 +139,7 @@ class ServiceAuthentification {
           dernierConnexion: new Date().toISOString(),
         }
 
-        localStorage.setItem(this.CLE_UTILISATEUR_STOCKAGE, JSON.stringify(utilisateur))
+        this.sauvegarderSession(utilisateur)
         return { succes: true, utilisateur }
       }
 
@@ -62,7 +157,7 @@ class ServiceAuthentification {
           donneesEnseignant: enseignantTrouve,
         }
 
-        localStorage.setItem(this.CLE_UTILISATEUR_STOCKAGE, JSON.stringify(utilisateur))
+        this.sauvegarderSession(utilisateur)
         return { succes: true, utilisateur }
       }
 
@@ -80,7 +175,7 @@ class ServiceAuthentification {
           donneesEleve: eleveTrouve,
         }
 
-        localStorage.setItem(this.CLE_UTILISATEUR_STOCKAGE, JSON.stringify(utilisateur))
+        this.sauvegarderSession(utilisateur)
         return { succes: true, utilisateur }
       }
 
@@ -100,19 +195,60 @@ class ServiceAuthentification {
    * Déconnecte l'utilisateur actuel
    */
   deconnecter(): void {
-    localStorage.removeItem(this.CLE_UTILISATEUR_STOCKAGE)
+    this.nettoyerSession()
   }
 
   /**
-   * Récupère l'utilisateur actuellement connecté
+   * Récupère l'utilisateur actuellement connecté avec vérification de session
    */
   obtenirUtilisateurConnecte(): Utilisateur | null {
-    try {
-      const donnees = localStorage.getItem(this.CLE_UTILISATEUR_STOCKAGE)
-      return donnees ? JSON.parse(donnees) : null
-    } catch {
-      return null
+    const sessionData = this.recupererSession()
+    return sessionData ? sessionData.utilisateur : null
+  }
+
+  /**
+   * Vérifie si une session est active et valide
+   */
+  estSessionActive(): boolean {
+    const sessionData = this.recupererSession()
+    return sessionData !== null
+  }
+
+  /**
+   * Prolonge la session actuelle si elle est valide
+   */
+  prolongerSession(): boolean {
+    const sessionData = this.recupererSession()
+    if (sessionData) {
+      // Prolonger la session de 24h supplémentaires
+      const nouvelleSessionData: SessionData = {
+        ...sessionData,
+        timestamp: Date.now(),
+        expiresAt: this.calculerExpiration()
+      }
+
+      try {
+        localStorage.setItem(this.CLE_UTILISATEUR_STOCKAGE, JSON.stringify(nouvelleSessionData))
+        localStorage.setItem(this.CLE_SAUVEGARDE_STOCKAGE, JSON.stringify(nouvelleSessionData))
+        return true
+      } catch (error) {
+        console.warn("Erreur lors de la prolongation de session:", error)
+        return false
+      }
     }
+    return false
+  }
+
+  /**
+   * Obtient le temps restant avant expiration (en minutes)
+   */
+  obtenirTempsRestant(): number {
+    const sessionData = this.recupererSession()
+    if (sessionData) {
+      const tempsRestant = sessionData.expiresAt - Date.now()
+      return Math.max(0, Math.floor(tempsRestant / (60 * 1000)))
+    }
+    return 0
   }
 
   /**

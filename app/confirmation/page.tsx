@@ -72,8 +72,12 @@ Inscription validée avec succès.
     const a = document.createElement("a")
     a.href = url
     a.download = `recu_inscription_${student.id}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      a.click()
+    } finally {
+      try { URL.revokeObjectURL(url) } catch (e) {}
+      if (a.parentNode) a.parentNode.removeChild(a)
+    }
   }
 
   if (!student) {

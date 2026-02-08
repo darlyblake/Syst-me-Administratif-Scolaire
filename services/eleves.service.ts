@@ -3,7 +3,11 @@
  * Contient toute la logique métier liée aux élèves
  */
 
-import type { DonneesEleve } from "@/types/models"
+import type { DonneesEleve, EleveAvecSuivi } from "@/types/models"
+import { servicePaiements } from "./paiements.service"
+import { serviceParametres } from "./parametres.service"
+import { serviceFinances } from "@/services/finances.service.ts"
+
 
 class ServiceEleves {
   private readonly CLE_STOCKAGE_ELEVES = "eleves"
@@ -300,6 +304,88 @@ class ServiceEleves {
       motDePasse += caracteres.charAt(Math.floor(Math.random() * caracteres.length))
     }
     return motDePasse
+  }
+
+  public obtenirElevesAvecSuiviFinancier(): EleveAvecSuivi[] {
+    const tousLesEleves = this.obtenirTousLesEleves();
+    const tousLesPaiements = servicePaiements.obtenirTousLesPaiements();
+    const parametresPaiement = serviceParametres.obtenirParametresPaiement();
+  
+    return tousLesEleves.map((eleve) => {
+      const paiementsEleve = tousLesPaiements.filter(p => p.eleveId === eleve.id);
+
+      // 1. Calcul des dettes
+      const { detteScolarite, detteTotaleGlobale } = serviceFinances.calculerDetteEleve(eleve);
+
+      // 2. Calcul des paiements
+      const totalPayeGlobal = paiementsEleve.reduce((total, p) => total + p.montant, 0);
+      const totalPayeScolarite = paiementsEleve
+        .filter((p) => p.typePaiement === "scolarite")
+        .reduce((total, p) => total + p.montant, 0);
+
+      // 3. Calcul des soldes
+      const resteAPayerGlobal = detteTotaleGlobale - totalPayeGlobal;
+      const resteAPayerScolarite = detteScolarite - totalPayeScolarite;
+      const pourcentagePaye = detteScolarite > 0 ? Math.min(100, (totalPayeScolarite / detteScolarite) * 100) : 100;
+
+      // 4. Calcul des éléments restants à payer
+      const moisPayes = new Set(paiementsEleve.flatMap(p => p.moisPaiement || []));
+      let moisRestants: string[] = [];
+      let tranchesRestantes: any[] = [];
+
+      if (eleve.modePaiement === 'mensuel') {
+        // Si le mode est mensuel, on se base sur la liste complète des mois de l'année scolaire
+        const tousLesMois = ["Septembre", "Octobre", "Novembre", "Décembre", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin"];
+        moisRestants = tousLesMois.filter(m => !moisPayes.has(m));
+      } else if (eleve.modePaiement === 'tranches') {
+        // Si le mode est par tranches, on se base sur toutes les tranches configurées
+        const toutesLesTranches = parametresPaiement.tranchesPaiement || [];
+        tranchesRestantes = toutesLesTranches.filter(trancheConfig => !moisPayes.has(`Tranche ${trancheConfig.numero}`));
+      }
+
+      const paiementsOptions = paiementsEleve.filter(p => p.typePaiement === 'autre' && p.description?.toLowerCase().includes('option'));
+      // On s'assure que la description n'est pas null avant de l'utiliser
+      const optionsPayees = new Set(paiementsOptions.map(p => p.description).filter(d => d));
+      const fraisOptions = serviceParametres.obtenirOptionsSupplementaires();
+
+      const optionsRestantes: { nom: string; prix: number }[] = [];
+      if (eleve.optionsSupplementaires) {
+        for (const [key, selected] of Object.entries(eleve.optionsSupplementaires)) {
+          if (selected) {
+            const nomOptionFormatted = `Option: ${key}`;
+            if (!optionsPayees.has(nomOptionFormatted)) {
+              optionsRestantes.push({ nom: key, prix: fraisOptions[key as keyof typeof fraisOptions] || 0 });
+            }
+          }
+        }
+      }
+      if (eleve.optionsPersonnalisees) {
+        const optionsPersonnalisees = serviceParametres.obtenirOptionsSupplementairesPersonnalisees();
+        eleve.optionsPersonnalisees.forEach(optionId => {
+          const option = optionsPersonnalisees.find(opt => opt.id === optionId);
+          if (option) {
+            const nomOptionFormatted = `Option: ${option.nom}`;
+            if (!optionsPayees.has(nomOptionFormatted)) {
+              optionsRestantes.push({ nom: option.nom, prix: option.prix });
+            }
+          }
+        });
+      }
+
+      return {
+        ...eleve,
+        detteScolarite,
+        detteTotaleGlobale,
+        totalPayeScolarite,
+        totalPayeGlobal,
+        resteAPayerScolarite,
+        resteAPayerGlobal,
+        pourcentagePaye,
+        moisRestants,
+        tranchesRestantes,
+        optionsRestantes,
+      };
+    });
   }
 }
 

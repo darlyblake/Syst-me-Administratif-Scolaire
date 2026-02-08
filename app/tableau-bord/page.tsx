@@ -16,6 +16,7 @@ import {
   Bell,
   Calendar,
   UserCheck,
+  Calculator,
 } from "lucide-react"
 import Link from "next/link"
 import type { StatistiquesTableauBord } from "@/types/models"
@@ -70,6 +71,12 @@ export default function PageTableauBord() {
                 <Link href="/enseignants">
                   <GraduationCap className="mr-2 h-4 w-4" />
                   Enseignants
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/personnel">
+                  <UserCheck className="mr-2 h-4 w-4" />
+                  Personnel
                 </Link>
               </Button>
               <Button variant="outline" asChild>
@@ -196,36 +203,54 @@ export default function PageTableauBord() {
                   Gérer les enseignants
                 </Link>
               </Button>
+              <Button className="w-full justify-start bg-transparent" variant="outline" asChild>
+                <Link href="/personnel">
+                  <UserCheck className="mr-2 h-4 w-4" />
+                  Gestion du personnel
+                </Link>
+              </Button>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <GraduationCap className="h-5 w-5" />
-                Gestion des enseignants
+                <Calculator className="h-5 w-5" />
+                Comptabilité
               </CardTitle>
-              <CardDescription>Emploi du temps et pointage</CardDescription>
+              <CardDescription>Suivi financier de l'établissement</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
-                <Link href="/enseignants">
-                  <GraduationCap className="mr-2 h-4 w-4" />
-                  Liste des enseignants
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
-                <Link href="/emploi-du-temps">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Emploi du temps
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
-                <Link href="/pointage-telephone">
-                  <Clock className="mr-2 h-4 w-4" />
-                  Pointage téléphone
-                </Link>
-              </Button>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-700">Paiements</p>
+                <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
+                  <Link href="/payments">
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Suivi des paiements
+                  </Link>
+                </Button>
+                <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
+                  <Link href="/payment-history">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Historique des paiements
+                  </Link>
+                </Button>
+                <Button className="w-full justify-start" asChild>
+                  <Link href="/add-payment">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Nouveau paiement
+                  </Link>
+                </Button>
+              </div>
+              <div className="border-t pt-3 space-y-2">
+                <p className="text-sm font-medium text-gray-700">Analyse</p>
+                <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
+                  <Link href="/rapports">
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Rapports financiers
+                  </Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -235,33 +260,33 @@ export default function PageTableauBord() {
             </CardHeader>
             <CardContent className="space-y-3">
               <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
-                <Link href="/notifications">
-                  <Bell className="mr-2 h-4 w-4" />
-                  Envoyer notifications
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
                 <Link href="/students">
                   <Users className="mr-2 h-4 w-4" />
                   Consulter les élèves
                 </Link>
               </Button>
               <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
-                <Link href="/payments">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Suivi des paiements
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
-                <Link href="/rapports">
-                  <FileText className="mr-2 h-4 w-4" />
-                  Rapports et statistiques
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
                 <Link href="/settings">
                   <Settings className="mr-2 h-4 w-4" />
                   Paramètres système
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
+                <Link href="/emploi-du-temps">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Emplois du temps consolidés
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
+                <Link href="/pointage-telephone">
+                  <Clock className="mr-2 h-4 w-4" />
+                  Pointage téléphone
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start bg-transparent" asChild>
+                <Link href="/personnel">
+                  <UserCheck className="mr-2 h-4 w-4" />
+                  Gestion du personnel
                 </Link>
               </Button>
             </CardContent>

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Initialisation des données d'emploi du temps</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #3b82f6;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .button:hover {
+            background: #2563eb;
+        }
+        .button.danger {
+            background: #ef4444;
+        }
+        .button.danger:hover {
+            background: #dc2626;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            background: #f8fafc;
+            border-left: 4px solid #3b82f6;
+        }
+        .success {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        .warning {
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+        }
+        .error {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        .info {
+            background: #e0f2fe;
+            border-left-color: #0ea5e9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Initialisation des données d'emploi du temps</h1>
+        <p>Cette page va initialiser des données de test dans le localStorage pour tester la page d'emploi du temps consolidé.</p>
+
+        <div style="margin: 20px 0;">
+            <button class="button" onclick="initialiserDonnees()">✅ Initialiser les données</button>
+            <button class="button danger" onclick="effacerDonnees()">🗑️ Effacer les données</button>
+            <button class="button" onclick="verifierDonnees()">🔍 Vérifier les données</button>
+        </div>
+
+        <div id="result" class="result" style="display: none;"></div>
+
+        <div class="info">
+            <h3>📋 Que fait ce script ?</h3>
+            <ul>
+                <li><strong>Enseignants :</strong> Crée 3 enseignants avec leurs identifiants</li>
+                <li><strong>Emplois du temps :</strong> Crée 15 créneaux de cours pour 3 classes (CP1, CE1, CM1)</li>
+                <li><strong>Données réalistes :</strong> Horaires, matières et salles cohérents</li>
+                <li><strong>Stockage local :</strong> Sauvegarde dans le localStorage du navigateur</li>
+            </ul>
+        </div>
+
+        <div class="info">
+            <h3>🎯 Instructions d'utilisation :</h3>
+            <ol>
+                <li>Cliquez sur "Initialiser les données"</li>
+                <li>Ouvrez <strong>http://192.168.1.68:3000/tableau-bord</strong></li>
+                <li>Connectez-vous avec un des comptes enseignants créés</li>
+                <li>Cliquez sur "Emplois du temps consolidés" dans Actions rapides</li>
+                <li>Sélectionnez une classe pour voir l'emploi du temps complet</li>
+            </ol>
+        </div>
+
+        <div class="info">
+            <h3>👤 Identifiants de test :</h3>
+            <ul>
+                <li><strong>Jean MARTIN :</strong> mar123 / password123</li>
+                <li><strong>Marie DUBOIS :</strong> dub456 / password456</li>
+                <li><strong>Carlos GARCIA :</strong> gar789 / password789</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function afficherResultat(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong><br>${message}`;
+            resultDiv.style.display = 'block';
+        }
+
+        function initialiserDonnees() {
+            try {
+                // Créer des enseignants fictifs
+                const enseignantsTest = [
+                    {
+                        id: "1758533290658h1gvlrzs5",
+                        nom: "MARTIN",
+                        prenom: "Jean",
+                        identifiant: "mar123",
+                        motDePasse: "password123",
+                        email: "jean.martin@ecole.fr",
+                        telephone: "01-23-45-67-89",
+                        matieres: ["Mathématiques", "Physique-Chimie"],
+                        classes: ["CP1", "CP2"],
+                        statut: "actif",
+                        dateEmbauche: "2024-01-15T00:00:00.000Z"
+                    },
+                    {
+                        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                        nom: "DUBOIS",
+                        prenom: "Marie",
+                        identifiant: "dub456",
+                        motDePasse: "password456",
+                        email: "marie.dubois@ecole.fr",
+                        telephone: "01-23-45-67-90",
+                        matieres: ["Français", "Histoire-Géographie"],
+                        classes: ["CE1", "CE2"],
+                        statut: "actif",
+                        dateEmbauche: "2024-01-10T00:00:00.000Z"
+                    },
+                    {
+                        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                        nom: "GARCIA",
+                        prenom: "Carlos",
+                        identifiant: "gar789",
+                        motDePasse: "password789",
+                        email: "carlos.garcia@ecole.fr",
+                        telephone: "01-23-45-67-91",
+                        matieres: ["Anglais", "Espagnol"],
+                        classes: ["CM1", "CM2"],
+                        statut: "actif",
+                        dateEmbauche: "2024-01-20T00:00:00.000Z"
+                    }
+                ];
+
+                // Créer des créneaux d'emploi du temps
+                const creneauxEmploiDuTemps = [
+                    // Jean MARTIN - CP1
+                    {
+                        enseignantId: "1758533290658h1gvlrzs5",
+                        classe: "CP1",
+                        matiere: "Mathématiques",
+                        jour: "lundi",
+                        heureDebut: "08:00",
+                        heureFin: "09:00",
+                        salle: "A101"
+                    },
+                    {
+                        enseignantId: "1758533290658h1gvlrzs5",
+                        classe: "CP1",
+                        matiere: "Mathématiques",
+                        jour: "mardi",
+                        heureDebut: "08:00",
+                        heureFin: "09:00",
+                        salle: "A101"
+                    },
+                    {
+                        enseignantId: "1758533290658h1gvlrzs5",
+                        classe: "CP1",
+                        matiere: "Physique-Chimie",
+                        jour: "mercredi",
+                        heureDebut: "10:00",
+                        heureFin: "11:00",
+                        salle: "B203"
+                    },
+                    {
+                        enseignantId: "1758533290658h1gvlrzs5",
+                        classe: "CP1",
+                        matiere: "Mathématiques",
+                        jour: "jeudi",
+                        heureDebut: "08:00",
+                        heureFin: "09:00",
+                        salle: "A101"
+                    },
+                    {
+                        enseignantId: "1758533290658h1gvlrzs5",
+                        classe: "CP1",
+                        matiere: "Mathématiques",
+                        jour: "vendredi",
+                        heureDebut: "08:00",
+                        heureFin: "09:00",
+                        salle: "A101"
+                    },
+
+                    // Marie DUBOIS - CE1
+                    {
+                        enseignantId: enseignantsTest[1].id,
+                        classe: "CE1",
+                        matiere: "Français",
+                        jour: "lundi",
+                        heureDebut: "09:00",
+                        heureFin: "10:00",
+                        salle: "A102"
+                    },
+                    {
+                        enseignantId: enseignantsTest[1].id,
+                        classe: "CE1",
+                        matiere: "Français",
+                        jour: "mardi",
+                        heureDebut: "09:00",
+                        heureFin: "10:00",
+                        salle: "A102"
+                    },
+                    {
+                        enseignantId: enseignantsTest[1].id,
+                        classe: "CE1",
+                        matiere: "Histoire-Géographie",
+                        jour: "mercredi",
+                        heureDebut: "14:00",
+                        heureFin: "15:00",
+                        salle: "C301"
+                    },
+                    {
+                        enseignantId: enseignantsTest[1].id,
+                        classe: "CE1",
+                        matiere: "Français",
+                        jour: "jeudi",
+                        heureDebut: "09:00",
+                        heureFin: "10:00",
+                        salle: "A102"
+                    },
+                    {
+                        enseignantId: enseignantsTest[1].id,
+                        classe: "CE1",
+                        matiere: "Français",
+                        jour: "vendredi",
+                        heureDebut: "09:00",
+                        heureFin: "10:00",
+                        salle: "A102"
+                    },
+
+                    // Carlos GARCIA - CM1
+                    {
+                        enseignantId: enseignantsTest[2].id,
+                        classe: "CM1",
+                        matiere: "Anglais",
+                        jour: "lundi",
+                        heureDebut: "11:00",
+                        heureFin: "12:00",
+                        salle: "B201"
+                    },
+                    {
+                        enseignantId: enseignantsTest[2].id,
+                        classe: "CM1",
+                        matiere: "Anglais",
+                        jour: "mardi",
+                        heureDebut: "11:00",
+                        heureFin: "12:00",
+                        salle: "B201"
+                    },
+                    {
+                        enseignantId: enseignantsTest[2].id,
+                        classe: "CM1",
+                        matiere: "Espagnol",
+                        jour: "mercredi",
+                        heureDebut: "15:00",
+                        heureFin: "16:00",
+                        salle: "A103"
+                    },
+                    {
+                        enseignantId: enseignantsTest[2].id,
+                        classe: "CM1",
+                        matiere: "Anglais",
+                        jour: "jeudi",
+                        heureDebut: "11:00",
+                        heureFin: "12:00",
+                        salle: "B201"
+                    },
+                    {
+                        enseignantId: enseignantsTest[2].id,
+                        classe: "CM1",
+                        matiere: "Anglais",
+                        jour: "vendredi",
+                        heureDebut: "11:00",
+                        heureFin: "12:00",
+                        salle: "B201"
+                    }
+                ];
+
+                // Sauvegarder les enseignants
+                localStorage.setItem("enseignants", JSON.stringify(enseignantsTest));
+
+                // Sauvegarder les emplois du temps
+                localStorage.setItem("emploiDuTemps", JSON.stringify(creneauxEmploiDuTemps));
+
+                afficherResultat(
+                    `✅ Données initialisées avec succès !<br><br>` +
+                    `👥 ${enseignantsTest.length} enseignants créés<br>` +
+                    `📅 ${creneauxEmploiDuTemps.length} créneaux d'emploi du temps créés<br>` +
+                    `🏫 Classes disponibles: CP1, CE1, CM1<br><br>` +
+                    `🔗 Prêt à tester la page d'emploi du temps consolidé !`,
+                    'success'
+                );
+
+            } catch (error) {
+                afficherResultat(`❌ Erreur lors de l'initialisation: ${error.message}`, 'error');
+            }
+        }
+
+        function effacerDonnees() {
+            try {
+                localStorage.removeItem("enseignants");
+                localStorage.removeItem("emploiDuTemps");
+
+                afficherResultat(
+                    `✅ Données effacées avec succès !<br><br>` +
+                    `🗑️ Tous les enseignants supprimés<br>` +
+                    `🗑️ Tous les emplois du temps supprimés`,
+                    'warning'
+                );
+            } catch (error) {
+                afficherResultat(`❌ Erreur lors de la suppression: ${error.message}`, 'error');
+            }
+        }
+
+        function verifierDonnees() {
+            try {
+                const enseignants = JSON.parse(localStorage.getItem("enseignants") || "[]");
+                const emploisDuTemps = JSON.parse(localStorage.getItem("emploiDuTemps") || "[]");
+
+                let message = `📊 État actuel du localStorage:<br><br>`;
+                message += `👥 Enseignants: ${enseignants.length}<br>`;
+
+                if (enseignants.length > 0) {
+                    message += `<ul>`;
+                    enseignants.forEach(e => {
+                        message += `<li>${e.prenom} ${e.nom} (${e.identifiant})</li>`;
+                    });
+                    message += `</ul>`;
+                }
+
+                message += `📅 Emplois du temps: ${emploisDuTemps.length} créneaux<br>`;
+
+                if (emploisDuTemps.length > 0) {
+                    const classes = [...new Set(emploisDuTemps.map(c => c.classe))];
+                    message += `🏫 Classes: ${classes.join(", ")}`;
+                }
+
+                afficherResultat(message, 'info');
+
+            } catch (error) {
+                afficherResultat(`❌ Erreur lors de la vérification: ${error.message}`, 'error');
+            }
+        }
+
+        // Vérifier les données au chargement
+        window.addEventListener('load', () => {
+            verifierDonnees();
+        });
+    </script>
+</body>
+</html>

@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Printer, Home, Users } from "lucide-react"
 import Link from "next/link"
 import { serviceEleves } from "@/services/eleves.service"
+import { serviceParametres } from "@/services/parametres.service"
 import type { DonneesEleve } from "@/types/models"
+import type {  OptionsSupplementaires, OptionSupplementaire } from "@/services/parametres.service"
 
 interface StudentData {
   id: string
@@ -52,6 +54,9 @@ export default function ReceiptPage() {
   const searchParams = useSearchParams()
   const studentId = searchParams.get("id")
   const [student, setStudent] = useState<StudentData | null>(null)
+  const [schoolParams, setSchoolParams] = useState<ParametresEcole | null>(null)
+  const [standardOptions, setStandardOptions] = useState<OptionsSupplementaires | null>(null)
+  const [customOptions, setCustomOptions] = useState<OptionSupplementaire[]>([])
 
   useEffect(() => {
     if (studentId) {
@@ -59,6 +64,16 @@ export default function ReceiptPage() {
       const foundStudent = students.find((s: DonneesEleve) => s.id === studentId)
       setStudent(foundStudent as StudentData)
     }
+    // Fetch school parameters
+    const params = serviceParametres.obtenirParametres()
+    setSchoolParams(params)
+
+    // Fetch all options
+    const standardOpts = serviceParametres.obtenirOptionsSupplementaires()
+    setStandardOptions(standardOpts)
+
+    const customOpts = serviceParametres.obtenirOptionsSupplementairesPersonnalisees()
+    setCustomOptions(customOpts)
   }, [studentId])
 
   const handlePrint = () => {
@@ -98,95 +113,119 @@ export default function ReceiptPage() {
         </div>
 
         {/* Reçu */}
-        <div className="bg-white rounded-lg shadow-lg p-4 print:shadow-none print:rounded-none print:p-3">
-          {/* En-tête */}
-          <div className="text-center mb-3 border-b pb-3">
-            <h1 className="text-lg font-bold mb-1">COMPLEXE SCOLAIRE LA RÉUSSITE D'OWENDO</h1>
-            <p className="text-xs text-gray-600">B.P: 16109 Estuaire - Tél: 077947410</p>
-            <p className="text-xs text-gray-600">Libreville, Gabon</p>
+        <div className="bg-white rounded-lg shadow-lg p-4 print:shadow-none print:rounded-none print:p-6 print:m-4">
+          {/* En-tête avec logo */}
+          <div className="text-center mb-6 border-b-2 border-gray-300 pb-4">
+              <div className="flex justify-center items-center mb-3">
+              {/* Logo de l'école */}
+              {schoolParams?.logoUrl ? (
+                <img
+                  src={schoolParams.logoUrl}
+                  alt="Logo de l'école"
+                  className="w-16 h-16 border-2 border-gray-200 rounded-full mr-4 print:w-20 print:h-20 object-contain"
+                />
+              ) : (
+                <div className="w-16 h-16 bg-gray-100 border-2 border-gray-200 rounded-full flex items-center justify-center mr-4 print:w-20 print:h-20">
+                  <span className="text-xs text-gray-500">LOGO</span>
+                </div>
+              )}
+              <div>
+                <h1 className="text-xl font-bold mb-1 print:text-2xl">{schoolParams?.nomEcole || "École"}</h1>
+                <p className="text-sm text-gray-600 print:text-base">{schoolParams?.adresseEcole} - Tél: {schoolParams?.telephoneEcole}</p>
+                <p className="text-sm text-gray-600 print:text-base">Libreville, Gabon</p>
+              </div>
+            </div>
           </div>
 
           {/* Titre du reçu */}
-          <div className="text-center mb-3">
-            <h2 className="text-base font-bold text-blue-600 mb-1">REÇU D'INSCRIPTION N° {student.id}</h2>
-            <p className="text-xs text-gray-600">
+          <div className="text-center mb-6">
+            <h2 className="text-lg font-bold text-blue-600 mb-2 print:text-xl">REÇU D'INSCRIPTION N° {student.id}</h2>
+            <p className="text-sm text-gray-600 font-medium print:text-base">
               {student.typeInscription === "inscription" ? "NOUVELLE INSCRIPTION" : "RÉINSCRIPTION"}
             </p>
-            <p className="text-xs text-gray-500">Date: {student.dateInscription}</p>
+            <p className="text-sm text-gray-500 print:text-base">Date: {new Date(student.dateInscription).toLocaleDateString('fr-FR')}</p>
           </div>
 
           {/* Informations élève */}
-          <div className="grid md:grid-cols-2 gap-3 mb-3">
-            <div>
-              <h3 className="font-bold text-gray-800 mb-1 border-b pb-0.5 text-sm">INFORMATIONS ÉLÈVE</h3>
-              <div className="space-y-0.5 text-xs">
-                <div className="flex">
-                  <span className="font-medium w-20">Nom:</span>
-                  <span>{student.nom.toUpperCase()}</span>
+          <div className="grid md:grid-cols-2 gap-6 mb-6">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="font-bold text-gray-800 mb-3 border-b-2 border-gray-300 pb-1 text-sm uppercase tracking-wide">INFORMATIONS ÉLÈVE</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-600">Nom:</span>
+                  <span className="font-semibold">{student.nom.toUpperCase()}</span>
                 </div>
-                <div className="flex">
-                  <span className="font-medium w-20">Prénom:</span>
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-600">Prénom:</span>
                   <span>{student.prenom}</span>
                 </div>
-                <div className="flex">
-                  <span className="font-medium w-20">Date naissance:</span>
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-600">Date de naissance:</span>
                   <span>{student.dateNaissance}</span>
                 </div>
-                <div className="flex">
-                  <span className="font-medium w-20">Lieu naissance:</span>
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-600">Lieu de naissance:</span>
                   <span>{student.lieuNaissance}</span>
                 </div>
-                <div className="flex">
-                  <span className="font-medium w-20">Classe:</span>
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-600">Classe:</span>
                   <span className="font-bold text-blue-600">{student.classe}</span>
                 </div>
                 {student.classeAncienne && (
-                  <div className="flex">
-                    <span className="font-medium w-20">Ancienne classe:</span>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">Ancienne classe:</span>
                     <span>{student.classeAncienne}</span>
                   </div>
                 )}
               </div>
             </div>
 
-            <div>
-              <h3 className="font-bold text-gray-800 mb-1 border-b pb-0.5 text-sm">INFORMATIONS PARENT/TUTEUR</h3>
-              <div className="space-y-0.5 text-xs">
-                <div className="flex">
-                  <span className="font-medium w-20">Nom:</span>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="font-bold text-gray-800 mb-3 border-b-2 border-gray-300 pb-1 text-sm uppercase tracking-wide">INFORMATIONS PARENT/TUTEUR</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-600">Nom:</span>
                   <span>{student.nomParent}</span>
                 </div>
-                <div className="flex">
-                  <span className="font-medium w-20">Contact:</span>
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-600">Contact:</span>
                   <span>{student.contactParent}</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-medium text-xs">Adresse:</span>
-                  <span className="mt-0.5">{student.adresse}</span>
+                  <span className="font-medium text-gray-600 mb-1">Adresse:</span>
+                  <span className="text-sm bg-white p-2 rounded border">{student.adresse}</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Détail des frais */}
-          <div className="mb-3">
-            <h3 className="font-bold text-gray-800 mb-1 border-b pb-0.5 text-sm">DÉTAIL DES FRAIS</h3>
-            <div className="bg-gray-50 p-2 rounded">
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span>Frais d'inscription:</span>
-                  <span className="font-medium">{student.fraisInscription.toLocaleString()} FCFA</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span>Frais de scolarité annuelle:</span>
-                  <span className="font-medium">{student.fraisScolarite.toLocaleString()} FCFA</span>
-                </div>
+          <div className="mb-6">
+            <h3 className="font-bold text-gray-800 mb-4 border-b-2 border-gray-300 pb-1 text-sm uppercase tracking-wide">DÉTAIL DES FRAIS</h3>
+            <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b">Désignation</th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700 border-b">Montant</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-gray-200">
+                    <td className="px-4 py-3">Frais d'inscription</td>
+                    <td className="px-4 py-3 text-right font-medium">{student.fraisInscription.toLocaleString()} FCFA</td>
+                  </tr>
+                  <tr className="border-b border-gray-200">
+                    <td className="px-4 py-3">Frais de scolarité : {student.moisPaiement && student.moisPaiement.length > 0 ? student.moisPaiement.join(", ") : "annuelle"}</td>
+                    <td className="px-4 py-3 text-right font-medium">{student.fraisScolarite.toLocaleString()} FCFA</td>
+                  </tr>
 
-                {/* Options supplémentaires */}
-                {student.optionsSupplementaires && Object.entries(student.optionsSupplementaires).some(([_, selected]) => selected) && (
-                  <div className="border-t pt-0.5">
-                    <h4 className="font-medium text-gray-900 mb-0.5 text-xs">Options supplémentaires:</h4>
-                    <div className="space-y-0.5">
+                  {/* Options supplémentaires */}
+                  {student.optionsSupplementaires && Object.entries(student.optionsSupplementaires).some(([_, selected]) => selected) && (
+                    <>
+                      <tr className="bg-gray-50">
+                        <td colSpan={2} className="px-4 py-2 font-semibold text-gray-700 border-b">Options supplémentaires sélectionnées</td>
+                      </tr>
                       {Object.entries(student.optionsSupplementaires).map(([option, selected]) => {
                         if (!selected) return null
                         const optionLabels: { [key: string]: string } = {
@@ -198,114 +237,46 @@ export default function ReceiptPage() {
                         }
                         const prix = student.fraisOptionsSupplementaires ? student.fraisOptionsSupplementaires[option as keyof typeof student.fraisOptionsSupplementaires] : 0
                         return (
-                          <div key={option} className="flex justify-between text-xs">
-                            <span>{optionLabels[option]}</span>
-                            <span>{prix.toLocaleString()} FCFA</span>
-                          </div>
+                          <tr key={option} className="border-b border-gray-200">
+                            <td className="px-4 py-2 pl-8 text-gray-600">{optionLabels[option]}</td>
+                            <td className="px-4 py-2 text-right">{prix.toLocaleString()} FCFA</td>
+                          </tr>
                         )
                       })}
-                    </div>
-                  </div>
-                )}
+                    </>
+                  )}
 
-                <div className="border-t pt-1">
-                  <div className="flex justify-between text-sm font-bold">
-                    <span>TOTAL À PAYER:</span>
-                    <span className="text-blue-600">{student.totalAPayer.toLocaleString()} FCFA</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Modalités de paiement */}
-          <div className="mb-3">
-            <h3 className="font-bold text-gray-800 mb-1 border-b pb-0.5">MODALITÉS DE PAIEMENT</h3>
-            <div className="bg-gray-50 p-2 rounded">
-              <div className="text-sm space-y-1">
-                {student.modePaiement === "mensuel" && student.moisPaiement && student.moisPaiement.length > 0 && (
-                  <div>
-                    <p className="font-medium text-gray-900 mb-3">Mode de paiement: Mensuel</p>
-                    <div className="space-y-2">
-                      <p className="font-medium">Détail des paiements mensuels:</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {student.moisPaiement.map((mois, index) => {
-                          const fraisParMois = student.fraisScolarite > 0 && student.moisPaiement ? Math.ceil(student.fraisScolarite / student.moisPaiement.length) : 0
-                          return (
-                            <div key={index} className="bg-blue-100 text-blue-800 px-3 py-2 rounded text-xs flex justify-between">
-                              <span>{mois}:</span>
-                              <span className="font-medium">{fraisParMois.toLocaleString()} FCFA</span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                      <div className="mt-3 pt-2 border-t">
-                        <div className="flex justify-between font-medium">
-                          <span>Total payé:</span>
-                          <span>{student.fraisScolarite.toLocaleString()} FCFA</span>
-                        </div>
-                        <p className="text-gray-600 mt-1">
-                          Nombre de mois payés: {student.moisPaiement?.length || 0}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {student.modePaiement === "tranches" && student.moisPaiement && student.moisPaiement.length > 0 && (
-                  <div>
-                    <p className="font-medium text-gray-900 mb-3">Mode de paiement: Par tranches</p>
-                    <div className="space-y-2">
-                      <p className="font-medium">Détail des tranches payées:</p>
-                      <div className="space-y-2">
-                        {student.moisPaiement.map((tranche, index) => {
-                          const nombreTranches = student.nombreTranches || 3
-                          const fraisParTranche = student.fraisScolarite > 0 ? Math.ceil(student.fraisScolarite / nombreTranches) : 0
-                          return (
-                            <div key={index} className="bg-green-100 text-green-800 px-3 py-2 rounded text-xs flex justify-between">
-                              <span>{tranche}:</span>
-                              <span className="font-medium">{fraisParTranche.toLocaleString()} FCFA</span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                      <div className="mt-3 pt-2 border-t">
-                        <div className="flex justify-between font-medium">
-                          <span>Total payé:</span>
-                          <span>{student.fraisScolarite.toLocaleString()} FCFA</span>
-                        </div>
-                        <p className="text-gray-600 mt-1">
-                          Nombre de tranches: {student.nombreTranches || 3} | Tranches payées: {student.moisPaiement?.length || 0}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {!student.modePaiement && (
-                  <div>
-                    <p>• Paiement possible en 3 tranches (Octobre, Janvier, Avril)</p>
-                    <p>• Paiement mensuel accepté (10 mois)</p>
-                  </div>
-                )}
-
-                <div className="border-t pt-3 mt-3">
-                  <p>• Remise de 5% pour paiement comptant</p>
-                  <p>• Frais d'inscription à régler obligatoirement à l'inscription</p>
-                </div>
-              </div>
+                  {(() => {
+                    let total = student.fraisInscription + student.fraisScolarite;
+                    if (student.optionsSupplementaires && student.fraisOptionsSupplementaires) {
+                      Object.entries(student.optionsSupplementaires).forEach(([option, selected]) => {
+                        if (selected) {
+                          total += student.fraisOptionsSupplementaires![option as keyof typeof student.fraisOptionsSupplementaires] || 0;
+                        }
+                      });
+                    }
+                    return (
+                      <tr className="bg-blue-50 border-t-2 border-blue-200">
+                        <td className="px-4 py-4 font-bold text-lg">TOTAL À PAYER</td>
+                        <td className="px-4 py-4 text-right font-bold text-lg text-blue-600">{total.toLocaleString()} FCFA</td>
+                      </tr>
+                    );
+                  })()}
+                </tbody>
+              </table>
             </div>
           </div>
 
           {/* Signature */}
-          <div className="flex justify-between items-end mb-4">
-            <div>
-              <p className="text-sm text-gray-600 mb-2">Signature du parent/tuteur:</p>
-              <div className="w-32 h-12 border-b border-gray-400"></div>
+          <div className="flex justify-between items-end mb-6 pt-4 border-t-2 border-gray-300">
+            <div className="text-center">
+              <p className="text-sm text-gray-600 mb-3 font-medium">Signature du parent/tuteur</p>
+              <div className="w-40 h-12 border-b-2 border-gray-400 mx-auto"></div>
+              <p className="text-xs text-gray-500 mt-1">Date: ________________</p>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-600 mb-2">L'Administration</p>
-              <div className="w-32 h-12 border-b border-gray-400"></div>
+            <div className="text-center">
+              <p className="text-sm text-gray-600 mb-3 font-medium">L'Administration</p>
+              <div className="w-40 h-12 border-b-2 border-gray-400 mx-auto"></div>
               <p className="text-xs text-gray-500 mt-1">Cachet et signature</p>
             </div>
           </div>

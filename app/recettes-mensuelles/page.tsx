@@ -7,22 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Download, TrendingUp, Calendar, DollarSign, BarChart3 } from "lucide-react"
 import Link from "next/link"
+import { servicePaiements } from "@/services/paiements.service"
+import { serviceEleves } from "@/services/eleves.service"
+import { serviceParametres } from "@/services/parametres.service"
+import type { Paiement, DonneesEleve, ParametresEcole } from "@/types/models"
 
-interface Payment {
-  id: string
-  studentId: string
-  amount: number
-  type: "inscription" | "scolarite" | "tranche"
-  date: string
-  method: "especes" | "cheque" | "virement"
-}
-
-interface StudentData {
-  id: string
-  nom: string
-  prenom: string
-  classe: string
-}
 
 interface MonthlyData {
   month: string
@@ -40,11 +29,12 @@ interface MonthlyData {
 }
 
 export default function RecettesMensuellesPage() {
-  const [payments, setPayments] = useState<Payment[]>([])
-  const [students, setStudents] = useState<StudentData[]>([])
+  const [payments, setPayments] = useState<Paiement[]>([])
+  const [students, setStudents] = useState<DonneesEleve[]>([])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString())
   const [selectedMonth, setSelectedMonth] = useState("all")
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([])
+  const [schoolParams, setSchoolParams] = useState<ParametresEcole | null>(null)
 
   const months = [
     { value: "01", label: "Janvier" },
@@ -64,15 +54,17 @@ export default function RecettesMensuellesPage() {
   const years = ["2023", "2024", "2025", "2026"]
 
   useEffect(() => {
-    const savedPayments = JSON.parse(localStorage.getItem("payments") || "[]")
-    const savedStudents = JSON.parse(localStorage.getItem("students") || "[]")
-    setPayments(savedPayments)
-    setStudents(savedStudents)
+    // Utiliser les services pour plus de robustesse et de cohérence
+    setPayments(servicePaiements.obtenirTousLesPaiements())
+    setStudents(serviceEleves.obtenirTousLesEleves())
+    setSchoolParams(serviceParametres.obtenirParametres())
   }, [])
 
   useEffect(() => {
-    calculateMonthlyData()
-  }, [payments, selectedYear])
+    if (schoolParams) {
+      calculateMonthlyData()
+    }
+  }, [payments, selectedYear, schoolParams])
 
   const calculateMonthlyData = () => {
     const monthlyStats: { [key: string]: MonthlyData } = {}
@@ -91,36 +83,41 @@ export default function RecettesMensuellesPage() {
         recettesEspeces: 0,
         recettesCheque: 0,
         recettesVirement: 0,
-        objectifMensuel: 50000000, // 50M FCFA par mois (à configurer)
+        objectifMensuel: schoolParams?.objectifMensuel || 0, // Utilise l'objectif des paramètres
         tauxRealisation: 0,
       }
     })
 
     // Calculer les données réelles
     payments.forEach((payment) => {
-      const [day, month, year] = payment.date.split("/")
+      const paymentDate = new Date(payment.datePaiement)
+      const year = paymentDate.getFullYear().toString()
+      const month = (paymentDate.getMonth() + 1).toString().padStart(2, '0')
+
       if (year === selectedYear) {
         const key = `${year}-${month}`
         if (monthlyStats[key]) {
-          monthlyStats[key].totalRecettes += payment.amount
+          monthlyStats[key].totalRecettes += payment.montant
           monthlyStats[key].nombrePaiements += 1
 
           // Par type
-          if (payment.type === "inscription") monthlyStats[key].recettesInscription += payment.amount
-          if (payment.type === "scolarite") monthlyStats[key].recettesScolarite += payment.amount
-          if (payment.type === "tranche") monthlyStats[key].recettesTranches += payment.amount
+          if (payment.typePaiement === "inscription") monthlyStats[key].recettesInscription += payment.montant
+          if (payment.typePaiement === "scolarite") monthlyStats[key].recettesScolarite += payment.montant
+          if (payment.typePaiement === "autre") monthlyStats[key].recettesTranches += payment.montant
 
           // Par méthode
-          if (payment.method === "especes") monthlyStats[key].recettesEspeces += payment.amount
-          if (payment.method === "cheque") monthlyStats[key].recettesCheque += payment.amount
-          if (payment.method === "virement") monthlyStats[key].recettesVirement += payment.amount
+          if (payment.methodePaiement === "especes") monthlyStats[key].recettesEspeces += payment.montant
+          if (payment.methodePaiement === "cheque") monthlyStats[key].recettesCheque += payment.montant
+          if (payment.methodePaiement === "virement") monthlyStats[key].recettesVirement += payment.montant
         }
       }
     })
 
     // Calculer les taux de réalisation
     Object.values(monthlyStats).forEach((data) => {
-      data.tauxRealisation = (data.totalRecettes / data.objectifMensuel) * 100
+      if (data.objectifMensuel > 0) {
+        data.tauxRealisation = (data.totalRecettes / data.objectifMensuel) * 100
+      }
     })
 
     setMonthlyData(Object.values(monthlyStats))
@@ -135,7 +132,7 @@ export default function RecettesMensuellesPage() {
         })
 
   const totalAnnuel = monthlyData.reduce((sum, data) => sum + data.totalRecettes, 0)
-  const objectifAnnuel = monthlyData.reduce((sum, data) => sum + data.objectifMensuel, 0)
+  const objectifAnnuel = (schoolParams?.objectifMensuel || 0) * 12
   const tauxRealisationAnnuel = (totalAnnuel / objectifAnnuel) * 100
 
   const exportMonthlyReport = () => {
@@ -170,8 +167,12 @@ export default function RecettesMensuellesPage() {
     const a = document.createElement("a")
     a.href = url
     a.download = `recettes_mensuelles_${selectedYear}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      a.click()
+    } finally {
+      try { URL.revokeObjectURL(url) } catch (e) {}
+      if (a.parentNode) a.parentNode.removeChild(a)
+    }
   }
 
   return (
@@ -472,10 +473,12 @@ export default function RecettesMensuellesPage() {
                     <div className="p-4 bg-red-50 rounded-lg">
                       <div className="font-medium text-red-800 mb-2">Mois le plus faible</div>
                       {(() => {
-                        const worstMonth = filteredData.reduce(
-                          (min, current) => (current.totalRecettes < min.totalRecettes ? current : min),
-                          filteredData[0] || { month: "Aucun", totalRecettes: 0 },
-                        )
+                        if (filteredData.length === 0) {
+                          return <div><div className="text-lg font-bold text-red-600">N/A</div></div>;
+                        }
+                        const worstMonth = filteredData
+                          .filter(m => m.nombrePaiements > 0) // Considérer uniquement les mois avec activité
+                          .reduce((min, current) => (current.totalRecettes < min.totalRecettes ? current : min), filteredData.find(m => m.nombrePaiements > 0) || { month: "Aucun", totalRecettes: Infinity });
                         return (
                           <div>
                             <div className="text-lg font-bold text-red-600">{worstMonth.month}</div>

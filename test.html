@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Démo Pointage Enseignants</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f2f2;
+      display: flex;
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .phone, .admin {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      width: 45%;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    button {
+      padding: 10px;
+      margin-top: 10px;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    select, input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+    }
+
+    .pointage {
+      border-bottom: 1px solid #ddd;
+      padding: 8px 0;
+    }
+
+    .waiting { color: orange; }
+    .validated { color: green; }
+  </style>
+</head>
+<body>
+
+  <!-- 📱 Téléphone enseignant -->
+  <div class="phone">
+    <h2>📱 Enseignant</h2>
+
+    <label>Nom enseignant</label>
+    <input id="enseignant" value="M. Dupont">
+
+    <label>Classe</label>
+    <select id="classe">
+      <option>6e A</option>
+      <option>5e B</option>
+      <option>4e C</option>
+    </select>
+
+    <button onclick="demarrerCours()">▶️ Démarrer le cours</button>
+    <button onclick="terminerCours()">⏹️ Terminer le cours</button>
+
+    <p id="status"></p>
+  </div>
+
+  <!-- 🖥️ Admin -->
+  <div class="admin">
+    <h2>🖥️ Administration</h2>
+    <div id="listePointages"></div>
+  </div>
+
+<script>
+  let pointages = [];
+  let coursEnCours = null;
+
+  function demarrerCours() {
+    if (coursEnCours) {
+      alert("Un cours est déjà en cours !");
+      return;
+    }
+
+    coursEnCours = {
+      enseignant: document.getElementById("enseignant").value,
+      classe: document.getElementById("classe").value,
+      debut: new Date(),
+      fin: null,
+      duree: null,
+      statut: "En attente"
+    };
+
+    document.getElementById("status").innerText = "Cours en cours...";
+  }
+
+  function terminerCours() {
+    if (!coursEnCours) {
+      alert("Aucun cours en cours");
+      return;
+    }
+
+    coursEnCours.fin = new Date();
+    coursEnCours.duree =
+      ((coursEnCours.fin - coursEnCours.debut) / 60000).toFixed(1) + " min";
+
+    pointages.push(coursEnCours);
+    coursEnCours = null;
+    document.getElementById("status").innerText = "Cours terminé";
+
+    afficherPointages();
+  }
+
+  function afficherPointages() {
+    const container = document.getElementById("listePointages");
+    container.innerHTML = "";
+
+    pointages.forEach((p, index) => {
+      const div = document.createElement("div");
+      div.className = "pointage";
+
+      div.innerHTML = `
+        <strong>${p.enseignant}</strong> - ${p.classe}<br>
+        Durée : ${p.duree}<br>
+        Statut : <span class="${p.statut === 'Validé' ? 'validated' : 'waiting'}">${p.statut}</span><br>
+        ${p.statut === "En attente" ? `<button onclick="valider(${index})">Valider</button>` : ""}
+      `;
+
+      container.appendChild(div);
+    });
+  }
+
+  function valider(index) {
+    pointages[index].statut = "Validé";
+    afficherPointages();
+  }
+</script>
+
+</body>
+</html>

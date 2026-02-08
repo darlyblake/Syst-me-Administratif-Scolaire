@@ -14,6 +14,7 @@ interface SchoolCertificateProps {
   schoolPhone?: string
   city?: string
   schoolYear?: string
+  template?: 'classic' | 'modern' | 'elegant'
 }
 
 export function SchoolCertificate({
@@ -24,6 +25,7 @@ export function SchoolCertificate({
   schoolPhone = "077 94 74 10",
   city = "Libreville",
   schoolYear = "2024-2025",
+  template = 'classic',
 }: SchoolCertificateProps) {
   const currentDate = new Date().toLocaleDateString("fr-FR", {
     year: 'numeric',
@@ -31,17 +33,101 @@ export function SchoolCertificate({
     day: 'numeric'
   })
 
+  // Template styles
+  const getTemplateStyles = () => {
+    switch (template) {
+      case 'modern':
+        return `
+          .certificate-container {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+          }
+
+          .official-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: white;
+            position: relative;
+            overflow: hidden;
+          }
+
+          .school-name {
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+          }
+
+          .student-info-card {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #0f172a;
+          }
+        `;
+
+      case 'elegant':
+        return `
+          .certificate-container {
+            font-family: 'Playfair Display', serif;
+            background: linear-gradient(135deg, #fef7ed 0%, #fffbeb 100%);
+            position: relative;
+            overflow: hidden;
+          }
+
+          .official-header {
+            background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
+            color: white;
+            position: relative;
+            overflow: hidden;
+          }
+
+          .school-name {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+          }
+
+          .student-info-card {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 4px solid #92400e;
+          }
+        `;
+
+      default: // classic
+        return `
+          .certificate-container {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            position: relative;
+            overflow: hidden;
+          }
+
+          .official-header {
+            background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+            color: white;
+            position: relative;
+            overflow: hidden;
+          }
+
+          .school-name {
+            font-family: 'Playfair Display', serif;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+          }
+
+          .student-info-card {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #3b82f6;
+          }
+        `;
+    }
+  };
+
   return (
     <>
       <style jsx>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
-        
-        .certificate-container {
-          font-family: 'Inter', sans-serif;
-          background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-          position: relative;
-          overflow: hidden;
-        }
+
+        ${getTemplateStyles()}
         
         .official-header {
           background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);

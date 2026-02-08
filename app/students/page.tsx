@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Fuse from "fuse.js"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -25,12 +26,25 @@ export default function StudentsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedClass, setSelectedClass] = useState("all")
   const [selectedStatus, setSelectedStatus] = useState("all")
+  const [selectedLevel, setSelectedLevel] = useState("all")
   const [selectedStudent, setSelectedStudent] = useState<DonneesEleve | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const itemsPerPage = 50
 
-  const classes = [
+  const levels = {
+    maternelle: ["Maternelle"],
+    primaire: ["CP1", "CP2", "CE1", "CE2", "CM1", "CM2"],
+    college: ["6ème", "5ème", "4ème", "3ème"],
+    lycee: ["2nde L", "2nde S", "1ère A1", "1ère A2", "1ère B", "Terminale A1", "Terminale B", "Terminale D", "Terminale S"]
+  }
+
+  const allClasses = [
     "Maternelle", "CP1", "CP2", "CE1", "CE2", "CM1", "CM2", "6ème", "5ème", "4ème", "3ème",
     "2nde L", "2nde S", "1ère A1", "1ère A2", "1ère B", "Terminale A1", "Terminale B", "Terminale D", "Terminale S"
   ]
+
+  const classes = selectedLevel === "all" ? allClasses : levels[selectedLevel as keyof typeof levels] || []
 
   useEffect(() => {
     const savedStudents = serviceEleves.obtenirTousLesEleves()
@@ -39,19 +53,31 @@ export default function StudentsPage() {
   }, [])
 
   useEffect(() => {
+    setSelectedClass("all")
+  }, [selectedLevel])
+
+  useEffect(() => {
     let filtered = students
+    if (selectedLevel !== "all") {
+      filtered = filtered.filter(student => levels[selectedLevel as keyof typeof levels]?.includes(student.classe))
+    }
     if (selectedClass !== "all") filtered = filtered.filter((student) => student.classe === selectedClass)
     if (selectedStatus !== "all") filtered = filtered.filter((student) => student.statut === selectedStatus)
     if (searchTerm) {
-      filtered = filtered.filter(
-        (student) =>
-          student.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          student.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          student.identifiant.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
+      const fuse = new Fuse(filtered, {
+        keys: ['nom', 'prenom', 'identifiant'],
+        threshold: 0.3,
+        ignoreLocation: true
+      })
+      const results = fuse.search(searchTerm).map(result => result.item)
+      filtered = results
     }
     setFilteredStudents(filtered)
-  }, [students, selectedClass, selectedStatus, searchTerm])
+  }, [students, selectedClass, selectedStatus, selectedLevel, searchTerm])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [selectedClass, selectedStatus, selectedLevel, searchTerm])
 
 
 
@@ -79,6 +105,44 @@ export default function StudentsPage() {
     }
   }
 
+  const handleSelectStudent = (id: string, selected: boolean) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev)
+      if (selected) newSet.add(id)
+      else newSet.delete(id)
+      return newSet
+    })
+  }
+
+  const handleBulkStatusChange = () => {
+    selectedIds.forEach(id => {
+      const student = students.find(s => s.id === id)
+      if (student) handleToggleStatus(student)
+    })
+    setSelectedIds(new Set())
+  }
+
+  const handleBulkClassChange = () => {
+    const newClass = prompt("Nouvelle classe pour les élèves sélectionnés:")
+    if (newClass) {
+      selectedIds.forEach(id => {
+        const student = students.find(s => s.id === id)
+        if (student) {
+          const updatedStudent = { ...student, classe: newClass }
+          serviceEleves.modifierEleve(updatedStudent)
+        }
+      })
+      const updatedStudents = serviceEleves.obtenirTousLesEleves()
+      setStudents(updatedStudents)
+      setSelectedIds(new Set())
+    }
+  }
+
+  const handleBulkGenerateCertificates = () => {
+    alert(`Génération de certificats pour ${selectedIds.size} élève(s)`)
+    setSelectedIds(new Set())
+  }
+
   const handleExportCSV = () => {
     const headers = "Nom,Prénom,Identifiant,Classe,Statut,Téléphone,Email,Date d'inscription\n"
     const csvContent = students.map(student => 
@@ -90,7 +154,12 @@ export default function StudentsPage() {
     const link = document.createElement("a")
     link.setAttribute("href", url)
     link.setAttribute("download", "eleves.csv")
-    link.click()
+    try {
+      link.click()
+    } finally {
+      try { URL.revokeObjectURL(url) } catch (e) {}
+      if (link.parentNode) link.parentNode.removeChild(link)
+    }
   }
 
   const handleExportIdentifiants = () => {
@@ -104,7 +173,12 @@ export default function StudentsPage() {
     const link = document.createElement("a")
     link.setAttribute("href", url)
     link.setAttribute("download", "identifiants_eleves.csv")
-    link.click()
+    try {
+      link.click()
+    } finally {
+      try { URL.revokeObjectURL(url) } catch (e) {}
+      if (link.parentNode) link.parentNode.removeChild(link)
+    }
   }
 
   const handleDownloadTemplate = () => {
@@ -114,7 +188,12 @@ export default function StudentsPage() {
     const link = document.createElement("a")
     link.setAttribute("href", url)
     link.setAttribute("download", "template_import_eleves.csv")
-    link.click()
+    try {
+      link.click()
+    } finally {
+      try { URL.revokeObjectURL(url) } catch (e) {}
+      if (link.parentNode) link.parentNode.removeChild(link)
+    }
   }
 
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -157,6 +236,11 @@ export default function StudentsPage() {
     },
     {} as { [key: string]: DonneesEleve[] },
   )
+
+  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedStudents = filteredStudents.slice(startIndex, endIndex)
 
   function handlePrintSchoolCard(student: DonneesEleve): void {
     throw new Error("Function not implemented.")
@@ -226,11 +310,14 @@ export default function StudentsPage() {
                 searchTerm={searchTerm}
                 selectedClass={selectedClass}
                 selectedStatus={selectedStatus}
+                selectedLevel={selectedLevel}
                 onSearchChange={setSearchTerm}
                 onClassChange={setSelectedClass}
                 onStatusChange={setSelectedStatus}
+                onLevelChange={setSelectedLevel}
                 classes={classes}
                 classStats={classStats}
+                levels={Object.keys(levels)}
               />
             </CardContent>
           </Card>
@@ -247,20 +334,57 @@ export default function StudentsPage() {
           </TabsContent>
 
           <TabsContent value="all-students" className="space-y-6">
+            {selectedIds.size > 0 && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm font-medium">{selectedIds.size} élève{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}</p>
+                <div className="flex gap-2 mt-2">
+                  <Button size="sm" onClick={handleBulkStatusChange}>Changer statut</Button>
+                  <Button size="sm" onClick={handleBulkClassChange}>Changer classe</Button>
+                  <Button size="sm" onClick={handleBulkGenerateCertificates}>Générer certificats</Button>
+                </div>
+              </div>
+            )}
             <Card>
               <CardHeader>
                 <CardTitle>Tous les élèves</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {filteredStudents.map((student) => (
+                  {paginatedStudents.map((student) => (
                     <StudentListItem
                       key={student.id}
                       student={student}
                       onViewDetails={setSelectedStudent}
+                      isSelected={selectedIds.has(student.id)}
+                      onSelect={handleSelectStudent}
                     />
                   ))}
                 </div>
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                    <p className="text-sm text-gray-600">
+                      Page {currentPage} sur {totalPages} ({filteredStudents.length} élèves)
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        Précédent
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                      >
+                        Suivant
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

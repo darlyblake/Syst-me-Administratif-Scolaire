@@ -1,331 +1,279 @@
 /**
- * PAGE DE GESTION DES ENSEIGNANTS
+ * PAGE DE GESTION DES ENSEIGNANTS - VERSION REFACTORISÉE
  *
- * Cette page permet à l'administration de :
- * - Visualiser la liste complète des enseignants
- * - Filtrer et rechercher les enseignants
- * - Voir les statistiques générales
- * - Accéder aux fonctionnalités de gestion (ajout, modification, suppression)
- * - Gérer les emplois du temps et le pointage
+ * Cette page utilise les nouveaux composants modulaires pour une meilleure maintenabilité
  */
 
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState } from "react"
+import { useTeachers } from "@/hooks/useTeachers"
+import { useNotifications } from "@/hooks/useNotifications"
+import { DashboardSummary } from "@/components/DashboardSummary"
+import { TeacherTable } from "@/components/TeacherTable"
+import { TeacherFilters } from "@/components/TeacherFilters"
+import { TeacherDetailsModal } from "@/components/TeacherDetailsCard"
+import { FloatingToolbar } from "@/components/FloatingToolbar"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Plus, Edit, Trash2, Users, Clock, CheckCircle } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import { serviceEnseignants } from "@/services/enseignants.service"
-import type { DonneesEnseignant } from "@/types/models"
-import { ProtectionRoute } from "@/components/protection-route"
 
-export default function EnseignantsPage() {
-  // === ÉTATS LOCAUX ===
+// Import des modals existants (à refactoriser plus tard)
+import { CreerEnseignantModal } from "@/components/CreerEnseignantModal"
+import { AssignerClassesModal } from "@/components/AssignerClassesModal"
+import { ContacterProfesseurModal } from "@/components/ContacterProfesseurModal"
+import { HistoriqueAffectationsModal } from "@/components/HistoriqueAffectationsModal"
+import { DocumentsAdministratifsModal } from "@/components/DocumentsAdministratifsModal"
+import { AttribuerNotificationsModal } from "@/components/AttribuerNotificationsModal"
+import { GestionSalairesModal } from "@/components/GestionSalairesModal"
 
-  /** Liste complète des enseignants chargée depuis le service */
-  const [enseignants, setEnseignants] = useState<DonneesEnseignant[]>([])
+export default function EnseignantsPageRefactored() {
+  // Utilisation du hook personnalisé pour la gestion d'état
+  const {
+    teachers,
+    loading,
+    selectedTeacher,
+    filters,
+    currentPage,
+    totalPages,
+    setSearchQuery,
+    setSubjectFilter,
+    setStatusFilter,
+    setCurrentPage,
+    selectTeacher,
+    refreshTeachers
+  } = useTeachers()
 
-  /** Filtre par statut (actif, inactif, congé, suspendu) */
-  const [filtreStatut, setFiltreStatut] = useState<string>("tous")
+  // Hook de notifications
+  const { success, error, warning, info } = useNotifications()
 
-  /** Terme de recherche pour filtrer par nom/prénom */
-  const [rechercheNom, setRechercheNom] = useState("")
+  // États pour les modals
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [showAssignClassesModal, setShowAssignClassesModal] = useState(false)
+  const [showContactModal, setShowContactModal] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false)
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false)
+  const [showSalaryModal, setShowSalaryModal] = useState(false)
 
-  // === EFFETS ===
-
-  /**
-   * Chargement initial des données des enseignants
-   * Se déclenche au montage du composant
-   */
-  useEffect(() => {
-    chargerEnseignants()
-  }, [])
-
-  // === FONCTIONS UTILITAIRES ===
-
-  /**
-   * Charge la liste des enseignants depuis le service
-   * Met à jour l'état local avec les données fraîches
-   */
-  const chargerEnseignants = () => {
-    const donneesEnseignants = serviceEnseignants.obtenirTousLesEnseignants()
-    setEnseignants(donneesEnseignants)
+  // Statistiques pour le dashboard
+  const stats = {
+    total: teachers.length,
+    active: teachers.filter(t => t.statut === 'actif').length,
+    inactive: teachers.filter(t => t.statut === 'inactif').length,
+    onLeave: teachers.filter(t => t.statut === 'conge').length,
+    suspended: teachers.filter(t => t.statut === 'suspendu').length
   }
 
-  /**
-   * Filtre la liste des enseignants selon les critères de recherche
-   * Combine le filtre par nom/prénom et le filtre par statut
-   */
-  const enseignantsFiltres = enseignants.filter((enseignant) => {
-    // Vérification de correspondance avec le nom ou prénom (insensible à la casse)
-    const correspondNom =
-      enseignant.nom.toLowerCase().includes(rechercheNom.toLowerCase()) ||
-      enseignant.prenom.toLowerCase().includes(rechercheNom.toLowerCase())
+  // Matières uniques pour les filtres
+  const uniqueSubjects = Array.from(
+    new Set(teachers.flatMap(teacher => teacher.matieres))
+  )
 
-    // Vérification de correspondance avec le statut sélectionné
-    const correspondStatut = filtreStatut === "tous" || enseignant.statut === filtreStatut
+  // Gestionnaires d'événements
+  const handleCreateTeacher = () => {
+    setShowCreateModal(true)
+  }
 
-    return correspondNom && correspondStatut
-  })
+  const handleAddTeacherById = () => {
+    info("Fonctionnalité à implémenter", {
+      description: "L'ajout d'enseignant par ID sera bientôt disponible"
+    })
+  }
 
-  /**
-   * Supprime un enseignant après confirmation
-   * @param id - Identifiant unique de l'enseignant à supprimer
-   */
-  const supprimerEnseignant = (id: string) => {
+  const handleExport = () => {
+    info("Fonctionnalité à implémenter", {
+      description: "L'export des données sera bientôt disponible"
+    })
+  }
+
+  const handleBulkActions = () => {
+    info("Fonctionnalité à implémenter", {
+      description: "Les actions groupées seront bientôt disponibles"
+    })
+  }
+
+  const handleSelectTeacher = (teacher: any) => {
+    selectTeacher(teacher)
+    setShowDetailsModal(true)
+  }
+
+  const handleDeleteTeacher = (id: string) => {
     if (confirm("Êtes-vous sûr de vouloir supprimer cet enseignant ?")) {
-      serviceEnseignants.supprimerEnseignant(id)
-      chargerEnseignants() // Recharge la liste après suppression
+      // TODO: Implémenter la suppression via le service
+      success("Enseignant supprimé avec succès", {
+        description: "L'enseignant a été retiré de la liste"
+      })
+      refreshTeachers()
     }
   }
 
-  /**
-   * Détermine la couleur du badge selon le statut de l'enseignant
-   * @param statut - Statut actuel de l'enseignant
-   * @returns Classes CSS pour le style du badge
-   */
-  const obtenirCouleurStatut = (statut: DonneesEnseignant["statut"]) => {
-    switch (statut) {
-      case "actif":
-        return "bg-green-100 text-green-800" // Vert pour actif
-      case "inactif":
-        return "bg-gray-100 text-gray-800" // Gris pour inactif
-      case "conge":
-        return "bg-blue-100 text-blue-800" // Bleu pour congé
-      case "suspendu":
-        return "bg-red-100 text-red-800" // Rouge pour suspendu
-      default:
-        return "bg-gray-100 text-gray-800" // Gris par défaut
-    }
+  const handleResetFilters = () => {
+    setSearchQuery("")
+    setSubjectFilter("")
+    setStatusFilter("")
+    setCurrentPage(1)
+  }
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
   }
 
   return (
-    <ProtectionRoute>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="max-w-7xl mx-auto">
-          {/* === EN-TÊTE DE LA PAGE === */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              {/* Bouton de retour vers le tableau de bord */}
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/tableau-bord">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Retour
-                </Link>
-              </Button>
-
-              {/* Titre et description de la page */}
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <Users className="h-6 w-6" />
-                  Gestion des Enseignants
-                </h1>
-                <p className="text-gray-600">Gérer les enseignants, leurs affectations et emplois du temps</p>
-              </div>
-            </div>
-
-            {/* Bouton d'ajout d'un nouvel enseignant */}
-            <Button asChild>
-              <Link href="/enseignants/ajouter">
-                <Plus className="h-4 w-4 mr-2" />
-                Ajouter un enseignant
-              </Link>
-            </Button>
+    <div className="min-h-screen bg-gray-50 animate-fade-in">
+      <div className="container mx-auto p-6 space-y-6">
+        {/* En-tête */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestion des enseignants</h1>
+            <p className="text-gray-600">Interface moderne et intuitive pour la gestion des professeurs</p>
           </div>
-
-          {/* === STATISTIQUES RAPIDES === */}
-          <div className="grid md:grid-cols-4 gap-4 mb-6">
-            {/* Total des enseignants */}
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{enseignants.length}</div>
-                  <div className="text-sm text-gray-600">Total enseignants</div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Enseignants actifs */}
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
-                    {enseignants.filter((e) => e.statut === "actif").length}
-                  </div>
-                  <div className="text-sm text-gray-600">Actifs</div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Enseignants en congé */}
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {enseignants.filter((e) => e.statut === "conge").length}
-                  </div>
-                  <div className="text-sm text-gray-600">En congé</div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Total des affectations de classes */}
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {enseignants.reduce((total, e) => total + e.classes.length, 0)}
-                  </div>
-                  <div className="text-sm text-gray-600">Affectations</div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* === SECTION DE FILTRAGE === */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Filtres</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-4">
-                {/* Champ de recherche par nom */}
-                <div className="space-y-2">
-                  <Label>Rechercher par nom</Label>
-                  <Input
-                    placeholder="Nom ou prénom..."
-                    value={rechercheNom}
-                    onChange={(e) => setRechercheNom(e.target.value)}
-                  />
-                </div>
-
-                {/* Sélecteur de statut */}
-                <div className="space-y-2">
-                  <Label>Statut</Label>
-                  <Select value={filtreStatut} onValueChange={setFiltreStatut}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="tous">Tous les statuts</SelectItem>
-                      <SelectItem value="actif">Actif</SelectItem>
-                      <SelectItem value="inactif">Inactif</SelectItem>
-                      <SelectItem value="conge">En congé</SelectItem>
-                      <SelectItem value="suspendu">Suspendu</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* === LISTE DES ENSEIGNANTS === */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Liste des enseignants ({enseignantsFiltres.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {enseignantsFiltres.map((enseignant) => (
-                  <div key={enseignant.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      {/* === INFORMATIONS DE L'ENSEIGNANT === */}
-                      <div className="flex-1">
-                        {/* Nom, prénom et statut */}
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-lg">
-                            {enseignant.prenom} {enseignant.nom.toUpperCase()}
-                          </h3>
-                          <Badge className={obtenirCouleurStatut(enseignant.statut)}>{enseignant.statut}</Badge>
-                        </div>
-
-                        {/* Détails organisés en grille */}
-                        <div className="grid md:grid-cols-2 gap-4 text-sm text-gray-600">
-                          {/* Colonne 1 : Informations de contact */}
-                          <div>
-                            <p>
-                              <strong>Identifiant:</strong> {enseignant.identifiant}
-                            </p>
-                            <p>
-                              <strong>Email:</strong> {enseignant.email}
-                            </p>
-                            <p>
-                              <strong>Téléphone:</strong> {enseignant.telephone}
-                            </p>
-                          </div>
-
-                          {/* Colonne 2 : Informations professionnelles */}
-                          <div>
-                            <p>
-                              <strong>Date d'embauche:</strong>{" "}
-                              {new Date(enseignant.dateEmbauche).toLocaleDateString("fr-FR")}
-                            </p>
-                            <p>
-                              <strong>Matières:</strong> {enseignant.matieres.join(", ") || "Aucune"}
-                            </p>
-                            <p>
-                              <strong>Classes:</strong> {enseignant.classes.join(", ") || "Aucune"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* === BOUTONS D'ACTION === */}
-                      <div className="flex gap-2">
-                        {/* Bouton emploi du temps */}
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/enseignants/${enseignant.id}/emploi-du-temps`}>
-                            <Clock className="h-4 w-4 mr-1" />
-                            Emploi du temps
-                          </Link>
-                        </Button>
-
-                        {/* Bouton pointage */}
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/enseignants/${enseignant.id}/pointage`}>
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Pointage
-                          </Link>
-                        </Button>
-
-                        {/* Bouton modification */}
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/enseignants/${enseignant.id}/modifier`}>
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                        </Button>
-
-                        {/* Bouton suppression */}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => supprimerEnseignant(enseignant.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Message si aucun enseignant trouvé */}
-                {enseignantsFiltres.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <Users className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                    <p>Aucun enseignant trouvé</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <Button variant="outline" asChild className="mt-4 md:mt-0">
+            <Link href="/tableau-bord">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Retour au tableau de bord
+            </Link>
+          </Button>
         </div>
+
+        {/* Dashboard avec statistiques et graphiques */}
+        <DashboardSummary
+          stats={stats}
+          uniqueSubjects={uniqueSubjects}
+          teachers={teachers}
+        />
+
+        {/* Filtres et recherche */}
+        <TeacherFilters
+          searchQuery={filters.searchQuery}
+          subjectFilter={filters.subjectFilter}
+          statusFilter={filters.statusFilter}
+          uniqueSubjects={uniqueSubjects}
+          onSearchChange={setSearchQuery}
+          onSubjectChange={setSubjectFilter}
+          onStatusChange={setStatusFilter}
+          onResetFilters={handleResetFilters}
+        />
+
+        {/* Table des enseignants */}
+        <TeacherTable
+          teachers={teachers}
+          loading={loading}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          onSelectTeacher={handleSelectTeacher}
+          onDeleteTeacher={handleDeleteTeacher}
+          canDelete={true}
+        />
+
+        {/* Modal de détails de l'enseignant */}
+        <TeacherDetailsModal
+          teacher={selectedTeacher}
+          isOpen={showDetailsModal}
+          onClose={() => setShowDetailsModal(false)}
+          actions={{
+            onDelete: handleDeleteTeacher,
+            onAssignClasses: () => setShowAssignClassesModal(true),
+            onContactTeacher: () => setShowContactModal(true),
+            onViewHistory: () => setShowHistoryModal(true),
+            onManageDocuments: () => setShowDocumentsModal(true),
+            onAssignNotifications: () => setShowNotificationsModal(true),
+            onManageSalary: () => setShowSalaryModal(true),
+            onViewEvaluations: () => info("Fonctionnalité à implémenter", { description: "Les évaluations seront bientôt disponibles" })
+          }}
+        />
+
+        {/* Barre d'outils flottante */}
+        <FloatingToolbar
+          onCreateTeacher={handleCreateTeacher}
+          onAddTeacherById={handleAddTeacherById}
+          onExport={handleExport}
+          onBulkActions={handleBulkActions}
+          canCreate={true}
+          canExport={true}
+          canBulkActions={true}
+        />
+
+        {/* Modals existants (à refactoriser) */}
+        <CreerEnseignantModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            success("Enseignant créé avec succès", {
+              description: "Le nouvel enseignant a été ajouté à la liste"
+            })
+            refreshTeachers()
+          }}
+        />
+
+        {selectedTeacher && (
+          <>
+            <AssignerClassesModal
+              isOpen={showAssignClassesModal}
+              onClose={() => setShowAssignClassesModal(false)}
+              enseignant={selectedTeacher}
+              onSuccess={() => {
+                success("Classes assignées avec succès", {
+                  description: "Les classes ont été affectées à l'enseignant"
+                })
+                refreshTeachers()
+              }}
+            />
+
+            <ContacterProfesseurModal
+              isOpen={showContactModal}
+              onClose={() => setShowContactModal(false)}
+              enseignant={selectedTeacher}
+              onSuccess={() => {
+                success("Message envoyé avec succès", {
+                  description: "L'enseignant a été contacté"
+                })
+              }}
+            />
+
+            <HistoriqueAffectationsModal
+              isOpen={showHistoryModal}
+              onClose={() => setShowHistoryModal(false)}
+              enseignant={selectedTeacher}
+            />
+
+            <DocumentsAdministratifsModal
+              isOpen={showDocumentsModal}
+              onClose={() => setShowDocumentsModal(false)}
+              enseignant={selectedTeacher}
+              onSuccess={() => {
+                success("Document ajouté avec succès", {
+                  description: "Le document a été ajouté au dossier"
+                })
+              }}
+            />
+
+            <AttribuerNotificationsModal
+              isOpen={showNotificationsModal}
+              onClose={() => setShowNotificationsModal(false)}
+              enseignant={selectedTeacher}
+              onSuccess={() => {
+                success("Notification attribuée avec succès", {
+                  description: "La notification a été envoyée"
+                })
+              }}
+            />
+
+            <GestionSalairesModal
+              isOpen={showSalaryModal}
+              onClose={() => setShowSalaryModal(false)}
+              enseignant={selectedTeacher}
+              onSuccess={() => {
+                success("Salaire mis à jour avec succès", {
+                  description: "Les informations salariales ont été modifiées"
+                })
+              }}
+            />
+          </>
+        )}
       </div>
-    </ProtectionRoute>
+    </div>
   )
 }

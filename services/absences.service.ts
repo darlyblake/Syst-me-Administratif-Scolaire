@@ -199,23 +199,18 @@ class ServiceAbsences {
    */
   obtenirStatistiquesAbsences() {
     const absences = this.obtenirToutesLesAbsences()
-    const aujourd
-    ;("hui = new Date().toISOString().split(")
-    T
-    ;(")[0]\
-    const debutMois = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split(")
-    T
-    ')[0]
-    \
+    const aujourdHui = new Date().toISOString().split("T")[0]
+    const debutMois = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0]
+
     const absencesMois = absences.filter((absence) => absence.date >= debutMois)
-    const absencesAujourdhui = absences.filter(absence => absence.date === aujourd'hui)
+    const absencesAujourdhui = absences.filter(absence => absence.date === aujourdHui)
 
     return {
-      totalAbsences: absences.length,\
-      absencesMoisCourant: absencesMois.length,\
-      absencesAujourdhui: absencesAujourdhui.length,\
-      absencesNonJustifiees: absences.filter(absence => absence.statut === \'non_justifie').length,\
-      tauxAbsenteisme: this.calculerTauxAbsenteisme(absencesMois),\
+      totalAbsences: absences.length,
+      absencesMoisCourant: absencesMois.length,
+      absencesAujourdhui: absencesAujourdhui.length,
+      absencesNonJustifiees: absences.filter(absence => absence.statut === 'non_justifie').length,
+      tauxAbsenteisme: this.calculerTauxAbsenteisme(absencesMois),
       elevesAbsentsAujourdhui: new Set(absencesAujourdhui.map(absence => absence.eleveId)).size
     }
   }

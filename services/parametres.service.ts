@@ -1,20 +1,20 @@
-import type { DonneesEleve } from "@/types/models"
+/**
+ * Service de gestion des paramètres système
+ * Contient la logique pour gérer les horaires généraux et autres paramètres
+ */
 
-export interface ParametresEcole {
-  anneeAcademique: string
-  dateDebut: string
-  dateFin: string
-  nomEcole: string
-  adresseEcole: string
-  telephoneEcole: string
-  nomDirecteur: string
-  modePaiement: "mensuel" | "trimestriel" | "les_deux"
-}
+import type { HorairesGeneraux, ParametresEcole } from "@/types/models"
 
 export interface TarificationClasse {
   classe: string
   fraisInscription: number
-  fraisScolarite: number
+  fraisScolariteAnnuelle: number
+}
+
+export interface OptionSupplementaire {
+  id: string
+  nom: string
+  prix: number
 }
 
 export interface OptionsSupplementaires {
@@ -26,153 +26,425 @@ export interface OptionsSupplementaires {
 }
 
 class ServiceParametres {
-  private readonly CLE_PARAMETRES = "parametres_ecole"
-  private readonly CLE_TARIFICATION = "tarification_classes"
-  private readonly CLE_OPTIONS_SUPP = "options_supplementaires"
+  private readonly CLE_STOCKAGE_HORAIRES_GENERAUX = "horairesGeneraux"
 
-  // Paramètres par défaut
-  private parametresDefaut: ParametresEcole = {
-    anneeAcademique: "2024-2025",
-    dateDebut: "2024-09-01",
-    dateFin: "2025-07-31",
-    nomEcole: "COMPLEXE SCOLAIRE LA RÉUSSITE D'OWENDO",
-    adresseEcole: "B.P: 16109 Estuaire, Owendo",
-    telephoneEcole: "077947410",
-    nomDirecteur: "M. DIRECTEUR",
-    modePaiement: "les_deux",
-  }
-
-  // Tarification par défaut
-  private tarificationDefaut: TarificationClasse[] = [
-    { classe: "Maternelle", fraisInscription: 25000, fraisScolarite: 150000 },
-    { classe: "CP1", fraisInscription: 30000, fraisScolarite: 180000 },
-    { classe: "CP2", fraisInscription: 30000, fraisScolarite: 180000 },
-    { classe: "CE1", fraisInscription: 35000, fraisScolarite: 200000 },
-    { classe: "CE2", fraisInscription: 35000, fraisScolarite: 200000 },
-    { classe: "CM1", fraisInscription: 40000, fraisScolarite: 220000 },
-    { classe: "CM2", fraisInscription: 40000, fraisScolarite: 220000 },
-    { classe: "6ème", fraisInscription: 50000, fraisScolarite: 300000 },
-    { classe: "5ème", fraisInscription: 50000, fraisScolarite: 300000 },
-    { classe: "4ème", fraisInscription: 55000, fraisScolarite: 320000 },
-    { classe: "3ème", fraisInscription: 55000, fraisScolarite: 320000 },
-    { classe: "2nde L", fraisInscription: 60000, fraisScolarite: 350000 },
-    { classe: "2nde S", fraisInscription: 60000, fraisScolarite: 350000 },
-    { classe: "1ère A1", fraisInscription: 65000, fraisScolarite: 380000 },
-    { classe: "1ère A2", fraisInscription: 65000, fraisScolarite: 380000 },
-    { classe: "1ère B", fraisInscription: 65000, fraisScolarite: 380000 },
-    { classe: "Terminale A1", fraisInscription: 70000, fraisScolarite: 400000 },
-    { classe: "Terminale B", fraisInscription: 70000, fraisScolarite: 400000 },
-    { classe: "Terminale D", fraisInscription: 70000, fraisScolarite: 400000 },
-    { classe: "Terminale S", fraisInscription: 70000, fraisScolarite: 400000 },
-  ]
-
-  // Options supplémentaires par défaut
-  private optionsSupplementairesDefaut: OptionsSupplementaires = {
-    tenueScolaire: 15000,
-    carteScolaire: 5000,
-    cooperative: 10000,
-    tenueEPS: 8000,
-    assurance: 12000,
-  }
-
-  // Obtenir les paramètres de l'école
-  obtenirParametres(): ParametresEcole {
+  /**
+   * Récupère tous les horaires généraux
+   */
+  obtenirHorairesGeneraux(): HorairesGeneraux[] {
     try {
-      const parametresStockes = localStorage.getItem(this.CLE_PARAMETRES)
-      if (parametresStockes) {
-        return { ...this.parametresDefaut, ...JSON.parse(parametresStockes) }
+      const donnees = localStorage.getItem(this.CLE_STOCKAGE_HORAIRES_GENERAUX)
+      return donnees ? JSON.parse(donnees) : this.getHorairesParDefaut()
+    } catch {
+      return this.getHorairesParDefaut()
+    }
+  }
+
+  /**
+   * Met à jour les horaires généraux
+   */
+  mettreAJourHorairesGeneraux(horaires: HorairesGeneraux[]): void {
+    localStorage.setItem(this.CLE_STOCKAGE_HORAIRES_GENERAUX, JSON.stringify(horaires))
+  }
+
+  /**
+   * Récupère les horaires pour un jour spécifique
+   */
+  obtenirHorairesPourJour(jour: HorairesGeneraux["jour"]): HorairesGeneraux | null {
+    const horaires = this.obtenirHorairesGeneraux()
+    return horaires.find(h => h.jour === jour && h.actif) || null
+  }
+
+  /**
+   * Génère les créneaux horaires pour un jour donné
+   * @param jour Le jour de la semaine
+   * @param intervalMinutes Interval entre les créneaux (par défaut 30 minutes)
+   */
+  genererCreneauxHoraires(
+    jour: HorairesGeneraux["jour"],
+    intervalMinutes: number = 30
+  ): string[] {
+    const horairesJour = this.obtenirHorairesPourJour(jour)
+
+    if (!horairesJour) {
+      // Si pas d'horaires configurés, retourner les horaires par défaut
+      return this.genererCreneauxEntre("07:00", "18:00", intervalMinutes)
+    }
+
+    const creneaux: string[] = []
+
+    // Matinée
+    const creneauxMatin = this.genererCreneauxEntre(
+      horairesJour.heureOuverture,
+      horairesJour.pauseDebutMatin || horairesJour.heureFermeture,
+      intervalMinutes
+    )
+    creneaux.push(...creneauxMatin)
+
+    // Après-midi (si pas de pause ou après la pause)
+    if (horairesJour.pauseFinApresMidi) {
+      const creneauxApresMidi = this.genererCreneauxEntre(
+        horairesJour.pauseFinApresMidi,
+        horairesJour.heureFermeture,
+        intervalMinutes
+      )
+      creneaux.push(...creneauxApresMidi)
+    }
+
+    return creneaux
+  }
+
+  /**
+   * Génère tous les créneaux horaires pour tous les jours actifs
+   */
+  genererTousLesCreneaux(intervalMinutes: number = 30): Record<string, string[]> {
+    const jours = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"] as const
+    const tousLesCreneaux: Record<string, string[]> = {}
+
+    jours.forEach(jour => {
+      tousLesCreneaux[jour] = this.genererCreneauxHoraires(jour, intervalMinutes)
+    })
+
+    return tousLesCreneaux
+  }
+
+  /**
+   * Génère les créneaux horaires entre deux heures
+   */
+  private genererCreneauxEntre(heureDebut: string, heureFin: string, intervalMinutes: number): string[] {
+    const creneaux: string[] = []
+    const debut = this.convertirHeureEnMinutes(heureDebut)
+    const fin = this.convertirHeureEnMinutes(heureFin)
+
+    for (let minutes = debut; minutes < fin; minutes += intervalMinutes) {
+      creneaux.push(this.convertirMinutesEnHeure(minutes))
+    }
+
+    return creneaux
+  }
+
+  /**
+   * Convertit une heure HH:MM en minutes depuis minuit
+   */
+  private convertirHeureEnMinutes(heure: string): number {
+    const [heures, minutes] = heure.split(':').map(Number)
+    return heures * 60 + minutes
+  }
+
+  /**
+   * Convertit des minutes depuis minuit en format HH:MM
+   */
+  private convertirMinutesEnHeure(minutes: number): string {
+    const heures = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    return `${heures.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
+  }
+
+  /**
+   * Horaires par défaut (07:00 - 18:00 avec pause déjeuner)
+   */
+  getHorairesParDefaut(): HorairesGeneraux[] {
+    return [
+      {
+        id: "lundi-default",
+        jour: "lundi",
+        heureOuverture: "07:00",
+        heureFermeture: "18:00",
+        pauseDebutMatin: "12:00",
+        pauseFinMatin: "13:00",
+        pauseDebutApresMidi: "13:00",
+        pauseFinApresMidi: "14:00",
+        actif: true
+      },
+      {
+        id: "mardi-default",
+        jour: "mardi",
+        heureOuverture: "07:00",
+        heureFermeture: "18:00",
+        pauseDebutMatin: "12:00",
+        pauseFinMatin: "13:00",
+        pauseDebutApresMidi: "13:00",
+        pauseFinApresMidi: "14:00",
+        actif: true
+      },
+      {
+        id: "mercredi-default",
+        jour: "mercredi",
+        heureOuverture: "07:00",
+        heureFermeture: "18:00",
+        pauseDebutMatin: "12:00",
+        pauseFinMatin: "13:00",
+        pauseDebutApresMidi: "13:00",
+        pauseFinApresMidi: "14:00",
+        actif: true
+      },
+      {
+        id: "jeudi-default",
+        jour: "jeudi",
+        heureOuverture: "07:00",
+        heureFermeture: "18:00",
+        pauseDebutMatin: "12:00",
+        pauseFinMatin: "13:00",
+        pauseDebutApresMidi: "13:00",
+        pauseFinApresMidi: "14:00",
+        actif: true
+      },
+      {
+        id: "vendredi-default",
+        jour: "vendredi",
+        heureOuverture: "07:00",
+        heureFermeture: "18:00",
+        pauseDebutMatin: "12:00",
+        pauseFinMatin: "13:00",
+        pauseDebutApresMidi: "13:00",
+        pauseFinApresMidi: "14:00",
+        actif: true
+      },
+      {
+        id: "samedi-default",
+        jour: "samedi",
+        heureOuverture: "08:00",
+        heureFermeture: "12:00",
+        actif: true
+      }
+    ]
+  }
+
+  /**
+   * Initialise les horaires par défaut si aucun n'existe
+   */
+  initialiserHorairesParDefaut(): void {
+    const horairesExistants = this.obtenirHorairesGeneraux()
+    if (horairesExistants.length === 0) {
+      this.mettreAJourHorairesGeneraux(this.getHorairesParDefaut())
+    }
+  }
+
+  /**
+   * Récupère la tarification par classe depuis le localStorage
+   */
+  obtenirTarification(): Array<{ classe: string; fraisInscription: number; fraisScolariteAnnuelle: number }> {
+    try {
+      const stored = localStorage.getItem("tarificationClasses")
+      if (stored) {
+        return JSON.parse(stored)
       }
     } catch (error) {
-      console.error("Erreur lors de la récupération des paramètres:", error)
+      console.warn("Erreur lors de la récupération de la tarification:", error)
     }
-    return this.parametresDefaut
+
+    // Retourner un tableau vide si rien n'est stocké
+    return []
   }
 
-  // Sauvegarder les paramètres de l'école
-  sauvegarderParametres(parametres: ParametresEcole): void {
-    try {
-      localStorage.setItem(this.CLE_PARAMETRES, JSON.stringify(parametres))
-    } catch (error) {
-      console.error("Erreur lors de la sauvegarde des paramètres:", error)
-      throw new Error("Impossible de sauvegarder les paramètres")
-    }
-  }
-
-  // Obtenir la tarification par classe
-  obtenirTarification(): TarificationClasse[] {
-    try {
-      const tarificationStockee = localStorage.getItem(this.CLE_TARIFICATION)
-      if (tarificationStockee) {
-        return JSON.parse(tarificationStockee)
-      }
-    } catch (error) {
-      console.error("Erreur lors de la récupération de la tarification:", error)
-    }
-    return this.tarificationDefaut
-  }
-
-  // Sauvegarder la tarification par classe
-  sauvegarderTarification(tarification: TarificationClasse[]): void {
-    try {
-      localStorage.setItem(this.CLE_TARIFICATION, JSON.stringify(tarification))
-    } catch (error) {
-      console.error("Erreur lors de la sauvegarde de la tarification:", error)
-      throw new Error("Impossible de sauvegarder la tarification")
-    }
-  }
-
-  // Obtenir les frais pour une classe spécifique
-  obtenirFraisClasse(classe: string): TarificationClasse | undefined {
+  /**
+   * Récupère les frais pour une classe spécifique
+   */
+  obtenirFraisClasse(classe: string): { fraisInscription: number; fraisScolariteAnnuelle: number } | null {
     const tarification = this.obtenirTarification()
-    return tarification.find(t => t.classe === classe)
+    const classeTrouvee = tarification.find(t => t.classe === classe)
+    return classeTrouvee ? {
+      fraisInscription: classeTrouvee.fraisInscription,
+      fraisScolariteAnnuelle: classeTrouvee.fraisScolariteAnnuelle
+    } : null
   }
 
-  // Calculer le total à payer pour un élève
-  calculerTotalAPayer(eleve: DonneesEleve): number {
-    const fraisClasse = this.obtenirFraisClasse(eleve.classe)
-    if (!fraisClasse) return 0
+  /**
+   * Calcule le montant mensuel de scolarité pour une classe
+   */
+  calculerMontantMensuel(classe: string): number {
+    const frais = this.obtenirFraisClasse(classe)
+    if (!frais) return 0
 
-    const fraisInscription = eleve.typeInscription === "reinscription"
-      ? fraisClasse.fraisInscription * 0.5 // Réduction de 50% pour réinscription
-      : fraisClasse.fraisInscription
-
-    return fraisInscription + fraisClasse.fraisScolarite
+    // Diviser par 10 mois (septembre à juin)
+    return Math.round(frais.fraisScolariteAnnuelle / 10)
   }
 
-  // Obtenir les options supplémentaires
-  obtenirOptionsSupplementaires(): OptionsSupplementaires {
+  /**
+   * Calcule le montant par tranche pour une classe
+   */
+  calculerMontantParTranche(classe: string, pourcentage: number): number {
+    const frais = this.obtenirFraisClasse(classe)
+    if (!frais) return 0
+
+    return Math.round((frais.fraisScolariteAnnuelle * pourcentage) / 100)
+  }
+
+  /**
+   * Récupère les options supplémentaires depuis le localStorage
+   */
+  obtenirOptionsSupplementaires(): {
+    tenueScolaire: number;
+    carteScolaire: number;
+    cooperative: number;
+    tenueEPS: number;
+    assurance: number;
+  } {
     try {
-      const optionsStockees = localStorage.getItem(this.CLE_OPTIONS_SUPP)
-      if (optionsStockees) {
-        return JSON.parse(optionsStockees)
+      const stored = localStorage.getItem("optionsSupplementaires")
+      if (stored) {
+        return JSON.parse(stored)
       }
     } catch (error) {
-      console.error("Erreur lors de la récupération des options supplémentaires:", error)
+      console.warn("Erreur lors de la récupération des options:", error)
     }
-    return this.optionsSupplementairesDefaut
+
+    // Retourner des valeurs par défaut vides
+    return {
+      tenueScolaire: 0,
+      carteScolaire: 0,
+      cooperative: 0,
+      tenueEPS: 0,
+      assurance: 0
+    }
   }
 
-  // Sauvegarder les options supplémentaires
+  /**
+   * Récupère les options supplémentaires personnalisées depuis le localStorage
+   */
+  obtenirOptionsSupplementairesPersonnalisees(): OptionSupplementaire[] {
+    try {
+      const stored = localStorage.getItem("optionsSupplementairesPersonnalisees")
+      if (stored) {
+        return JSON.parse(stored)
+      }
+    } catch (error) {
+      console.warn("Erreur lors de la récupération des options personnalisées:", error)
+    }
+
+    // Retourner un tableau vide si rien n'est stocké
+    return []
+  }
+
+  /**
+   * Sauvegarde les options supplémentaires personnalisées dans le localStorage
+   */
+  sauvegarderOptionsSupplementairesPersonnalisees(options: OptionSupplementaire[]): void {
+    localStorage.setItem("optionsSupplementairesPersonnalisees", JSON.stringify(options))
+  }
+
+  /**
+   * Ajoute une nouvelle option supplémentaire personnalisée
+   */
+  ajouterOptionSupplementaire(nom: string, prix: number): OptionSupplementaire {
+    const options = this.obtenirOptionsSupplementairesPersonnalisees()
+    const nouvelleOption: OptionSupplementaire = {
+      id: `option-${Date.now()}`,
+      nom: nom.trim(),
+      prix: prix
+    }
+    options.push(nouvelleOption)
+    this.sauvegarderOptionsSupplementairesPersonnalisees(options)
+    return nouvelleOption
+  }
+
+  /**
+   * Supprime une option supplémentaire personnalisée
+   */
+  supprimerOptionSupplementaire(id: string): void {
+    const options = this.obtenirOptionsSupplementairesPersonnalisees()
+    const optionsFiltrees = options.filter(option => option.id !== id)
+    this.sauvegarderOptionsSupplementairesPersonnalisees(optionsFiltrees)
+  }
+
+  /**
+   * Met à jour une option supplémentaire personnalisée
+   */
+  mettreAJourOptionSupplementaire(id: string, nom: string, prix: number): void {
+    const options = this.obtenirOptionsSupplementairesPersonnalisees()
+    const optionIndex = options.findIndex(option => option.id === id)
+    if (optionIndex !== -1) {
+      options[optionIndex] = { ...options[optionIndex], nom: nom.trim(), prix: prix }
+      this.sauvegarderOptionsSupplementairesPersonnalisees(options)
+    }
+  }
+
+  /**
+   * Récupère les paramètres de l'année académique depuis le localStorage
+   */
+  obtenirParametres(): ParametresEcole {
+    // Essayer de récupérer depuis le localStorage d'abord
+    try {
+      const stored = localStorage.getItem("parametresEcole")
+      if (stored) {
+        return JSON.parse(stored)
+      }
+    } catch (error) {
+      console.warn("Erreur lors de la récupération des paramètres:", error)
+    }
+
+    // Retourner les valeurs par défaut vides
+    return {
+      anneeAcademique: "",
+      dateDebut: "",
+      dateFin: "",
+      nomEcole: "",
+      adresseEcole: "",
+      telephoneEcole: "",
+      nomDirecteur: "",
+      modePaiement: "les_deux"
+    }
+  }
+
+  /**
+   * Sauvegarde les paramètres de l'école dans le localStorage
+   */
+  sauvegarderParametres(parametres: ParametresEcole): void {
+    localStorage.setItem("parametresEcole", JSON.stringify(parametres))
+  }
+
+  /**
+   * Sauvegarde la tarification dans le localStorage
+   */
+  sauvegarderTarification(tarification: TarificationClasse[]): void {
+    localStorage.setItem("tarificationClasses", JSON.stringify(tarification))
+  }
+
+  /**
+   * Sauvegarde les options supplémentaires dans le localStorage
+   */
   sauvegarderOptionsSupplementaires(options: OptionsSupplementaires): void {
+    localStorage.setItem("optionsSupplementaires", JSON.stringify(options))
+  }
+
+  /**
+   * Récupère les paramètres de paiement depuis le localStorage
+   */
+  obtenirParametresPaiement(): { datePaiementMensuel: number; tranchesPaiement: any[] } {
     try {
-      localStorage.setItem(this.CLE_OPTIONS_SUPP, JSON.stringify(options))
+      const stored = localStorage.getItem("parametresPaiement")
+      if (stored) {
+        return JSON.parse(stored)
+      }
     } catch (error) {
-      console.error("Erreur lors de la sauvegarde des options supplémentaires:", error)
-      throw new Error("Impossible de sauvegarder les options supplémentaires")
+      console.warn("Erreur lors de la récupération des paramètres de paiement:", error)
+    }
+
+    // Retourner les valeurs par défaut vides
+    return {
+      datePaiementMensuel: 5,
+      tranchesPaiement: []
     }
   }
 
-  // Réinitialiser tous les paramètres
+  /**
+   * Sauvegarde les paramètres de paiement dans le localStorage
+   */
+  sauvegarderParametresPaiement(parametres: { datePaiementMensuel: number; tranchesPaiement: any[] }): void {
+    localStorage.setItem("parametresPaiement", JSON.stringify(parametres))
+  }
+
+  /**
+   * Réinitialise les paramètres aux valeurs par défaut
+   */
   reinitialiserParametres(): void {
-    try {
-      localStorage.removeItem(this.CLE_PARAMETRES)
-      localStorage.removeItem(this.CLE_TARIFICATION)
-      localStorage.removeItem(this.CLE_OPTIONS_SUPP)
-    } catch (error) {
-      console.error("Erreur lors de la réinitialisation:", error)
-      throw new Error("Impossible de réinitialiser les paramètres")
-    }
+    localStorage.removeItem("parametresEcole")
+    localStorage.removeItem("tarificationClasses")
+    localStorage.removeItem("optionsSupplementaires")
+    localStorage.removeItem("optionsSupplementairesPersonnalisees")
+    localStorage.removeItem("parametresPaiement")
   }
 }
 
+// Instance singleton du service
 export const serviceParametres = new ServiceParametres()

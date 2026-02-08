@@ -1,3 +1,112 @@
+"use client"
+
+import React from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Printer, Edit, Trash2 } from "lucide-react"
+import Link from "next/link"
+import { printHtml } from "@/lib/print"
+import type { DonneesEleve } from "@/types/models"
+
+interface StudentDetailsModalProps {
+  student: DonneesEleve
+  onClose?: () => void
+  onEdit?: (student: DonneesEleve) => void
+  onDelete?: (id: string) => void
+  onToggleStatus?: (student: DonneesEleve) => void
+  onPrintReceipt?: (student: DonneesEleve) => void
+}
+
+export default function StudentDetailsModal({
+  student,
+  onClose,
+  onEdit,
+  onDelete,
+  onToggleStatus,
+  onPrintReceipt,
+}: StudentDetailsModalProps) {
+  if (!student) return null
+
+  const handlePrintSchoolCard = () => {
+    const html = `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Carte scolaire - ${student.prenom} ${student.nom}</title>
+          <style>body{font-family:Inter,Arial,sans-serif;padding:20px}</style>
+        </head>
+        <body>
+          <h2>Carte scolaire</h2>
+          <div><strong>ID:</strong> ${student.id || student.identifiant}</div>
+          <div><strong>Nom:</strong> ${student.nom}</div>
+          <div><strong>Prénom:</strong> ${student.prenom}</div>
+          <div><strong>Classe:</strong> ${student.classe}</div>
+        </body>
+      </html>
+    `
+    printHtml(html)
+  }
+
+  const handlePrintCertificate = () => {
+    const html = `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Attestation - ${student.prenom} ${student.nom}</title>
+          <style>body{font-family:Inter,Arial,sans-serif;padding:24px}</style>
+        </head>
+        <body>
+          <h1>Attestation de scolarité</h1>
+          <p>Nous attestons que <strong>${student.prenom} ${student.nom}</strong> est inscrit(e) en classe <strong>${student.classe}</strong>.</p>
+        </body>
+      </html>
+    `
+    printHtml(html)
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{student.prenom} {student.nom}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div>
+            <div className="text-sm text-gray-600">ID: {student.id || student.identifiant}</div>
+            <div className="text-sm text-gray-600">Classe: {student.classe}</div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => onPrintReceipt ? onPrintReceipt(student) : null}>
+              <Printer className="h-4 w-4 mr-2" />
+              Reçu
+            </Button>
+            <Button variant="outline" size="sm" onClick={handlePrintSchoolCard}>
+              <Printer className="h-4 w-4 mr-2" />
+              Carte scolaire
+            </Button>
+            <Button variant="outline" size="sm" onClick={handlePrintCertificate}>
+              <Printer className="h-4 w-4 mr-2" />
+              Attestation
+            </Button>
+          </div>
+
+          <div className="flex gap-2 mt-2">
+            <Button variant="ghost" size="sm" onClick={() => onEdit && onEdit(student)}>
+              <Edit className="h-4 w-4 mr-2" /> Modifier
+            </Button>
+            <Button variant="destructive" size="sm" onClick={() => onDelete && onDelete(student.id || '')}>
+              <Trash2 className="h-4 w-4 mr-2" /> Supprimer
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,6 +117,7 @@ import { SchoolCertificate } from "@/components/SchoolCertificate"
 import { Settings } from "lucide-react"
 import Link from "next/link"
 import { StudentCard } from "@/components/student-card"
+import { printHtml } from "@/lib/print"
 
 
 import type { DonneesEleve } from "@/types/models"
@@ -19,85 +129,23 @@ interface StudentDetailsModalProps {
   onDelete: (id: string) => void
   onToggleStatus: (student: DonneesEleve) => void
   onPrintReceipt: (student: DonneesEleve) => void
-  onPrintSchoolCard: (student: DonneesEleve) => void
-  onPrintCertificate: (student: DonneesEleve) => void
-  extraContent?: React.ReactNode; 
-}
-
-export default function StudentDetailsModal({
-  student,
-  onClose,
-  onEdit,
-  onDelete,
-  onToggleStatus,
-  onPrintReceipt,
-  onPrintSchoolCard,
-  onPrintCertificate
-}: StudentDetailsModalProps) {
-  const [isChangingStatus, setIsChangingStatus] = useState(false)
-
-  const handleToggleStatus = async () => {
-    setIsChangingStatus(true)
-    await onToggleStatus(student)
-    setIsChangingStatus(false)
-  }
-
-  
-
-
-const handlePrintCertificate = (student: DonneesEleve) => {
-  const printWindow = window.open("", "_blank", "width=900,height=700");
-  if (printWindow) {
+  const handlePrintCertificate = (student: DonneesEleve) => {
     const certificateHTML = document.getElementById('certificate-print')?.innerHTML || '';
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Attestation de Scolarité - ${student.prenom} ${student.nom}</title>
-
-        <!-- Tailwind CSS -->
-        <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.3/dist/tailwind.min.css" rel="stylesheet">
-
-       <style>
-          /* Reset et base */
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { 
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 20px;
-            color: #2d3748;
-            background: white;
-            line-height: 1.6;
-            font-size: 14px;
-          }
-          
-          /* Container principal */
-          .certificate-container {
-            width: 21cm;
-            min-height: 29.7cm;
-            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-            margin: 0 auto;
-            padding: 40px;
-            position: relative;
-            overflow: hidden;
-            border: 1px solid #e2e8f0;
-          }
-          
-          /* Cadre décoratif */
-          .gold-border {
-            position: absolute;
-            border: 2px solid #f59e0b;
-            border-radius: 8px;
-            pointer-events: none;
-          }
-          .gold-border-outer { inset: 20px; }
-          .gold-border-inner { inset: 30px; }
-          
-          /* En-tête officielle */
-          .official-header {
-            background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
-            color: white;
+    const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Attestation de Scolarité - ${student.prenom} ${student.nom}</title>
+          <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.3/dist/tailwind.min.css" rel="stylesheet">
+        </head>
+        <body>
+          ${certificateHTML}
+          <script>window.onload = ()=>{window.print(); setTimeout(()=>window.close(),500)}</script>
+        </body>
+        </html>
+    `
+    printHtml(html)
+  }
             text-align: center;
             padding: 30px;
             border-radius: 16px;

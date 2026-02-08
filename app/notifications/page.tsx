@@ -20,6 +20,7 @@ import type { Notification, DonneesEleve, DonneesEnseignant, Classe } from "@/ty
 import { serviceNotifications } from "@/services/notifications.service"
 import { serviceEleves } from "@/services/eleves.service"
 import { serviceEnseignants } from "@/services/enseignants.service"
+import { NotificationSearchFilters } from "./NotificationSearchFilters"
 
 
 export default function PageNotifications() {
@@ -41,12 +42,33 @@ export default function PageNotifications() {
   const [classeSelectionnee, setClasseSelectionnee] = useState("")
   const [priorite, setPriorite] = useState<"normale" | "importante" | "urgente">("normale")
 
+  // États pour la recherche et les filtres
+  const [rechercheEleve, setRechercheEleve] = useState("")
+  const [rechercheEnseignant, setRechercheEnseignant] = useState("")
+  const [filtreMatiere, setFiltreMatiere] = useState("")
+  const [filtreClasseEleve, setFiltreClasseEleve] = useState("")
+
   // Charger les données au montage
   useEffect(() => {
     setNotifications(serviceNotifications.obtenirToutesNotifications())
     setEleves(serviceEleves.obtenirTousLesEleves())
     setEnseignants(serviceEnseignants.obtenirTousLesEnseignants())
   }, [])
+
+  // Listes filtrées
+  const elevesFiltres = eleves.filter((eleve) => {
+    const correspondRecherche = rechercheEleve === "" ||
+      `${eleve.prenom} ${eleve.nom}`.toLowerCase().includes(rechercheEleve.toLowerCase())
+    const correspondClasse = filtreClasseEleve === "" || eleve.classe === filtreClasseEleve
+    return correspondRecherche && correspondClasse
+  })
+
+  const enseignantsFiltres = enseignants.filter((enseignant) => {
+    const correspondRecherche = rechercheEnseignant === "" ||
+      `${enseignant.prenom} ${enseignant.nom}`.toLowerCase().includes(rechercheEnseignant.toLowerCase())
+    const correspondMatiere = filtreMatiere === "" || enseignant.matieres.includes(filtreMatiere)
+    return correspondRecherche && correspondMatiere
+  })
 
   const gererEnvoiNotification = () => {
     if (!titre.trim() || !message.trim() || !destinataireType) {
@@ -234,6 +256,21 @@ export default function PageNotifications() {
                 <CardDescription>Envoyez une notification aux élèves ou enseignants</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Composant de recherche et filtres */}
+                <NotificationSearchFilters
+                  eleves={eleves}
+                  enseignants={enseignants}
+                  classes={classes}
+                  onEleveSearchChange={setRechercheEleve}
+                  onEnseignantSearchChange={setRechercheEnseignant}
+                  onMatiereFilterChange={setFiltreMatiere}
+                  onClasseFilterChange={setFiltreClasseEleve}
+                  filtreClasseEleve={filtreClasseEleve}
+                  filtreMatiere={filtreMatiere}
+                  rechercheEleve={rechercheEleve}
+                  rechercheEnseignant={rechercheEnseignant}
+                />
+
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="titre">Titre de la notification *</Label>
@@ -295,7 +332,7 @@ export default function PageNotifications() {
                           <SelectValue placeholder="Choisir un élève" />
                         </SelectTrigger>
                         <SelectContent>
-                          {eleves.map((eleve) => (
+                          {elevesFiltres.map((eleve) => (
                             <SelectItem key={eleve.id} value={eleve.id}>
                               {eleve.prenom} {eleve.nom} - {eleve.classe}
                             </SelectItem>
@@ -313,9 +350,9 @@ export default function PageNotifications() {
                           <SelectValue placeholder="Choisir un enseignant" />
                         </SelectTrigger>
                         <SelectContent>
-                          {enseignants.map((enseignant) => (
+                          {enseignantsFiltres.map((enseignant) => (
                             <SelectItem key={enseignant.id} value={enseignant.id}>
-                              {enseignant.prenom} {enseignant.nom}
+                              {enseignant.prenom} {enseignant.nom} - {enseignant.matieres.join(", ")}
                             </SelectItem>
                           ))}
                         </SelectContent>

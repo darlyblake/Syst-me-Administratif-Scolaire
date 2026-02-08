@@ -3,153 +3,169 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Download, BarChart3, PieChart, TrendingUp, Users, Calendar } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ArrowLeft, FileDown, BarChart2, PieChart, DollarSign } from "lucide-react"
 import Link from "next/link"
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+} from 'chart.js';
+import { Bar, Pie } from 'react-chartjs-2';
 import { serviceEleves } from "@/services/eleves.service"
 import { servicePaiements } from "@/services/paiements.service"
-import type { DonneesEleve } from "@/types/models"
+import type { EleveAvecSuivi } from "@/types/models"
 import type { Paiement } from "@/types/models"
 
-export default function ReportsPage() {
-  const [students, setStudents] = useState<DonneesEleve[]>([])
-  const [payments, setPayments] = useState<Paiement[]>([])
-  const [selectedPeriod, setSelectedPeriod] = useState("all")
-  const [selectedClass, setSelectedClass] = useState("all")
+interface MonthlyRevenue {
+  name: string
+  Recettes: number
+}
 
-  const classes = [
-    "Maternelle",
-    "CP1",
-    "CP2",
-    "CE1",
-    "CE2",
-    "CM1",
-    "CM2",
-    "6ème",
-    "5ème",
-    "4ème",
-    "3ème",
-    "2nde L",
-    "2nde S",
-    "1ère A1",
-    "1ère A2",
-    "1ère B",
-    "Terminale A1",
-    "Terminale B",
-    "Terminale D",
-    "Terminale S",
-  ]
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+);
+
+export default function ReportsPage() {
+  const [students, setStudents] = useState<EleveAvecSuivi[]>([])
+  const [payments, setPayments] = useState<Paiement[]>([])
+  const [selectedClass, setSelectedClass] = useState<string>("all")
+  const [selectedMonth, setSelectedMonth] = useState<string>("all")
+  const [classes, setClasses] = useState<string[]>([])
+  const [availableMonths, setAvailableMonths] = useState<string[]>([])
 
   useEffect(() => {
-    const savedStudents = serviceEleves.obtenirTousLesEleves()
-    const savedPayments = servicePaiements.obtenirTousLesPaiements()
-    setStudents(savedStudents)
-    setPayments(savedPayments)
+    const allStudents = serviceEleves.obtenirElevesAvecSuiviFinancier()
+    const allPayments = servicePaiements.obtenirTousLesPaiements()
+    setStudents(allStudents)
+    setPayments(allPayments)
+    setClasses(serviceEleves.obtenirClassesActives())
+
+    const months = [...new Set(allPayments.map(p => {
+      const date = new Date(p.datePaiement)
+      return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`
+    }))].sort().reverse() // Sort months in reverse chronological order
+
+    setAvailableMonths(months)
   }, [])
 
-  // Statistiques générales
-  const totalStudents = students.length
-  const totalRevenue = payments.reduce((sum, p) => sum + p.montant, 0)
-  const newInscriptions = students.filter((s) => s.typeInscription === "inscription").length
-  const reinscriptions = students.filter((s) => s.typeInscription === "reinscription").length
+  // 1. Filtrer par classe
+  const studentsFilteredByClass = selectedClass === "all"
+    ? students
+    : students.filter(s => s.classe === selectedClass)
 
-  // Statistiques par classe
-  const statsByClass = classes
-    .map((classe) => {
-      const classStudents = students.filter((s) => s.classe === classe)
-      const classPayments = payments.filter((p) => {
-        const student = students.find((s) => s.id === p.eleveId)
-        return student?.classe === classe
+  // 2. Filtrer par mois
+  const paymentsFilteredByMonth = selectedMonth === "all"
+    ? payments
+    : payments.filter(p => {
+        const date = new Date(p.datePaiement)
+        const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`
+        return monthYear === selectedMonth
       })
-      const classRevenue = classPayments.reduce((sum, p) => sum + p.montant, 0)
 
-      return {
-        classe,
-        students: classStudents.length,
-        revenue: classRevenue,
-        averageRevenue: classStudents.length > 0 ? classRevenue / classStudents.length : 0,
-      }
-    })
-    .filter((stat) => stat.students > 0)
+  // Appliquer les deux filtres
+  const studentIdsInClass = new Set(studentsFilteredByClass.map(s => s.id))
+  const finalFilteredPayments = paymentsFilteredByMonth.filter(p => studentIdsInClass.has(p.eleveId))
+  const finalFilteredStudents = selectedMonth === "all" ? studentsFilteredByClass : students.filter(s => finalFilteredPayments.some(p => p.eleveId === s.id))
 
-  // Statistiques par mode de paiement
-  const paymentMethods = {
-    especes: payments.filter((p) => p.methodePaiement === "especes").reduce((sum, p) => sum + p.montant, 0),
-    cheque: payments.filter((p) => p.methodePaiement === "cheque").reduce((sum, p) => sum + p.montant, 0),
-    virement: payments.filter((p) => p.methodePaiement === "virement").reduce((sum, p) => sum + p.montant, 0),
-  }
+  // Calcul des statistiques financières
+  const totalDette = finalFilteredStudents.reduce((sum, s) => sum + s.detteTotaleGlobale, 0)
+  const totalRecettes = finalFilteredPayments.reduce((sum, p) => sum + p.montant, 0)
+  const soldeRestant = totalDette - totalRecettes
 
-  // Évolution mensuelle
-  const monthlyStats = () => {
-    const months: { [key: string]: { revenue: number; students: number } } = {}
+  const paidStudents = finalFilteredStudents.filter(s => s.pourcentagePaye === 100).length
+  const partialStudents = finalFilteredStudents.filter(s => s.pourcentagePaye > 0 && s.pourcentagePaye < 100).length
+  const unpaidStudents = finalFilteredStudents.filter(s => s.pourcentagePaye === 0).length
 
-    payments.forEach((payment) => {
-      const date = new Date(payment.datePaiement)
-      const month = `${date.getMonth() + 1}/${date.getFullYear()}`
-      if (!months[month]) {
-        months[month] = { revenue: 0, students: 0 }
-      }
-      months[month].revenue += payment.montant
-    })
+  const paymentStatusData = [
+    { name: "À jour", value: paidStudents, color: "#22c55e" },
+    { name: "Partiel", value: partialStudents, color: "#f97316" },
+    { name: "Impayé", value: unpaidStudents, color: "#ef4444" },
+  ]
 
-    students.forEach((student) => {
-      const date = new Date(student.dateInscription)
-      const month = `${date.getMonth() + 1}/${date.getFullYear()}`
-      if (!months[month]) {
-        months[month] = { revenue: 0, students: 0 }
-      }
-      months[month].students += 1
-    })
+  // Calcul des recettes par mois
+  const monthlyRevenue: MonthlyRevenue[] = finalFilteredPayments.reduce((acc, payment) => {
+    const month = new Date(payment.datePaiement).toLocaleString('fr-FR', { month: 'short' })
+    const year = new Date(payment.datePaiement).getFullYear().toString().slice(-2)
+    const monthYear = `${month}. ${year}`
 
-    return Object.entries(months)
-      .map(([month, data]) => ({
-        month,
-        ...data,
-      }))
-      .sort((a, b) => a.month.localeCompare(b.month))
-  }
+    let monthData = acc.find(m => m.name === monthYear)
+    if (monthData) monthData.Recettes += payment.montant
+    else acc.push({ name: monthYear, Recettes: payment.montant })
+    return acc
+  }, [] as MonthlyRevenue[])
 
-  const exportReport = (type: string) => {
-    let csvContent = ""
-    let filename = ""
+  // Fonction d'export CSV
+  const exportToCSV = () => {
+    const headers = ["ID", "Prénom", "Nom", "Classe", "Total Dû (FCFA)", "Total Payé (FCFA)", "Solde Restant (FCFA)", "Statut Paiement (%)"]
+    const rows = finalFilteredStudents.map(s => [
+      s.identifiant,
+      s.prenom,
+      s.nom,
+      s.classe,
+      s.detteTotaleGlobale,
+      s.totalPayeGlobal,
+      s.resteAPayerGlobal,
+      s.pourcentagePaye.toFixed(0)
+    ].join(","))
 
-    switch (type) {
-      case "students":
-        csvContent = [
-          "ID,Nom,Prénom,Classe,Type,Date inscription,Total à payer",
-          ...students.map(
-            (s) =>
-              `${s.id},${s.nom},${s.prenom},${s.classe},${s.typeInscription},${s.dateInscription},${s.totalAPayer}`,
-          ),
-        ].join("\n")
-        filename = "rapport_eleves.csv"
-        break
-
-      case "payments":
-        csvContent = [
-          "ID Paiement,ID Élève,Montant,Type,Date,Mode",
-          ...payments.map((p) => `${p.id},${p.eleveId},${p.montant},${p.typePaiement},${new Date(p.datePaiement).toLocaleDateString('fr-FR')},${p.methodePaiement}`),
-        ].join("\n")
-        filename = "rapport_paiements.csv"
-        break
-
-      case "classes":
-        csvContent = [
-          "Classe,Nombre élèves,Recettes,Moyenne par élève",
-          ...statsByClass.map((s) => `${s.classe},${s.students},${s.revenue},${s.averageRevenue.toFixed(0)}`),
-        ].join("\n")
-        filename = "rapport_classes.csv"
-        break
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n")
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", `rapport_financier_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    try {
+      link.click()
+    } finally {
+      // Ne retirer le lien que s'il est toujours présent dans le DOM
+      if (link.parentNode) link.parentNode.removeChild(link)
     }
-
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
   }
+
+  // Données formatées pour Chart.js
+  const barChartData = {
+    labels: monthlyRevenue.map(d => d.name),
+    datasets: [
+      {
+        label: 'Recettes (FCFA)',
+        data: monthlyRevenue.map(d => d.Recettes),
+        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+        borderColor: 'rgba(59, 130, 246, 1)',
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  const pieChartData = {
+    labels: paymentStatusData.map(d => d.name),
+    datasets: [
+      {
+        label: 'Nombre d\'élèves',
+        data: paymentStatusData.map(d => d.value),
+        backgroundColor: paymentStatusData.map(d => d.color),
+        borderColor: '#ffffff',
+        borderWidth: 2,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -158,294 +174,175 @@ export default function ReportsPage() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <Button variant="outline" size="sm" asChild>
-              <Link href="/">
+              <Link href="/tableau-bord">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Retour
               </Link>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <BarChart3 className="h-6 w-6" />
-                Rapports et Statistiques
-              </h1>
-              <p className="text-gray-600">Analyse des données scolaires et financières</p>
+              <h1 className="text-2xl font-bold text-gray-900">Rapports Financiers</h1>
+              <p className="text-gray-600">Analyse détaillée des finances de l'établissement</p>
             </div>
           </div>
-          <Button asChild>
-            <Link href="/recettes-mensuelles">
-              <Calendar className="h-4 w-4 mr-2" />
-              Recettes mensuelles
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Select value={selectedClass} onValueChange={setSelectedClass}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filtrer par classe" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les classes</SelectItem>
+                {classes.map(classe => (
+                  <SelectItem key={classe} value={classe}>
+                    {classe}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filtrer par mois" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les mois</SelectItem>
+                {availableMonths.map(month => (
+                  <SelectItem key={month} value={month}>
+                    {new Date(month + '-02').toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={exportToCSV}>
+              <FileDown className="h-4 w-4 mr-2" />
+              Exporter en CSV
+            </Button>
+          </div>
         </div>
 
-        {/* Statistiques générales */}
-        <div className="grid md:grid-cols-4 gap-4 mb-6">
+        {/* Indicateurs Clés */}
+        <div className="grid md:grid-cols-3 gap-4 mb-6">
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Users className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{totalStudents}</div>
-                  <div className="text-sm text-gray-600">Total élèves</div>
-                </div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Recettes Totales</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{totalRecettes.toLocaleString()} FCFA</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Dette Globale</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">{totalDette.toLocaleString()} FCFA</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Solde Restant à Payer</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{soldeRestant.toLocaleString()} FCFA</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Graphiques */}
+        <div className="grid md:grid-cols-2 gap-6 mb-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><BarChart2 className="h-5 w-5" />Recettes par Mois</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <Bar options={chartOptions} data={barChartData} />
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{totalRevenue.toLocaleString()}</div>
-                  <div className="text-sm text-gray-600">Recettes (FCFA)</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                  <Users className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{newInscriptions}</div>
-                  <div className="text-sm text-gray-600">Nouvelles inscriptions</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                  <Users className="h-5 w-5 text-orange-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{reinscriptions}</div>
-                  <div className="text-sm text-gray-600">Réinscriptions</div>
-                </div>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><PieChart className="h-5 w-5" />Statut des Paiements</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px] flex justify-center items-center">
+                <Pie data={pieChartData} options={{...chartOptions, plugins: { legend: { position: 'top' }}}} />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="classes" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="classes">Par classe</TabsTrigger>
-            <TabsTrigger value="payments">Paiements</TabsTrigger>
-            <TabsTrigger value="evolution">Évolution</TabsTrigger>
-            <TabsTrigger value="monthly">Mensuel</TabsTrigger>
-            <TabsTrigger value="export">Export</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="classes">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <PieChart className="h-5 w-5" />
-                  Statistiques par classe
-                </CardTitle>
-                <CardDescription>Répartition des élèves et recettes par niveau</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {statsByClass.map((stat) => (
-                    <div key={stat.classe} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="font-medium text-lg">{stat.classe}</div>
-                        <div className="text-sm text-gray-600">
-                          {stat.students} élève{stat.students > 1 ? "s" : ""}
-                        </div>
-                      </div>
-
-                      <div className="grid md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-600">Recettes totales:</span>
-                          <div className="font-bold text-green-600">{stat.revenue.toLocaleString()} FCFA</div>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Moyenne par élève:</span>
-                          <div className="font-bold text-blue-600">{stat.averageRevenue.toLocaleString()} FCFA</div>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Part du total:</span>
-                          <div className="font-bold text-purple-600">
-                            {((stat.revenue / totalRevenue) * 100).toFixed(1)}%
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Barre de progression */}
-                      <div className="mt-3">
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-500 h-2 rounded-full"
-                            style={{ width: `${(stat.revenue / totalRevenue) * 100}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="payments">
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Répartition par mode de paiement</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 border rounded">
-                      <span>Espèces</span>
-                      <span className="font-bold">{paymentMethods.especes.toLocaleString()} FCFA</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 border rounded">
-                      <span>Chèque</span>
-                      <span className="font-bold">{paymentMethods.cheque.toLocaleString()} FCFA</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 border rounded">
-                      <span>Virement</span>
-                      <span className="font-bold">{paymentMethods.virement.toLocaleString()} FCFA</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Analyse des paiements</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded">
-                      <span>Total des paiements</span>
-                      <span className="font-bold text-blue-600">{payments.length}</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-green-50 rounded">
-                      <span>Montant moyen</span>
-                      <span className="font-bold text-green-600">
-                        {payments.length > 0 ? (totalRevenue / payments.length).toLocaleString() : 0} FCFA
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-purple-50 rounded">
-                      <span>Recettes totales</span>
-                      <span className="font-bold text-purple-600">{totalRevenue.toLocaleString()} FCFA</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+        {/* Tableau détaillé */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Rapport Financier par Élève</CardTitle>
+            <CardDescription>Liste détaillée de la situation financière de chaque élève.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Élève</TableHead>
+                    <TableHead>Classe</TableHead>
+                    <TableHead className="text-right">Total Dû</TableHead>
+                    <TableHead className="text-right">Total Payé</TableHead>
+                    <TableHead className="text-right">Solde Restant</TableHead>
+                    <TableHead className="text-center">Statut</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {finalFilteredStudents.length > 0 ? (
+                    classes
+                      .filter(classe => selectedClass === 'all' || selectedClass === classe)
+                      .map(classe => (
+                        <>
+                          <TableRow key={`header-${classe}`} className="bg-gray-100 hover:bg-gray-100">
+                            <TableCell colSpan={6} className="font-bold text-gray-800 py-2 px-4">{classe}</TableCell>
+                          </TableRow>
+                          {finalFilteredStudents
+                            .filter(s => s.classe === classe)
+                            .sort((a, b) => b.resteAPayerGlobal - a.resteAPayerGlobal)
+                            .map(student => (
+                              <TableRow key={student.id}>
+                                <TableCell>
+                                  <div className="font-medium">{student.prenom} {student.nom}</div>
+                                  <div className="text-sm text-muted-foreground">{student.identifiant}</div>
+                                </TableCell>
+                                <TableCell>{student.classe}</TableCell>
+                                <TableCell className="text-right font-mono">{student.detteTotaleGlobale.toLocaleString()} FCFA</TableCell>
+                                <TableCell className="text-right font-mono text-green-600">{student.totalPayeGlobal.toLocaleString()} FCFA</TableCell>
+                                <TableCell className="text-right font-mono font-bold text-red-600">{student.resteAPayerGlobal.toLocaleString()} FCFA</TableCell>
+                                <TableCell className="text-center">
+                                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                    <div
+                                      className={`h-2.5 rounded-full ${
+                                        student.pourcentagePaye === 100 ? 'bg-green-500' :
+                                        student.pourcentagePaye > 0 ? 'bg-yellow-500' :
+                                        'bg-red-500'
+                                      }`}
+                                      style={{ width: `${student.pourcentagePaye}%` }}
+                                    ></div>
+                                  </div>
+                                  <span className="text-xs">{student.pourcentagePaye.toFixed(0)}%</span>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </>
+                      ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center h-24">
+                        Aucune donnée à afficher pour la sélection actuelle.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
-          </TabsContent>
-
-          <TabsContent value="evolution">
-            <Card>
-              <CardHeader>
-                <CardTitle>Évolution mensuelle</CardTitle>
-                <CardDescription>Inscriptions et recettes par mois</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {monthlyStats().map((month) => (
-                    <div key={month.month} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="font-medium">{month.month}</div>
-                        <div className="text-sm text-gray-600">
-                          {month.students} inscription{month.students > 1 ? "s" : ""}
-                        </div>
-                      </div>
-                      <div className="grid md:grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-600">Recettes:</span>
-                          <div className="font-bold text-green-600">{month.revenue.toLocaleString()} FCFA</div>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Nouvelles inscriptions:</span>
-                          <div className="font-bold text-blue-600">{month.students}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="monthly">
-            <Card>
-              <CardHeader>
-                <CardTitle>Gestion mensuelle avancée</CardTitle>
-                <CardDescription>Accédez à l'analyse détaillée des recettes par mois</CardDescription>
-              </CardHeader>
-              <CardContent className="text-center py-8">
-                <Calendar className="mx-auto h-16 w-16 text-blue-500 mb-4" />
-                <h3 className="text-xl font-bold mb-2">Recettes Mensuelles</h3>
-                <p className="text-gray-600 mb-6">
-                  Analysez vos recettes mois par mois avec des graphiques détaillés, des objectifs et des
-                  recommandations personnalisées.
-                </p>
-                <Button asChild size="lg">
-                  <Link href="/recettes-mensuelles">
-                    <TrendingUp className="h-5 w-5 mr-2" />
-                    Accéder aux recettes mensuelles
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="export">
-            <div className="grid md:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Export des élèves</CardTitle>
-                  <CardDescription>Liste complète des élèves inscrits</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button onClick={() => exportReport("students")} className="w-full">
-                    <Download className="h-4 w-4 mr-2" />
-                    Exporter les élèves
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Export des paiements</CardTitle>
-                  <CardDescription>Historique complet des paiements</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button onClick={() => exportReport("payments")} className="w-full">
-                    <Download className="h-4 w-4 mr-2" />
-                    Exporter les paiements
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Export par classe</CardTitle>
-                  <CardDescription>Statistiques détaillées par niveau</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button onClick={() => exportReport("classes")} className="w-full">
-                    <Download className="h-4 w-4 mr-2" />
-                    Exporter par classe
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

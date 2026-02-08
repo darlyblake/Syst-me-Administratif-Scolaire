@@ -5,49 +5,42 @@ import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Eye, Download, CreditCard } from "lucide-react"
 import Link from "next/link"
-
-interface Payment {
-  id: string
-  studentId: string
-  amount: number
-  type: "inscription" | "scolarite" | "tranche"
-  date: string
-  method: "especes" | "cheque" | "virement"
-  reference?: string
-  notes?: string
-}
-
-interface StudentData {
-  id: string
-  nom: string
-  prenom: string
-  classe: string
-  nomParent: string
-  totalAPayer: number
-}
+import { serviceEleves } from "@/services/eleves.service"
+import { servicePaiements } from "@/services/paiements.service"
+import type { Paiement, EleveAvecSuivi } from "@/types/models"
 
 export default function PaymentHistoryPage() {
   const searchParams = useSearchParams()
   const studentId = searchParams.get("student")
 
-  const [student, setStudent] = useState<StudentData | null>(null)
-  const [payments, setPayments] = useState<Payment[]>([])
-  const [allPayments, setAllPayments] = useState<Payment[]>([])
+  const [student, setStudent] = useState<EleveAvecSuivi | null>(null)
+  const [payments, setPayments] = useState<Paiement[]>([])
+  const [allPayments, setAllPayments] = useState<Paiement[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [startDate, setStartDate] = useState<string | null>(null)
+  const [endDate, setEndDate] = useState<string | null>(null)
+  const [typeFilter, setTypeFilter] = useState<string | null>(null)
+  const [methodFilter, setMethodFilter] = useState<string | null>(null)
 
   useEffect(() => {
-    const students = JSON.parse(localStorage.getItem("students") || "[]")
-    const savedPayments = JSON.parse(localStorage.getItem("payments") || "[]")
-
+    const savedPayments = servicePaiements.obtenirTousLesPaiements()
     setAllPayments(savedPayments)
 
+    // Utiliser la fonction centralisée du service
+    const studentsWithFinancials = serviceEleves.obtenirElevesAvecSuiviFinancier()
+
     if (studentId) {
-      const foundStudent = students.find((s: StudentData) => s.id === studentId)
+      const foundStudent = studentsWithFinancials.find((s: EleveAvecSuivi) => s.id === studentId);
+
       if (foundStudent) {
-        setStudent(foundStudent)
-        const studentPayments = savedPayments.filter((p: Payment) => p.studentId === studentId)
-        setPayments(studentPayments)
+        setStudent(foundStudent);
+        // Filtrer les paiements pour cet élève uniquement
+        const studentPayments = savedPayments.filter((p: Paiement) => p.eleveId === studentId);
+        setPayments(studentPayments);
       }
     } else {
       setPayments(savedPayments)
@@ -60,8 +53,8 @@ export default function PaymentHistoryPage() {
         return "Inscription"
       case "scolarite":
         return "Scolarité"
-      case "tranche":
-        return "Tranche"
+      case "autre":
+        return "Autre"
       default:
         return type
     }
@@ -80,22 +73,22 @@ export default function PaymentHistoryPage() {
     }
   }
 
-  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
-  const remaining = student ? student.totalAPayer - totalPaid : 0
-
   const exportToCSV = () => {
-    const headers = ["Date", "Élève", "Type", "Montant", "Mode", "Référence"]
+    // Exporter les paiements actuellement filtrés
+    const filtered = getFilteredPayments()
+    const headers = ["Date", "Élève", "Type", "Montant", "Mode", "Référence", "Mois/Tranches"]
     const csvContent = [
       headers.join(","),
-      ...payments.map((payment) => {
+      ...filtered.map((payment) => {
         const studentInfo = student || { nom: "Inconnu", prenom: "" }
         return [
-          payment.date,
+          payment.datePaiement,
           `${studentInfo.prenom} ${studentInfo.nom}`,
-          getTypeLabel(payment.type),
-          payment.amount,
-          getMethodLabel(payment.method),
-          payment.reference || "",
+          getTypeLabel(payment.typePaiement),
+          payment.montant,
+          getMethodLabel(payment.methodePaiement),
+          (payment.description || "").replace(/,/g, ' '),
+          (payment.moisPaiement || []).join("|")
         ].join(",")
       }),
     ].join("\n")
@@ -105,8 +98,36 @@ export default function PaymentHistoryPage() {
     const a = document.createElement("a")
     a.href = url
     a.download = `historique_paiements_${student?.id || "tous"}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      a.click()
+    } finally {
+      try { URL.revokeObjectURL(url) } catch (e) {}
+      if (a.parentNode) a.parentNode.removeChild(a)
+    }
+  }
+
+  const getFilteredPayments = (): Paiement[] => {
+    return allPayments.filter((p) => {
+      if (student && p.eleveId !== student.id) return false
+      if (searchTerm) {
+        const q = searchTerm.toLowerCase()
+        if (!((p.description || '').toLowerCase().includes(q) || getTypeLabel(p.typePaiement).toLowerCase().includes(q))) return false
+      }
+      if (typeFilter && p.typePaiement !== typeFilter) return false
+      if (methodFilter && p.methodePaiement !== methodFilter) return false
+      if (startDate) {
+        const d = new Date(p.datePaiement)
+        if (d < new Date(startDate)) return false
+      }
+      if (endDate) {
+        const d = new Date(p.datePaiement)
+        // include the end date day
+        const end = new Date(endDate)
+        end.setHours(23,59,59,999)
+        if (d > end) return false
+      }
+      return true
+    })
   }
 
   return (
@@ -121,18 +142,67 @@ export default function PaymentHistoryPage() {
                 Retour
               </Link>
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Historique des paiements</h1>
-              <p className="text-gray-600">
-                {student ? `${student.prenom} ${student.nom} - ${student.classe}` : "Tous les élèves"}
-              </p>
-            </div>
+            {student && (
+              <div className="flex items-center gap-4">
+                {student.photo ? (
+                  <img
+                    src={student.photo}
+                    alt={`${student.prenom} ${student.nom}`}
+                    className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
+                    <span className="text-gray-500 text-sm font-medium">
+                      {student.prenom.charAt(0)}{student.nom.charAt(0)}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">{student.prenom} {student.nom}</h1>
+                  <p className="text-gray-600">Classe: {student.classe} • ID: {student.identifiant}</p>
+                </div>
+              </div>
+            )}
+            {!student && (
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Historique des paiements</h1>
+                <p className="text-gray-600">Tous les élèves</p>
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
-            <Button onClick={exportToCSV} variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Exporter CSV
-            </Button>
+            <div className="flex items-center gap-2">
+              <Input placeholder="Rechercher (type, réf...)" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <Input type="date" value={startDate ?? ''} onChange={(e) => setStartDate(e.target.value || null)} className="w-[160px]" />
+              <Input type="date" value={endDate ?? ''} onChange={(e) => setEndDate(e.target.value || null)} className="w-[160px]" />
+              <Select value={typeFilter ?? 'all'} onValueChange={(v) => setTypeFilter(v === 'all' ? null : v)}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous</SelectItem>
+                  <SelectItem value="scolarite">Scolarité</SelectItem>
+                  <SelectItem value="inscription">Inscription</SelectItem>
+                  <SelectItem value="autre">Autre</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={methodFilter ?? 'all'} onValueChange={(v) => setMethodFilter(v === 'all' ? null : v)}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous</SelectItem>
+                  <SelectItem value="especes">Espèces</SelectItem>
+                  <SelectItem value="cheque">Chèque</SelectItem>
+                  <SelectItem value="virement">Virement</SelectItem>
+                  <SelectItem value="mobile">Mobile</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={exportToCSV} variant="outline">
+                <Download className="h-4 w-4 mr-2" />
+                Exporter CSV
+              </Button>
+            </div>
             {student && (
               <Button asChild>
                 <Link href={`/add-payment?student=${student.id}`}>
@@ -150,7 +220,7 @@ export default function PaymentHistoryPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{student.totalAPayer.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-blue-600">{student.detteTotaleGlobale.toLocaleString()}</div>
                   <div className="text-sm text-gray-600">Total à payer (FCFA)</div>
                 </div>
               </CardContent>
@@ -158,7 +228,7 @@ export default function PaymentHistoryPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{totalPaid.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-green-600">{student.totalPayeGlobal.toLocaleString()}</div>
                   <div className="text-sm text-gray-600">Total payé (FCFA)</div>
                 </div>
               </CardContent>
@@ -166,7 +236,7 @@ export default function PaymentHistoryPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-red-600">{remaining.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-red-600">{student.resteAPayerGlobal.toLocaleString()}</div>
                   <div className="text-sm text-gray-600">Reste à payer (FCFA)</div>
                 </div>
               </CardContent>
@@ -185,7 +255,7 @@ export default function PaymentHistoryPage() {
         {/* Liste des paiements */}
         <Card>
           <CardHeader>
-            <CardTitle>Liste des paiements</CardTitle>
+            <CardTitle>Historique des paiements</CardTitle>
             <CardDescription>
               {payments.length} paiement{payments.length > 1 ? "s" : ""} enregistré{payments.length > 1 ? "s" : ""}
             </CardDescription>
@@ -194,65 +264,33 @@ export default function PaymentHistoryPage() {
             {payments.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <CreditCard className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                <p>Aucun paiement enregistré</p>
+                <p>Aucun paiement enregistré pour cet élève</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {payments
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .sort((a, b) => new Date(b.datePaiement).getTime() - new Date(a.datePaiement).getTime())
                   .map((payment) => (
-                    <div key={payment.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-3">
-                          <div>
-                            <div className="font-medium">Paiement N° {payment.id}</div>
-                            <div className="text-sm text-gray-600">{payment.date}</div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">{getTypeLabel(payment.type)}</Badge>
-                          <Badge variant="secondary">{getMethodLabel(payment.method)}</Badge>
-                          <div className="text-right">
-                            <div className="font-bold text-green-600">{payment.amount.toLocaleString()} FCFA</div>
-                          </div>
-                        </div>
+                  <div key={payment.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                    <div>
+                      <div className="font-medium">
+                        {getTypeLabel(payment.typePaiement)}
                       </div>
-
-                      <div className="grid md:grid-cols-3 gap-4 text-sm text-gray-600">
-                        <div>
-                          <span className="font-medium">Type:</span> {getTypeLabel(payment.type)}
-                        </div>
-                        <div>
-                          <span className="font-medium">Mode:</span> {getMethodLabel(payment.method)}
-                        </div>
-                        {payment.reference && (
-                          <div>
-                            <span className="font-medium">Référence:</span> {payment.reference}
-                          </div>
-                        )}
-                      </div>
-
-                      {payment.notes && (
-                        <div className="mt-2 text-sm text-gray-600">
-                          <span className="font-medium">Notes:</span> {payment.notes}
-                        </div>
-                      )}
-
-                      <div className="mt-3 flex gap-2">
-                        <Button size="sm" variant="outline" asChild>
-                          <Link href={`/payment-receipt?id=${payment.id}`}>
-                            <Eye className="h-3 w-3 mr-1" />
-                            Voir le reçu
-                          </Link>
-                        </Button>
+                      <div className="text-sm text-gray-600">
+                        {new Date(payment.datePaiement).toLocaleDateString('fr-FR')} • {getMethodLabel(payment.methodePaiement)}
                       </div>
                     </div>
-                  ))}
+                    <div className="text-right">
+                      <div className="font-bold text-green-600">{payment.montant.toLocaleString()} FCFA</div>
+                      {payment.description && <div className="text-xs text-gray-500">Réf: {payment.description}</div>}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
     </div>
-  )
+  );
 }

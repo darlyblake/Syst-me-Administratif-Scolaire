@@ -1,9 +1,13 @@
+const safeLocalStorage = typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {}, clear: () => {} } as any;
 /**
  * Service de gestion des paiements
  * Contient toute la logique métier liée aux paiements
  */
 
 import type { Paiement } from "@/types/models"
+import { serviceComptabiliteCentralisee } from "./comptabilite-centralisee.service"
+import { serviceComptabiliteFacade } from "./comptabilite-facade.service"
+import { serviceEleves } from "./eleves.service"
 
 class ServicePaiements {
   private readonly CLE_STOCKAGE_PAIEMENTS = "paiements"
@@ -13,7 +17,7 @@ class ServicePaiements {
    */
   obtenirTousLesPaiements(): Paiement[] {
     try {
-      const donnees = localStorage.getItem(this.CLE_STOCKAGE_PAIEMENTS)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE_PAIEMENTS)
       return donnees ? JSON.parse(donnees) : []
     } catch {
       return []
@@ -21,7 +25,7 @@ class ServicePaiements {
   }
 
   /**
-   * Ajoute un nouveau paiement
+   * Ajoute un nouveau paiement et enregistre automatiquement la transaction
    */
   ajouterPaiement(paiement: Omit<Paiement, "id">): Paiement {
     const nouveauPaiement: Paiement = {
@@ -34,7 +38,89 @@ class ServicePaiements {
     paiements.push(nouveauPaiement)
     this.sauvegarderPaiements(paiements)
 
+    this.enregistrerTransactionCentralisee(nouveauPaiement)
+    this.enregistrerTransactionFacade(nouveauPaiement)
+
     return nouveauPaiement
+  }
+
+  /**
+   * Enregistre la transaction via le service centralisé de comptabilité
+   */
+  private enregistrerTransactionCentralisee(paiement: Paiement): void {
+    const date = paiement.datePaiement.split('T')[0]
+    
+    const eleve = serviceEleves.obtenirEleveParId(paiement.eleveId)
+    const eleveNom = eleve ? `${eleve.prenom} ${eleve.nom}` : "Élève inconnu"
+    const classe = eleve?.classe || ""
+    
+    switch (paiement.typePaiement) {
+      case "inscription":
+        serviceComptabiliteCentralisee.enregistrerInscription(
+          eleveNom,
+          classe,
+          paiement.montant,
+          date,
+          paiement.eleveId
+        )
+        break
+      case "scolarite":
+        serviceComptabiliteCentralisee.enregistrerScolarite(
+          eleveNom,
+          classe,
+          paiement.montant,
+          date,
+          paiement.moisPaiement,
+          paiement.eleveId
+        )
+        break
+      case "autre":
+        if (paiement.description) {
+          serviceComptabiliteCentralisee.enregistrerOption(
+            eleveNom,
+            paiement.description,
+            paiement.montant,
+            date,
+            paiement.eleveId
+          )
+        }
+        break
+      default:
+        serviceComptabiliteCentralisee.enregistrerTransaction({
+          type: "autre",
+          categorie: paiement.typePaiement,
+          description: paiement.description || paiement.typePaiement,
+          montant: paiement.montant,
+          date,
+          reference: `Paiement #${paiement.id}`,
+          details: {
+            eleveId: paiement.eleveId,
+            eleveNom
+          }
+        })
+    }
+  }
+
+  private enregistrerTransactionFacade(paiement: Paiement): void {
+    const date = paiement.datePaiement.split('T')[0]
+    const eleve = serviceEleves.obtenirEleveParId(paiement.eleveId)
+
+    serviceComptabiliteFacade.enregistrerTransaction({
+      type: "entree",
+      categorie: paiement.typePaiement,
+      description: paiement.description || `Paiement ${paiement.typePaiement}`,
+      montant: paiement.montant,
+      date,
+      reference: `Paiement #${paiement.id}`,
+      statut: "valide",
+      source: "paiement",
+      contexte: {
+        eleveId: paiement.eleveId,
+        eleveNom: eleve ? `${eleve.prenom} ${eleve.nom}` : undefined,
+        classe: eleve?.classe,
+        mois: paiement.moisPaiement,
+      },
+    })
   }
 
   /**
@@ -59,7 +145,7 @@ class ServicePaiements {
   }
 
   private sauvegarderPaiements(paiements: Paiement[]): void {
-    localStorage.setItem(this.CLE_STOCKAGE_PAIEMENTS, JSON.stringify(paiements))
+    safeLocalStorage.setItem(this.CLE_STOCKAGE_PAIEMENTS, JSON.stringify(paiements))
   }
 
   private genererIdUnique(): string {

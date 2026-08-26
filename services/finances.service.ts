@@ -1,3 +1,4 @@
+const safeLocalStorage = typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {}, clear: () => {} } as any;
 /**
  * Service de gestion des finances
  * Centralise toute la logique de calcul des dettes et des frais.

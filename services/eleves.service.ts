@@ -1,3 +1,4 @@
+const safeLocalStorage = typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {}, clear: () => {} } as any;
 /**
  * Service de gestion des élèves
  * Contient toute la logique métier liée aux élèves
@@ -17,11 +18,19 @@ class ServiceEleves {
    */
   obtenirTousLesEleves(): DonneesEleve[] {
     try {
-      const donnees = localStorage.getItem(this.CLE_STOCKAGE_ELEVES)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE_ELEVES)
       return donnees ? JSON.parse(donnees) : []
     } catch {
       return []
     }
+  }
+
+  /**
+   * Récupère un élève par son ID
+   */
+  obtenirEleveParId(id: string): DonneesEleve | null {
+    const eleves = this.obtenirTousLesEleves()
+    return eleves.find(e => e.id === id) || null
   }
 
   /**
@@ -281,7 +290,7 @@ class ServiceEleves {
   }
 
   private sauvegarderEleves(eleves: DonneesEleve[]): void {
-    localStorage.setItem(this.CLE_STOCKAGE_ELEVES, JSON.stringify(eleves))
+    safeLocalStorage.setItem(this.CLE_STOCKAGE_ELEVES, JSON.stringify(eleves))
   }
 
   private genererIdUnique(): string {

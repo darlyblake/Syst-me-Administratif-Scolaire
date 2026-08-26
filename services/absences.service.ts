@@ -1,3 +1,4 @@
+const safeLocalStorage = typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {}, clear: () => {} } as any;
 /**
  * Service de gestion des absences
  * Gère toutes les opérations CRUD pour les absences des élèves
@@ -14,7 +15,7 @@ class ServiceAbsences {
    */
   obtenirToutesLesAbsences(): Absence[] {
     try {
-      const donnees = localStorage.getItem(this.CLE_STOCKAGE)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE)
       return donnees ? JSON.parse(donnees) : []
     } catch (erreur) {
       console.error("Erreur lors de la récupération des absences:", erreur)
@@ -169,7 +170,7 @@ class ServiceAbsences {
    */
   private eleveExiste(eleveId: string): boolean {
     try {
-      const donneesEleves = localStorage.getItem("eleves")
+      const donneesEleves = safeLocalStorage.getItem("eleves")
       if (!donneesEleves) return false
 
       const eleves: DonneesEleve[] = JSON.parse(donneesEleves)
@@ -186,7 +187,7 @@ class ServiceAbsences {
    */
   private sauvegarderAbsences(absences: Absence[]): void {
     try {
-      localStorage.setItem(this.CLE_STOCKAGE, JSON.stringify(absences))
+      safeLocalStorage.setItem(this.CLE_STOCKAGE, JSON.stringify(absences))
     } catch (erreur) {
       console.error("Erreur lors de la sauvegarde des absences:", erreur)
       throw new Error("Impossible de sauvegarder les absences")
@@ -222,7 +223,7 @@ class ServiceAbsences {
    */
   private calculerTauxAbsenteisme(absences: Absence[]): number {
     try {
-      const donneesEleves = localStorage.getItem("eleves")
+      const donneesEleves = safeLocalStorage.getItem("eleves")
       if (!donneesEleves) return 0
 
       const eleves: DonneesEleve[] = JSON.parse(donneesEleves)

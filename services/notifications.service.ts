@@ -1,3 +1,4 @@
+const safeLocalStorage = typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {}, clear: () => {} } as any;
 /**
  * Service de gestion des notifications
  * Permet d'envoyer des notifications aux élèves et enseignants
@@ -203,7 +204,7 @@ class ServiceNotifications {
    */
   private sauvegarderNotifications(): void {
     if (typeof window !== "undefined") {
-      localStorage.setItem("notifications_scolaires", JSON.stringify(this.notifications))
+      safeLocalStorage.setItem("notifications_scolaires", JSON.stringify(this.notifications))
     }
   }
 
@@ -212,7 +213,7 @@ class ServiceNotifications {
    */
   private sauvegarderHistorique(): void {
     if (typeof window !== "undefined") {
-      localStorage.setItem("historique_notifications", JSON.stringify(this.historiqueNotifications))
+      safeLocalStorage.setItem("historique_notifications", JSON.stringify(this.historiqueNotifications))
     }
   }
 
@@ -221,7 +222,7 @@ class ServiceNotifications {
    */
   private chargerNotifications(): void {
     if (typeof window !== "undefined") {
-      const donneesStockees = localStorage.getItem("notifications_scolaires")
+      const donneesStockees = safeLocalStorage.getItem("notifications_scolaires")
       if (donneesStockees) {
         this.notifications = JSON.parse(donneesStockees)
       }
@@ -233,7 +234,7 @@ class ServiceNotifications {
    */
   private chargerHistorique(): void {
     if (typeof window !== "undefined") {
-      const historiqueStocke = localStorage.getItem("historique_notifications")
+      const historiqueStocke = safeLocalStorage.getItem("historique_notifications")
       if (historiqueStocke) {
         this.historiqueNotifications = JSON.parse(historiqueStocke)
       }

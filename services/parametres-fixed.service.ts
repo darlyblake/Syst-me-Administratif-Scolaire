@@ -1,21 +1,10 @@
+const safeLocalStorage = typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {}, clear: () => {} } as any;
 /**
  * Service de gestion des paramètres système
  * Contient la logique pour gérer les horaires généraux et autres paramètres
  */
 
-import type { HorairesGeneraux } from "@/types/models"
-
-// Types pour les paramètres de l'école
-export interface ParametresEcole {
-  anneeAcademique: string
-  dateDebut: string
-  dateFin: string
-  nomEcole: string
-  adresseEcole: string
-  telephoneEcole: string
-  nomDirecteur: string
-  modePaiement: "mensuel" | "trimestriel" | "les_deux"
-}
+import type { HorairesGeneraux, ParametresEcole } from "@/types/models"
 
 export interface TarificationClasse {
   classe: string
@@ -39,7 +28,7 @@ class ServiceParametres {
    */
   obtenirHorairesGeneraux(): HorairesGeneraux[] {
     try {
-      const donnees = localStorage.getItem(this.CLE_STOCKAGE_HORAIRES_GENERAUX)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE_HORAIRES_GENERAUX)
       return donnees ? JSON.parse(donnees) : this.getHorairesParDefaut()
     } catch {
       return this.getHorairesParDefaut()
@@ -50,7 +39,7 @@ class ServiceParametres {
    * Met à jour les horaires généraux
    */
   mettreAJourHorairesGeneraux(horaires: HorairesGeneraux[]): void {
-    localStorage.setItem(this.CLE_STOCKAGE_HORAIRES_GENERAUX, JSON.stringify(horaires))
+    safeLocalStorage.setItem(this.CLE_STOCKAGE_HORAIRES_GENERAUX, JSON.stringify(horaires))
   }
 
   /**
@@ -283,7 +272,7 @@ class ServiceParametres {
   obtenirParametres(): ParametresEcole {
     // Essayer de récupérer depuis le localStorage d'abord
     try {
-      const stored = localStorage.getItem("parametresEcole")
+      const stored = safeLocalStorage.getItem("parametresEcole")
       if (stored) {
         return JSON.parse(stored)
       }
@@ -308,30 +297,30 @@ class ServiceParametres {
    * Sauvegarde les paramètres de l'école
    */
   sauvegarderParametres(parametres: ParametresEcole): void {
-    localStorage.setItem("parametresEcole", JSON.stringify(parametres))
+    safeLocalStorage.setItem("parametresEcole", JSON.stringify(parametres))
   }
 
   /**
    * Sauvegarde la tarification
    */
   sauvegarderTarification(tarification: TarificationClasse[]): void {
-    localStorage.setItem("tarificationClasses", JSON.stringify(tarification))
+    safeLocalStorage.setItem("tarificationClasses", JSON.stringify(tarification))
   }
 
   /**
    * Sauvegarde les options supplémentaires
    */
   sauvegarderOptionsSupplementaires(options: OptionsSupplementaires): void {
-    localStorage.setItem("optionsSupplementaires", JSON.stringify(options))
+    safeLocalStorage.setItem("optionsSupplementaires", JSON.stringify(options))
   }
 
   /**
    * Réinitialise les paramètres aux valeurs par défaut
    */
   reinitialiserParametres(): void {
-    localStorage.removeItem("parametresEcole")
-    localStorage.removeItem("tarificationClasses")
-    localStorage.removeItem("optionsSupplementaires")
+    safeLocalStorage.removeItem("parametresEcole")
+    safeLocalStorage.removeItem("tarificationClasses")
+    safeLocalStorage.removeItem("optionsSupplementaires")
   }
 }
 

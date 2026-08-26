@@ -1,3 +1,4 @@
+const safeLocalStorage = typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {}, clear: () => {} } as any;
 /**
  * Service de gestion des enseignants
  * Contient toute la logique métier liée aux enseignants
@@ -29,7 +30,7 @@ class ServiceEnseignants {
    */
   obtenirTousLesEnseignants(): DonneesEnseignant[] {
     try {
-      const donnees = localStorage.getItem(this.CLE_STOCKAGE_ENSEIGNANTS)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE_ENSEIGNANTS)
       if (!donnees) {
         return []
       }
@@ -454,7 +455,7 @@ class ServiceEnseignants {
 
   private obtenirEmploiDuTemps(): CreneauEmploiDuTemps[] {
     try {
-      const donnees = localStorage.getItem(this.CLE_STOCKAGE_EMPLOI_DU_TEMPS)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE_EMPLOI_DU_TEMPS)
       return donnees ? JSON.parse(donnees) : []
     } catch {
       return []
@@ -463,7 +464,7 @@ class ServiceEnseignants {
 
   private obtenirTousLesPointages(): Pointage[] {
     try {
-      const donnees = localStorage.getItem(this.CLE_STOCKAGE_POINTAGES)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE_POINTAGES)
       return donnees ? JSON.parse(donnees) : []
     } catch {
       return []
@@ -472,7 +473,7 @@ class ServiceEnseignants {
 
   private obtenirSessionsPointage(): SessionPointageTelephone[] {
     try {
-      const donnees = localStorage.getItem(this.CLE_STOCKAGE_SESSIONS_POINTAGE)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE_SESSIONS_POINTAGE)
       return donnees ? JSON.parse(donnees) : []
     } catch {
       return []
@@ -480,19 +481,19 @@ class ServiceEnseignants {
   }
 
   private sauvegarderEnseignants(enseignants: DonneesEnseignant[]): void {
-    localStorage.setItem(this.CLE_STOCKAGE_ENSEIGNANTS, JSON.stringify(enseignants))
+    safeLocalStorage.setItem(this.CLE_STOCKAGE_ENSEIGNANTS, JSON.stringify(enseignants))
   }
 
   private sauvegarderEmploiDuTemps(emploiDuTemps: CreneauEmploiDuTemps[]): void {
-    localStorage.setItem(this.CLE_STOCKAGE_EMPLOI_DU_TEMPS, JSON.stringify(emploiDuTemps))
+    safeLocalStorage.setItem(this.CLE_STOCKAGE_EMPLOI_DU_TEMPS, JSON.stringify(emploiDuTemps))
   }
 
   private sauvegarderPointages(pointages: Pointage[]): void {
-    localStorage.setItem(this.CLE_STOCKAGE_POINTAGES, JSON.stringify(pointages))
+    safeLocalStorage.setItem(this.CLE_STOCKAGE_POINTAGES, JSON.stringify(pointages))
   }
 
   private sauvegarderSessionsPointage(sessions: SessionPointageTelephone[]): void {
-    localStorage.setItem(this.CLE_STOCKAGE_SESSIONS_POINTAGE, JSON.stringify(sessions))
+    safeLocalStorage.setItem(this.CLE_STOCKAGE_SESSIONS_POINTAGE, JSON.stringify(sessions))
   }
 
   private genererIdUnique(): string {
@@ -629,7 +630,7 @@ class ServiceEnseignants {
 
   private obtenirToutHistoriqueAffectations(): HistoriqueAffectation[] {
     try {
-      const donnees = localStorage.getItem(this.CLE_STOCKAGE_HISTORIQUE_AFFECTATIONS)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE_HISTORIQUE_AFFECTATIONS)
       return donnees ? JSON.parse(donnees) : []
     } catch {
       return []
@@ -638,7 +639,7 @@ class ServiceEnseignants {
 
   private obtenirTousLesDocumentsAdministratifs(): DocumentAdministratif[] {
     try {
-      const donnees = localStorage.getItem(this.CLE_STOCKAGE_DOCUMENTS_ADMINISTRATIFS)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE_DOCUMENTS_ADMINISTRATIFS)
       return donnees ? JSON.parse(donnees) : []
     } catch {
       return []
@@ -647,7 +648,7 @@ class ServiceEnseignants {
 
   private obtenirTousLesContacts(): Contact[] {
     try {
-      const donnees = localStorage.getItem(this.CLE_STOCKAGE_CONTACTS)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE_CONTACTS)
       return donnees ? JSON.parse(donnees) : []
     } catch {
       return []
@@ -656,7 +657,7 @@ class ServiceEnseignants {
 
   private obtenirToutesLesAffectationsNotifications(): AffectationNotification[] {
     try {
-      const donnees = localStorage.getItem(this.CLE_STOCKAGE_AFFECTATIONS_NOTIFICATIONS)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE_AFFECTATIONS_NOTIFICATIONS)
       return donnees ? JSON.parse(donnees) : []
     } catch {
       return []
@@ -664,19 +665,19 @@ class ServiceEnseignants {
   }
 
   private sauvegarderHistoriqueAffectations(historique: HistoriqueAffectation[]): void {
-    localStorage.setItem(this.CLE_STOCKAGE_HISTORIQUE_AFFECTATIONS, JSON.stringify(historique))
+    safeLocalStorage.setItem(this.CLE_STOCKAGE_HISTORIQUE_AFFECTATIONS, JSON.stringify(historique))
   }
 
   private sauvegarderDocumentsAdministratifs(documents: DocumentAdministratif[]): void {
-    localStorage.setItem(this.CLE_STOCKAGE_DOCUMENTS_ADMINISTRATIFS, JSON.stringify(documents))
+    safeLocalStorage.setItem(this.CLE_STOCKAGE_DOCUMENTS_ADMINISTRATIFS, JSON.stringify(documents))
   }
 
   private sauvegarderContacts(contacts: Contact[]): void {
-    localStorage.setItem(this.CLE_STOCKAGE_CONTACTS, JSON.stringify(contacts))
+    safeLocalStorage.setItem(this.CLE_STOCKAGE_CONTACTS, JSON.stringify(contacts))
   }
 
   private sauvegarderAffectationsNotifications(affectations: AffectationNotification[]): void {
-    localStorage.setItem(this.CLE_STOCKAGE_AFFECTATIONS_NOTIFICATIONS, JSON.stringify(affectations))
+    safeLocalStorage.setItem(this.CLE_STOCKAGE_AFFECTATIONS_NOTIFICATIONS, JSON.stringify(affectations))
   }
 
   /**

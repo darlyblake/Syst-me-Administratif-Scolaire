@@ -17,6 +17,7 @@ export interface DonneesPersonnel {
   nom: string
   prenom: string
   poste: string
+  email?: string
   typeContrat: TypeContrat
   modeRemuneration: ModeRemuneration
   salaireFixe?: number // Pour le mode fixe

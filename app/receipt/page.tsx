@@ -213,11 +213,11 @@ export default function ReceiptPage() {
                 <tbody>
                   <tr className="border-b border-gray-200">
                     <td className="px-4 py-3">Frais d'inscription</td>
-                    <td className="px-4 py-3 text-right font-medium">{student.fraisInscription.toLocaleString()} FCFA</td>
+                    <td className="px-4 py-3 text-right font-medium">{(student.fraisInscription || 0).toLocaleString()} FCFA</td>
                   </tr>
                   <tr className="border-b border-gray-200">
                     <td className="px-4 py-3">Frais de scolarité : {student.moisPaiement && student.moisPaiement.length > 0 ? student.moisPaiement.join(", ") : "annuelle"}</td>
-                    <td className="px-4 py-3 text-right font-medium">{student.fraisScolarite.toLocaleString()} FCFA</td>
+                    <td className="px-4 py-3 text-right font-medium">{(student.fraisScolarite || 0).toLocaleString()} FCFA</td>
                   </tr>
 
                   {/* Options supplémentaires */}

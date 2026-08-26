@@ -1,3 +1,4 @@
+const safeLocalStorage = typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {}, clear: () => {} } as any;
 /**
  * Service de gestion des enseignants - Version améliorée avec gestion d'erreurs
  * Contient toute la logique métier liée aux enseignants avec logs et gestion d'erreurs robuste
@@ -30,7 +31,7 @@ class ServiceEnseignantsEnhanced {
   obtenirTousLesEnseignants(): DonneesEnseignant[] {
     try {
       console.log('ServiceEnseignants: Récupération de tous les enseignants')
-      const donnees = localStorage.getItem(this.CLE_STOCKAGE_ENSEIGNANTS)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE_ENSEIGNANTS)
       if (!donnees) {
         console.log('ServiceEnseignants: Aucun enseignant trouvé dans le stockage')
         return []
@@ -239,12 +240,12 @@ class ServiceEnseignantsEnhanced {
 
     // Stockage des logs d'audit (derniers 1000 logs)
     try {
-      const existingLogs = JSON.parse(localStorage.getItem('audit_logs') || '[]')
+      const existingLogs = JSON.parse(safeLocalStorage.getItem('audit_logs') || '[]')
       existingLogs.push(logEntry)
       if (existingLogs.length > 1000) {
         existingLogs.shift() // Supprimer le plus ancien
       }
-      localStorage.setItem('audit_logs', JSON.stringify(existingLogs))
+      safeLocalStorage.setItem('audit_logs', JSON.stringify(existingLogs))
     } catch (error) {
       console.error('Erreur lors de la sauvegarde du log d\'audit:', error)
     }
@@ -266,7 +267,7 @@ class ServiceEnseignantsEnhanced {
 
   private sauvegarderEnseignants(enseignants: DonneesEnseignant[]): void {
     try {
-      localStorage.setItem(this.CLE_STOCKAGE_ENSEIGNANTS, JSON.stringify(enseignants))
+      safeLocalStorage.setItem(this.CLE_STOCKAGE_ENSEIGNANTS, JSON.stringify(enseignants))
     } catch (error) {
       console.error('ServiceEnseignants: Erreur lors de la sauvegarde des enseignants:', error)
       this.auditLog('error', 'Erreur sauvegarde enseignants', { error: error instanceof Error ? error.message : String(error) })

@@ -1,3 +1,4 @@
+const safeLocalStorage = typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {}, clear: () => {} } as any;
 /**
  * Service de gestion du personnel administratif et technique
  */
@@ -12,7 +13,7 @@ class ServicePersonnel {
    */
   obtenirToutLePersonnel(): DonneesPersonnel[] {
     try {
-      const donnees = localStorage.getItem(this.CLE_STOCKAGE_PERSONNEL)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE_PERSONNEL)
       return donnees ? JSON.parse(donnees) : []
     } catch {
       return []
@@ -155,7 +156,7 @@ class ServicePersonnel {
   // === MÉTHODES PRIVÉES ===
 
   private sauvegarderPersonnel(personnel: DonneesPersonnel[]): void {
-    localStorage.setItem(this.CLE_STOCKAGE_PERSONNEL, JSON.stringify(personnel))
+    safeLocalStorage.setItem(this.CLE_STOCKAGE_PERSONNEL, JSON.stringify(personnel))
   }
 
   private genererIdUnique(): string {

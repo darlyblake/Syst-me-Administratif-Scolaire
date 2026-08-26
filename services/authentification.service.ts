@@ -1,3 +1,4 @@
+const safeLocalStorage = typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {}, clear: () => {} } as any;
 /**
  * Service d'authentification
  * Gère la connexion et la déconnexion des utilisateurs avec gestion de session robuste
@@ -24,7 +25,25 @@ class ServiceAuthentification {
       id: "1",
       nomUtilisateur: "freid",
       motDePasse: "123456",
-      role: "administrateur" as const,
+      role: "admin" as const,
+    },
+    {
+      id: "2",
+      nomUtilisateur: "admin_test",
+      motDePasse: "admin123",
+      role: "admin" as const,
+    },
+    {
+      id: "3",
+      nomUtilisateur: "ecole_test",
+      motDePasse: "ecole123",
+      role: "ecole" as const,
+    },
+    {
+      id: "4",
+      nomUtilisateur: "parent_test",
+      motDePasse: "parent123",
+      role: "parent" as const,
     },
   ]
 
@@ -53,9 +72,13 @@ class ServiceAuthentification {
     }
 
     try {
-      localStorage.setItem(this.CLE_UTILISATEUR_STOCKAGE, JSON.stringify(sessionData))
+      safeLocalStorage.setItem(this.CLE_UTILISATEUR_STOCKAGE, JSON.stringify(sessionData))
       // Créer une sauvegarde pour récupération
-      localStorage.setItem(this.CLE_SAUVEGARDE_STOCKAGE, JSON.stringify(sessionData))
+      safeLocalStorage.setItem(this.CLE_SAUVEGARDE_STOCKAGE, JSON.stringify(sessionData))
+      
+      // Sauvegarder dans un cookie pour le middleware
+      const expires = new Date(this.calculerExpiration()).toUTCString()
+      document.cookie = `${this.CLE_UTILISATEUR_STOCKAGE}=${encodeURIComponent(JSON.stringify(sessionData))}; expires=${expires}; path=/; SameSite=Lax`
     } catch (error) {
       console.warn("Erreur lors de la sauvegarde de session:", error)
     }
@@ -67,7 +90,7 @@ class ServiceAuthentification {
   private recupererSession(): SessionData | null {
     try {
       // Essayer d'abord la session principale
-      const donnees = localStorage.getItem(this.CLE_UTILISATEUR_STOCKAGE)
+      const donnees = safeLocalStorage.getItem(this.CLE_UTILISATEUR_STOCKAGE)
       if (donnees) {
         const sessionData: SessionData = JSON.parse(donnees)
 
@@ -81,7 +104,7 @@ class ServiceAuthentification {
       }
 
       // Si pas de session valide, essayer la sauvegarde
-      const sauvegarde = localStorage.getItem(this.CLE_SAUVEGARDE_STOCKAGE)
+      const sauvegarde = safeLocalStorage.getItem(this.CLE_SAUVEGARDE_STOCKAGE)
       if (sauvegarde) {
         const sessionData: SessionData = JSON.parse(sauvegarde)
 
@@ -107,8 +130,11 @@ class ServiceAuthentification {
    */
   private nettoyerSession(): void {
     try {
-      localStorage.removeItem(this.CLE_UTILISATEUR_STOCKAGE)
-      localStorage.removeItem(this.CLE_SAUVEGARDE_STOCKAGE)
+      safeLocalStorage.removeItem(this.CLE_UTILISATEUR_STOCKAGE)
+      safeLocalStorage.removeItem(this.CLE_SAUVEGARDE_STOCKAGE)
+      
+      // Nettoyer le cookie
+      document.cookie = `${this.CLE_UTILISATEUR_STOCKAGE}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax`
     } catch (error) {
       console.warn("Erreur lors du nettoyage de session:", error)
     }
@@ -123,6 +149,7 @@ class ServiceAuthentification {
     motDePasse: string,
   ): Promise<{ succes: boolean; utilisateur?: Utilisateur; erreur?: string }> {
     try {
+      console.log("Tentative de connexion:", nomUtilisateur)
       // Simulation d'un délai d'API
       await new Promise((resolve) => setTimeout(resolve, 500))
 
@@ -130,6 +157,8 @@ class ServiceAuthentification {
       const adminTrouve = this.utilisateursAutorises.find(
         (u) => u.nomUtilisateur === nomUtilisateur && u.motDePasse === motDePasse,
       )
+
+      console.log("Admin trouvé:", adminTrouve)
 
       if (adminTrouve) {
         const utilisateur: Utilisateur = {
@@ -139,7 +168,9 @@ class ServiceAuthentification {
           dernierConnexion: new Date().toISOString(),
         }
 
+        console.log("Utilisateur créé:", utilisateur)
         this.sauvegarderSession(utilisateur)
+        console.log("Session sauvegardée")
         return { succes: true, utilisateur }
       }
 
@@ -152,7 +183,7 @@ class ServiceAuthentification {
         const utilisateur: Utilisateur = {
           id: enseignantTrouve.id,
           nomUtilisateur: enseignantTrouve.identifiant,
-          role: "enseignant",
+          role: "ecole", // Les enseignants utilisent l'interface école
           dernierConnexion: new Date().toISOString(),
           donneesEnseignant: enseignantTrouve,
         }
@@ -170,7 +201,7 @@ class ServiceAuthentification {
         const utilisateur: Utilisateur = {
           id: eleveTrouve.id,
           nomUtilisateur: eleveTrouve.identifiant,
-          role: "eleve",
+          role: "parent", // Les élèves utilisent l'interface parent
           dernierConnexion: new Date().toISOString(),
           donneesEleve: eleveTrouve,
         }
@@ -228,8 +259,8 @@ class ServiceAuthentification {
       }
 
       try {
-        localStorage.setItem(this.CLE_UTILISATEUR_STOCKAGE, JSON.stringify(nouvelleSessionData))
-        localStorage.setItem(this.CLE_SAUVEGARDE_STOCKAGE, JSON.stringify(nouvelleSessionData))
+        safeLocalStorage.setItem(this.CLE_UTILISATEUR_STOCKAGE, JSON.stringify(nouvelleSessionData))
+        safeLocalStorage.setItem(this.CLE_SAUVEGARDE_STOCKAGE, JSON.stringify(nouvelleSessionData))
         return true
       } catch (error) {
         console.warn("Erreur lors de la prolongation de session:", error)
@@ -266,13 +297,13 @@ class ServiceAuthentification {
     if (!utilisateur) return false
 
     switch (utilisateur.role) {
-      case "administrateur":
+      case "admin":
         return true // L'admin a tous les droits
-      case "enseignant":
+      case "ecole":
         // Les enseignants peuvent voir leur emploi du temps et faire leur pointage
         return ["voir_emploi_du_temps", "pointage", "voir_profil"].includes(action)
-      case "eleve":
-        // Les élèves peuvent seulement voir leur profil et leurs informations
+      case "parent":
+        // Les parents peuvent seulement voir le profil de leurs enfants et leurs informations
         return ["voir_profil", "voir_paiements"].includes(action)
       default:
         return false
@@ -286,10 +317,10 @@ class ServiceAuthentification {
     const utilisateur = this.obtenirUtilisateurConnecte()
     if (!utilisateur) return null
 
-    if (utilisateur.role === "eleve" && utilisateur.donneesEleve) {
+    if (utilisateur.role === "parent" && utilisateur.donneesEleve) {
       return utilisateur.donneesEleve
     }
-    if (utilisateur.role === "enseignant" && utilisateur.donneesEnseignant) {
+    if (utilisateur.role === "ecole" && utilisateur.donneesEnseignant) {
       return utilisateur.donneesEnseignant
     }
 

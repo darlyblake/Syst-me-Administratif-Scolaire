@@ -1,3 +1,4 @@
+const safeLocalStorage = typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {}, clear: () => {} } as any;
 /**
  * Service de gestion des classes
  * Gère toutes les opérations CRUD pour les classes scolaires
@@ -14,7 +15,7 @@ class ServiceClasses {
    */
   obtenirToutesLesClasses(): Classe[] {
     try {
-      const donnees = localStorage.getItem(this.CLE_STOCKAGE)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE)
       return donnees ? JSON.parse(donnees) : []
     } catch (erreur) {
       console.error("Erreur lors de la récupération des classes:", erreur)
@@ -99,7 +100,7 @@ class ServiceClasses {
    */
   compterElevesParClasse(classeId: string): number {
     try {
-      const donneesEleves = localStorage.getItem("eleves")
+      const donneesEleves = safeLocalStorage.getItem("eleves")
       if (!donneesEleves) return 0
 
       const eleves: DonneesEleve[] = JSON.parse(donneesEleves)
@@ -117,7 +118,7 @@ class ServiceClasses {
    */
   obtenirEnseignantsDeClasse(classeId: string): DonneesEnseignant[] {
     try {
-      const donneesEnseignants = localStorage.getItem("enseignants")
+      const donneesEnseignants = safeLocalStorage.getItem("enseignants")
       if (!donneesEnseignants) return []
 
       const enseignants: DonneesEnseignant[] = JSON.parse(donneesEnseignants)
@@ -136,7 +137,7 @@ class ServiceClasses {
    */
   assignerEnseignantAClasse(classeId: string, enseignantId: string): boolean {
     try {
-      const donneesEnseignants = localStorage.getItem("enseignants")
+      const donneesEnseignants = safeLocalStorage.getItem("enseignants")
       if (!donneesEnseignants) return false
 
       const enseignants: DonneesEnseignant[] = JSON.parse(donneesEnseignants)
@@ -147,7 +148,7 @@ class ServiceClasses {
       // Ajouter la classe si pas déjà assignée
       if (!enseignant.classes.includes(classeId)) {
         enseignant.classes.push(classeId)
-        localStorage.setItem("enseignants", JSON.stringify(enseignants))
+        safeLocalStorage.setItem("enseignants", JSON.stringify(enseignants))
       }
 
       return true
@@ -163,7 +164,7 @@ class ServiceClasses {
    */
   private sauvegarderClasses(classes: Classe[]): void {
     try {
-      localStorage.setItem(this.CLE_STOCKAGE, JSON.stringify(classes))
+      safeLocalStorage.setItem(this.CLE_STOCKAGE, JSON.stringify(classes))
     } catch (erreur) {
       console.error("Erreur lors de la sauvegarde des classes:", erreur)
       throw new Error("Impossible de sauvegarder les classes")

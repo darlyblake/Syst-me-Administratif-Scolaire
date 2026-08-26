@@ -388,4 +388,7 @@ export function initialiserDonneesTestPaiements(): void {
     paiementsTest.forEach(paiementData => {
       servicePaiements.ajouterPaiement(paiementData)
     })
-
+  } catch (error) {
+    console.error("Erreur lors de l'initialisation des données de test:", error)
+  }
+}

@@ -62,13 +62,22 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
     // Configuration de l'intervalle de vérification
     const id = setInterval(() => {
       mettreAJourTempsRestant()
+      recupererUtilisateur() // Recharger l'utilisateur périodiquement
     }, 60000) // Vérifier chaque minute
 
     setIntervalId(id)
 
+    // Écouter les changements de localStorage
+    const handleStorageChange = () => {
+      recupererUtilisateur()
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+
     return () => {
       clearTimeout(initTimeout)
       if (id) clearInterval(id)
+      window.removeEventListener('storage', handleStorageChange)
     }
   }, [recupererUtilisateur, mettreAJourTempsRestant])
 

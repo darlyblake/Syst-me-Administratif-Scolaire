@@ -1,3 +1,4 @@
+const safeLocalStorage = typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {}, clear: () => {} } as any;
 /**
  * Service de journalisation d'audit
  * Enregistre toutes les actions importantes dans l'application
@@ -41,7 +42,7 @@ class AuditService {
         logs.splice(this.MAX_LOGS)
       }
 
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(logs))
+      safeLocalStorage.setItem(this.STORAGE_KEY, JSON.stringify(logs))
 
       // Log dans la console en mode développement
       if (process.env.NODE_ENV === 'development') {
@@ -57,7 +58,7 @@ class AuditService {
    */
   getAllLogs(): AuditLogEntry[] {
     try {
-      const data = localStorage.getItem(this.STORAGE_KEY)
+      const data = safeLocalStorage.getItem(this.STORAGE_KEY)
       return data ? JSON.parse(data) : []
     } catch (error) {
       console.error('Erreur lors de la récupération des logs d\'audit:', error)
@@ -102,7 +103,7 @@ class AuditService {
         new Date(log.timestamp) > cutoffDate
       )
 
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(filteredLogs))
+      safeLocalStorage.setItem(this.STORAGE_KEY, JSON.stringify(filteredLogs))
     } catch (error) {
       console.error('Erreur lors du nettoyage des logs d\'audit:', error)
     }

@@ -8,6 +8,7 @@ import type { DonneesEleve, EleveAvecSuivi } from "@/types/models"
 import { servicePaiements } from "./paiements.service"
 import { serviceParametres } from "./parametres.service"
 import { serviceFinances } from "@/services/finances.service.ts"
+import { serviceDossiersPapier } from "./dossiers-papier.service"
 
 
 class ServiceEleves {
@@ -49,6 +50,13 @@ class ServiceEleves {
     const eleves = this.obtenirTousLesEleves()
     eleves.push(nouvelEleve)
     this.sauvegarderEleves(eleves)
+
+    // Création automatique du dossier papier
+    try {
+      serviceDossiersPapier.creerPourEleve(nouvelEleve.id)
+    } catch {
+      // Silencieux si service indisponible
+    }
 
     return nouvelEleve
   }
@@ -169,7 +177,7 @@ class ServiceEleves {
   /**
    * Change le statut d'un élève
    */
-  changerStatutEleve(id: string, nouveauStatut: "actif" | "inactif"): boolean {
+  changerStatutEleve(id: string, nouveauStatut: "actif" | "inactif" | "transfere"): boolean {
     const eleves = this.obtenirTousLesEleves()
     const index = eleves.findIndex((e) => e.id === id)
 
@@ -177,6 +185,13 @@ class ServiceEleves {
 
     eleves[index].statut = nouveauStatut
     this.sauvegarderEleves(eleves)
+
+    // Si transféré → archiver le dossier papier
+    if (nouveauStatut === "transfere") {
+      const d = serviceDossiersPapier.obtenirParEleveId(id)
+      if (d) serviceDossiersPapier.archiver(d.id)
+    }
+
     return true
   }
 

@@ -8,7 +8,7 @@ import { Printer, Home, Users } from "lucide-react"
 import Link from "next/link"
 import { serviceEleves } from "@/services/eleves.service"
 import { serviceParametres } from "@/services/parametres.service"
-import type { DonneesEleve } from "@/types/models"
+import type { DonneesEleve, ParametresEcole } from "@/types/models"
 import type {  OptionsSupplementaires, OptionSupplementaire } from "@/services/parametres.service"
 
 interface StudentData {
@@ -61,7 +61,7 @@ export default function ReceiptPage() {
   useEffect(() => {
     if (studentId) {
       const students = serviceEleves.obtenirTousLesEleves()
-      const foundStudent = students.find((s: DonneesEleve) => s.id === studentId)
+      const foundStudent = students.find((s: DonneesEleve) => s.identifiant === studentId)
       setStudent(foundStudent as StudentData)
     }
     // Fetch school parameters
@@ -213,11 +213,11 @@ export default function ReceiptPage() {
                 <tbody>
                   <tr className="border-b border-gray-200">
                     <td className="px-4 py-3">Frais d'inscription</td>
-                    <td className="px-4 py-3 text-right font-medium">{(student.fraisInscription || 0).toLocaleString()} FCFA</td>
+                    <td className="px-4 py-3 text-right font-medium">{(student.fraisInscription || 0).toLocaleString('fr-FR')} FCFA</td>
                   </tr>
                   <tr className="border-b border-gray-200">
                     <td className="px-4 py-3">Frais de scolarité : {student.moisPaiement && student.moisPaiement.length > 0 ? student.moisPaiement.join(", ") : "annuelle"}</td>
-                    <td className="px-4 py-3 text-right font-medium">{(student.fraisScolarite || 0).toLocaleString()} FCFA</td>
+                    <td className="px-4 py-3 text-right font-medium">{(student.fraisScolarite || 0).toLocaleString('fr-FR')} FCFA</td>
                   </tr>
 
                   {/* Options supplémentaires */}
@@ -239,7 +239,7 @@ export default function ReceiptPage() {
                         return (
                           <tr key={option} className="border-b border-gray-200">
                             <td className="px-4 py-2 pl-8 text-gray-600">{optionLabels[option]}</td>
-                            <td className="px-4 py-2 text-right">{prix.toLocaleString()} FCFA</td>
+                            <td className="px-4 py-2 text-right">{prix.toLocaleString('fr-FR')} FCFA</td>
                           </tr>
                         )
                       })}
@@ -258,7 +258,7 @@ export default function ReceiptPage() {
                     return (
                       <tr className="bg-blue-50 border-t-2 border-blue-200">
                         <td className="px-4 py-4 font-bold text-lg">TOTAL À PAYER</td>
-                        <td className="px-4 py-4 text-right font-bold text-lg text-blue-600">{total.toLocaleString()} FCFA</td>
+                        <td className="px-4 py-4 text-right font-bold text-lg text-blue-600">{total.toLocaleString('fr-FR')} FCFA</td>
                       </tr>
                     );
                   })()}

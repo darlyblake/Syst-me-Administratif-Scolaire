@@ -86,6 +86,10 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
   const [inscriptionValidee, setInscriptionValidee] = useState(false)
   const [studentIdentifiant, setStudentIdentifiant] = useState("")
 
+  // État pour paiement cash
+  const [payeCash, setPayeCash] = useState(false)
+  const [montantRecu, setMontantRecu] = useState(0)
+
   const [siblingSuggestions, setSiblingSuggestions] = useState<DonneesEleve[]>([])
 
   const classes = serviceParametres.obtenirTarification().map(t => t.classe)
@@ -121,21 +125,22 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
   }
 
   const handleOptionChange = (option: string, checked: boolean) => {
+    const newOptions = { ...formData.optionsSupplementaires, [option]: checked }
     setFormData(prev => ({
       ...prev,
-      optionsSupplementaires: { ...prev.optionsSupplementaires, [option]: checked }
+      optionsSupplementaires: newOptions
     }))
-    calculerFrais()
+    calculerFrais(newOptions)
   }
 
-  const calculerFrais = () => {
+  const calculerFrais = (options = formData.optionsSupplementaires) => {
     if (!formData.classe) return
 
     const fraisCalcules = serviceFinances.calculerFraisDetaille(
       {
         classe: formData.classe,
         typeInscription: "inscription",
-        optionsSupplementaires: formData.optionsSupplementaires,
+        optionsSupplementaires: options,
         optionsPersonnalisees: [],
       },
       formData.modePaiement,
@@ -332,9 +337,17 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
 
     const eleveCree = serviceEleves.ajouterEleve(nouvelEleve)
 
-    // Note: Les paiements ne sont plus créés automatiquement lors de l'inscription
-    // Ils seront créés seulement lorsque le parent effectue un paiement réel
-    // L'élève a maintenant les informations de ce qu'il doit payer (totalAPayer, modePaiement, etc.)
+    // Paiement cash si activé
+    if (payeCash && montantRecu > 0) {
+      servicePaiements.ajouterPaiement({
+        eleveId: eleveCree.id,
+        montant: montantRecu,
+        datePaiement: new Date().toISOString(),
+        typePaiement: "inscription",
+        methodePaiement: "especes",
+        description: "Paiement inscription (espèces)",
+      })
+    }
 
     // Générer le code unique et QR code
     const code = genererCodeUnique()
@@ -711,6 +724,43 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
                         </Select>
                       </div>
                     )}
+
+                    {/* Paiement cash */}
+                    <div className="space-y-4 pt-4 border-t">
+                      <div className="rounded-2xl bg-creme p-4 border border-terre/10">
+                        <p className="text-sm text-pierre">Total à payer</p>
+                        <p className="text-2xl font-bold text-terre tabular">{totalFrais.toLocaleString("fr-FR")} FCFA</p>
+                      </div>
+
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={payeCash}
+                          onCheckedChange={(checked) => setPayeCash(checked as boolean)}
+                        />
+                        <span>Payé en espèces maintenant</span>
+                      </label>
+
+                      {payeCash && (
+                        <>
+                          <div>
+                            <Label>Montant reçu (FCFA)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              value={montantRecu}
+                              onChange={(e) => setMontantRecu(Number(e.target.value) || 0)}
+                              className="rounded-2xl"
+                            />
+                          </div>
+                          <p className="text-sm text-pierre">
+                            Reste :{" "}
+                            <span className="font-semibold text-encre">
+                              {Math.max(0, totalFrais - montantRecu).toLocaleString("fr-FR")} FCFA
+                            </span>
+                          </p>
+                        </>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               )}

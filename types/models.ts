@@ -61,7 +61,7 @@ export interface DonneesEleve {
   contactParent: string;
   adresse: string;
   dateInscription: string;
-  statut: "actif" | "inactif";
+  statut: "actif" | "inactif" | "transfere";
   photo?: string;
   totalAPayer: number;
   typeInscription: "inscription" | "reinscription";
@@ -329,47 +329,69 @@ export interface AffectationNotification {
 
 // === TRANSFERT INTER-ÉTABLISSEMENTS ===
 
-export type StatutTransfert = "en_attente" | "accepte" | "refuse" | "annule"
+export type StatutTransfert = "en_attente" | "accepte" | "refuse"
 
 export interface DossierTransfert {
-  // Identité
-  nom: string
-  prenom: string
-  dateNaissance: string
-  lieuNaissance: string
-  sexe?: string
-  photo?: string
-
-  // Scolarité
-  classePrecedente: string
-  anneeAcademiqueOrigine?: string
-  typeInscriptionOrigine?: "inscription" | "reinscription"
-
-  // Parents / Contact
-  nomParent: string
-  contactParent: string
-  adresse: string
-  informationsContact: {
-    telephone: string
-    email: string
-    adresse: string
-  }
-
-  // Association famille (optionnel)
-  frereSoeurId?: string
-  lienParente?: string
-
-  // Métadonnées de transfert
-  ecoleOriginale: {
+  id: string
+  code: string
+  dateCreation: string
+  motif: string
+  ecoleOrigine: string
+  // Dossier scolaire uniquement — JAMAIS de paiements
+  eleve: {
     nom: string
-    codeEcole?: string
-    telephone?: string
-    email?: string
+    prenom: string
+    dateNaissance: string
+    lieuNaissance: string
+    sexe?: string
+    classe: string
+    nomParent: string
+    contactParent: string
+    adresse: string
+    informationsContact?: {
+      telephone: string
+      email: string
+      adresse: string
+    }
   }
-  dateTransfert: string
-  motif?: string
-  codeTransfert: string          // ex: TRF-48291-2026
-  version: "1.0"
+  statut: StatutTransfert
+  classeAccueil?: string
+  dateTraitement?: string
+  motifRefus?: string
+}
+
+// --- Dossiers scolaires papier ---
+export type StatutDossierPapier = "complet" | "incomplet" | "emprunte" | "archive"
+
+export interface PieceDossier {
+  id: string
+  nom: string
+  obligatoire: boolean
+  presente: boolean
+  dateAjout?: string
+  remarque?: string
+}
+
+export interface EmpruntDossier {
+  id: string
+  empruntePar: string
+  motif: string
+  dateSortie: string
+  dateRetourPrevue?: string
+  dateRetourEffective?: string
+  rendu: boolean
+}
+
+export interface DossierPapier {
+  id: string
+  eleveId: string
+  statut: StatutDossierPapier
+  pieces: PieceDossier[]
+  emprunts: EmpruntDossier[]
+  emplacement?: string
+  dateCreation: string
+  dateMiseAJour: string
+  notes?: string
 }
 
 export interface TransfertEnAttente {
@@ -381,5 +403,30 @@ export interface TransfertEnAttente {
   dateCreation: string
   dateDecision?: string
   motifRefus?: string
-  eleveLocalId?: string          // id local après acceptation
+  eleveLocalId?: string
+}
+
+// --- Répartition des élèves dans les classes ---
+export type ModeRepartition = "aleatoire" | "equilibre_genre" | "par_age" | "manuel"
+
+export interface ParametresRepartition {
+  modeGlobal: ModeRepartition
+  /** Override optionnel par niveau, ex. { "6ème": "equilibre_genre" } */
+  modeParNiveau: Record<string, ModeRepartition>
+  /** Si true, refuse d'inscrire si aucune place sur le niveau */
+  bloquerSiComplet: boolean
+}
+
+export interface ResultatRepartitionGenre {
+  affectations: { eleveId: string; classeId: string; classeNom: string }[]
+  nonAffectes: { eleveId: string; raison: string }[]
+  resume: {
+    classeId: string
+    classeNom: string
+    total: number
+    capacite: number
+    M: number
+    F: number
+    autre: number
+  }[]
 }

@@ -1,154 +1,117 @@
-import type { DossierTransfert, TransfertEnAttente, DonneesEleve } from "@/types/models"
-import { serviceEleves } from "./eleves.service"
-import { serviceParametres } from "./parametres.service"
-
-const CLE_TRANSFERTS = "transferts_inter_ecoles"
-
 const safeLocalStorage =
   typeof window !== "undefined"
     ? localStorage
-    : { getItem: () => null, setItem: () => {}, removeItem: () => {} } as any
+    : ({ getItem: () => null, setItem: () => {}, removeItem: () => {} } as any)
 
-class ServiceTransfert {
-  private obtenirTous(): TransfertEnAttente[] {
+import type { DonneesEleve, DossierTransfert } from "@/types/models"
+import { serviceEleves } from "./eleves.service"
+import { genererCodeUnique } from "@/utils/codeGenerator"
+
+class TransfertService {
+  private readonly CLE = "transferts_inter_ecoles"
+
+  private lire(): DossierTransfert[] {
     try {
-      const data = safeLocalStorage.getItem(CLE_TRANSFERTS)
-      return data ? JSON.parse(data) : []
+      const raw = safeLocalStorage.getItem(this.CLE)
+      return raw ? JSON.parse(raw) : []
     } catch {
       return []
     }
   }
 
-  private sauvegarder(liste: TransfertEnAttente[]) {
-    safeLocalStorage.setItem(CLE_TRANSFERTS, JSON.stringify(liste))
+  private sauver(data: DossierTransfert[]) {
+    safeLocalStorage.setItem(this.CLE, JSON.stringify(data))
   }
 
-  /**
-   * Crée un dossier de transfert (sans données de paiement)
-   */
-  creerDossierTransfert(eleve: DonneesEleve, motif?: string): DossierTransfert {
-    const parametres = serviceParametres.obtenirParametres()
-
-    const code = `TRF-${Math.floor(10000 + Math.random() * 90000)}-${new Date().getFullYear()}` 
-
+  /** Crée un dossier SANS aucune info de paiement */
+  creerDossier(eleve: DonneesEleve, motif: string, ecoleOrigine = "Mon établissement"): DossierTransfert {
     const dossier: DossierTransfert = {
-      nom: eleve.nom,
-      prenom: eleve.prenom,
-      dateNaissance: eleve.dateNaissance,
-      lieuNaissance: eleve.lieuNaissance,
-      sexe: eleve.sexe,
-      photo: eleve.photo,
-      classePrecedente: eleve.classe,
-      anneeAcademiqueOrigine: parametres.anneeAcademique,
-      typeInscriptionOrigine: eleve.typeInscription,
-      nomParent: eleve.nomParent,
-      contactParent: eleve.contactParent,
-      adresse: eleve.adresse,
-      informationsContact: { ...eleve.informationsContact },
-      frereSoeurId: eleve.frereSoeurId,
-      lienParente: eleve.lienParente,
-      ecoleOriginale: {
-        nom: parametres.nomEcole || "École non renseignée",
-        telephone: parametres.telephoneEcole,
-        email: "", // email n'est pas dans ParametresEcole
-      },
-      dateTransfert: new Date().toISOString(),
+      id: `trf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      code: genererCodeUnique(),
+      dateCreation: new Date().toISOString(),
       motif,
-      codeTransfert: code,
-      version: "1.0",
+      ecoleOrigine,
+      eleve: {
+        nom: eleve.nom,
+        prenom: eleve.prenom,
+        dateNaissance: eleve.dateNaissance,
+        lieuNaissance: eleve.lieuNaissance,
+        sexe: eleve.sexe,
+        classe: eleve.classe,
+        nomParent: eleve.nomParent,
+        contactParent: eleve.contactParent,
+        adresse: eleve.adresse,
+        informationsContact: eleve.informationsContact,
+      },
+      statut: "en_attente",
+    }
+
+    const all = this.lire()
+    all.push(dossier)
+    this.sauver(all)
+
+    // Marque l'élève comme transféré localement
+    if (eleve.id) {
+      serviceEleves.changerStatutEleve(eleve.id, "transfere" as any)
     }
 
     return dossier
   }
 
-  /**
-   * Enregistre un transfert sortant et marque l'élève comme transféré
-   */
-  envoyerTransfert(eleveId: string, motif?: string): { dossier: DossierTransfert; transfert: TransfertEnAttente } {
-    const eleve = serviceEleves.obtenirEleveParId(eleveId)
-    if (!eleve) throw new Error("Élève introuvable")
-
-    const dossier = this.creerDossierTransfert(eleve, motif)
-
-    const transfert: TransfertEnAttente = {
-      id: `trf_${Date.now()}`,
-      codeTransfert: dossier.codeTransfert,
-      dossier,
-      direction: "sortant",
-      statut: "en_attente",
-      dateCreation: new Date().toISOString(),
-      eleveLocalId: eleveId,
-    }
-
-    const liste = this.obtenirTous()
-    liste.push(transfert)
-    this.sauvegarder(liste)
-
-    // Marquer l'élève comme inactif / transféré
-    serviceEleves.changerStatutEleve(eleveId, "inactif")
-
-    return { dossier, transfert }
+  trouverParCode(code: string): DossierTransfert | null {
+    return this.lire().find((d) => d.code === code && d.statut === "en_attente") || null
   }
 
-  /**
-   * Importe un dossier (par code ou objet JSON)
-   */
-  importerDossier(dossier: DossierTransfert): TransfertEnAttente {
-    // Vérifier si déjà importé
-    const existant = this.obtenirTous().find(
-      (t) => t.codeTransfert === dossier.codeTransfert && t.direction === "entrant"
-    )
-    if (existant) return existant
-
-    const transfert: TransfertEnAttente = {
-      id: `trf_in_${Date.now()}`,
-      codeTransfert: dossier.codeTransfert,
-      dossier,
-      direction: "entrant",
-      statut: "en_attente",
-      dateCreation: new Date().toISOString(),
+  importerDepuisJSON(json: string): DossierTransfert | null {
+    try {
+      const data = JSON.parse(json) as DossierTransfert
+      if (!data.eleve?.nom || !data.eleve?.prenom) return null
+      // On ne garde jamais de champs paiement s'ils existent
+      const clean: DossierTransfert = {
+        ...data,
+        id: data.id || `trf_import_${Date.now()}`,
+        statut: "en_attente",
+      }
+      const all = this.lire()
+      if (!all.find((d) => d.code === clean.code)) {
+        all.push(clean)
+        this.sauver(all)
+      }
+      return clean
+    } catch {
+      return null
     }
-
-    const liste = this.obtenirTous()
-    liste.push(transfert)
-    this.sauvegarder(liste)
-
-    return transfert
   }
 
-  /**
-   * Accepte un transfert entrant → crée l'élève localement
-   */
-  accepterTransfert(
-    codeTransfert: string,
-    classeChoisie: string
-  ): DonneesEleve {
-    const liste = this.obtenirTous()
-    const index = liste.findIndex(
-      (t) => t.codeTransfert === codeTransfert && t.direction === "entrant"
-    )
-    if (index === -1) throw new Error("Transfert introuvable")
+  accepter(code: string, classeAccueil: string): DonneesEleve | null {
+    const all = this.lire()
+    const idx = all.findIndex((d) => d.code === code)
+    if (idx === -1) return null
 
-    const transfert = liste[index]
-    if (transfert.statut !== "en_attente") {
-      throw new Error("Ce transfert a déjà été traité")
-    }
+    const d = all[idx]
+    d.statut = "accepte"
+    d.classeAccueil = classeAccueil
+    d.dateTraitement = new Date().toISOString()
+    this.sauver(all)
 
-    const d = transfert.dossier
-
-    // Création de l'élève SANS les données de paiement
+    // Crée l'élève localement (sans paiements)
     const nouvelEleve = serviceEleves.ajouterEleve({
-      nom: d.nom,
-      prenom: d.prenom,
-      dateNaissance: d.dateNaissance,
-      lieuNaissance: d.lieuNaissance,
-      sexe: d.sexe,
-      classe: classeChoisie,
-      nomParent: d.nomParent,
-      contactParent: d.contactParent,
-      adresse: d.adresse,
-      typeInscription: "inscription",
+      nom: d.eleve.nom,
+      prenom: d.eleve.prenom,
+      dateNaissance: d.eleve.dateNaissance,
+      lieuNaissance: d.eleve.lieuNaissance,
+      sexe: d.eleve.sexe,
+      classe: classeAccueil,
+      nomParent: d.eleve.nomParent,
+      contactParent: d.eleve.contactParent,
+      adresse: d.eleve.adresse,
       totalAPayer: 0,
+      typeInscription: "inscription",
+      informationsContact: d.eleve.informationsContact || {
+        telephone: d.eleve.contactParent,
+        email: "",
+        adresse: d.eleve.adresse,
+      },
       modePaiement: "mensuel",
       optionsSupplementaires: {
         tenueScolaire: false,
@@ -164,54 +127,31 @@ class ServiceTransfert {
         tenueEPS: 0,
         assurance: 0,
       },
-      informationsContact: d.informationsContact,
-      photo: d.photo,
-      frereSoeurId: d.frereSoeurId,
-      lienParente: d.lienParente,
     } as any)
-
-    // Mise à jour du statut du transfert
-    liste[index] = {
-      ...transfert,
-      statut: "accepte",
-      dateDecision: new Date().toISOString(),
-      eleveLocalId: nouvelEleve.id,
-    }
-    this.sauvegarder(liste)
 
     return nouvelEleve
   }
 
-  /**
-   * Refuse un transfert entrant
-   */
-  refuserTransfert(codeTransfert: string, motifRefus?: string) {
-    const liste = this.obtenirTous()
-    const index = liste.findIndex(
-      (t) => t.codeTransfert === codeTransfert && t.direction === "entrant"
-    )
-    if (index === -1) throw new Error("Transfert introuvable")
-
-    liste[index] = {
-      ...liste[index],
-      statut: "refuse",
-      dateDecision: new Date().toISOString(),
-      motifRefus,
-    }
-    this.sauvegarder(liste)
+  refuser(code: string, motifRefus: string) {
+    const all = this.lire()
+    const idx = all.findIndex((d) => d.code === code)
+    if (idx === -1) return false
+    all[idx].statut = "refuse"
+    all[idx].motifRefus = motifRefus
+    all[idx].dateTraitement = new Date().toISOString()
+    this.sauver(all)
+    return true
   }
 
-  obtenirTransfertsEntrants(): TransfertEnAttente[] {
-    return this.obtenirTous().filter((t) => t.direction === "entrant")
+  getEnAttente(): DossierTransfert[] {
+    return this.lire().filter((d) => d.statut === "en_attente")
   }
 
-  obtenirTransfertsSortants(): TransfertEnAttente[] {
-    return this.obtenirTous().filter((t) => t.direction === "sortant")
-  }
-
-  trouverParCode(code: string): TransfertEnAttente | undefined {
-    return this.obtenirTous().find((t) => t.codeTransfert === code)
+  exporterJSON(dossier: DossierTransfert): string {
+    // Strip au cas où
+    const { ...safe } = dossier
+    return JSON.stringify(safe, null, 2)
   }
 }
 
-export const serviceTransfert = new ServiceTransfert()
+export const serviceTransfert = new TransfertService()

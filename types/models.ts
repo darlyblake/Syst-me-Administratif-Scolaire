@@ -326,3 +326,60 @@ export interface AffectationNotification {
   statut: "active" | "inactive" | "traitee" | string;
   priorite?: "urgente" | "importante" | "normale" | string;
 }
+
+// === TRANSFERT INTER-ÉTABLISSEMENTS ===
+
+export type StatutTransfert = "en_attente" | "accepte" | "refuse" | "annule"
+
+export interface DossierTransfert {
+  // Identité
+  nom: string
+  prenom: string
+  dateNaissance: string
+  lieuNaissance: string
+  sexe?: string
+  photo?: string
+
+  // Scolarité
+  classePrecedente: string
+  anneeAcademiqueOrigine?: string
+  typeInscriptionOrigine?: "inscription" | "reinscription"
+
+  // Parents / Contact
+  nomParent: string
+  contactParent: string
+  adresse: string
+  informationsContact: {
+    telephone: string
+    email: string
+    adresse: string
+  }
+
+  // Association famille (optionnel)
+  frereSoeurId?: string
+  lienParente?: string
+
+  // Métadonnées de transfert
+  ecoleOriginale: {
+    nom: string
+    codeEcole?: string
+    telephone?: string
+    email?: string
+  }
+  dateTransfert: string
+  motif?: string
+  codeTransfert: string          // ex: TRF-48291-2026
+  version: "1.0"
+}
+
+export interface TransfertEnAttente {
+  id: string
+  codeTransfert: string
+  dossier: DossierTransfert
+  direction: "sortant" | "entrant"
+  statut: StatutTransfert
+  dateCreation: string
+  dateDecision?: string
+  motifRefus?: string
+  eleveLocalId?: string          // id local après acceptation
+}

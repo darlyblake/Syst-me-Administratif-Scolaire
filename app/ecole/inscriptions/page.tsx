@@ -1,14 +1,38 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useMemo } from "react"
+import Link from "next/link"
+import { toast } from "sonner"
+import {
+  ArrowLeft,
+  UserPlus,
+  RotateCcw,
+  ArrowRightLeft,
+  BarChart3,
+  Search,
+  Printer,
+  Eye,
+  MoreHorizontal,
+  CreditCard,
+  Users,
+} from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ArrowLeft, UserPlus, Calendar, CreditCard, Search, Filter, Printer, Clock, BarChart3, ArrowRightLeft } from "lucide-react"
-import Link from "next/link"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
+
 import { serviceEleves } from "@/services/eleves.service"
 import { servicePaiements } from "@/services/paiements.service"
 import NouvelleInscriptionModal from "@/components/NouvelleInscriptionModal"
+import { ActionCard } from "@/components/inscriptions/ActionCard"
+import { KPICard } from "@/components/inscriptions/KPICard"
 
 export default function InscriptionsPage() {
   const [showModal, setShowModal] = useState(false)
@@ -16,251 +40,332 @@ export default function InscriptionsPage() {
   const [selectedStudentId, setSelectedStudentId] = useState<string | undefined>(undefined)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterClasse, setFilterClasse] = useState("")
+  const [filterType, setFilterType] = useState<"all" | "inscription" | "reinscription">("all")
 
+  // Données
   const allStudents = serviceEleves.obtenirTousLesEleves()
   const allPayments = servicePaiements.obtenirTousLesPaiements()
 
-  // Filtrer les inscriptions
-  const filteredStudents = allStudents.filter(student => {
-    const matchSearch = !searchTerm || 
-      student.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.prenom.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchClasse = !filterClasse || student.classe === filterClasse
-    return matchSearch && matchClasse
-  })
+  // Classes uniques
+  const classes = useMemo(
+    () => Array.from(new Set(allStudents.map((s) => s.classe))).sort(),
+    [allStudents]
+  )
 
-  // Obtenir les classes uniques
-  const classes = Array.from(new Set(allStudents.map(s => s.classe)))
+  // Filtrage
+  const filteredStudents = useMemo(() => {
+    return allStudents.filter((student) => {
+      const matchSearch =
+        !searchTerm ||
+        student.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.identifiant?.toLowerCase().includes(searchTerm.toLowerCase())
 
-  // Simuler l'utilisateur connecté pour l'historique
-  const utilisateurConnecte = "Admin"
+      const matchClasse = !filterClasse || student.classe === filterClasse
+      const matchType =
+        filterType === "all" || student.typeInscription === filterType
+
+      return matchSearch && matchClasse && matchType
+    })
+  }, [allStudents, searchTerm, filterClasse, filterType])
+
+  // KPIs
+  const totalInscriptions = filteredStudents.length
+  const totalNouvelles = filteredStudents.filter((s) => s.typeInscription === "inscription").length
+  const totalReinscriptions = filteredStudents.filter((s) => s.typeInscription === "reinscription").length
+  const totalFCFA = filteredStudents.reduce((sum, s) => sum + (s.totalAPayer || 0), 0)
+
+  const handleNouvelleInscription = () => {
+    setModalType("inscription")
+    setSelectedStudentId(undefined)
+    setShowModal(true)
+  }
+
+  const handleSuccess = () => {
+    setShowModal(false)
+    toast.success(
+      modalType === "inscription" ? "Nouvelle inscription enregistrée !" : "Réinscription validée !",
+      {
+        description: "L'élève apparaît maintenant dans la liste.",
+      }
+    )
+  }
 
   return (
-    <div className="min-h-screen p-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+    <div className="min-h-screen bg-creme p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-10">
+        {/* Header École Vivante */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="outline" size="sm" asChild className="rounded-2xl">
               <Link href="/ecole/tableau-bord">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Retour
               </Link>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <UserPlus className="h-6 w-6" />
-                Inscriptions
+              <h1 className="text-2xl md:text-3xl font-bold text-encre flex items-center gap-2">
+                <UserPlus className="h-7 w-7 text-terre" />
+                Inscriptions & Transferts
               </h1>
-              <p className="text-gray-600">Gestion des inscriptions des élèves</p>
+              <p className="text-pierre mt-1">
+                Gérez les arrivées, réinscriptions et transferts de vos élèves en toute simplicité
+              </p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={() => { setModalType("inscription"); setSelectedStudentId(undefined); setShowModal(true) }}>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Nouvelle Inscription
-            </Button>
-            <Button variant="outline" onClick={() => { setModalType("reinscription"); setSelectedStudentId(undefined); setShowModal(true) }}>
-              <Clock className="mr-2 h-4 w-4" />
-              Réinscription
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/ecole/inscriptions/transfert">
-                <ArrowRightLeft className="mr-2 h-4 w-4" />
-                Transfert d'élève
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/ecole/inscriptions/statistiques">
-                <BarChart3 className="mr-2 h-4 w-4" />
-                Statistiques
-              </Link>
-            </Button>
-          </div>
+          <Button 
+            onClick={handleNouvelleInscription}
+            className="btn-eco bg-terre hover:bg-terre-dark text-white rounded-2xl px-5 py-2.5 shadow-soft"
+          >
+            <UserPlus className="h-5 w-5 mr-2" />
+            Nouvelle inscription
+          </Button>
         </div>
 
-        {/* Filtres */}
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Rechercher par nom ou prénom..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+        {/* Actions rapides École Vivante */}
+        <section>
+          <h2 className="text-lg font-semibold text-encre mb-4">Actions rapides</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-card">
+            <ActionCard
+              href="/ecole/inscriptions/nouvelle"
+              title="Nouvelle inscription"
+              description="Inscrire un nouvel élève"
+              icon={UserPlus}
+              color="terre"
+            />
+            <ActionCard
+              href="/ecole/inscriptions/reinscription"
+              title="Réinscription"
+              description="Renouveler une inscription"
+              icon={RotateCcw}
+              color="soleil"
+            />
+            <ActionCard
+              href="/ecole/inscriptions/transfert"
+              title="Transfert"
+              description="Envoyer ou recevoir un élève"
+              icon={ArrowRightLeft}
+              color="ambre"
+            />
+            <ActionCard
+              href="/ecole/inscriptions/statistiques"
+              title="Rapports"
+              description="Statistiques & exports"
+              icon={BarChart3}
+              color="terre"
+            />
+          </div>
+        </section>
+
+        {/* KPIs École Vivante */}
+        <section>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <KPICard
+              title="Total inscrits"
+              value={totalInscriptions}
+              icon={Users}
+              color="terre"
+              trend={{ value: "8%", positive: true }}
+            />
+            <KPICard
+              title="Nouvelles (mois)"
+              value={totalNouvelles}
+              icon={UserPlus}
+              color="jardin"
+              trend={{ value: "12", positive: true }}
+            />
+            <KPICard
+              title="Réinscriptions"
+              value={totalReinscriptions}
+              icon={RotateCcw}
+              color="terre"
+            />
+            <KPICard
+              title="Total à payer"
+              value={totalFCFA}
+              icon={CreditCard}
+              color="ambre"
+              suffix="FCFA"
+            />
+          </div>
+        </section>
+
+        {/* Filtres École Vivante */}
+        <Card className="bg-papier rounded-3xl shadow-soft">
+          <CardContent className="pt-5">
+            <div className="flex flex-col md:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-pierre" />
+                <Input
+                  placeholder="Rechercher un élève (nom, matricule…)"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-11 py-2.5 rounded-2xl border-terre/15 bg-creme/50 focus:outline-none focus:ring-2 focus:ring-terre/30 focus:border-terre/40 text-sm"
+                />
               </div>
-              <div className="w-48">
-                <select
-                  value={filterClasse}
-                  onChange={(e) => setFilterClasse(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setFilterType("all")}
+                  className={`px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    filterType === "all" 
+                      ? "bg-terre text-white" 
+                      : "bg-creme text-pierre hover:bg-terre-soft"
+                  }`}
                 >
-                  <option value="">Toutes les classes</option>
-                  {classes.map(classe => (
-                    <option key={classe} value={classe}>{classe}</option>
-                  ))}
-                </select>
+                  Tous
+                </button>
+                {classes.slice(0, 3).map((classe) => (
+                  <button
+                    key={classe}
+                    onClick={() => setFilterClasse(filterClasse === classe ? "" : classe)}
+                    className={`px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
+                      filterClasse === classe 
+                        ? "bg-terre text-white" 
+                        : "bg-creme text-pierre hover:bg-terre-soft"
+                    }`}
+                  >
+                    {classe}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setFilterType("inscription")}
+                  className={`px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    filterType === "inscription" 
+                      ? "bg-terre text-white" 
+                      : "bg-creme text-pierre hover:bg-terre-soft"
+                  }`}
+                >
+                  Nouvelles
+                </button>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Statistiques */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                  <UserPlus className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{filteredStudents.length}</p>
-                  <p className="text-sm text-gray-600">Total Inscriptions</p>
-                </div>
+        {/* Tableau École Vivante */}
+        <Card className="bg-papier rounded-3xl shadow-soft overflow-hidden">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-encre">Historique des inscriptions</CardTitle>
+                <CardDescription className="text-pierre">
+                  {filteredStudents.length} élève{filteredStudents.length > 1 ? "s" : ""} trouvé
+                  {filteredStudents.length > 1 ? "s" : ""}
+                </CardDescription>
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                  <CreditCard className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    {allPayments.filter(p => p.typePaiement === 'inscription').length}
-                  </p>
-                  <p className="text-sm text-gray-600">Paiements Inscription</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                  <Calendar className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    {filteredStudents.filter(s => s.typeInscription === 'reinscription').length}
-                  </p>
-                  <p className="text-sm text-gray-600">Réinscriptions</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                  <CreditCard className="h-5 w-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    {filteredStudents.reduce((sum, s) => sum + s.totalAPayer, 0).toLocaleString()}
-                  </p>
-                  <p className="text-sm text-gray-600">Total FCFA</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tableau des inscriptions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Historique des Inscriptions</CardTitle>
-            <CardDescription>Liste de toutes les inscriptions enregistrées</CardDescription>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto rounded-md">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b-2">
-                    <th className="text-left p-3">N°</th>
-                    <th className="text-left p-3">Élève</th>
-                    <th className="text-left p-3">Classe</th>
-                    <th className="text-left p-3">Type</th>
-                    <th className="text-left p-3">Date</th>
-                    <th className="text-left p-3">Inscrit par</th>
-                    <th className="text-right p-3">Montant</th>
-                    <th className="text-center p-3">Statut</th>
+                  <tr className="text-left text-pierre border-b border-terre/8">
+                    <th className="p-3.5 font-medium">Élève</th>
+                    <th className="p-3.5 font-medium">Classe</th>
+                    <th className="p-3.5 font-medium">Type</th>
+                    <th className="p-3.5 font-medium">Statut</th>
+                    <th className="p-3.5 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {filteredStudents.map((student, index) => (
-                    <tr key={student.id} className="border-b hover:bg-gray-50">
-                      <td className="p-3">{index + 1}</td>
-                      <td className="p-3">
-                        <p className="font-medium">{student.prenom} {student.nom}</p>
-                        <p className="text-sm text-gray-600">{student.identifiant}</p>
-                      </td>
-                      <td className="p-3">{student.classe}</td>
-                      <td className="p-3">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          student.typeInscription === 'inscription' 
-                            ? 'bg-blue-100 text-blue-800' 
-                            : 'bg-purple-100 text-purple-800'
-                        }`}>
-                          {student.typeInscription === 'inscription' ? 'Nouvelle' : 'Réinscription'}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        {new Date(student.dateInscription).toLocaleDateString('fr-FR')}
-                      </td>
-                      <td className="p-3">{utilisateurConnecte}</td>
-                      <td className="p-3 text-right font-semibold">
-                        {student.totalAPayer.toLocaleString()} FCFA
-                      </td>
-                      <td className="p-3 text-center">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          student.statut === 'actif' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {student.statut === 'actif' ? 'Actif' : 'Inactif'}
-                        </span>
-                      </td>
-                      <td className="p-3 text-center">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(`/receipt?id=${student.id}`, '_blank')}
-                        >
-                          <Printer className="h-4 w-4" />
-                        </Button>
+                <tbody className="divide-y divide-terre/6">
+                  {filteredStudents.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-16 text-pierre">
+                        <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                        <p className="font-medium text-encre">Aucune inscription trouvée</p>
+                        <p className="text-sm mt-1">Modifiez vos filtres ou créez une nouvelle inscription</p>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredStudents.map((student) => (
+                      <tr
+                        key={student.id}
+                        className="table-row-eco"
+                      >
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-terre-soft flex items-center justify-center text-terre font-semibold text-sm">
+                              {student.prenom[0]}{student.nom[0]}
+                            </div>
+                            <div>
+                              <p className="font-medium text-encre">
+                                {student.prenom} {student.nom}
+                              </p>
+                              <p className="text-xs text-pierre font-mono">
+                                {student.identifiant}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4 text-pierre">{student.classe}</td>
+                        <td className="p-4">
+                          <Badge
+                            variant="secondary"
+                            className={
+                              student.typeInscription === "inscription"
+                                ? "bg-terre-soft text-terre"
+                                : "bg-amber-50 text-ambre"
+                            }
+                          >
+                            {student.typeInscription === "inscription" ? "Nouvelle" : "Réinscription"}
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          <Badge
+                            variant={student.statut === "actif" ? "default" : "destructive"}
+                            className={
+                              student.statut === "actif"
+                                ? "bg-green-50 text-jardin"
+                                : "bg-red-50 text-rouge-terre"
+                            }
+                          >
+                            {student.statut === "actif" ? "Actif" : "Inactif"}
+                          </Badge>
+                        </td>
+                        <td className="p-4 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-pierre hover:text-terre hover:bg-terre-soft">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  window.open(`/receipt?id=${student.id}`, "_blank")
+                                }
+                              >
+                                <Printer className="mr-2 h-4 w-4" />
+                                Imprimer reçu
+                              </DropdownMenuItem>
+                              <DropdownMenuItem asChild>
+                                <Link href={`/ecole/students?id=${student.id}`}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Voir le dossier
+                                </Link>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
-
-            {filteredStudents.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                Aucune inscription trouvée
-              </div>
-            )}
           </CardContent>
         </Card>
-
-        {/* Modal pour nouvelle inscription */}
-        <NouvelleInscriptionModal
-          isOpen={showModal}
-          onClose={() => setShowModal(false)}
-          onSuccess={() => {
-            setShowModal(false)
-            window.location.reload()
-          }}
-          typeInscription={modalType}
-          studentId={selectedStudentId}
-        />
       </div>
+
+      {/* Modal Nouvelle Inscription */}
+      <NouvelleInscriptionModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSuccess={handleSuccess}
+        typeInscription={modalType}
+        studentId={selectedStudentId}
+      />
     </div>
   )
 }

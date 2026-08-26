@@ -1,4 +1,4 @@
-/* Animations personnalisées pour la page enseignants */
+/* Animations personnalisées pour École Vivante - Design chaleureux et humain */
 
 /* Animation d'entrée générale */
 @keyframes fadeIn {
@@ -84,14 +84,48 @@
   animation: bounceIn 0.6s ease-out;
 }
 
-/* Animations au survol */
-.hover-lift {
+/* Animations École Vivante - Micro-interactions subtiles */
+
+/* Hover lift avec ombre douce */
+.hover-lift-eco {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.hover-lift:hover {
+.hover-lift-eco:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px -4px rgba(61, 90, 76, 0.12);
+}
+
+/* Scale subtil au hover */
+.hover-scale-eco {
+  transition: transform 0.2s ease;
+}
+
+.hover-scale-eco:hover {
+  transform: scale(1.02);
+}
+
+/* Scale pour les icônes dans les cartes */
+.icon-scale {
+  transition: transform 0.2s ease;
+}
+
+.icon-scale:hover {
+  transform: scale(1.05);
+}
+
+/* Bouton avec scale actif */
+.btn-eco {
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.btn-eco:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px -4px rgba(61, 90, 76, 0.12);
+}
+
+.btn-eco:active {
+  transform: scale(0.98);
 }
 
 /* Transitions fluides pour les composants */
@@ -120,16 +154,32 @@
 }
 
 /* Animation pour les cartes de statistiques */
-.stat-card {
+.stat-card-eco {
   transition: all 0.3s ease;
 }
 
-.stat-card:hover {
+.stat-card-eco:hover {
   transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 30px -8px rgba(61, 90, 76, 0.12);
 }
 
-/* Animation pour les boutons */
+/* Animation pour les cartes d'action École Vivante */
+.action-card-eco {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.action-card-eco:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -8px rgba(61, 90, 76, 0.12);
+  border-color: rgba(61, 90, 76, 0.15);
+}
+
+.action-card-eco:active {
+  transform: translateY(0);
+}
+
+/* Animation pour les boutons avec shimmer */
 .btn-animated {
   position: relative;
   overflow: hidden;
@@ -230,23 +280,23 @@
   opacity: 1;
 }
 
-/* Animation pour les tableaux */
-.table-row {
+/* Animation pour les tableaux École Vivante */
+.table-row-eco {
   transition: background-color 0.2s ease;
 }
 
-.table-row:hover {
-  background-color: rgba(0, 0, 0, 0.02);
+.table-row-eco:hover {
+  background-color: rgba(232, 168, 124, 0.15);
 }
 
 /* Animation pour les formulaires */
-.form-field {
+.form-field-eco {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.form-field:focus-within {
-  border-color: rgb(59, 130, 246);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+.form-field-eco:focus-within {
+  border-color: #3D5A4C;
+  box-shadow: 0 0 0 2px rgba(61, 90, 76, 0.1);
 }
 
 /* Animation pour les badges */
@@ -261,21 +311,6 @@
 
 .avatar-hover:hover {
   transform: scale(1.1);
-}
-
-/* Animation pour les cartes d'action */
-.action-card {
-  transition: all 0.3s ease;
-  cursor: pointer;
-}
-
-.action-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-.action-card:active {
-  transform: translateY(0);
 }
 
 /* Animation pour les indicateurs de statut */
@@ -449,6 +484,17 @@
   }
 }
 
+/* Stagger animation pour les cartes */
+.stagger-card {
+  opacity: 0;
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.stagger-card:nth-child(1) { animation-delay: 0.05s; }
+.stagger-card:nth-child(2) { animation-delay: 0.1s; }
+.stagger-card:nth-child(3) { animation-delay: 0.15s; }
+.stagger-card:nth-child(4) { animation-delay: 0.2s; }
+
 /* Responsive animations */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -460,13 +506,17 @@
   }
 }
 
-/* Dark mode animations */
+/* Dark mode animations École Vivante */
 @media (prefers-color-scheme: dark) {
-  .stat-card:hover {
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  .stat-card-eco:hover {
+    box-shadow: 0 10px 30px -8px rgba(232, 168, 124, 0.15);
   }
 
-  .action-card:hover {
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+  .action-card-eco:hover {
+    box-shadow: 0 10px 30px -8px rgba(232, 168, 124, 0.15);
+  }
+  
+  .table-row-eco:hover {
+    background-color: rgba(232, 168, 124, 0.2);
   }
 }

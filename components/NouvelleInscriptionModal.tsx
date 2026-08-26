@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { toast } from "sonner"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -100,16 +101,15 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
           nom: existingStudent.nom,
           prenom: existingStudent.prenom,
           dateNaissance: existingStudent.dateNaissance,
-          lieuNaissance: existingStudent.lieuNaissance,
-          sexe: existingStudent.sexe,
-          classe: existingStudent.classe,
+          lieuNaissance: existingStudent.lieuNaissance || "",
+          sexe: existingStudent.sexe || "",
           classeAncienne: existingStudent.classe,
           nouvelleClasse: existingStudent.classe,
-          nomParent: existingStudent.nomParent,
-          prenomParent: existingStudent.informationsContact?.email ? existingStudent.informationsContact.email.split('@')[0] : "",
-          telephoneParent: existingStudent.contactParent,
+          nomParent: existingStudent.nomParent || "",
+          prenomParent: "",
+          telephoneParent: existingStudent.contactParent || "",
           emailParent: existingStudent.informationsContact?.email || "",
-          adresse: existingStudent.adresse,
+          adresse: existingStudent.adresse || "",
           optionsSupplementaires: existingStudent.optionsSupplementaires || prev.optionsSupplementaires,
         }))
       }
@@ -226,7 +226,9 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
       if (currentStep === 4) calculerFrais()
       setCurrentStep(prev => Math.min(prev + 1, totalSteps))
     } else {
-      alert("Veuillez remplir tous les champs obligatoires de cette étape")
+      toast.error("Champs obligatoires", {
+        description: "Veuillez remplir tous les champs obligatoires de cette étape"
+      })
     }
   }
 
@@ -237,7 +239,9 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
   const handleSubmit = () => {
     // Validation finale
     if (!formData.nom || !formData.prenom || !formData.dateNaissance || !formData.classe || !formData.nomParent || !formData.telephoneParent || !formData.adresse) {
-      alert("Veuillez remplir tous les champs obligatoires")
+      toast.error("Champs obligatoires", {
+        description: "Veuillez remplir tous les champs obligatoires"
+      })
       return
     }
 
@@ -257,65 +261,27 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
             email: formData.emailParent,
             adresse: formData.adresse,
           },
-          totalAPayer: totalFrais,
-          modePaiement: formData.modePaiement,
-          nombreTranches: formData.modePaiement === "tranches" ? formData.nombreTranches : undefined,
-          moisPaiement: formData.modePaiement === "mensuel" ? formData.moisPaiement : undefined,
-          optionsSupplementaires: formData.optionsSupplementaires,
-          fraisOptionsSupplementaires: {
-            tenueScolaire: formData.optionsSupplementaires.tenueScolaire ? 25000 : 0,
-            carteScolaire: formData.optionsSupplementaires.carteScolaire ? 5000 : 0,
-            cooperative: formData.optionsSupplementaires.cooperative ? 5000 : 0,
-            tenueEPS: formData.optionsSupplementaires.tenueEPS ? 15000 : 0,
-            assurance: formData.optionsSupplementaires.assurance ? 10000 : 0,
-          },
-          fraisInscription: fraisDetails.fraisInscription,
-          fraisScolarite: fraisDetails.fraisScolarite,
-          typeInscription: "reinscription" as const,
-          dateInscription: new Date().toISOString(),
         }
+        updatedStudent.totalAPayer = totalFrais
+        updatedStudent.modePaiement = formData.modePaiement
+        updatedStudent.nombreTranches = formData.modePaiement === "tranches" ? formData.nombreTranches : undefined
+        updatedStudent.moisPaiement = formData.modePaiement === "mensuel" ? formData.moisPaiement : undefined
+        updatedStudent.optionsSupplementaires = formData.optionsSupplementaires
+        updatedStudent.fraisOptionsSupplementaires = {
+          tenueScolaire: formData.optionsSupplementaires.tenueScolaire ? 25000 : 0,
+          carteScolaire: formData.optionsSupplementaires.carteScolaire ? 5000 : 0,
+          cooperative: formData.optionsSupplementaires.cooperative ? 5000 : 0,
+          tenueEPS: formData.optionsSupplementaires.tenueEPS ? 15000 : 0,
+          assurance: formData.optionsSupplementaires.assurance ? 10000 : 0,
+        }
+        updatedStudent.typeInscription = "reinscription" as const
+        updatedStudent.dateInscription = new Date().toISOString()
 
         serviceEleves.modifierEleve(updatedStudent)
 
-        // Créer les paiements
-        const parametres = serviceParametres.obtenirParametres()
-        
-        if (fraisDetails.fraisInscription > 0) {
-          servicePaiements.ajouterPaiement({
-            eleveId: studentId,
-            montant: fraisDetails.fraisInscription,
-            typePaiement: 'inscription',
-            datePaiement: new Date().toISOString(),
-            methodePaiement: 'especes',
-            description: `Frais de réinscription ${parametres.anneeAcademique}`,
-          })
-        }
-
-        if (formData.modePaiement === "mensuel" && formData.moisPaiement.length > 0) {
-          formData.moisPaiement.forEach(mois => {
-            servicePaiements.ajouterPaiement({
-              eleveId: studentId,
-              montant: fraisDetails.fraisParMois,
-              typePaiement: "scolarite",
-              datePaiement: new Date().toISOString(),
-              methodePaiement: 'especes',
-              description: `Paiement scolarité ${mois} ${parametres.anneeAcademique}`,
-              moisPaiement: [mois],
-            })
-          })
-        } else if (formData.modePaiement === "tranches" && fraisDetails.tranches.length > 0) {
-          fraisDetails.tranches.forEach(tranche => {
-            servicePaiements.ajouterPaiement({
-              eleveId: studentId,
-              montant: tranche.montant,
-              typePaiement: "scolarite",
-              datePaiement: new Date().toISOString(),
-              methodePaiement: 'especes',
-              description: `Paiement tranche ${tranche.numero} ${parametres.anneeAcademique}`,
-              moisPaiement: [`Tranche ${tranche.numero}`],
-            })
-          })
-        }
+        // Note: Les paiements ne sont plus créés automatiquement lors de l'inscription
+        // Ils seront créés seulement lorsque le parent effectue un paiement réel
+        // L'élève a maintenant les informations de ce qu'il doit payer (totalAPayer, modePaiement, etc.)
 
         setStudentIdentifiant(studentId)
         const code = genererCodeUnique()
@@ -327,18 +293,8 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
       }
     }
 
-    // Générer l'identifiant
-    const year = new Date().getFullYear()
-    const existingStudents = serviceEleves.obtenirTousLesEleves()
-    const nextNumber = existingStudents.length + 1
-    const identifiant = `ELV-${year}-${nextNumber.toString().padStart(3, "0")}`
-    const motDePasse = `PASS-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
-
-    // Créer l'élève
-    const nouvelEleve = {
-      id: identifiant,
-      identifiant,
-      motDePasse,
+    // Créer l'élève sans id/identifiant/motDePasse - le service les générera
+    const nouvelEleve: Omit<DonneesEleve, "id" | "identifiant" | "motDePasse"> = {
       nom: formData.nom,
       prenom: formData.prenom,
       dateNaissance: formData.dateNaissance,
@@ -351,8 +307,6 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
       dateInscription: new Date().toISOString(),
       typeInscription: "inscription" as const,
       totalAPayer: totalFrais,
-      fraisInscription: fraisDetails.fraisInscription,
-      fraisScolarite: fraisDetails.fraisScolarite,
       modePaiement: formData.modePaiement,
       nombreTranches: formData.modePaiement === "tranches" ? formData.nombreTranches : undefined,
       moisPaiement: formData.modePaiement === "mensuel" ? formData.moisPaiement : undefined,
@@ -376,52 +330,16 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
       }),
     }
 
-    serviceEleves.ajouterEleve(nouvelEleve)
+    const eleveCree = serviceEleves.ajouterEleve(nouvelEleve)
 
-    // Créer les paiements
-    const parametres = serviceParametres.obtenirParametres()
-    
-    if (fraisDetails.fraisInscription > 0) {
-      servicePaiements.ajouterPaiement({
-        eleveId: identifiant,
-        montant: fraisDetails.fraisInscription,
-        typePaiement: 'inscription',
-        datePaiement: new Date().toISOString(),
-        methodePaiement: 'especes',
-        description: `Frais d'inscription ${parametres.anneeAcademique}`,
-      })
-    }
-
-    if (formData.modePaiement === "mensuel" && formData.moisPaiement.length > 0) {
-      formData.moisPaiement.forEach(mois => {
-        servicePaiements.ajouterPaiement({
-          eleveId: identifiant,
-          montant: fraisDetails.fraisParMois,
-          typePaiement: "scolarite",
-          datePaiement: new Date().toISOString(),
-          methodePaiement: 'especes',
-          description: `Paiement scolarité ${mois} ${parametres.anneeAcademique}`,
-          moisPaiement: [mois],
-        })
-      })
-    } else if (formData.modePaiement === "tranches" && fraisDetails.tranches.length > 0) {
-      fraisDetails.tranches.forEach(tranche => {
-        servicePaiements.ajouterPaiement({
-          eleveId: identifiant,
-          montant: tranche.montant,
-          typePaiement: "scolarite",
-          datePaiement: new Date().toISOString(),
-          methodePaiement: 'especes',
-          description: `Paiement tranche ${tranche.numero} ${parametres.anneeAcademique}`,
-          moisPaiement: [`Tranche ${tranche.numero}`],
-        })
-      })
-    }
+    // Note: Les paiements ne sont plus créés automatiquement lors de l'inscription
+    // Ils seront créés seulement lorsque le parent effectue un paiement réel
+    // L'élève a maintenant les informations de ce qu'il doit payer (totalAPayer, modePaiement, etc.)
 
     // Générer le code unique et QR code
     const code = genererCodeUnique()
     setCodeUnique(code)
-    setStudentIdentifiant(identifiant)
+    setStudentIdentifiant(eleveCree.identifiant)
     const qrUrl = genererQRCode(code)
     setQrCodeUrl(qrUrl)
     setInscriptionValidee(true)
@@ -490,7 +408,45 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
                   <QrCode className="mr-2 h-4 w-4" />
                   Imprimer le reçu
                 </Button>
-                <Button variant="outline" onClick={() => window.location.reload()}>
+                <Button variant="outline" onClick={() => {
+                  setInscriptionValidee(false)
+                  setCurrentStep(1)
+                  setFormData({
+                    nom: "",
+                    prenom: "",
+                    dateNaissance: "",
+                    lieuNaissance: "",
+                    sexe: "",
+                    classe: "",
+                    classeAncienne: "",
+                    nouvelleClasse: "",
+                    photo: null,
+                    nomParent: "",
+                    prenomParent: "",
+                    telephoneParent: "",
+                    emailParent: "",
+                    adresse: "",
+                    searchSibling: "",
+                    selectedSibling: null,
+                    lienParente: "",
+                    modePaiement: "mensuel",
+                    nombreTranches: 3,
+                    moisPaiement: [],
+                    optionsSupplementaires: {
+                      tenueScolaire: false,
+                      carteScolaire: false,
+                      cooperative: false,
+                      tenueEPS: false,
+                      assurance: false,
+                    },
+                    acteNaissance: null,
+                    certificatMedical: null,
+                    autresDocuments: [],
+                  })
+                  setCodeUnique("")
+                  setQrCodeUrl("")
+                  setStudentIdentifiant("")
+                }}>
                   Nouvelle inscription
                 </Button>
               </div>

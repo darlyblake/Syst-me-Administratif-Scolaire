@@ -150,9 +150,9 @@ export default function StatistiquesInscriptions() {
   }
 
   return (
-    <div className="min-h-screen p-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
+    <div className="min-h-screen bg-muted/30 p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center gap-4">
           <Button variant="outline" size="sm" asChild>
             <Link href="/ecole/tableau-bord">
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -160,32 +160,36 @@ export default function StatistiquesInscriptions() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <BarChart3 className="h-6 w-6" />
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
+              <BarChart3 className="h-7 w-7 text-primary" />
               Statistiques d'Inscription
             </h1>
-            <p className="text-gray-600">Vue d'ensemble des inscriptions</p>
+            <p className="text-muted-foreground mt-1">Vue d'ensemble des inscriptions</p>
           </div>
         </div>
 
         {/* Filtres */}
-        <Card className="mb-6">
+        <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <Label>Date de début:</Label>
-              <Input 
-                type="date" 
-                value={dateDebut}
-                onChange={(e) => setDateDebut(e.target.value)}
-                className="w-48"
-              />
-              <Label>Date de fin:</Label>
-              <Input 
-                type="date" 
-                value={dateFin}
-                onChange={(e) => setDateFin(e.target.value)}
-                className="w-48"
-              />
+            <div className="flex flex-col md:flex-row items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Label>Date de début:</Label>
+                <Input 
+                  type="date" 
+                  value={dateDebut}
+                  onChange={(e) => setDateDebut(e.target.value)}
+                  className="w-48"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label>Date de fin:</Label>
+                <Input 
+                  type="date" 
+                  value={dateFin}
+                  onChange={(e) => setDateFin(e.target.value)}
+                  className="w-48"
+                />
+              </div>
               <Button 
                 variant="outline" 
                 onClick={() => { setDateDebut(""); setDateFin("") }}
@@ -197,6 +201,60 @@ export default function StatistiquesInscriptions() {
         </Card>
 
         {/* KPIs */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                  <Users className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.totalInscriptions}</p>
+                  <p className="text-sm text-muted-foreground">Total Inscriptions</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">
+                  <TrendingUp className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.totalReinscriptions}</p>
+                  <p className="text-sm text-muted-foreground">Réinscriptions</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                  <Calendar className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.tauxReinscription.toFixed(1)}%</p>
+                  <p className="text-sm text-muted-foreground">Taux Réinscription</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center">
+                  <BarChart3 className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.recettesTotales.toLocaleString()} FCFA</p>
+                  <p className="text-sm text-muted-foreground">Recettes Totales</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardHeader className="pb-2">
@@ -247,7 +305,7 @@ export default function StatistiquesInscriptions() {
           </Card>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-6">
+        <div className="grid md:grid-cols-2 gap-6">
           {/* Répartition par classe */}
           <Card>
             <CardHeader>
@@ -255,22 +313,26 @@ export default function StatistiquesInscriptions() {
               <CardDescription>Nombre d'élèves par classe</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {Object.entries(stats.parClasse).map(([classe, nombre]) => (
-                  <div key={classe} className="flex items-center justify-between">
-                    <span className="font-medium">{classe}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: `${(nombre / stats.totalInscriptions) * 100}%` }}
-                        />
+              {Object.keys(stats.parClasse).length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Aucune donnée disponible</p>
+              ) : (
+                <div className="space-y-3">
+                  {Object.entries(stats.parClasse).map(([classe, nombre]) => (
+                    <div key={classe} className="flex items-center justify-between">
+                      <span className="font-medium">{classe}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-32 bg-muted rounded-full h-2">
+                          <div
+                            className="bg-primary h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${(nombre / stats.totalInscriptions) * 100}%` }}
+                          />
+                        </div>
+                        <span className="font-semibold w-8 text-right">{nombre}</span>
                       </div>
-                      <span className="font-semibold w-8 text-right">{nombre}</span>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -281,76 +343,91 @@ export default function StatistiquesInscriptions() {
               <CardDescription>Nombre d'élèves par tranche d'âge</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {Object.entries(stats.parAge).map(([age, nombre]) => (
-                  <div key={age} className="flex items-center justify-between">
-                    <span className="font-medium">{age}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-green-600 h-2 rounded-full"
-                          style={{ width: `${(nombre / stats.totalInscriptions) * 100}%` }}
-                        />
+              {Object.values(stats.parAge).every(v => v === 0) ? (
+                <p className="text-muted-foreground text-center py-8">Aucune donnée disponible</p>
+              ) : (
+                <div className="space-y-3">
+                  {Object.entries(stats.parAge).map(([age, nombre]) => (
+                    <div key={age} className="flex items-center justify-between">
+                      <span className="font-medium">{age}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-32 bg-muted rounded-full h-2">
+                          <div
+                            className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${(nombre / stats.totalInscriptions) * 100}%` }}
+                          />
+                        </div>
+                        <span className="font-semibold w-8 text-right">{nombre}</span>
                       </div>
-                      <span className="font-semibold w-8 text-right">{nombre}</span>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Évolution dans le temps */}
+        {/* Comparaison avec Années Précédentes */}
         <Card>
           <CardHeader>
-            <CardTitle>Évolution des Inscriptions</CardTitle>
-            <CardDescription>Nombre d'inscriptions par jour</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {stats.parJour.map((jour, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span className="font-medium">{jour.date}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-48 bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-purple-600 h-2 rounded-full"
-                        style={{ width: `${(jour.nombre / Math.max(...stats.parJour.map(d => d.nombre))) * 100}%` }}
-                      />
-                    </div>
-                    <span className="font-semibold w-8 text-right">{jour.nombre}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Comparaison avec années précédentes */}
-        <Card className="mt-6">
-          <CardHeader>
             <CardTitle>Comparaison avec Années Précédentes</CardTitle>
-            <CardDescription>Évolution sur les dernières années</CardDescription>
+            <CardDescription>Évolution des inscriptions sur les 3 dernières années</CardDescription>
           </CardHeader>
           <CardContent>
             {stats.parAnnee.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">Pas encore de données historiques</p>
+              <p className="text-muted-foreground text-center py-8">Aucune donnée historique disponible</p>
             ) : (
-              <div className={`grid grid-cols-${Math.min(stats.parAnnee.length, 3)} gap-4`}>
-                {stats.parAnnee.map((item, index) => (
-                  <div 
-                    key={item.annee} 
-                    className={`text-center p-4 border rounded-lg ${index === stats.parAnnee.length - 1 ? 'bg-blue-50' : ''}`}
-                  >
-                    <p className="text-sm text-gray-600">{item.annee}</p>
-                    <p className="text-2xl font-bold">{item.nombre}</p>
-                    <p className="text-xs text-gray-500">Inscriptions</p>
+              <div className="space-y-4">
+                {stats.parAnnee.map((item) => (
+                  <div key={item.annee} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-lg font-bold text-primary">{item.annee}</span>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold">{item.nombre}</p>
+                        <p className="text-sm text-muted-foreground">inscriptions</p>
+                      </div>
+                    </div>
                     {item.evolution !== undefined && (
-                      <p className={`text-xs ${item.evolution >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {item.evolution >= 0 ? '+' : ''}{item.evolution.toFixed(1)}%
-                      </p>
+                      <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${
+                        item.evolution >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        <span className="font-semibold">
+                          {item.evolution >= 0 ? '+' : ''}{item.evolution.toFixed(1)}%
+                        </span>
+                      </div>
                     )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Évolution journalière */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Évolution Journalière</CardTitle>
+            <CardDescription>Inscriptions des 7 derniers jours</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {stats.parJour.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">Aucune donnée disponible</p>
+            ) : (
+              <div className="space-y-3">
+                {stats.parJour.map((item) => (
+                  <div key={item.date} className="flex items-center justify-between">
+                    <span className="font-medium">{item.date}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-48 bg-muted rounded-full h-2">
+                        <div
+                          className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${(item.nombre / Math.max(...stats.parJour.map(d => d.nombre))) * 100}%` }}
+                        />
+                      </div>
+                      <span className="font-semibold w-8 text-right">{item.nombre}</span>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -175,6 +175,87 @@ class ServiceDossiersPapier {
   piecesManquantes(dossier: DossierPapier): PieceDossier[] {
     return dossier.pieces.filter((p) => p.obligatoire && !p.presente)
   }
+
+  uploaderFichier(dossierId: string, pieceId: string, fichier: string, nomFichier: string): boolean {
+    const all = this.lire()
+    const idx = all.findIndex((d) => d.id === dossierId)
+    if (idx === -1) return false
+
+    const piece = all[idx].pieces.find((p) => p.id === pieceId)
+    if (!piece) return false
+
+    piece.fichier = fichier
+    piece.nomFichier = nomFichier
+    piece.presente = true
+    piece.dateAjout = new Date().toISOString()
+    all[idx].dateMiseAJour = new Date().toISOString()
+    all[idx].statut = this.recalculerStatut(all[idx])
+    this.sauver(all)
+    return true
+  }
+
+  supprimerFichier(dossierId: string, pieceId: string): boolean {
+    const all = this.lire()
+    const idx = all.findIndex((d) => d.id === dossierId)
+    if (idx === -1) return false
+
+    const piece = all[idx].pieces.find((p) => p.id === pieceId)
+    if (!piece) return false
+
+    piece.fichier = undefined
+    piece.nomFichier = undefined
+    piece.presente = false
+    piece.dateAjout = undefined
+    all[idx].dateMiseAJour = new Date().toISOString()
+    all[idx].statut = this.recalculerStatut(all[idx])
+    this.sauver(all)
+    return true
+  }
+
+  supprimerDossier(dossierId: string): boolean {
+    const all = this.lire()
+    const idx = all.findIndex((d) => d.id === dossierId)
+    if (idx === -1) return false
+
+    all.splice(idx, 1)
+    this.sauver(all)
+    return true
+  }
+
+  ajouterPiece(dossierId: string, nom: string, obligatoire: boolean): boolean {
+    const all = this.lire()
+    const idx = all.findIndex((d) => d.id === dossierId)
+    if (idx === -1) return false
+
+    const pieceId = `piece_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+    const nouvellePiece: PieceDossier = {
+      id: pieceId,
+      nom,
+      obligatoire,
+      presente: false,
+    }
+
+    all[idx].pieces.push(nouvellePiece)
+    all[idx].dateMiseAJour = new Date().toISOString()
+    all[idx].statut = this.recalculerStatut(all[idx])
+    this.sauver(all)
+    return true
+  }
+
+  supprimerPiece(dossierId: string, pieceId: string): boolean {
+    const all = this.lire()
+    const idx = all.findIndex((d) => d.id === dossierId)
+    if (idx === -1) return false
+
+    const pieceIdx = all[idx].pieces.findIndex((p) => p.id === pieceId)
+    if (pieceIdx === -1) return false
+
+    all[idx].pieces.splice(pieceIdx, 1)
+    all[idx].dateMiseAJour = new Date().toISOString()
+    all[idx].statut = this.recalculerStatut(all[idx])
+    this.sauver(all)
+    return true
+  }
 }
 
 export const serviceDossiersPapier = new ServiceDossiersPapier()

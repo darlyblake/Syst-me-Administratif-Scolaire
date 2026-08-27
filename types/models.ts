@@ -370,6 +370,8 @@ export interface PieceDossier {
   presente: boolean
   dateAjout?: string
   remarque?: string
+  fichier?: string // URL ou base64 du fichier uploadé
+  nomFichier?: string // Nom original du fichier
 }
 
 export interface EmpruntDossier {

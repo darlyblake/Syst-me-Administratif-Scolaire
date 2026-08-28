@@ -1,0 +1,522 @@
+/* Animations personnalisées pour École Vivante - Design chaleureux et humain */
+
+/* Animation d'entrée générale */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Classes d'animation */
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.4s ease-out;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+.animate-bounce-in {
+  animation: bounceIn 0.6s ease-out;
+}
+
+/* Animations École Vivante - Micro-interactions subtiles */
+
+/* Hover lift avec ombre douce */
+.hover-lift-eco {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift-eco:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px -4px rgba(61, 90, 76, 0.12);
+}
+
+/* Scale subtil au hover */
+.hover-scale-eco {
+  transition: transform 0.2s ease;
+}
+
+.hover-scale-eco:hover {
+  transform: scale(1.02);
+}
+
+/* Scale pour les icônes dans les cartes */
+.icon-scale {
+  transition: transform 0.2s ease;
+}
+
+.icon-scale:hover {
+  transform: scale(1.05);
+}
+
+/* Bouton avec scale actif */
+.btn-eco {
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.btn-eco:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px -4px rgba(61, 90, 76, 0.12);
+}
+
+.btn-eco:active {
+  transform: scale(0.98);
+}
+
+/* Transitions fluides pour les composants */
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-colors-fast {
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Animation pour les statistiques */
+@keyframes countUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-count-up {
+  animation: countUp 0.6s ease-out;
+}
+
+/* Animation pour les cartes de statistiques */
+.stat-card-eco {
+  transition: all 0.3s ease;
+}
+
+.stat-card-eco:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px -8px rgba(61, 90, 76, 0.12);
+}
+
+/* Animation pour les cartes d'action École Vivante */
+.action-card-eco {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.action-card-eco:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -8px rgba(61, 90, 76, 0.12);
+  border-color: rgba(61, 90, 76, 0.15);
+}
+
+.action-card-eco:active {
+  transform: translateY(0);
+}
+
+/* Animation pour les boutons avec shimmer */
+.btn-animated {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-animated::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-animated:hover::before {
+  left: 100%;
+}
+
+/* Animation pour les modals */
+.modal-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-content {
+  animation: scaleIn 0.3s ease-out;
+}
+
+/* Animation pour les tooltips */
+.tooltip {
+  opacity: 0;
+  transform: translateY(5px);
+  transition: all 0.2s ease;
+}
+
+.tooltip.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Animation pour les indicateurs de chargement */
+.loading-dots::after {
+  content: '';
+  animation: loadingDots 1.5s infinite;
+}
+
+@keyframes loadingDots {
+  0%, 20% {
+    content: '';
+  }
+  40% {
+    content: '.';
+  }
+  60% {
+    content: '..';
+  }
+  80%, 100% {
+    content: '...';
+  }
+}
+
+/* Animation pour les notifications */
+.notification-enter {
+  opacity: 0;
+  transform: translateX(100%);
+}
+
+.notification-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.notification-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.notification-exit-active {
+  opacity: 0;
+  transform: translateX(100%);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Animation pour les accordéons */
+.accordion-content {
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+.accordion-content.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+.accordion-content.expanded {
+  max-height: 1000px;
+  opacity: 1;
+}
+
+/* Animation pour les tableaux École Vivante */
+.table-row-eco {
+  transition: background-color 0.2s ease;
+}
+
+.table-row-eco:hover {
+  background-color: rgba(232, 168, 124, 0.15);
+}
+
+/* Animation pour les formulaires */
+.form-field-eco {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-field-eco:focus-within {
+  border-color: #3D5A4C;
+  box-shadow: 0 0 0 2px rgba(61, 90, 76, 0.1);
+}
+
+/* Animation pour les badges */
+.badge-pulse {
+  animation: pulse 2s infinite;
+}
+
+/* Animation pour les avatars */
+.avatar-hover {
+  transition: transform 0.2s ease;
+}
+
+.avatar-hover:hover {
+  transform: scale(1.1);
+}
+
+/* Animation pour les indicateurs de statut */
+.status-indicator {
+  transition: all 0.3s ease;
+}
+
+.status-indicator.active {
+  animation: pulse 2s infinite;
+}
+
+/* Animation pour les barres de progression */
+.progress-bar {
+  transition: width 0.5s ease;
+}
+
+/* Animation pour les onglets */
+.tab-content {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Animation pour les dropdowns */
+.dropdown-menu {
+  animation: slideDown 0.2s ease-out;
+}
+
+/* Animation pour les spinners */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* Animation pour les checkboxes */
+.checkbox {
+  transition: all 0.2s ease;
+}
+
+.checkbox:checked {
+  animation: bounceIn 0.3s ease-out;
+}
+
+/* Animation pour les boutons de pagination */
+.pagination-btn {
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover {
+  transform: scale(1.05);
+}
+
+.pagination-btn:active {
+  transform: scale(0.95);
+}
+
+/* Animation pour les toolbars flottantes */
+.floating-toolbar {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.floating-toolbar.hidden {
+  transform: translateY(100px);
+  opacity: 0;
+}
+
+.floating-toolbar.visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Animation pour les cartes de détails */
+.detail-card-enter {
+  opacity: 0;
+  transform: translateX(50px);
+}
+
+.detail-card-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.detail-card-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.detail-card-exit-active {
+  opacity: 0;
+  transform: translateX(50px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+/* Animation pour les filtres */
+.filter-panel {
+  transition: all 0.3s ease;
+}
+
+.filter-panel.collapsed {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.filter-panel.expanded {
+  max-height: 500px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Animation pour les graphiques */
+.chart-container {
+  animation: fadeIn 0.8s ease-out;
+}
+
+.chart-bar {
+  animation: slideDown 0.5s ease-out;
+  animation-fill-mode: both;
+}
+
+.chart-bar:nth-child(1) { animation-delay: 0.1s; }
+.chart-bar:nth-child(2) { animation-delay: 0.2s; }
+.chart-bar:nth-child(3) { animation-delay: 0.3s; }
+.chart-bar:nth-child(4) { animation-delay: 0.4s; }
+.chart-bar:nth-child(5) { animation-delay: 0.5s; }
+
+/* Animation pour les statistiques */
+.stat-number {
+  animation: countUp 0.8s ease-out;
+}
+
+.stat-number:nth-child(1) { animation-delay: 0.1s; }
+.stat-number:nth-child(2) { animation-delay: 0.2s; }
+.stat-number:nth-child(3) { animation-delay: 0.3s; }
+.stat-number:nth-child(4) { animation-delay: 0.4s; }
+
+/* Animation pour les messages d'erreur */
+.error-message {
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* Animation pour les messages de succès */
+.success-message {
+  animation: bounceIn 0.6s ease-out;
+}
+
+/* Animation pour les loaders */
+.loader {
+  animation: spin 1s linear infinite;
+}
+
+.loader-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Animation pour les placeholders */
+.placeholder {
+  animation: shimmer 2s infinite linear;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+/* Stagger animation pour les cartes */
+.stagger-card {
+  opacity: 0;
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.stagger-card:nth-child(1) { animation-delay: 0.05s; }
+.stagger-card:nth-child(2) { animation-delay: 0.1s; }
+.stagger-card:nth-child(3) { animation-delay: 0.15s; }
+.stagger-card:nth-child(4) { animation-delay: 0.2s; }
+
+/* Responsive animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark mode animations École Vivante */
+@media (prefers-color-scheme: dark) {
+  .stat-card-eco:hover {
+    box-shadow: 0 10px 30px -8px rgba(232, 168, 124, 0.15);
+  }
+
+  .action-card-eco:hover {
+    box-shadow: 0 10px 30px -8px rgba(232, 168, 124, 0.15);
+  }
+  
+  .table-row-eco:hover {
+    background-color: rgba(232, 168, 124, 0.2);
+  }
+}

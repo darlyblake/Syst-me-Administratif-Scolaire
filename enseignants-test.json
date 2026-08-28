@@ -1,0 +1,16 @@
+[
+  {
+    "id": "1756990365762test123",
+    "identifiant": "mar123dub456",
+    "motDePasse": "AbCdEfGh",
+    "nom": "Dubois",
+    "prenom": "Marie",
+    "email": "marie.dubois@ecole.fr",
+    "telephone": "06.12.34.56.78",
+    "matieres": ["Français", "Littérature"],
+    "classes": ["5ème A", "4ème B"],
+    "statut": "actif",
+    "dateEmbauche": "2024-01-15T00:00:00.000Z",
+    "dateNaissance": "1985-03-15"
+  }
+]

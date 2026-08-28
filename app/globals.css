@@ -1,0 +1,156 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '../styles/animations.css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Couleurs École Vivante */
+  --terre: #3D5A4C;
+  --terre-soft: #E8F0EB;
+  --terre-dark: #2F463B;
+  
+  --soleil: #E8A87C;
+  --soleil-soft: #FDF1E8;
+  
+  --jardin: #4A7C59;
+  --ambre: #D4A017;
+  --rouge-terre: #C45C4A;
+  
+  --creme: #F9F6F1;
+  --papier: #FFFCFA;
+  --encre: #2C2A26;
+  --pierre: #6B6560;
+
+  /* Variables système existantes */
+  --background: var(--creme);
+  --foreground: var(--encre);
+  --card: var(--papier);
+  --card-foreground: var(--encre);
+  --popover: var(--papier);
+  --popover-foreground: var(--encre);
+  --primary: var(--terre);
+  --primary-foreground: var(--papier);
+  --secondary: var(--terre-soft);
+  --secondary-foreground: var(--terre);
+  --muted: var(--terre-soft);
+  --muted-foreground: var(--pierre);
+  --accent: var(--soleil);
+  --accent-foreground: var(--encre);
+  --destructive: var(--rouge-terre);
+  --destructive-foreground: var(--papier);
+  --border: var(--terre);
+  --input: var(--terre);
+  --ring: var(--terre);
+  --radius: 1.5rem;
+  --sidebar: var(--papier);
+  --sidebar-foreground: var(--encre);
+  --sidebar-primary: var(--terre);
+  --sidebar-primary-foreground: var(--papier);
+  --sidebar-accent: var(--terre-soft);
+  --sidebar-accent-foreground: var(--terre);
+  --sidebar-border: var(--terre);
+  --sidebar-ring: var(--terre);
+}
+
+.dark {
+  --background: var(--terre-dark);
+  --foreground: var(--papier);
+  --card: var(--terre-dark);
+  --card-foreground: var(--papier);
+  --popover: var(--terre-dark);
+  --popover-foreground: var(--papier);
+  --primary: var(--soleil);
+  --primary-foreground: var(--terre-dark);
+  --secondary: var(--terre);
+  --secondary-foreground: var(--papier);
+  --muted: var(--terre);
+  --muted-foreground: var(--pierre);
+  --accent: var(--soleil);
+  --accent-foreground: var(--terre-dark);
+  --destructive: var(--rouge-terre);
+  --destructive-foreground: var(--papier);
+  --border: var(--terre);
+  --input: var(--terre);
+  --ring: var(--soleil);
+  --sidebar: var(--terre-dark);
+  --sidebar-foreground: var(--papier);
+  --sidebar-primary: var(--soleil);
+  --sidebar-primary-foreground: var(--terre-dark);
+  --sidebar-accent: var(--terre);
+  --sidebar-accent-foreground: var(--papier);
+  --sidebar-border: var(--terre);
+  --sidebar-ring: var(--soleil);
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  
+  /* Couleurs personnalisées École Vivante */
+  --color-terre: var(--terre);
+  --color-terre-soft: var(--terre-soft);
+  --color-terre-dark: var(--terre-dark);
+  --color-soleil: var(--soleil);
+  --color-soleil-soft: var(--soleil-soft);
+  --color-jardin: var(--jardin);
+  --color-ambre: var(--ambre);
+  --color-rouge-terre: var(--rouge-terre);
+  --color-creme: var(--creme);
+  --color-papier: var(--papier);
+  --color-encre: var(--encre);
+  --color-pierre: var(--pierre);
+  
+  /* Variables système */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --sidebar-ring: var(--sidebar-ring);
+  
+  /* Ombres personnalisées */
+  --shadow-soft: 0 4px 20px -4px rgba(61, 90, 76, 0.08);
+  --shadow-soft-lg: 0 10px 30px -8px rgba(61, 90, 76, 0.12);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  
+  /* Classes utilitaires personnalisées */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

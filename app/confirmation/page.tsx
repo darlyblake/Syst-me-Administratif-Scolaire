@@ -82,7 +82,7 @@ Inscription validée avec succès.
 
   if (!student) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-creme flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <p className="text-center text-gray-600">Chargement...</p>
@@ -93,7 +93,7 @@ Inscription validée avec succès.
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen bg-creme p-4">
       <div className="max-w-2xl mx-auto">
         <Card className="mb-6">
           <CardHeader className="text-center">

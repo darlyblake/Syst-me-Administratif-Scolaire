@@ -82,7 +82,7 @@ export default function AjouterEnseignantPage() {
 
   return (
     <ProtectionRoute>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="min-h-screen bg-creme p-4">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <Button variant="outline" size="sm" asChild>

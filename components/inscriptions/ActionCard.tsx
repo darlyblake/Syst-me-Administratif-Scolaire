@@ -29,20 +29,20 @@ export function ActionCard({
   className,
 }: ActionCardProps) {
   return (
-    <Link href={href} className="block h-full">
+    <Link href={href} className="block h-full hover:bg-papier transition">
       <div
         className={cn(
-          "action-card-eco h-full p-5 rounded-3xl border border-transparent bg-papier shadow-soft",
+          "action-card-eco h-full flex items-start gap-3 border-y border-[#D8E0DC] py-4",
           className
         )}
       >
-        <div className={cn("w-11 h-11 rounded-2xl flex items-center justify-center mb-4 icon-scale", colorMap[color])}>
-          <Icon className="h-6 w-6" strokeWidth={1.8} />
+        <div className={cn("w-8 h-8 rounded-md flex items-center justify-center shrink-0 icon-scale", colorMap[color])}>
+          <Icon className="h-4 w-4" strokeWidth={1.8} />
         </div>
-        <h3 className="font-semibold text-encre">{title}</h3>
-        <p className="text-sm text-pierre mt-1.5 leading-relaxed">
-          {description}
-        </p>
+        <div className="min-w-0">
+          <h3 className="font-semibold text-encre">{title}</h3>
+          <p className="text-sm text-pierre mt-1 leading-relaxed">{description}</p>
+        </div>
       </div>
     </Link>
   )

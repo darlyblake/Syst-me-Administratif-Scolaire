@@ -90,21 +90,25 @@ export default function InscriptionsPage() {
         <h2 className="text-lg font-semibold mb-4">Actions rapides</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <button type="button" onClick={openInscription} className="text-left">
-            <div className="action-card-eco h-full p-5 rounded-3xl bg-papier shadow-soft hover:shadow-soft-lg border border-transparent hover:border-terre/15 transition hover:-translate-y-0.5">
-              <div className="w-11 h-11 rounded-2xl bg-terre-soft text-terre flex items-center justify-center mb-4">
-                <UserPlus className="h-6 w-6" strokeWidth={1.8} />
+            <div className="action-card-eco h-full flex items-start gap-3 border-y border-[#D8E0DC] py-4 hover:bg-papier transition">
+              <div className="w-8 h-8 rounded-md bg-terre-soft text-terre flex items-center justify-center shrink-0">
+                <UserPlus className="h-4 w-4" strokeWidth={1.8} />
               </div>
-              <h3 className="font-semibold">Nouvelle inscription</h3>
-              <p className="text-sm text-pierre mt-1">Inscrire un nouvel élève (paiement cash)</p>
+              <div>
+                <h3 className="font-semibold">Nouvelle inscription</h3>
+                <p className="text-sm text-pierre mt-1">Inscrire un nouvel élève (paiement cash)</p>
+              </div>
             </div>
           </button>
           <button type="button" onClick={openReinscription} className="text-left">
-            <div className="action-card-eco h-full p-5 rounded-3xl bg-papier shadow-soft hover:shadow-soft-lg transition hover:-translate-y-0.5">
-              <div className="w-11 h-11 rounded-2xl bg-soleil-soft text-soleil flex items-center justify-center mb-4">
-                <RefreshCw className="h-6 w-6" strokeWidth={1.8} />
+            <div className="action-card-eco h-full flex items-start gap-3 border-y border-[#D8E0DC] py-4 hover:bg-papier transition">
+              <div className="w-8 h-8 rounded-md bg-soleil-soft text-soleil flex items-center justify-center shrink-0">
+                <RefreshCw className="h-4 w-4" strokeWidth={1.8} />
               </div>
-              <h3 className="font-semibold">Réinscription</h3>
-              <p className="text-sm text-pierre mt-1">Renouveler pour la nouvelle année</p>
+              <div>
+                <h3 className="font-semibold">Réinscription</h3>
+                <p className="text-sm text-pierre mt-1">Renouveler pour la nouvelle année</p>
+              </div>
             </div>
           </button>
           <ActionCard
@@ -139,7 +143,7 @@ export default function InscriptionsPage() {
       </section>
 
       {/* Tableau */}
-      <section className="bg-papier rounded-3xl shadow-soft overflow-hidden">
+      <section className="border-y border-[#D8E0DC] overflow-hidden">
         <div className="p-5 border-b border-terre/8 flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-pierre" />
@@ -147,13 +151,13 @@ export default function InscriptionsPage() {
               placeholder="Rechercher (nom, prénom, matricule…)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 rounded-2xl border-terre/15 bg-creme/50"
+              className="pl-10 rounded-md border-[#C8D3CD] bg-transparent"
             />
           </div>
           <select
             value={filterClasse}
             onChange={(e) => setFilterClasse(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-terre/15 bg-creme/50 text-sm"
+            className="px-3 py-2 rounded-md border border-[#C8D3CD] bg-transparent text-sm"
           >
             <option value="">Toutes les classes</option>
             {classes.map((c) => (
@@ -163,7 +167,7 @@ export default function InscriptionsPage() {
           <select
             value={filterStatut}
             onChange={(e) => setFilterStatut(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-terre/15 bg-creme/50 text-sm"
+            className="px-3 py-2 rounded-md border border-[#C8D3CD] bg-transparent text-sm"
           >
             <option value="">Tous les statuts</option>
             <option value="actif">Actif</option>

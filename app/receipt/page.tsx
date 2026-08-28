@@ -82,7 +82,7 @@ export default function ReceiptPage() {
 
   if (!student) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-creme flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <p className="text-center text-gray-600">Chargement...</p>
@@ -93,7 +93,7 @@ export default function ReceiptPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 print:bg-white print:p-0">
+    <div className="min-h-screen bg-creme p-4 print:bg-white print:p-0">
       <div className="max-w-4xl mx-auto">
         {/* Actions - masquées à l'impression */}
         <div className="flex justify-between items-center mb-4 print:hidden">

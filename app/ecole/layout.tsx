@@ -20,12 +20,13 @@ export default function EcoleLayout({
         }`}
       >
         {/* Top bar */}
-        <header className="sticky top-0 z-20 bg-papier/95 backdrop-blur border-b border-terre/10">
+        <header className="sticky top-0 z-20 bg-papier border-b border-[#D8E0DC]">
           <div className="px-4 sm:px-6 py-3.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-2 rounded-xl hover:bg-terre-soft transition"
+                aria-label={isSidebarOpen ? "Fermer le menu" : "Ouvrir le menu"}
+                className="p-2 rounded-md hover:bg-terre-soft transition"
               >
                 <svg
                   className="w-5 h-5 text-pierre"
@@ -54,7 +55,7 @@ export default function EcoleLayout({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button className="relative p-2.5 rounded-xl hover:bg-terre-soft transition">
+              <button aria-label="Notifications" className="relative p-2.5 rounded-md hover:bg-terre-soft transition">
                 <svg
                   className="w-5 h-5 text-pierre"
                   fill="none"

@@ -2,7 +2,28 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LogOut } from "lucide-react"
+import {
+  Archive,
+  BarChart3,
+  Banknote,
+  BookOpen,
+  Calendar,
+  CalendarDays,
+  CheckSquare,
+  ClipboardList,
+  CreditCard,
+  FileText,
+  FolderOpen,
+  GraduationCap,
+  LayoutDashboard,
+  LogOut,
+  MessageSquare,
+  Settings,
+  Timer,
+  Users,
+  UserRound,
+  Wrench,
+} from "lucide-react"
 
 interface SidebarProps {
   isOpen: boolean
@@ -18,54 +39,54 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     {
       section: "Principal",
       items: [
-        { href: "/ecole/tableau-bord", label: "Tableau de bord", icon: "🏠" },
-        { href: "/ecole/inscriptions", label: "Inscriptions", icon: "📝" },
-        { href: "/ecole/students", label: "Élèves", icon: "👥" },
-        { href: "/ecole/dossiers-papier", label: "Dossiers papier", icon: "📁" },
+        { href: "/ecole/tableau-bord", label: "Tableau de bord", icon: LayoutDashboard },
+        { href: "/ecole/inscriptions", label: "Inscriptions", icon: ClipboardList },
+        { href: "/ecole/students", label: "Élèves", icon: Users },
+        { href: "/ecole/dossiers-papier", label: "Dossiers papier", icon: FolderOpen },
       ],
     },
     {
       section: "Pédagogie",
       items: [
-        { href: "/ecole/classes", label: "Classes", icon: "🏫" },
-        { href: "/ecole/notes", label: "Notes & bulletins", icon: "📊" },
-        { href: "/ecole/emploi-du-temps", label: "Emploi du temps", icon: "📅" },
-        { href: "/ecole/registre-appel", label: "Présences", icon: "✅" },
-        { href: "/ecole/absences", label: "Absences", icon: "🚫" },
-        { href: "/ecole/matieres", label: "Matières", icon: "📚" },
-        { href: "/ecole/evaluation", label: "Évaluation", icon: "📝" },
-        { href: "/ecole/options", label: "Options", icon: "🔧" },
+        { href: "/ecole/classes", label: "Classes", icon: GraduationCap },
+        { href: "/ecole/notes", label: "Notes & bulletins", icon: BarChart3 },
+        { href: "/ecole/emploi-du-temps", label: "Emploi du temps", icon: CalendarDays },
+        { href: "/ecole/registre-appel", label: "Présences", icon: CheckSquare },
+        { href: "/ecole/absences", label: "Absences", icon: Calendar },
+        { href: "/ecole/matieres", label: "Matières", icon: BookOpen },
+        { href: "/ecole/evaluation", label: "Évaluation", icon: ClipboardList },
+        { href: "/ecole/options", label: "Options", icon: Wrench },
       ],
     },
     {
       section: "Personnel",
       items: [
-        { href: "/ecole/enseignants", label: "Enseignants", icon: "👨‍🏫" },
-        { href: "/ecole/personnel", label: "Personnel & paie", icon: "👔" },
-        { href: "/ecole/etat-salaire", label: "État salaire", icon: "💰" },
-        { href: "/ecole/heures-vacataires", label: "Heures vacataires", icon: "⏱️" },
+        { href: "/ecole/enseignants", label: "Enseignants", icon: UserRound },
+        { href: "/ecole/personnel", label: "Personnel & paie", icon: Users },
+        { href: "/ecole/etat-salaire", label: "État salaire", icon: Banknote },
+        { href: "/ecole/heures-vacataires", label: "Heures vacataires", icon: Timer },
       ],
     },
     {
       section: "Finances",
       items: [
-        { href: "/ecole/payments", label: "Paiements", icon: "💳" },
-        { href: "/ecole/comptabilite", label: "Comptabilité", icon: "📋" },
+        { href: "/ecole/payments", label: "Paiements", icon: CreditCard },
+        { href: "/ecole/comptabilite", label: "Comptabilité", icon: ClipboardList },
       ],
     },
     {
       section: "Administration",
       items: [
-        { href: "/ecole/archivage", label: "Archivage", icon: "🗄️" },
-        { href: "/ecole/documents", label: "Documents", icon: "📄" },
+        { href: "/ecole/archivage", label: "Archivage", icon: Archive },
+        { href: "/ecole/documents", label: "Documents", icon: FileText },
       ],
     },
     {
       section: "Autres",
       items: [
-        { href: "/ecole/communication", label: "Communication", icon: "💬" },
-        { href: "/ecole/evenements", label: "Événements", icon: "🎉" },
-        { href: "/ecole/settings", label: "Paramètres", icon: "⚙️" },
+        { href: "/ecole/communication", label: "Communication", icon: MessageSquare },
+        { href: "/ecole/evenements", label: "Événements", icon: CalendarDays },
+        { href: "/ecole/settings", label: "Paramètres", icon: Settings },
       ],
     },
   ]
@@ -88,7 +109,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       >
         {/* Logo */}
         <div className="px-5 py-5 border-b border-terre/8 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-terre text-white flex items-center justify-center font-bold text-sm shrink-0">
+          <div className="w-10 h-10 rounded-md bg-terre text-white flex items-center justify-center font-bold text-sm shrink-0">
             EV
           </div>
           <div className="min-w-0">
@@ -118,7 +139,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                           : "text-encre hover:bg-terre-soft"
                       }`}
                     >
-                      <span className="shrink-0">{item.icon}</span>
+                      <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                       {item.label}
                     </Link>
                   </li>
@@ -139,7 +160,8 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               <p className="text-xs text-pierre">École</p>
             </div>
             <button
-              className="p-2 rounded-lg hover:bg-terre-soft text-pierre"
+              aria-label="Déconnexion"
+              className="p-2 rounded-md hover:bg-terre-soft text-pierre"
               title="Déconnexion"
             >
               <LogOut className="w-4 h-4" />

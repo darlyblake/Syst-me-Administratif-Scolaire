@@ -629,7 +629,7 @@ export default function EmploiDuTempsClient() {
   if (loading) {
     return (
       <ProtectionRoute>
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="min-h-screen bg-creme flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Chargement des données...</p>
@@ -642,7 +642,7 @@ export default function EmploiDuTempsClient() {
   if (!enseignant) {
     return (
       <ProtectionRoute>
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="min-h-screen bg-creme flex items-center justify-center">
           <div className="text-center">
             <User className="h-16 w-16 mx-auto mb-4 text-gray-400" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Enseignant non trouvé</h2>
@@ -660,7 +660,7 @@ export default function EmploiDuTempsClient() {
 
   return (
     <ProtectionRoute>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen bg-creme">
         <div className="bg-white shadow-sm border-b">
           <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-4">

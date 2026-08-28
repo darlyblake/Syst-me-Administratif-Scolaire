@@ -122,7 +122,7 @@ export default function ListeImpayesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 print:bg-white print:p-0">
+    <div className="min-h-screen bg-creme p-4 print:bg-white print:p-0">
       <div className="max-w-6xl mx-auto">
         {/* Actions - masquées à l'impression */}
         <div className="flex justify-between items-center mb-6 print:hidden">

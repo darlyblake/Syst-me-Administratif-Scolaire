@@ -1,6 +1,5 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
 import { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -38,15 +37,14 @@ export function KPICard({
   trend,
 }: KPICardProps) {
   return (
-    <Card className="stat-card-eco bg-papier rounded-3xl shadow-soft">
-      <CardContent className="pt-5">
-        <div className="flex items-center justify-between">
+    <div className="stat-card-eco border-b border-[#D8E0DC] py-4">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className={cn("w-11 h-11 rounded-full flex items-center justify-center shrink-0", colorMap[color])}>
-              <Icon className="h-5 w-5" strokeWidth={1.8} />
+            <div className={cn("w-8 h-8 rounded-md flex items-center justify-center shrink-0", colorMap[color])}>
+              <Icon className="h-4 w-4" strokeWidth={1.8} />
             </div>
             <div className="min-w-0">
-              <p className="text-2xl font-bold text-encre tabular">
+              <p className="text-xl font-bold text-encre tabular">
                 {typeof value === "number" ? value.toLocaleString("fr-FR") : value}
                 {suffix && <span className="text-base font-medium ml-1">{suffix}</span>}
               </p>
@@ -55,14 +53,13 @@ export function KPICard({
           </div>
           {trend && (
             <span className={cn(
-              "text-xs font-medium px-2 py-0.5 rounded-full",
+              "text-xs font-medium px-2 py-0.5 border border-[#D8E0DC]",
               trend.positive ? trendColorMap.positive : trendColorMap.neutral
             )}>
               {trend.positive ? "+" : ""}{trend.value}
             </span>
           )}
         </div>
-      </CardContent>
-    </Card>
+    </div>
   )
 }

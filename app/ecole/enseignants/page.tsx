@@ -1,24 +1,16 @@
-/**
- * PAGE DE GESTION DES ENSEIGNANTS - VERSION REFACTORISÉE
- *
- * Cette page utilise les nouveaux composants modulaires pour une meilleure maintenabilité
- */
-
 "use client"
 
 import { useState } from "react"
 import { useTeachers } from "@/hooks/useTeachers"
+import { usePermissions } from "@/hooks/usePermissions"
 import { useNotifications } from "@/hooks/useNotifications"
 import { DashboardSummary } from "@/components/DashboardSummary"
 import { TeacherTable } from "@/components/TeacherTable"
 import { TeacherFilters } from "@/components/TeacherFilters"
-import { TeacherDetailsModal } from "@/components/TeacherDetailsCard"
-import { FloatingToolbar } from "@/components/FloatingToolbar"
+import { TeacherDetailsModal } from "@/components/TeacherDetailsModal"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Plus } from "lucide-react"
 import Link from "next/link"
-
-// Import des modals existants (à refactoriser plus tard)
 import { CreerEnseignantModal } from "@/components/CreerEnseignantModal"
 import { AssignerClassesModal } from "@/components/AssignerClassesModal"
 import { ContacterProfesseurModal } from "@/components/ContacterProfesseurModal"
@@ -28,26 +20,14 @@ import { AttribuerNotificationsModal } from "@/components/AttribuerNotifications
 import { GestionSalairesModal } from "@/components/GestionSalairesModal"
 
 export default function EnseignantsPageRefactored() {
-  // Utilisation du hook personnalisé pour la gestion d'état
   const {
-    teachers,
-    loading,
-    selectedTeacher,
-    filters,
-    currentPage,
-    totalPages,
-    setSearchQuery,
-    setSubjectFilter,
-    setStatusFilter,
-    setCurrentPage,
-    selectTeacher,
-    refreshTeachers
+    teachers, loading, selectedTeacher, filters, currentPage, totalPages,
+    setSearchQuery, setSubjectFilter, setStatusFilter, setCurrentPage,
+    selectTeacher, refreshTeachers, permissions, deactivateTeacher,
   } = useTeachers()
+  const { can } = usePermissions()
+  const { success, error, info } = useNotifications()
 
-  // Hook de notifications
-  const { success, error, warning, info } = useNotifications()
-
-  // États pour les modals
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [showAssignClassesModal, setShowAssignClassesModal] = useState(false)
@@ -57,56 +37,34 @@ export default function EnseignantsPageRefactored() {
   const [showNotificationsModal, setShowNotificationsModal] = useState(false)
   const [showSalaryModal, setShowSalaryModal] = useState(false)
 
-  // Statistiques pour le dashboard
   const stats = {
     total: teachers.length,
-    active: teachers.filter(t => t.statut === 'actif').length,
-    inactive: teachers.filter(t => t.statut === 'inactif').length,
-    onLeave: teachers.filter(t => t.statut === 'conge').length,
-    suspended: teachers.filter(t => t.statut === 'suspendu').length
+    active: teachers.filter((teacher) => teacher.statut === "actif").length,
+    inactive: teachers.filter((teacher) => teacher.statut === "inactif").length,
+    onLeave: teachers.filter((teacher) => teacher.statut === "conge").length,
+    suspended: teachers.filter((teacher) => teacher.statut === "suspendu").length,
   }
+  const uniqueSubjects = Array.from(new Set(teachers.flatMap((teacher) => teacher.matieres)))
 
-  // Matières uniques pour les filtres
-  const uniqueSubjects = Array.from(
-    new Set(teachers.flatMap(teacher => teacher.matieres))
-  )
-
-  // Gestionnaires d'événements
   const handleCreateTeacher = () => {
+    if (!permissions.canCreate) {
+      error("Accès refusé", { description: "Vous n'avez pas l'autorisation de créer un enseignant." })
+      return
+    }
     setShowCreateModal(true)
   }
 
-  const handleAddTeacherById = () => {
-    info("Fonctionnalité à implémenter", {
-      description: "L'ajout d'enseignant par ID sera bientôt disponible"
-    })
-  }
-
-  const handleExport = () => {
-    info("Fonctionnalité à implémenter", {
-      description: "L'export des données sera bientôt disponible"
-    })
-  }
-
-  const handleBulkActions = () => {
-    info("Fonctionnalité à implémenter", {
-      description: "Les actions groupées seront bientôt disponibles"
-    })
-  }
-
-  const handleSelectTeacher = (teacher: any) => {
+  const handleSelectTeacher = (teacher: (typeof teachers)[number]) => {
     selectTeacher(teacher)
     setShowDetailsModal(true)
   }
 
-  const handleDeleteTeacher = (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer cet enseignant ?")) {
-      // TODO: Implémenter la suppression via le service
-      success("Enseignant supprimé avec succès", {
-        description: "L'enseignant a été retiré de la liste"
-      })
-      refreshTeachers()
-    }
+  const handleDeactivateTeacher = async (id: string) => {
+    const teacher = teachers.find((item) => item.id === id)
+    if (!teacher || !permissions.canEdit) return
+
+    const ok = await deactivateTeacher(id)
+    if (ok) success("Enseignant désactivé", { description: "Le dossier et son historique sont conservés." })
   }
 
   const handleResetFilters = () => {
@@ -116,164 +74,83 @@ export default function EnseignantsPageRefactored() {
     setCurrentPage(1)
   }
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page)
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 animate-fade-in">
-      <div className="container mx-auto p-6 space-y-6">
-        {/* En-tête */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+    <main className="min-h-screen bg-muted/30">
+      <div className="container mx-auto max-w-7xl p-4 md:p-6 space-y-5 md:space-y-6">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestion des enseignants</h1>
-            <p className="text-gray-600">Interface moderne et intuitive pour la gestion des professeurs</p>
+            <p className="text-sm text-muted-foreground">Personnel / Enseignants</p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Enseignants</h1>
+            <p className="text-sm md:text-base text-muted-foreground mt-1">Consultez les dossiers, affectations et suivis dont vous avez besoin.</p>
           </div>
-          <Button variant="outline" asChild className="mt-4 md:mt-0">
-            <Link href="/tableau-bord">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Retour au tableau de bord
-            </Link>
-          </Button>
-        </div>
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/tableau-bord"><ArrowLeft className="h-4 w-4 mr-2" />Retour</Link>
+            </Button>
+            {permissions.canCreate && (
+              <Button onClick={handleCreateTeacher}>
+                <Plus className="h-4 w-4 mr-2" />Ajouter
+              </Button>
+            )}
+          </div>
+        </header>
 
-        {/* Dashboard avec statistiques et graphiques */}
-        <DashboardSummary
-          stats={stats}
-          uniqueSubjects={uniqueSubjects}
-          teachers={teachers}
-        />
+        <DashboardSummary stats={stats} uniqueSubjects={uniqueSubjects} teachers={teachers} />
 
-        {/* Filtres et recherche */}
         <TeacherFilters
           searchQuery={filters.searchQuery}
           subjectFilter={filters.subjectFilter}
           statusFilter={filters.statusFilter}
           uniqueSubjects={uniqueSubjects}
-          onSearchChange={setSearchQuery}
-          onSubjectChange={setSubjectFilter}
-          onStatusChange={setStatusFilter}
+          onSearchChange={(query) => { setSearchQuery(query); setCurrentPage(1) }}
+          onSubjectChange={(subject) => { setSubjectFilter(subject); setCurrentPage(1) }}
+          onStatusChange={(status) => { setStatusFilter(status); setCurrentPage(1) }}
           onResetFilters={handleResetFilters}
         />
 
-        {/* Table des enseignants */}
         <TeacherTable
           teachers={teachers}
           loading={loading}
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={handlePageChange}
+          onPageChange={setCurrentPage}
           onSelectTeacher={handleSelectTeacher}
-          onDeleteTeacher={handleDeleteTeacher}
-          canDelete={true}
+          onDeleteTeacher={handleDeactivateTeacher}
+          canEdit={permissions.canEdit}
+          canDelete={permissions.canEdit}
         />
 
-        {/* Modal de détails de l'enseignant */}
         <TeacherDetailsModal
           teacher={selectedTeacher}
           isOpen={showDetailsModal}
           onClose={() => setShowDetailsModal(false)}
           actions={{
-            onDelete: handleDeleteTeacher,
-            onAssignClasses: () => setShowAssignClassesModal(true),
-            onContactTeacher: () => setShowContactModal(true),
+            onDelete: permissions.canEdit ? handleDeactivateTeacher : undefined,
+            onAssignClasses: permissions.canAssign ? () => setShowAssignClassesModal(true) : undefined,
+            onContactTeacher: can("documents.view") ? () => setShowContactModal(true) : undefined,
             onViewHistory: () => setShowHistoryModal(true),
-            onManageDocuments: () => setShowDocumentsModal(true),
-            onAssignNotifications: () => setShowNotificationsModal(true),
-            onManageSalary: () => setShowSalaryModal(true),
-            onViewEvaluations: () => info("Fonctionnalité à implémenter", { description: "Les évaluations seront bientôt disponibles" })
+            onManageDocuments: can("documents.view") ? () => setShowDocumentsModal(true) : undefined,
+            onAssignNotifications: permissions.canEdit ? () => setShowNotificationsModal(true) : undefined,
+            onManageSalary: can("salaires.view") ? () => setShowSalaryModal(true) : undefined,
+            onViewEvaluations: () => info("Évaluations", { description: "Cette fonctionnalité sera disponible prochainement." }),
           }}
         />
 
-        {/* Barre d'outils flottante */}
-        <FloatingToolbar
-          onCreateTeacher={handleCreateTeacher}
-          onAddTeacherById={handleAddTeacherById}
-          onExport={handleExport}
-          onBulkActions={handleBulkActions}
-          canCreate={true}
-          canExport={true}
-          canBulkActions={true}
-        />
-
-        {/* Modals existants (à refactoriser) */}
-        <CreerEnseignantModal
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={() => {
-            success("Enseignant créé avec succès", {
-              description: "Le nouvel enseignant a été ajouté à la liste"
-            })
-            refreshTeachers()
-          }}
-        />
+        {permissions.canCreate && (
+          <CreerEnseignantModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} onSuccess={() => { setShowCreateModal(false); success("Enseignant créé avec succès"); void refreshTeachers() }} />
+        )}
 
         {selectedTeacher && (
           <>
-            <AssignerClassesModal
-              isOpen={showAssignClassesModal}
-              onClose={() => setShowAssignClassesModal(false)}
-              enseignant={selectedTeacher}
-              onSuccess={() => {
-                success("Classes assignées avec succès", {
-                  description: "Les classes ont été affectées à l'enseignant"
-                })
-                refreshTeachers()
-              }}
-            />
-
-            <ContacterProfesseurModal
-              isOpen={showContactModal}
-              onClose={() => setShowContactModal(false)}
-              enseignant={selectedTeacher}
-              onSuccess={() => {
-                success("Message envoyé avec succès", {
-                  description: "L'enseignant a été contacté"
-                })
-              }}
-            />
-
-            <HistoriqueAffectationsModal
-              isOpen={showHistoryModal}
-              onClose={() => setShowHistoryModal(false)}
-              enseignant={selectedTeacher}
-            />
-
-            <DocumentsAdministratifsModal
-              isOpen={showDocumentsModal}
-              onClose={() => setShowDocumentsModal(false)}
-              enseignant={selectedTeacher}
-              onSuccess={() => {
-                success("Document ajouté avec succès", {
-                  description: "Le document a été ajouté au dossier"
-                })
-              }}
-            />
-
-            <AttribuerNotificationsModal
-              isOpen={showNotificationsModal}
-              onClose={() => setShowNotificationsModal(false)}
-              enseignant={selectedTeacher}
-              onSuccess={() => {
-                success("Notification attribuée avec succès", {
-                  description: "La notification a été envoyée"
-                })
-              }}
-            />
-
-            <GestionSalairesModal
-              isOpen={showSalaryModal}
-              onClose={() => setShowSalaryModal(false)}
-              enseignant={selectedTeacher}
-              onSuccess={() => {
-                success("Salaire mis à jour avec succès", {
-                  description: "Les informations salariales ont été modifiées"
-                })
-              }}
-            />
+            {permissions.canAssign && <AssignerClassesModal isOpen={showAssignClassesModal} onClose={() => setShowAssignClassesModal(false)} enseignant={selectedTeacher} onSuccess={() => { success("Classes assignées avec succès"); void refreshTeachers() }} />}
+            {can("documents.view") && <ContacterProfesseurModal isOpen={showContactModal} onClose={() => setShowContactModal(false)} enseignant={selectedTeacher} onSuccess={() => success("Message envoyé avec succès")} />}
+            <HistoriqueAffectationsModal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} enseignant={selectedTeacher} />
+            {can("documents.view") && <DocumentsAdministratifsModal isOpen={showDocumentsModal} onClose={() => setShowDocumentsModal(false)} enseignant={selectedTeacher} onSuccess={() => success("Document ajouté avec succès")} />}
+            {permissions.canEdit && <AttribuerNotificationsModal isOpen={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} enseignant={selectedTeacher} onSuccess={() => success("Notification attribuée avec succès")} />}
+            {can("salaires.view") && <GestionSalairesModal isOpen={showSalaryModal} onClose={() => setShowSalaryModal(false)} enseignant={selectedTeacher} onSuccess={() => { success("Salaire mis à jour avec succès"); void refreshTeachers() }} />}
           </>
         )}
       </div>
-    </div>
+    </main>
   )
 }

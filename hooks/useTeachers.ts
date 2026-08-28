@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { serviceEnseignants } from "@/services/enseignants.service"
 import { auditService } from "@/services/audit.service"
 import { useAuthentification } from "@/providers/authentification.provider"
+import { usePermissions } from "@/hooks/usePermissions"
 import type { DonneesEnseignant } from "@/types/models"
 
 interface TeacherFilters {
@@ -23,27 +24,19 @@ interface TeacherState {
 }
 
 interface UseTeachersReturn extends TeacherState {
-  // Actions de données
   loadTeachers: () => Promise<void>
   refreshTeachers: () => Promise<void>
-
-  // Actions de filtrage
   setSearchQuery: (query: string) => void
   setSubjectFilter: (filter: string) => void
   setStatusFilter: (filter: string) => void
   resetFilters: () => void
-
-  // Actions de pagination
   setCurrentPage: (page: number) => void
   setTeachersPerPage: (count: number) => void
-
-  // Actions sur les enseignants
   selectTeacher: (teacher: DonneesEnseignant | null) => void
   addTeacher: (teacherData: Omit<DonneesEnseignant, "id" | "identifiant" | "motDePasse">) => Promise<boolean>
   updateTeacher: (id: string, updates: Partial<DonneesEnseignant>) => Promise<boolean>
+  deactivateTeacher: (id: string) => Promise<boolean>
   deleteTeacher: (id: string) => Promise<boolean>
-
-  // Données calculées
   filteredTeachers: DonneesEnseignant[]
   totalPages: number
   uniqueSubjects: string[]
@@ -53,6 +46,13 @@ interface UseTeachersReturn extends TeacherState {
     inactive: number
     onLeave: number
     suspended: number
+  }
+  permissions: {
+    canView: boolean
+    canCreate: boolean
+    canEdit: boolean
+    canAssign: boolean
+    canDelete: boolean
   }
 }
 
@@ -69,118 +69,98 @@ const initialState: TeacherState = {
   selectedTeacher: null,
   filters: initialFilters,
   currentPage: 1,
-  teachersPerPage: 5
+  teachersPerPage: 10
 }
 
 export function useTeachers(): UseTeachersReturn {
   const [state, setState] = useState<TeacherState>(initialState)
   const { utilisateur } = useAuthentification()
+  const { can } = usePermissions()
 
-  // Fonction utilitaire pour obtenir l'utilisateur actuel
+  const permissions = useMemo(() => ({
+    canView: can("enseignants.view"),
+    canCreate: can("enseignants.create"),
+    canEdit: can("enseignants.edit"),
+    canAssign: can("enseignants.assign"),
+    canDelete: can("enseignants.delete"),
+  }), [can])
+
   const getCurrentUser = useCallback(() => ({
     id: utilisateur?.id || "unknown",
     role: utilisateur?.role || "user"
   }), [utilisateur])
 
-  // Charger les enseignants
   const loadTeachers = useCallback(async () => {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }))
-      const teachers = serviceEnseignants.obtenirTousLesEnseignants()
-      setState(prev => ({
-        ...prev,
-        teachers,
-        loading: false,
-        error: null
-      }))
 
-      // Journaliser l'action de chargement
+      const allTeachers = serviceEnseignants.obtenirTousLesEnseignants()
+
+      // Un enseignant connecté ne reçoit jamais la liste globale : il ne voit
+      // que sa propre fiche. Les rôles de gestion gardent le périmètre de
+      // l'établissement pour le moment ; l'ID d'établissement sera appliqué
+      // ici lorsque le backend multi-établissement sera branché.
+      const teachers = utilisateur?.role === "enseignant"
+        ? allTeachers.filter((teacher) => teacher.id === utilisateur.donneesEnseignant?.id)
+        : allTeachers
+
+      setState(prev => ({ ...prev, teachers, loading: false, error: null }))
+
       const user = getCurrentUser()
       auditService.logAction({
         userId: user.id,
         userRole: user.role,
-        action: 'VIEW',
-        resource: 'TEACHERS_LIST',
-        details: { count: teachers.length },
+        action: "VIEW",
+        resource: "TEACHERS_LIST",
+        details: { count: teachers.length, scope: utilisateur?.role === "enseignant" ? "own" : "establishment" },
         success: true
       })
     } catch (error) {
       console.error("Erreur lors du chargement des enseignants:", error)
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: "Erreur lors du chargement des enseignants"
-      }))
-
-      // Journaliser l'erreur
+      setState(prev => ({ ...prev, loading: false, error: "Erreur lors du chargement des enseignants" }))
       const user = getCurrentUser()
-      auditService.logError(user.id, user.role, 'VIEW', 'TEACHERS_LIST', error)
+      auditService.logError(user.id, user.role, "VIEW", "TEACHERS_LIST", error)
     }
-  }, [getCurrentUser])
+  }, [getCurrentUser, utilisateur])
 
-  // Actualiser les données
   const refreshTeachers = useCallback(async () => {
     await loadTeachers()
   }, [loadTeachers])
 
-  // Actions de filtrage
   const setSearchQuery = useCallback((query: string) => {
-    setState(prev => ({
-      ...prev,
-      filters: { ...prev.filters, searchQuery: query },
-      currentPage: 1 // Reset pagination
-    }))
+    setState(prev => ({ ...prev, filters: { ...prev.filters, searchQuery: query }, currentPage: 1 }))
   }, [])
 
   const setSubjectFilter = useCallback((filter: string) => {
-    setState(prev => ({
-      ...prev,
-      filters: { ...prev.filters, subjectFilter: filter },
-      currentPage: 1
-    }))
+    setState(prev => ({ ...prev, filters: { ...prev.filters, subjectFilter: filter }, currentPage: 1 }))
   }, [])
 
   const setStatusFilter = useCallback((filter: string) => {
-    setState(prev => ({
-      ...prev,
-      filters: { ...prev.filters, statusFilter: filter },
-      currentPage: 1
-    }))
+    setState(prev => ({ ...prev, filters: { ...prev.filters, statusFilter: filter }, currentPage: 1 }))
   }, [])
 
   const resetFilters = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      filters: initialFilters,
-      currentPage: 1
-    }))
+    setState(prev => ({ ...prev, filters: initialFilters, currentPage: 1 }))
   }, [])
 
-  // Actions de pagination
   const setCurrentPage = useCallback((page: number) => {
-    setState(prev => ({ ...prev, currentPage: page }))
+    setState(prev => ({ ...prev, currentPage: Math.max(1, page) }))
   }, [])
 
   const setTeachersPerPage = useCallback((count: number) => {
-    setState(prev => ({
-      ...prev,
-      teachersPerPage: count,
-      currentPage: 1
-    }))
+    const safeCount = Math.max(1, Math.min(100, count))
+    setState(prev => ({ ...prev, teachersPerPage: safeCount, currentPage: 1 }))
   }, [])
 
-  // Actions sur les enseignants
   const selectTeacher = useCallback((teacher: DonneesEnseignant | null) => {
     setState(prev => ({ ...prev, selectedTeacher: teacher }))
-
     if (teacher) {
-      // Journaliser la sélection
       const user = getCurrentUser()
       auditService.logAction({
         userId: user.id,
         userRole: user.role,
-        action: 'SELECT',
-        resource: 'TEACHER',
+        action: "SELECT",
+        resource: "TEACHER",
         resourceId: teacher.id,
         details: { teacherName: `${teacher.nom} ${teacher.prenom}` },
         success: true
@@ -189,68 +169,53 @@ export function useTeachers(): UseTeachersReturn {
   }, [getCurrentUser])
 
   const addTeacher = useCallback(async (teacherData: Omit<DonneesEnseignant, "id" | "identifiant" | "motDePasse">): Promise<boolean> => {
+    if (!permissions.canCreate) return false
     try {
       const newTeacher = serviceEnseignants.ajouterEnseignant(teacherData)
-      setState(prev => ({
-        ...prev,
-        teachers: [...prev.teachers, newTeacher]
-      }))
-
-      // Journaliser la création
+      setState(prev => ({ ...prev, teachers: [...prev.teachers, newTeacher], error: null }))
       const user = getCurrentUser()
       auditService.logTeacherCreation(user.id, user.role, teacherData)
-
       return true
     } catch (error) {
       console.error("Erreur lors de l'ajout de l'enseignant:", error)
-      setState(prev => ({
-        ...prev,
-        error: "Erreur lors de l'ajout de l'enseignant"
-      }))
-
-      // Journaliser l'erreur
+      setState(prev => ({ ...prev, error: "Erreur lors de l'ajout de l'enseignant" }))
       const user = getCurrentUser()
-      auditService.logError(user.id, user.role, 'CREATE', 'TEACHER', error)
-
+      auditService.logError(user.id, user.role, "CREATE", "TEACHER", error)
       return false
     }
-  }, [getCurrentUser])
+  }, [getCurrentUser, permissions.canCreate])
 
   const updateTeacher = useCallback(async (id: string, updates: Partial<DonneesEnseignant>): Promise<boolean> => {
+    if (!permissions.canEdit) return false
     try {
       const success = serviceEnseignants.mettreAJourEnseignant(id, updates)
       if (success) {
         setState(prev => ({
           ...prev,
-          teachers: prev.teachers.map(teacher =>
-            teacher.id === id ? { ...teacher, ...updates } : teacher
-          ),
-          selectedTeacher: prev.selectedTeacher?.id === id
-            ? { ...prev.selectedTeacher, ...updates }
-            : prev.selectedTeacher
+          teachers: prev.teachers.map(teacher => teacher.id === id ? { ...teacher, ...updates } : teacher),
+          selectedTeacher: prev.selectedTeacher?.id === id ? { ...prev.selectedTeacher, ...updates } : prev.selectedTeacher,
+          error: null
         }))
-
-        // Journaliser la mise à jour
         const user = getCurrentUser()
         auditService.logTeacherUpdate(user.id, user.role, id, updates)
       }
       return success
     } catch (error) {
       console.error("Erreur lors de la mise à jour de l'enseignant:", error)
-      setState(prev => ({
-        ...prev,
-        error: "Erreur lors de la mise à jour de l'enseignant"
-      }))
-
-      // Journaliser l'erreur
+      setState(prev => ({ ...prev, error: "Erreur lors de la mise à jour de l'enseignant" }))
       const user = getCurrentUser()
-      auditService.logError(user.id, user.role, 'UPDATE', 'TEACHER', error)
-
+      auditService.logError(user.id, user.role, "UPDATE", "TEACHER", error)
       return false
     }
-  }, [getCurrentUser])
+  }, [getCurrentUser, permissions.canEdit])
+
+  const deactivateTeacher = useCallback(async (id: string): Promise<boolean> => {
+    if (!permissions.canEdit) return false
+    return updateTeacher(id, { statut: "inactif" })
+  }, [permissions.canEdit, updateTeacher])
 
   const deleteTeacher = useCallback(async (id: string): Promise<boolean> => {
+    if (!permissions.canDelete) return false
     try {
       const teacher = state.teachers.find(t => t.id === id)
       const success = serviceEnseignants.supprimerEnseignant(id)
@@ -258,54 +223,42 @@ export function useTeachers(): UseTeachersReturn {
         setState(prev => ({
           ...prev,
           teachers: prev.teachers.filter(teacher => teacher.id !== id),
-          selectedTeacher: prev.selectedTeacher?.id === id ? null : prev.selectedTeacher
+          selectedTeacher: prev.selectedTeacher?.id === id ? null : prev.selectedTeacher,
+          error: null
         }))
-
-        // Journaliser la suppression
         const user = getCurrentUser()
-        auditService.logTeacherDeletion(
-          user.id,
-          user.role,
-          id,
-          teacher ? `${teacher.nom} ${teacher.prenom}` : 'Unknown'
-        )
+        auditService.logTeacherDeletion(user.id, user.role, id, teacher ? `${teacher.nom} ${teacher.prenom}` : "Unknown")
       }
       return success
     } catch (error) {
       console.error("Erreur lors de la suppression de l'enseignant:", error)
-      setState(prev => ({
-        ...prev,
-        error: "Erreur lors de la suppression de l'enseignant"
-      }))
-
-      // Journaliser l'erreur
+      setState(prev => ({ ...prev, error: "Erreur lors de la suppression de l'enseignant" }))
       const user = getCurrentUser()
-      auditService.logError(user.id, user.role, 'DELETE', 'TEACHER', error)
-
+      auditService.logError(user.id, user.role, "DELETE", "TEACHER", error)
       return false
     }
-  }, [state.teachers, getCurrentUser])
+  }, [getCurrentUser, permissions.canDelete, state.teachers])
 
-  // Données calculées
   const filteredTeachers = state.teachers.filter((teacher) => {
-    const matchesSearch = teacher.nom.toLowerCase().includes(state.filters.searchQuery.toLowerCase()) ||
-                         teacher.prenom.toLowerCase().includes(state.filters.searchQuery.toLowerCase()) ||
-                         teacher.email.toLowerCase().includes(state.filters.searchQuery.toLowerCase())
-    const matchesSubject = state.filters.subjectFilter === "" ||
-                          state.filters.subjectFilter === "all" ||
-                          teacher.matieres.includes(state.filters.subjectFilter)
-    const matchesStatus = state.filters.statusFilter === "" ||
-                         state.filters.statusFilter === "all" ||
-                         teacher.statut === state.filters.statusFilter
+    const query = state.filters.searchQuery.trim().toLowerCase()
+    const haystack = [
+      teacher.nom,
+      teacher.prenom,
+      teacher.email ?? "",
+      teacher.telephone ?? "",
+      teacher.identifiant,
+      ...teacher.matieres,
+      ...teacher.classes,
+    ].join(" ").toLowerCase()
 
+    const matchesSearch = !query || haystack.includes(query)
+    const matchesSubject = !state.filters.subjectFilter || state.filters.subjectFilter === "all" || teacher.matieres.includes(state.filters.subjectFilter)
+    const matchesStatus = !state.filters.statusFilter || state.filters.statusFilter === "all" || teacher.statut === state.filters.statusFilter
     return matchesSearch && matchesSubject && matchesStatus
   })
 
-  const totalPages = Math.ceil(filteredTeachers.length / state.teachersPerPage)
-
-  const uniqueSubjects = Array.from(
-    new Set(state.teachers.flatMap(teacher => teacher.matieres))
-  )
+  const totalPages = Math.max(1, Math.ceil(filteredTeachers.length / state.teachersPerPage))
+  const uniqueSubjects = Array.from(new Set(state.teachers.flatMap(teacher => teacher.matieres))).sort((a, b) => a.localeCompare(b))
 
   const stats = {
     total: state.teachers.length,
@@ -315,9 +268,8 @@ export function useTeachers(): UseTeachersReturn {
     suspended: state.teachers.filter(t => t.statut === "suspendu").length
   }
 
-  // Chargement initial
   useEffect(() => {
-    loadTeachers()
+    void loadTeachers()
   }, [loadTeachers])
 
   return {
@@ -333,10 +285,12 @@ export function useTeachers(): UseTeachersReturn {
     selectTeacher,
     addTeacher,
     updateTeacher,
+    deactivateTeacher,
     deleteTeacher,
     filteredTeachers,
     totalPages,
     uniqueSubjects,
-    stats
+    stats,
+    permissions,
   }
 }

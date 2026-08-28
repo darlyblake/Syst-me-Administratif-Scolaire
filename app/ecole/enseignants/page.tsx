@@ -23,7 +23,7 @@ export default function EnseignantsPageRefactored() {
   const {
     teachers, loading, selectedTeacher, filters, currentPage, totalPages,
     setSearchQuery, setSubjectFilter, setStatusFilter, setCurrentPage,
-    selectTeacher, refreshTeachers, permissions, deactivateTeacher, deleteTeacher,
+    selectTeacher, refreshTeachers, permissions, deactivateTeacher,
   } = useTeachers()
   const { can } = usePermissions()
   const { success, error, info } = useNotifications()
@@ -59,7 +59,7 @@ export default function EnseignantsPageRefactored() {
     setShowDetailsModal(true)
   }
 
-  const handleDeleteTeacher = async (id: string) => {
+  const handleDeactivateTeacher = async (id: string) => {
     const teacher = teachers.find((item) => item.id === id)
     if (!teacher || !permissions.canEdit) return
 
@@ -115,7 +115,7 @@ export default function EnseignantsPageRefactored() {
           totalPages={totalPages}
           onPageChange={setCurrentPage}
           onSelectTeacher={handleSelectTeacher}
-          onDeleteTeacher={handleDeleteTeacher}
+          onDeleteTeacher={handleDeactivateTeacher}
           canEdit={permissions.canEdit}
           canDelete={permissions.canEdit}
         />
@@ -125,7 +125,7 @@ export default function EnseignantsPageRefactored() {
           isOpen={showDetailsModal}
           onClose={() => setShowDetailsModal(false)}
           actions={{
-            onDelete: permissions.canEdit ? handleDeleteTeacher : undefined,
+            onDelete: permissions.canEdit ? handleDeactivateTeacher : undefined,
             onAssignClasses: permissions.canAssign ? () => setShowAssignClassesModal(true) : undefined,
             onContactTeacher: can("documents.view") ? () => setShowContactModal(true) : undefined,
             onViewHistory: () => setShowHistoryModal(true),

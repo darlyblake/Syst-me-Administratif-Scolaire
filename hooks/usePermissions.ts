@@ -1,169 +1,83 @@
+"use client"
+
+import { useCallback, useMemo } from "react"
 import { useAuthentification } from "@/providers/authentification.provider"
+import {
+  hasPermission as checkPermission,
+  normalizeRole,
+  type Permission,
+  type PermissionScope,
+} from "@/types/authorization"
 
-export type UserRole = "administrateur" | "enseignant" | "eleve"
-
-export interface Permission {
-  resource: string
-  actions: string[]
-}
-
-export interface RolePermissions {
-  [key: string]: Permission[]
-}
-
-// Définition des permissions par rôle
-const ROLE_PERMISSIONS: RolePermissions = {
-  administrateur: [
-    { resource: "teachers", actions: ["create", "read", "update", "delete", "export"] },
-    { resource: "students", actions: ["create", "read", "update", "delete", "export"] },
-    { resource: "classes", actions: ["create", "read", "update", "delete", "assign"] },
-    { resource: "schedule", actions: ["create", "read", "update", "delete"] },
-    { resource: "documents", actions: ["create", "read", "update", "delete", "upload"] },
-    { resource: "messages", actions: ["create", "read", "update", "delete", "send"] },
-    { resource: "salaries", actions: ["create", "read", "update", "delete"] },
-    { resource: "reports", actions: ["create", "read", "update", "delete", "export"] },
-    { resource: "audit", actions: ["read", "export"] },
-    { resource: "settings", actions: ["create", "read", "update", "delete"] }
-  ],
-  enseignant: [
-    { resource: "teachers", actions: ["read"] },
-    { resource: "students", actions: ["read"] },
-    { resource: "classes", actions: ["read"] },
-    { resource: "schedule", actions: ["read", "update"] }, // Peut modifier son propre emploi du temps
-    { resource: "documents", actions: ["read", "upload"] },
-    { resource: "messages", actions: ["create", "read"] },
-    { resource: "reports", actions: ["read"] }
-  ],
-  eleve: [
-    { resource: "students", actions: ["read"] }, // Seulement ses propres données
-    { resource: "classes", actions: ["read"] },
-    { resource: "schedule", actions: ["read"] },
-    { resource: "documents", actions: ["read"] },
-    { resource: "messages", actions: ["create", "read"] }
-  ]
-}
-
+/**
+ * Façade unique des autorisations côté interface.
+ * Les composants demandent une permission sans connaître la matrice des rôles.
+ */
 export function usePermissions() {
   const { utilisateur } = useAuthentification()
 
-  /**
-   * Vérifie si l'utilisateur a une permission spécifique
-   */
-  const hasPermission = (resource: string, action: string): boolean => {
-    if (!utilisateur) return false
+  const role = useMemo(() => normalizeRole(utilisateur?.role), [utilisateur?.role])
 
-    const userRole = utilisateur.role as UserRole
-    const rolePermissions = ROLE_PERMISSIONS[userRole]
+  const can = useCallback(
+    (permission: Permission, scope?: PermissionScope) =>
+      checkPermission(utilisateur?.role, permission, scope),
+    [utilisateur?.role],
+  )
 
-    if (!rolePermissions) return false
+  // Compatibilité avec l'ancienne API utilisée par certains écrans.
+  const hasPermission = useCallback(
+    (resource: string, action: string) => {
+      const map: Record<string, Permission> = {
+        "teachers:create": "enseignants.create",
+        "teachers:read": "enseignants.view",
+        "teachers:update": "enseignants.edit",
+        "teachers:delete": "enseignants.delete",
+        "classes:read": "classes.view",
+        "classes:update": "classes.manage",
+        "schedule:read": "planning.view",
+        "schedule:update": "planning.manage",
+        "documents:read": "documents.view",
+        "documents:upload": "documents.manage",
+        "salaries:read": "salaires.view",
+        "salaries:update": "salaires.manage",
+        "reports:read": "rapports.view",
+        "students:read": "classes.view",
+      }
 
-    const resourcePermission = rolePermissions.find(perm => perm.resource === resource)
-    if (!resourcePermission) return false
+      const permission = map[`${resource}:${action}`]
+      return permission ? can(permission) : false
+    },
+    [can],
+  )
 
-    return resourcePermission.actions.includes(action)
-  }
+  const hasAllPermissions = useCallback(
+    (permissions: Array<{ resource: string; action: string }>) =>
+      permissions.every(({ resource, action }) => hasPermission(resource, action)),
+    [hasPermission],
+  )
 
-  /**
-   * Vérifie si l'utilisateur a toutes les permissions spécifiées
-   */
-  const hasAllPermissions = (permissions: Array<{ resource: string; action: string }>): boolean => {
-    return permissions.every(perm => hasPermission(perm.resource, perm.action))
-  }
-
-  /**
-   * Vérifie si l'utilisateur a au moins une des permissions spécifiées
-   */
-  const hasAnyPermission = (permissions: Array<{ resource: string; action: string }>): boolean => {
-    return permissions.some(perm => hasPermission(perm.resource, perm.action))
-  }
-
-  /**
-   * Vérifie si l'utilisateur est administrateur
-   */
-  const isAdmin = (): boolean => {
-    return utilisateur?.role === "administrateur"
-  }
-
-  /**
-   * Vérifie si l'utilisateur est enseignant
-   */
-  const isTeacher = (): boolean => {
-    return utilisateur?.role === "enseignant"
-  }
-
-  /**
-   * Vérifie si l'utilisateur est élève
-   */
-  const isStudent = (): boolean => {
-    return utilisateur?.role === "eleve"
-  }
-
-  /**
-   * Obtient toutes les permissions de l'utilisateur actuel
-   */
-  const getUserPermissions = (): Permission[] => {
-    if (!utilisateur) return []
-
-    const userRole = utilisateur.role as UserRole
-    return ROLE_PERMISSIONS[userRole] || []
-  }
-
-  /**
-   * Vérifie si l'utilisateur peut accéder à une ressource
-   */
-  const canAccessResource = (resource: string): boolean => {
-    return hasPermission(resource, "read")
-  }
-
-  /**
-   * Vérifie si l'utilisateur peut modifier une ressource
-   */
-  const canModifyResource = (resource: string): boolean => {
-    return hasPermission(resource, "update")
-  }
-
-  /**
-   * Vérifie si l'utilisateur peut créer dans une ressource
-   */
-  const canCreateInResource = (resource: string): boolean => {
-    return hasPermission(resource, "create")
-  }
-
-  /**
-   * Vérifie si l'utilisateur peut supprimer dans une ressource
-   */
-  const canDeleteFromResource = (resource: string): boolean => {
-    return hasPermission(resource, "delete")
-  }
-
-  /**
-   * Vérifie si l'utilisateur peut exporter une ressource
-   */
-  const canExportResource = (resource: string): boolean => {
-    return hasPermission(resource, "export")
-  }
+  const hasAnyPermission = useCallback(
+    (permissions: Array<{ resource: string; action: string }>) =>
+      permissions.some(({ resource, action }) => hasPermission(resource, action)),
+    [hasPermission],
+  )
 
   return {
-    // Vérifications de base
+    role,
+    can,
     hasPermission,
     hasAllPermissions,
     hasAnyPermission,
-
-    // Rôles spécifiques
-    isAdmin,
-    isTeacher,
-    isStudent,
-
-    // Permissions par ressource
-    canAccessResource,
-    canModifyResource,
-    canCreateInResource,
-    canDeleteFromResource,
-    canExportResource,
-
-    // Utilitaires
-    getUserPermissions,
-    userRole: utilisateur?.role as UserRole,
-    userId: utilisateur?.id
+    isAdmin: role === "admin",
+    isTeacher: role === "enseignant",
+    isStudent: role === "eleve",
+    canAccessResource: (resource: string) => hasPermission(resource, "read"),
+    canModifyResource: (resource: string) => hasPermission(resource, "update"),
+    canCreateInResource: (resource: string) => hasPermission(resource, "create"),
+    canDeleteFromResource: (resource: string) => hasPermission(resource, "delete"),
+    canExportResource: (resource: string) => resource === "teachers" ? can("enseignants.view") : false,
+    userRole: utilisateur?.role,
+    userId: utilisateur?.id,
+    establishmentId: (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? null,
   }
 }

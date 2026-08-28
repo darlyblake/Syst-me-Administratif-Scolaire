@@ -1,9 +1,3 @@
-/**
- * PAGE DE GESTION DES ENSEIGNANTS - VERSION REFACTORISÉE
- *
- * La page consomme uniquement les hooks du module. Les règles de rôle sont
- * centralisées dans usePermissions / types/authorization.
- */
 "use client"
 
 import { useState } from "react"
@@ -14,9 +8,8 @@ import { DashboardSummary } from "@/components/DashboardSummary"
 import { TeacherTable } from "@/components/TeacherTable"
 import { TeacherFilters } from "@/components/TeacherFilters"
 import { TeacherDetailsModal } from "@/components/TeacherDetailsModal"
-import { FloatingToolbar } from "@/components/FloatingToolbar"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Plus } from "lucide-react"
 import Link from "next/link"
 import { CreerEnseignantModal } from "@/components/CreerEnseignantModal"
 import { AssignerClassesModal } from "@/components/AssignerClassesModal"
@@ -28,23 +21,10 @@ import { GestionSalairesModal } from "@/components/GestionSalairesModal"
 
 export default function EnseignantsPageRefactored() {
   const {
-    teachers,
-    loading,
-    selectedTeacher,
-    filters,
-    currentPage,
-    totalPages,
-    setSearchQuery,
-    setSubjectFilter,
-    setStatusFilter,
-    setCurrentPage,
-    selectTeacher,
-    refreshTeachers,
-    permissions,
-    deactivateTeacher,
-    deleteTeacher,
+    teachers, loading, selectedTeacher, filters, currentPage, totalPages,
+    setSearchQuery, setSubjectFilter, setStatusFilter, setCurrentPage,
+    selectTeacher, refreshTeachers, permissions, deactivateTeacher, deleteTeacher,
   } = useTeachers()
-
   const { can } = usePermissions()
   const { success, error, info } = useNotifications()
 
@@ -59,13 +39,12 @@ export default function EnseignantsPageRefactored() {
 
   const stats = {
     total: teachers.length,
-    active: teachers.filter(t => t.statut === "actif").length,
-    inactive: teachers.filter(t => t.statut === "inactif").length,
-    onLeave: teachers.filter(t => t.statut === "conge").length,
-    suspended: teachers.filter(t => t.statut === "suspendu").length
+    active: teachers.filter((teacher) => teacher.statut === "actif").length,
+    inactive: teachers.filter((teacher) => teacher.statut === "inactif").length,
+    onLeave: teachers.filter((teacher) => teacher.statut === "conge").length,
+    suspended: teachers.filter((teacher) => teacher.statut === "suspendu").length,
   }
-
-  const uniqueSubjects = Array.from(new Set(teachers.flatMap(teacher => teacher.matieres)))
+  const uniqueSubjects = Array.from(new Set(teachers.flatMap((teacher) => teacher.matieres)))
 
   const handleCreateTeacher = () => {
     if (!permissions.canCreate) {
@@ -75,46 +54,17 @@ export default function EnseignantsPageRefactored() {
     setShowCreateModal(true)
   }
 
-  const handleAddTeacherById = () => {
-    info("Fonctionnalité à implémenter", { description: "L'ajout d'enseignant par ID sera bientôt disponible." })
-  }
-
-  const handleExport = () => {
-    info("Fonctionnalité à implémenter", { description: "L'export des données sera bientôt disponible." })
-  }
-
-  const handleBulkActions = () => {
-    info("Fonctionnalité à implémenter", { description: "Les actions groupées seront bientôt disponibles." })
-  }
-
   const handleSelectTeacher = (teacher: (typeof teachers)[number]) => {
     selectTeacher(teacher)
     setShowDetailsModal(true)
   }
 
   const handleDeleteTeacher = async (id: string) => {
-    // On privilégie la désactivation afin de préserver l'historique scolaire.
-    if (!permissions.canEdit) {
-      error("Accès refusé", { description: "Vous ne pouvez pas modifier cet enseignant." })
-      return
-    }
+    const teacher = teachers.find((item) => item.id === id)
+    if (!teacher || !permissions.canEdit) return
 
-    const teacher = teachers.find(item => item.id === id)
-    if (!teacher) return
-
-    if (teacher.statut !== "inactif") {
-      const ok = await deactivateTeacher(id)
-      if (ok) success("Enseignant désactivé", { description: "Son historique est conservé." })
-      return
-    }
-
-    if (!permissions.canDelete) {
-      error("Suppression non autorisée", { description: "Seul un administrateur autorisé peut supprimer définitivement un dossier." })
-      return
-    }
-
-    const ok = await deleteTeacher(id)
-    if (ok) success("Enseignant supprimé", { description: "Le dossier a été retiré." })
+    const ok = await deactivateTeacher(id)
+    if (ok) success("Enseignant désactivé", { description: "Le dossier et son historique sont conservés." })
   }
 
   const handleResetFilters = () => {
@@ -125,17 +75,25 @@ export default function EnseignantsPageRefactored() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 animate-fade-in">
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+    <main className="min-h-screen bg-muted/30">
+      <div className="container mx-auto max-w-7xl p-4 md:p-6 space-y-5 md:space-y-6">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestion des enseignants</h1>
-            <p className="text-gray-600">Gestion des dossiers, affectations et suivi des enseignants</p>
+            <p className="text-sm text-muted-foreground">Personnel / Enseignants</p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Enseignants</h1>
+            <p className="text-sm md:text-base text-muted-foreground mt-1">Consultez les dossiers, affectations et suivis dont vous avez besoin.</p>
           </div>
-          <Button variant="outline" asChild className="mt-4 md:mt-0">
-            <Link href="/tableau-bord"><ArrowLeft className="h-4 w-4 mr-2" />Retour au tableau de bord</Link>
-          </Button>
-        </div>
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/tableau-bord"><ArrowLeft className="h-4 w-4 mr-2" />Retour</Link>
+            </Button>
+            {permissions.canCreate && (
+              <Button onClick={handleCreateTeacher}>
+                <Plus className="h-4 w-4 mr-2" />Ajouter
+              </Button>
+            )}
+          </div>
+        </header>
 
         <DashboardSummary stats={stats} uniqueSubjects={uniqueSubjects} teachers={teachers} />
 
@@ -144,9 +102,9 @@ export default function EnseignantsPageRefactored() {
           subjectFilter={filters.subjectFilter}
           statusFilter={filters.statusFilter}
           uniqueSubjects={uniqueSubjects}
-          onSearchChange={setSearchQuery}
-          onSubjectChange={setSubjectFilter}
-          onStatusChange={setStatusFilter}
+          onSearchChange={(query) => { setSearchQuery(query); setCurrentPage(1) }}
+          onSubjectChange={(subject) => { setSubjectFilter(subject); setCurrentPage(1) }}
+          onStatusChange={(status) => { setStatusFilter(status); setCurrentPage(1) }}
           onResetFilters={handleResetFilters}
         />
 
@@ -158,6 +116,7 @@ export default function EnseignantsPageRefactored() {
           onPageChange={setCurrentPage}
           onSelectTeacher={handleSelectTeacher}
           onDeleteTeacher={handleDeleteTeacher}
+          canEdit={permissions.canEdit}
           canDelete={permissions.canEdit}
         />
 
@@ -173,26 +132,12 @@ export default function EnseignantsPageRefactored() {
             onManageDocuments: can("documents.view") ? () => setShowDocumentsModal(true) : undefined,
             onAssignNotifications: permissions.canEdit ? () => setShowNotificationsModal(true) : undefined,
             onManageSalary: can("salaires.view") ? () => setShowSalaryModal(true) : undefined,
-            onViewEvaluations: () => info("Fonctionnalité à implémenter", { description: "Les évaluations seront bientôt disponibles." })
+            onViewEvaluations: () => info("Évaluations", { description: "Cette fonctionnalité sera disponible prochainement." }),
           }}
         />
 
-        <FloatingToolbar
-          onCreateTeacher={handleCreateTeacher}
-          onAddTeacherById={handleAddTeacherById}
-          onExport={handleExport}
-          onBulkActions={handleBulkActions}
-          canCreate={permissions.canCreate}
-          canExport={permissions.canView}
-          canBulkActions={permissions.canEdit}
-        />
-
         {permissions.canCreate && (
-          <CreerEnseignantModal
-            isOpen={showCreateModal}
-            onClose={() => setShowCreateModal(false)}
-            onSuccess={() => { success("Enseignant créé avec succès", { description: "Le nouvel enseignant a été ajouté à la liste." }); void refreshTeachers() }}
-          />
+          <CreerEnseignantModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} onSuccess={() => { setShowCreateModal(false); success("Enseignant créé avec succès"); void refreshTeachers() }} />
         )}
 
         {selectedTeacher && (
@@ -206,6 +151,6 @@ export default function EnseignantsPageRefactored() {
           </>
         )}
       </div>
-    </div>
+    </main>
   )
 }

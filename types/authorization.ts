@@ -63,8 +63,15 @@ export const ROLE_PERMISSIONS: Record<AppRole, readonly PermissionRule[]> = {
 
 export function normalizeRole(role: string | undefined | null): AppRole {
   if (!role) return "unknown"
-  if (role === "ecole") return "ecole"
-  if (role === "admin" || role === "directeur" || role === "secretariat" || role === "comptabilite" || role === "surveillant" || role === "enseignant" || role === "parent" || role === "eleve") return role
+  const normalized = role.trim().toLowerCase()
+  if (normalized === "administrateur" || normalized === "administrateur_ecole" || normalized === "admin" || normalized === "ecole") return "admin"
+  if (normalized === "directeur" || normalized === "direction") return "directeur"
+  if (normalized === "secretariat" || normalized === "secrétariat") return "secretariat"
+  if (normalized === "comptabilite" || normalized === "comptabilité") return "comptabilite"
+  if (normalized === "surveillant") return "surveillant"
+  if (normalized === "enseignant") return "enseignant"
+  if (normalized === "parent") return "parent"
+  if (normalized === "eleve" || normalized === "élève") return "eleve"
   return "unknown"
 }
 

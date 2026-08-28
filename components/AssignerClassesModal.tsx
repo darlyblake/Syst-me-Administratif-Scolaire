@@ -1,16 +1,14 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
 import { useClasses } from "@/hooks/useClasses"
 import { serviceEnseignants } from "@/services/enseignants.service"
 import type { DonneesEnseignant } from "@/types/models"
-import { CheckCircle, X } from "lucide-react"
 
 interface AssignerClassesModalProps {
   isOpen: boolean
@@ -21,70 +19,114 @@ interface AssignerClassesModalProps {
 
 export function AssignerClassesModal({ isOpen, onClose, enseignant, onSuccess }: AssignerClassesModalProps) {
   const { classes } = useClasses()
-  const [classesSelectionnees, setClassesSelectionnees] = useState<string[]>([])
+  const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const classesParId = useMemo(() => new Map(classes.map((classe) => [classe.id, classe])), [classes])
+
+  const byId = useMemo(() => new Map(classes.map((classe) => [classe.id, classe])), [classes])
 
   useEffect(() => {
-    if (!enseignant || !isOpen) return
-    const affectations = enseignant.classes
-      .map((value) => classesParId.has(value) ? value : classes.find((classe) => classe.nom === value)?.id)
+    if (!isOpen || !enseignant) return
+    const ids = enseignant.classes
+      .map((value) => byId.has(value) ? value : classes.find((classe) => classe.nom === value)?.id)
       .filter((id): id is string => Boolean(id))
-    setClassesSelectionnees([...new Set(affectations)])
+    setSelected([...new Set(ids)])
     setError(null)
-  }, [classes, classesParId, enseignant, isOpen])
+  }, [isOpen, enseignant, classes, byId])
 
-  const nomClasse = (classeId: string) => classesParId.get(classeId)?.nom ?? classeId
-  const handleClasseToggle = (classeId: string) => setClassesSelectionnees((current) => current.includes(classeId) ? current.filter((id) => id !== classeId) : [...current, classeId])
+  const toggle = (id: string) => {
+    setSelected((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id])
+  }
 
-  const handleSubmit = async () => {
+  const save = () => {
     if (!enseignant) return
     setLoading(true)
     setError(null)
     try {
-      const anciennesClasses = enseignant.classes
-        .map((value) => classesParId.has(value) ? value : classes.find((classe) => classe.nom === value)?.id)
+      const previous = enseignant.classes
+        .map((value) => byId.has(value) ? value : classes.find((classe) => classe.nom === value)?.id)
         .filter((id): id is string => Boolean(id))
-      const nouvellesClasses = classesSelectionnees.filter((id) => classesParId.has(id))
-      if (!serviceEnseignants.assignerClasses(enseignant.id, nouvellesClasses)) throw new Error("Impossible d'enregistrer les affectations de cet enseignant.")
-
-      for (const classeId of nouvellesClasses) {
-        if (!anciennesClasses.includes(classeId)) serviceEnseignants.enregistrerAffectationHistorique({ enseignantId: enseignant.id, type: "classe", ancienneValeur: "", nouvelleValeur: nomClasse(classeId), motif: "Assignation de classe" })
-      }
-      for (const classeId of anciennesClasses) {
-        if (!nouvellesClasses.includes(classeId)) serviceEnseignants.enregistrerAffectationHistorique({ enseignantId: enseignant.id, type: "classe", ancienneValeur: nomClasse(classeId), nouvelleValeur: "", motif: "Retrait de classe" })
+      if (!serviceEnseignants.assignerClasses(enseignant.id, selected)) {
+        throw new Error("Les affectations n'ont pas pu être enregistrées.")
       }
 
-      setSuccess(true)
+      selected.filter((id) => !previous.includes(id)).forEach((id) => {
+        serviceEnseignants.enregistrerAffectationHistorique({
+          enseignantId: enseignant.id,
+          type: "classe",
+          ancienneValeur: "",
+          nouvelleValeur: byId.get(id)?.nom ?? id,
+          motif: "Assignation de classe",
+        })
+      })
+      previous.filter((id) => !selected.includes(id)).forEach((id) => {
+        serviceEnseignants.enregistrerAffectationHistorique({
+          enseignantId: enseignant.id,
+          type: "classe",
+          ancienneValeur: byId.get(id)?.nom ?? id,
+          nouvelleValeur: "",
+          motif: "Retrait de classe",
+        })
+      })
+
       onSuccess?.()
-      window.setTimeout(() => { setSuccess(false); onClose() }, 1200)
+      onClose()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Impossible d'enregistrer les affectations.")
+      setError(cause instanceof Error ? cause.message : "Une erreur est survenue.")
     } finally {
       setLoading(false)
     }
   }
 
-  const handleClose = () => { setClassesSelectionnees([]); setSuccess(false); setError(null); onClose() }
   if (!enseignant) return null
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-[600px]">
-        <DialogHeader><DialogTitle className="flex items-center gap-2">Assigner des classes <Badge variant="secondary">{enseignant.prenom} {enseignant.nom}</Badge></DialogTitle></DialogHeader>
-        <div className="space-y-6">
-          <Card><CardHeader><CardTitle className="text-sm">Classes assignées ({classesSelectionnees.length})</CardTitle></CardHeader><CardContent>
-            {classesSelectionnees.length === 0 ? <p className="text-sm text-muted-foreground">Aucune classe assignée.</p> : <div className="flex flex-wrap gap-2">{classesSelectionnees.map((classeId) => <Badge key={classeId} className="flex items-center gap-1">{nomClasse(classeId)}<button type="button" onClick={() => handleClasseToggle(classeId)} aria-label={`Retirer ${nomClasse(classeId)}`}><X className="h-3 w-3" /></button></Badge>)}</div>}
-          </CardContent></Card>
-          <Card><CardHeader><CardTitle className="text-sm">Classes disponibles</CardTitle></CardHeader><CardContent>
-            {classes.length === 0 ? <p className="text-sm text-muted-foreground">Créez d’abord une classe dans le module Classes.</p> : <div className="grid gap-3 sm:grid-cols-2">{classes.map((classe) => { const inputId = `classe-${classe.id}`; return <div key={classe.id} className="flex items-center gap-2"><Checkbox id={inputId} checked={classesSelectionnees.includes(classe.id)} onCheckedChange={() => handleClasseToggle(classe.id)} /><Label htmlFor={inputId} className="cursor-pointer text-sm font-normal">{classe.nom} <span className="text-muted-foreground">— {classe.niveau}</span></Label></div> })}</div>}
-          </CardContent></Card>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Affecter des classes</DialogTitle>
+          <DialogDescription>
+            Choisissez les classes de {enseignant.prenom} {enseignant.nom}.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Classes sélectionnées</span>
+            <strong>{selected.length}</strong>
+          </div>
+          <Separator />
+
+          {classes.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Aucune classe disponible. Créez d'abord une classe.
+            </p>
+          ) : (
+            <div className="space-y-1" role="group" aria-label="Classes disponibles">
+              {classes.map((classe) => {
+                const id = `classe-${classe.id}`
+                return (
+                  <div key={classe.id} className="flex items-center gap-3 rounded-md border px-3 py-2.5">
+                    <Checkbox id={id} checked={selected.includes(classe.id)} onCheckedChange={() => toggle(classe.id)} />
+                    <Label htmlFor={id} className="flex-1 cursor-pointer font-normal">
+                      <span className="font-medium">{classe.nom}</span>
+                      <span className="ml-2 text-sm text-muted-foreground">{classe.niveau} · {classe.capacite} places</span>
+                    </Label>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </div>
-        <DialogFooter><Button variant="outline" onClick={handleClose} disabled={loading}>Annuler</Button><Button onClick={handleSubmit} disabled={loading}>{loading ? "Enregistrement…" : "Enregistrer"}</Button></DialogFooter>
-        {success && <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/95"><div className="text-center"><CheckCircle className="mx-auto mb-3 h-12 w-12 text-green-600" /><h3 className="text-lg font-semibold">Affectations enregistrées</h3><p className="text-sm text-muted-foreground">Les classes de {enseignant.prenom} {enseignant.nom} ont été mises à jour.</p></div></div>}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={loading}>Annuler</Button>
+          <Button onClick={save} disabled={loading || classes.length === 0}>
+            {loading ? "Enregistrement…" : "Enregistrer"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

@@ -13,6 +13,7 @@ import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { createTuitionPlan, updateTuitionPlan } from "@/lib/supabase/services/tuition.service"
 import type { PaymentMode } from "@/lib/supabase/types"
+import { AcademicYearSelector } from "@/components/academic/AcademicYearSelector"
 import { AlertCircle, CheckCircle2, Save } from "lucide-react"
 
 const modeLabels: Record<PaymentMode, string> = {
@@ -24,10 +25,10 @@ const modeLabels: Record<PaymentMode, string> = {
 export default function ScolariteSettingsPage() {
   const { utilisateur } = useAuthentification()
   const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
-  const { data: academicYears, activeYear } = useAcademicYears(establishmentId)
+  const { data: academicYears, activeYear, selectedYear, selectYear } = useAcademicYears(establishmentId)
   const { data: academicStructure, isLoading: isStructureLoading, error: structureError } = useAcademicStructure(establishmentId)
 
-  const academicYearId = activeYear?.id ?? academicYears[0]?.id ?? ""
+  const academicYearId = selectedYear?.id ?? activeYear?.id ?? academicYears[0]?.id ?? ""
   const { data: tuitionPlans, isLoading: isTuitionLoading, error: tuitionError, refresh } = useTuitionPlans(academicYearId)
 
   const [selectedLevelId, setSelectedLevelId] = useState<string>("")
@@ -126,7 +127,15 @@ export default function ScolariteSettingsPage() {
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Scolarité</h1>
-          <p className="text-sm text-slate-600">Année scolaire : {activeYear?.name ?? academicYears[0]?.name ?? "—"}</p>
+          <p className="text-sm text-slate-600">Année scolaire : {selectedYear?.name ?? activeYear?.name ?? academicYears[0]?.name ?? "—"}</p>
+        </div>
+        <div className="w-full max-w-xs">
+          <AcademicYearSelector
+            value={selectedYear?.id ?? activeYear?.id ?? academicYears[0]?.id}
+            years={academicYears}
+            onChange={selectYear}
+            placeholder="Sélectionner une année"
+          />
         </div>
       </div>
 

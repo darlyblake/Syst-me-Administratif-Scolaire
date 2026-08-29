@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,8 +14,13 @@ import { serviceConges } from "@/services/conges.service"
 import type { DonneesPersonnel } from "@/types/personnel"
 import type { Pointage } from "@/services/pointage.service"
 import type { DemandeConge } from "@/services/conges.service"
+import { useAuthentification } from "@/providers/authentification.provider"
+import { useStaff } from "@/hooks/useStaff"
 
 export default function PersonnelPage() {
+  const { utilisateur } = useAuthentification()
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { staff, isLoading: isLoadingStaff } = useStaff(establishmentId)
   const [personnel, setPersonnel] = useState<DonneesPersonnel[]>([])
   const [pointages, setPointages] = useState<Pointage[]>([])
   const [conges, setConges] = useState<DemandeConge[]>([])
@@ -50,12 +55,37 @@ export default function PersonnelPage() {
     motif: ""
   })
 
+  const supabasePersonnel = useMemo<DonneesPersonnel[]>(() => staff.map((member) => ({
+    id: member.id,
+    nom: member.last_name,
+    prenom: member.first_name,
+    poste: member.department || member.role,
+    email: member.email || undefined,
+    typeContrat: "cdi",
+    modeRemuneration: "fixe",
+    salaireFixe: member.salary ?? 0,
+    telephone: member.phone || "",
+    statut: member.status === "active"
+      ? "actif"
+      : member.status === "on_leave"
+        ? "conge"
+        : member.status === "inactive"
+          ? "inactif"
+          : "suspendu",
+    dateEmbauche: member.hire_date || member.created_at || new Date().toISOString(),
+    dateCreation: member.created_at || new Date().toISOString(),
+    dateModification: member.updated_at || member.created_at || new Date().toISOString(),
+  })), [staff])
+
+  const legacyPersonnel = useMemo(() => servicePersonnel.obtenirToutLePersonnel(), [])
+  const personnelSource = supabasePersonnel.length > 0 ? supabasePersonnel : legacyPersonnel
+
   useEffect(() => {
-    setPersonnel(servicePersonnel.obtenirToutLePersonnel())
+    setPersonnel(personnelSource)
     setPointages(servicePointage.obtenirTousLesPointages())
     setConges(serviceConges.obtenirToutesLesDemandes())
-    setIsLoaded(true)
-  }, [])
+    setIsLoaded(!isLoadingStaff)
+  }, [isLoadingStaff, personnelSource])
 
   const handleAjouterPersonnel = () => {
     if (!nouveauPersonnel.nom || !nouveauPersonnel.prenom || !nouveauPersonnel.poste) {
@@ -190,8 +220,20 @@ export default function PersonnelPage() {
     return matchSearch && matchPoste && matchStatut
   })
 
-  const postesUniques = servicePersonnel.obtenirPostesUniques()
-  const statistiques = servicePersonnel.genererStatistiques()
+  const postesUniques = useMemo(
+    () => Array.from(new Set(personnel.map((person) => person.poste))),
+    [personnel]
+  )
+  const statistiques = useMemo(() => ({
+    totalPersonnel: personnel.length,
+    parStatut: {
+      actif: personnel.filter((person) => person.statut === "actif").length,
+      inactif: personnel.filter((person) => person.statut === "inactif").length,
+      suspendu: personnel.filter((person) => person.statut === "suspendu").length,
+      conge: personnel.filter((person) => person.statut === "conge").length,
+    },
+    masseSalarialeTotale: personnel.reduce((total, person) => total + (person.salaireFixe || 0), 0),
+  }), [personnel])
 
   return (
     <div className="min-h-screen p-4">

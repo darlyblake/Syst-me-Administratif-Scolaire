@@ -7,6 +7,7 @@ export async function createGrade(data: Partial<Grade>): Promise<Grade> {
     .insert({
       establishment_id: data.establishment_id,
       student_id: data.student_id,
+      class_id: data.class_id,
       subject: data.subject,
       term: data.term,
       score: data.score,

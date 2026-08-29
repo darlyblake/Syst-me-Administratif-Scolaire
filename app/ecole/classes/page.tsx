@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { toast } from "sonner"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -37,6 +37,24 @@ export default function ClassesPage() {
     getEnseignants,
   } = useClasses()
   const { data: academicStructure, isLoading: isAcademicLoading, error: academicError } = useAcademicStructure(establishmentId)
+  const academicClasses = useMemo(() => {
+    if (!academicStructure.length) return []
+
+    return academicStructure.flatMap((cycle) =>
+      (cycle.grade_levels ?? []).flatMap((level) =>
+        (level.school_classes ?? []).map((schoolClass) => ({
+          id: schoolClass.id,
+          nom: schoolClass.name,
+          niveau: level.name,
+          typeEcole: cycle.name,
+          capacite: 0,
+          fraisScolarite: 0,
+        }))
+      )
+    )
+  }, [academicStructure])
+
+  const displayClasses = academicClasses.length ? academicClasses : classes
   const [activeTab, setActiveTab] = useState<Tab>("liste")
   const [tarificationTypesEcole, setTarificationTypesEcole] = useState<TarificationTypeEcole[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
@@ -186,7 +204,7 @@ export default function ClassesPage() {
     setParams({ ...params, modeParNiveau: newOverrides })
   }
 
-  const filteredClasses = classes.filter(classe =>
+  const filteredClasses = displayClasses.filter(classe =>
     classe.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
     classe.niveau.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (classe.typeEcole && classe.typeEcole.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -196,8 +214,8 @@ export default function ClassesPage() {
     !filterNiveau || classe.niveau === filterNiveau
   )
 
-  const typesEcoleUniques = Array.from(new Set(classes.map(c => c.typeEcole).filter(Boolean)))
-  const niveauxUniques = Array.from(new Set(classes.map(c => c.niveau)))
+  const typesEcoleUniques = Array.from(new Set(displayClasses.map(c => c.typeEcole).filter(Boolean)))
+  const niveauxUniques = Array.from(new Set(displayClasses.map(c => c.niveau)))
   if (loading) {
     return (
       <div className="space-y-6">

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,16 +10,81 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ArrowLeft, CheckCircle, XCircle, Clock, Save } from "lucide-react"
 import Link from "next/link"
 import { serviceEleves } from "@/services/eleves.service"
+import { useAuthentification } from "@/providers/authentification.provider"
+import { useStudents } from "@/hooks/useStudents"
+import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 
 export default function PointagePresences() {
+  const { utilisateur } = useAuthentification()
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { data: supabaseStudents } = useStudents(establishmentId)
+  const { data: academicStructure } = useAcademicStructure(establishmentId)
+
+  const mappedSupabaseStudents = useMemo(() => {
+    return (supabaseStudents ?? []).map((student) => ({
+      id: student.id,
+      identifiant: student.id.slice(0, 8).toUpperCase(),
+      motDePasse: "",
+      nom: student.last_name || "",
+      prenom: student.first_name || "",
+      dateNaissance: student.date_of_birth || "",
+      lieuNaissance: student.place_of_birth || "",
+      sexe: student.gender || "",
+      classe: "",
+      classId: student.class_id || "",
+      classeAncienne: "",
+      nomParent: "",
+      contactParent: "",
+      adresse: "",
+      dateInscription: student.created_at || "",
+      statut: "actif" as const,
+      totalAPayer: 0,
+      typeInscription: "inscription" as const,
+      informationsContact: {
+        telephone: student.phone || "",
+        email: student.email || "",
+        adresse: "",
+      },
+      modePaiement: "mensuel" as const,
+      optionsSupplementaires: {
+        tenueScolaire: false,
+        carteScolaire: false,
+        cooperative: false,
+        tenueEPS: false,
+        assurance: false,
+      },
+      fraisOptionsSupplementaires: {
+        tenueScolaire: 0,
+        carteScolaire: 0,
+        cooperative: 0,
+        tenueEPS: 0,
+        assurance: 0,
+      },
+      moisPaiement: [],
+      optionsPersonnalisees: [],
+    }))
+  }, [supabaseStudents])
+
   const [selectedClasse, setSelectedClasse] = useState("")
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [presences, setPresences] = useState<Record<string, { statut: string; heureArrivee: string; motif: string }>>({})
 
-  const classes = ["PS1", "PS2", "MS1", "MS2", "GS", "CP", "CE1", "CE2", "CM1", "CM2", "6eme", "5eme", "4eme", "3eme"]
-  const allStudents = serviceEleves.obtenirTousLesEleves()
-  const filteredStudents = selectedClasse 
-    ? allStudents.filter(s => s.classe === selectedClasse)
+  const legacyClasses = ["PS1", "PS2", "MS1", "MS2", "GS", "CP", "CE1", "CE2", "CM1", "CM2", "6eme", "5eme", "4eme", "3eme"]
+  const academicClasses = academicStructure.flatMap((cycle) =>
+    (cycle.grade_levels ?? []).flatMap((level) =>
+      (level.school_classes ?? []).map((schoolClass) => ({
+        id: schoolClass.id,
+        name: schoolClass.name,
+      }))
+    )
+  )
+  const classes = academicClasses.length > 0 ? academicClasses : legacyClasses.map((name) => ({ id: name, name }))
+  const selectedClass = classes.find((schoolClass) => schoolClass.name === selectedClasse)
+  const allStudents = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()
+  const filteredStudents = selectedClasse
+    ? mappedSupabaseStudents.length > 0
+      ? allStudents.filter((student) => student.classId === selectedClass?.id)
+      : allStudents.filter(s => s.classe === selectedClasse)
     : []
 
   const handleStatutChange = (studentId: string, statut: string) => {
@@ -117,9 +182,9 @@ export default function PointagePresences() {
                     <SelectValue placeholder="Sélectionner" />
                   </SelectTrigger>
                   <SelectContent>
-                    {classes.map((classe) => (
-                      <SelectItem key={classe} value={classe}>
-                        {classe}
+                    {classes.map((schoolClass) => (
+                      <SelectItem key={schoolClass.id} value={schoolClass.name}>
+                        {schoolClass.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

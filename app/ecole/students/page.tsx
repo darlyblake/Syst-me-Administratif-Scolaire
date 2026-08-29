@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Fuse from "fuse.js"
 import { toast } from "sonner"
@@ -12,6 +12,8 @@ import { Users, UserPlus, Download, FileText, RotateCcw, Upload, AlertCircle, Ch
 import Link from "next/link"
 import { serviceEleves } from "@/services/eleves.service"
 import { printHtml } from "@/lib/print"
+import { useAuthentification } from "@/providers/authentification.provider"
+import { useStudents } from "@/hooks/useStudents"
 import type { DonneesEleve } from "@/types/models"
 
 // Import des composants
@@ -24,6 +26,55 @@ import StudentDetailsModal from "@/components/StudentDetailsModal"
 
 export default function StudentsPage() {
   const router = useRouter()
+  const { utilisateur } = useAuthentification()
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { data: supabaseStudents, isLoading: isLoadingSupabase } = useStudents(establishmentId)
+
+  // Convert Supabase students to DonneesEleve format and merge with legacy data
+  const supabseStudentsConverted = useMemo(() => {
+    return supabaseStudents.map(s => ({
+      id: s.id,
+      identifiant: s.student_number ?? "",
+      motDePasse: "",
+      nom: s.last_name ?? "",
+      prenom: s.first_name ?? "",
+      dateNaissance: s.birth_date ?? "",
+      lieuNaissance: "",
+      sexe: s.gender ?? "",
+      classe: "", // Will be filled from legacy if needed
+      nomParent: "",
+      contactParent: s.phone ?? "",
+      adresse: s.address ?? "",
+      dateInscription: s.created_at ?? new Date().toISOString(),
+      statut: s.status === "active" ? "actif" : (s.status === "inactive" ? "inactif" : "transfere") as "actif" | "inactif" | "transfere",
+      totalAPayer: 0,
+      typeInscription: "inscription" as const,
+      informationsContact: {
+        telephone: s.phone ?? "",
+        email: s.email ?? "",
+        adresse: s.address ?? "",
+      },
+      modePaiement: "mensuel" as const,
+      optionsSupplementaires: {
+        tenueScolaire: false,
+        carteScolaire: false,
+        cooperative: false,
+        tenueEPS: false,
+        assurance: false,
+      },
+      fraisOptionsSupplementaires: {
+        tenueScolaire: 0,
+        carteScolaire: 0,
+        cooperative: 0,
+        tenueEPS: 0,
+        assurance: 0,
+      },
+    } as DonneesEleve))
+  }, [supabaseStudents])
+
+  // Use Supabase data if available, otherwise fallback to legacy
+  const legacyStudents = useMemo(() => serviceEleves.obtenirTousLesEleves(), [])
+  const displayStudents = supabseStudentsConverted.length > 0 ? supabseStudentsConverted : legacyStudents
   const [students, setStudents] = useState<DonneesEleve[]>([])
   const [filteredStudents, setFilteredStudents] = useState<DonneesEleve[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -54,11 +105,11 @@ export default function StudentsPage() {
 
   const classes = selectedLevel === "all" ? allClasses : levels[selectedLevel as keyof typeof levels] || []
 
+  // Load displayStudents (Supabase or legacy fallback)
   useEffect(() => {
-    const savedStudents = serviceEleves.obtenirTousLesEleves()
-    setStudents(savedStudents)
-    setFilteredStudents(savedStudents)
-  }, [])
+    setStudents(displayStudents)
+    setFilteredStudents(displayStudents)
+  }, [displayStudents])
 
   useEffect(() => {
     setSelectedClass("all")

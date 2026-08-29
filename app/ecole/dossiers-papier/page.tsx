@@ -8,11 +8,63 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useAuthentification } from "@/providers/authentification.provider"
+import { useStudents } from "@/hooks/useStudents"
 import { serviceEleves } from "@/services/eleves.service"
 import { serviceDossiersPapier } from "@/services/dossiers-papier.service"
 import type { DossierPapier, DonneesEleve } from "@/types/models"
 
 export default function DossiersPapierPage() {
+  const { utilisateur } = useAuthentification()
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { data: supabaseStudents } = useStudents(establishmentId)
+
+  const mappedSupabaseStudents = useMemo(() => {
+    return (supabaseStudents ?? []).map((student) => ({
+      id: student.id,
+      identifiant: student.id.slice(0, 8).toUpperCase(),
+      motDePasse: "",
+      nom: student.last_name || "",
+      prenom: student.first_name || "",
+      dateNaissance: student.date_of_birth || "",
+      lieuNaissance: student.place_of_birth || "",
+      sexe: student.gender || "",
+      classe: "",
+      classeAncienne: "",
+      nomParent: "",
+      contactParent: "",
+      adresse: "",
+      dateInscription: student.created_at || "",
+      statut: "actif" as const,
+      totalAPayer: 0,
+      typeInscription: "inscription" as const,
+      informationsContact: {
+        telephone: student.phone || "",
+        email: student.email || "",
+        adresse: "",
+      },
+      modePaiement: "mensuel" as const,
+      optionsSupplementaires: {
+        tenueScolaire: false,
+        carteScolaire: false,
+        cooperative: false,
+        tenueEPS: false,
+        assurance: false,
+      },
+      fraisOptionsSupplementaires: {
+        tenueScolaire: 0,
+        carteScolaire: 0,
+        cooperative: 0,
+        tenueEPS: 0,
+        assurance: 0,
+      },
+      moisPaiement: [],
+      optionsPersonnalisees: [],
+    }))
+  }, [supabaseStudents])
+
+  const allStudents = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()
+
   const [refresh, setRefresh] = useState(0)
   const [search, setSearch] = useState("")
   const [filterStatut, setFilterStatut] = useState("")
@@ -24,7 +76,7 @@ export default function DossiersPapierPage() {
   const [newPieceName, setNewPieceName] = useState("")
   const [newPieceObligatoire, setNewPieceObligatoire] = useState(false)
 
-  const eleves = useMemo(() => serviceEleves.obtenirTousLesEleves(), [refresh])
+  const eleves = useMemo(() => allStudents, [allStudents, refresh])
   const dossiers = useMemo(() => serviceDossiersPapier.obtenirTous(), [refresh])
 
   // Initialiser les dossiers au montage (côté client uniquement)

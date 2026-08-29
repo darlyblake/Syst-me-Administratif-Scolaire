@@ -15,22 +15,25 @@ export default function LoginPage() {
   const router = useRouter()
   const params = useSearchParams()
   const espace = (params.get("espace") as Espace) || "ecole"
-  const { connecter, estConnecte, estEnCoursDeChargement } = useAuthentification()
+  const { connecter, estConnecte, estEnCoursDeChargement, obtenirCheminRedirection } = useAuthentification()
   const [email, setEmail] = useState("")
   const [motDePasse, setMotDePasse] = useState("")
   const [erreur, setErreur] = useState("")
   const [chargement, setChargement] = useState(false)
 
   useEffect(() => {
-    if (!estEnCoursDeChargement && estConnecte) router.replace("/")
-  }, [estConnecte, estEnCoursDeChargement, router])
+    if (!estEnCoursDeChargement && estConnecte) {
+      const cheminRedirection = obtenirCheminRedirection()
+      router.replace(cheminRedirection)
+    }
+  }, [estConnecte, estEnCoursDeChargement, router, obtenirCheminRedirection])
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); setErreur(""); setChargement(true)
     const result = await connecter(email, motDePasse)
     setChargement(false)
     if (!result.succes) { setErreur(result.erreur ?? "Connexion impossible."); return }
-    router.replace("/")
+    // La redirection se fait automatiquement via le useEffect
   }
 
   if (estEnCoursDeChargement || estConnecte) return <div className="min-h-screen flex items-center justify-center bg-creme"><p className="text-sm text-muted-foreground">Chargement...</p></div>

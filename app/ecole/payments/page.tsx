@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -14,12 +14,61 @@ import { serviceEleves } from "@/services/eleves.service"
 import { servicePaiements } from "@/services/paiements.service"
 import { serviceParametres } from "@/services/parametres.service"
 import { serviceClasses } from "@/services/classes.service"
+import { useAuthentification } from "@/providers/authentification.provider"
+import { useStudents } from "@/hooks/useStudents"
 import type { EleveAvecSuivi } from "@/types/models"
 import type { Paiement } from "@/types/models"
 import type { DonneesEleve } from "@/types/models"
 
 export default function PaymentsPage() {
   const router = useRouter()
+  const { utilisateur } = useAuthentification()
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { data: supabaseStudents, isLoading: isLoadingSupabase } = useStudents(establishmentId)
+
+  const mappedSupabaseStudents = useMemo<DonneesEleve[]>(() => {
+    return (supabaseStudents ?? []).map((student) => ({
+      id: student.id,
+      identifiant: student.id.slice(0, 8).toUpperCase(),
+      motDePasse: "",
+      nom: student.last_name || "",
+      prenom: student.first_name || "",
+      dateNaissance: student.date_of_birth || "",
+      lieuNaissance: student.place_of_birth || "",
+      sexe: student.gender || "",
+      classe: "",
+      nomParent: "",
+      contactParent: "",
+      adresse: "",
+      dateInscription: student.created_at || "",
+      statut: (student.status === "active" ? "actif" : student.status === "inactive" ? "inactif" : "actif") as DonneesEleve["statut"],
+      totalAPayer: 0,
+      typeInscription: "inscription",
+      informationsContact: {
+        telephone: student.phone || "",
+        email: student.email || "",
+        adresse: "",
+      },
+      modePaiement: "mensuel",
+      optionsSupplementaires: {
+        tenueScolaire: false,
+        carteScolaire: false,
+        cooperative: false,
+        tenueEPS: false,
+        assurance: false,
+      },
+      fraisOptionsSupplementaires: {
+        tenueScolaire: 0,
+        carteScolaire: 0,
+        cooperative: 0,
+        tenueEPS: 0,
+        assurance: 0,
+      },
+      moisPaiement: [],
+      optionsPersonnalisees: [],
+    }))
+  }, [supabaseStudents])
+
   const [students, setStudents] = useState<DonneesEleve[]>([])
   const [payments, setPayments] = useState<Paiement[]>([])
   const [studentsWithTracking, setStudentsWithTracking] = useState<EleveAvecSuivi[]>([])
@@ -48,15 +97,32 @@ export default function PaymentsPage() {
       ])
     ).sort((a, b) => a.localeCompare(b, "fr"))
 
-    setStudents(serviceEleves.obtenirTousLesEleves())
+    const nextStudents = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()
+    const nextStudentsWithTracking = mappedSupabaseStudents.length > 0
+      ? mappedSupabaseStudents.map((student) => ({
+          ...student,
+          detteScolarite: 0,
+          detteTotaleGlobale: 0,
+          totalPayeScolarite: 0,
+          totalPayeGlobal: 0,
+          resteAPayerScolarite: 0,
+          resteAPayerGlobal: 0,
+          pourcentagePaye: 0,
+          moisRestants: [],
+          tranchesRestantes: [],
+          optionsRestantes: [],
+        } as EleveAvecSuivi))
+      : studentsWithFinancials
+
+    setStudents(nextStudents)
     setPayments(servicePaiements.obtenirTousLesPaiements())
-    setStudentsWithTracking(studentsWithFinancials)
+    setStudentsWithTracking(nextStudentsWithTracking)
     setClasses(classesDisponibles)
     setSelectedAnneeAcademique(paramsEcole.anneeAcademique || "")
     setModePaiementEcole(paramsEcole.modePaiement || null)
     setParametresPaiement(serviceParametres.obtenirParametresPaiement())
     setDataLoaded(true)
-  }, [])
+  }, [mappedSupabaseStudents])
 
   // Construire un mapping des paiements par élève pour consultation rapide
   const paiementsParEleve = payments.reduce<Record<string, import("@/types/models").Paiement[]>>((acc, p) => {

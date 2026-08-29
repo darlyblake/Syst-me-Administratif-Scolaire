@@ -1,81 +1,68 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import type { Role } from '@/types/models'
+import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  console.log("Middleware - Pathname:", pathname)
+  // Routes publiques
+  const publicRoutes = ['/login', '/register', '/auth']
+  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route)) || pathname === '/'
 
-  // Routes publiques qui ne nécessitent pas d'authentification
-  const publicRoutes = ['/login', '/register']
-  
-  // Vérifier si c'est une route publique
-  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
-
-  // Route racine - rediriger vers login
+  // "/" laisse passer (la page gère la redirection)
   if (pathname === '/') {
-    console.log("Middleware - Redirection vers /login")
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
-
-  // Si route publique, laisser passer
-  if (isPublicRoute) {
-    console.log("Middleware - Route publique, laisser passer")
     return NextResponse.next()
   }
 
-  // Récupérer la session depuis le cookie
-  const sessionCookie = request.cookies.get('utilisateur_connecte')
-  
-  console.log("Middleware - Cookie session:", sessionCookie ? "présent" : "absent")
-  
-  if (!sessionCookie) {
-    // Pas de session, rediriger vers login
-    console.log("Middleware - Pas de session, redirection vers /login")
-    return NextResponse.redirect(new URL('/login', request.url))
+  // Routes publiques : laisser passer
+  if (isPublicRoute) {
+    return NextResponse.next()
   }
 
-  // Parser la session pour obtenir le rôle
-  let session
+  // Créer un client Supabase pour le middleware
+  let supabase
   try {
-    session = JSON.parse(sessionCookie.value)
-    console.log("Middleware - Session parsée:", session)
+    supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getSetCookie()
+          },
+          setAll(cookiesToSet) {
+            // Les cookies ne peuvent pas être définis dans le middleware
+            // Cela se fait dans les pages/composants
+          },
+        },
+      }
+    )
   } catch (error) {
-    // Session invalide, rediriger vers login
-    console.log("Middleware - Session invalide, redirection vers /login")
+    console.error('Erreur création client Supabase:', error)
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  const userRole = session.utilisateur?.role as Role
-  console.log("Middleware - User role:", userRole)
+  // Vérifier la session Supabase
+  const { data: { session } } = await supabase.auth.getSession()
 
-  // Vérifier les permissions selon la route
-  if (pathname.startsWith('/admin')) {
-    if (userRole !== 'admin') {
-      console.log("Middleware - Accès admin refusé pour rôle:", userRole)
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
+  if (!session) {
+    // Pas de session : rediriger vers login
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  if (pathname.startsWith('/ecole')) {
-    if (userRole !== 'ecole' && userRole !== 'admin') {
-      console.log("Middleware - Accès école refusé pour rôle:", userRole)
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
-  }
-
-  if (pathname.startsWith('/parents')) {
-    if (userRole !== 'parent') {
-      console.log("Middleware - Accès parents refusé pour rôle:", userRole)
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
-  }
-
-  console.log("Middleware - Accès autorisé")
+  // Session présente : laisser passer
+  // Les pages vont valider le rôle exact via useAuthentification()
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
 }

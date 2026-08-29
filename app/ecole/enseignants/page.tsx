@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useTeachers } from "@/hooks/useTeachers"
 import { usePermissions } from "@/hooks/usePermissions"
 import { useNotifications } from "@/hooks/useNotifications"
@@ -18,15 +18,26 @@ import { HistoriqueAffectationsModal } from "@/components/HistoriqueAffectations
 import { DocumentsAdministratifsModal } from "@/components/DocumentsAdministratifsModal"
 import { AttribuerNotificationsModal } from "@/components/AttribuerNotificationsModal"
 import { GestionSalairesModal } from "@/components/GestionSalairesModal"
+import { serviceEnseignants } from "@/services/enseignants.service"
+import { useAuthentification } from "@/providers/authentification.provider"
 
 export default function EnseignantsPageRefactored() {
+  const { utilisateur } = useAuthentification()
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+
+  const legacyTeachers = useMemo(() => serviceEnseignants.obtenirTousLesEnseignants(), [])
   const {
-    teachers, loading, selectedTeacher, filters, currentPage, totalPages,
+    teachers: supabaseTeachers, loading, selectedTeacher, filters, currentPage, totalPages,
     setSearchQuery, setSubjectFilter, setStatusFilter, setCurrentPage,
     selectTeacher, refreshTeachers, permissions, deactivateTeacher,
   } = useTeachers()
   const { can } = usePermissions()
   const { success, error, info } = useNotifications()
+
+  const teachers = useMemo(() => {
+    if (!supabaseTeachers || supabaseTeachers.length === 0) return legacyTeachers
+    return supabaseTeachers
+  }, [supabaseTeachers, legacyTeachers])
 
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDetailsModal, setShowDetailsModal] = useState(false)

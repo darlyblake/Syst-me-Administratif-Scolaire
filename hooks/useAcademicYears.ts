@@ -7,16 +7,31 @@ import {
 } from "@/lib/supabase/services/academic-year.service"
 import type { AcademicYear } from "@/lib/supabase/types"
 
+const STORAGE_KEY = "eduPilot.selectedAcademicYearId"
+
 export function useAcademicYears(establishmentId: string | null) {
   const [data, setData] = useState<AcademicYear[]>([])
   const [activeYear, setActiveYear] = useState<AcademicYear | null>(null)
+  const [selectedYear, setSelectedYear] = useState<AcademicYear | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const applySelection = useCallback((years: AcademicYear[], preferred: AcademicYear | null) => {
+    const savedYearId = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null
+    const fallbackYear = preferred ?? years.find((year) => year.id === savedYearId) ?? years[0] ?? null
+
+    if (typeof window !== "undefined" && fallbackYear) {
+      window.localStorage.setItem(STORAGE_KEY, fallbackYear.id)
+    }
+
+    setSelectedYear(fallbackYear)
+  }, [])
 
   const refresh = useCallback(async () => {
     if (!establishmentId) {
       setData([])
       setActiveYear(null)
+      setSelectedYear(null)
       setIsLoading(false)
       setError(null)
       return
@@ -33,22 +48,40 @@ export function useAcademicYears(establishmentId: string | null) {
 
       setData(years)
       setActiveYear(active)
+      applySelection(years, active)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur de chargement de l’année scolaire.")
     } finally {
       setIsLoading(false)
     }
-  }, [establishmentId])
+  }, [establishmentId, applySelection])
+
+  const selectYear = useCallback((yearId: string) => {
+    const year = data.find((item) => item.id === yearId) ?? null
+    if (year && typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, year.id)
+    }
+    setSelectedYear(year)
+  }, [data])
 
   useEffect(() => {
     void refresh()
   }, [refresh])
 
+  useEffect(() => {
+    if (!data.length) return
+    if (!selectedYear) {
+      applySelection(data, activeYear)
+    }
+  }, [activeYear, applySelection, data, selectedYear])
+
   return {
     data,
     activeYear,
+    selectedYear,
     isLoading,
     error,
     refresh,
+    selectYear,
   }
 }

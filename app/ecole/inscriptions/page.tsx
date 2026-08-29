@@ -14,9 +14,59 @@ import { KPICard } from "@/components/inscriptions/KPICard"
 import NouvelleInscriptionModal from "@/components/NouvelleInscriptionModal"
 import { serviceEleves } from "@/services/eleves.service"
 import { serviceTransfert } from "@/services/transfert.service"
+import { useAuthentification } from "@/providers/authentification.provider"
+import { useStudents } from "@/hooks/useStudents"
 import type { DonneesEleve } from "@/types/models"
 
 export default function InscriptionsPage() {
+  const { utilisateur } = useAuthentification()
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { data: supabaseStudents } = useStudents(establishmentId)
+
+  const mappedSupabaseStudents = useMemo(() => {
+    return (supabaseStudents ?? []).map((student) => ({
+      id: student.id,
+      identifiant: student.id.slice(0, 8).toUpperCase(),
+      motDePasse: "",
+      nom: student.last_name || "",
+      prenom: student.first_name || "",
+      dateNaissance: student.date_of_birth || "",
+      lieuNaissance: student.place_of_birth || "",
+      sexe: student.gender || "",
+      classe: "",
+      classeAncienne: "",
+      nomParent: "",
+      contactParent: "",
+      adresse: "",
+      dateInscription: student.created_at || "",
+      statut: "actif" as const,
+      totalAPayer: 0,
+      typeInscription: "inscription" as const,
+      informationsContact: {
+        telephone: student.phone || "",
+        email: student.email || "",
+        adresse: "",
+      },
+      modePaiement: "mensuel" as const,
+      optionsSupplementaires: {
+        tenueScolaire: false,
+        carteScolaire: false,
+        cooperative: false,
+        tenueEPS: false,
+        assurance: false,
+      },
+      fraisOptionsSupplementaires: {
+        tenueScolaire: 0,
+        carteScolaire: 0,
+        cooperative: 0,
+        tenueEPS: 0,
+        assurance: 0,
+      },
+      moisPaiement: [],
+      optionsPersonnalisees: [],
+    }))
+  }, [supabaseStudents])
+
   const [showModal, setShowModal] = useState(false)
   const [modalType, setModalType] = useState<"inscription" | "reinscription">("inscription")
   const [search, setSearch] = useState("")
@@ -24,7 +74,7 @@ export default function InscriptionsPage() {
   const [filterStatut, setFilterStatut] = useState("")
   const [refreshKey, setRefreshKey] = useState(0)
 
-  const eleves = useMemo(() => serviceEleves.obtenirTousLesEleves(), [refreshKey])
+  const eleves = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : useMemo(() => serviceEleves.obtenirTousLesEleves(), [refreshKey])
   const transfertsEnAttente = useMemo(() => serviceTransfert.getEnAttente().length, [refreshKey])
 
   const classes = useMemo(

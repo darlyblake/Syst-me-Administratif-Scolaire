@@ -9,16 +9,66 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { serviceEleves } from "@/services/eleves.service"
 import { serviceTransfert } from "@/services/transfert.service"
+import { useAuthentification } from "@/providers/authentification.provider"
+import { useStudents } from "@/hooks/useStudents"
 import type { DonneesEleve, DossierTransfert } from "@/types/models"
 
 export default function TransfertPage() {
+  const { utilisateur } = useAuthentification()
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { data: supabaseStudents } = useStudents(establishmentId)
+
+  const mappedSupabaseStudents = useMemo(() => {
+    return (supabaseStudents ?? []).map((student) => ({
+      id: student.id,
+      identifiant: student.id.slice(0, 8).toUpperCase(),
+      motDePasse: "",
+      nom: student.last_name || "",
+      prenom: student.first_name || "",
+      dateNaissance: student.date_of_birth || "",
+      lieuNaissance: student.place_of_birth || "",
+      sexe: student.gender || "",
+      classe: "",
+      classeAncienne: "",
+      nomParent: "",
+      contactParent: "",
+      adresse: "",
+      dateInscription: student.created_at || "",
+      statut: "actif" as const,
+      totalAPayer: 0,
+      typeInscription: "inscription" as const,
+      informationsContact: {
+        telephone: student.phone || "",
+        email: student.email || "",
+        adresse: "",
+      },
+      modePaiement: "mensuel" as const,
+      optionsSupplementaires: {
+        tenueScolaire: false,
+        carteScolaire: false,
+        cooperative: false,
+        tenueEPS: false,
+        assurance: false,
+      },
+      fraisOptionsSupplementaires: {
+        tenueScolaire: 0,
+        carteScolaire: 0,
+        cooperative: 0,
+        tenueEPS: 0,
+        assurance: 0,
+      },
+      moisPaiement: [],
+      optionsPersonnalisees: [],
+    }))
+  }, [supabaseStudents])
+
   const [tab, setTab] = useState<"envoyer" | "recevoir">("envoyer")
   const [refresh, setRefresh] = useState(0)
 
   // --- Envoyer ---
   const elevesActifs = useMemo(
-    () => serviceEleves.obtenirTousLesEleves().filter((e) => e.statut === "actif"),
-    [refresh]
+    () => (mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()).filter((e) => e.statut === "actif"),
+    [mappedSupabaseStudents, refresh]
   )
   const [eleveId, setEleveId] = useState("")
   const [motif, setMotif] = useState("")
@@ -57,7 +107,7 @@ export default function TransfertPage() {
   const [code, setCode] = useState("")
   const [dossierRecu, setDossierRecu] = useState<DossierTransfert | null>(null)
   const [classeAccueil, setClasseAccueil] = useState("")
-  const classes = useMemo(() => serviceEleves.obtenirClassesActives(), [refresh])
+  const classes = useMemo(() => (mappedSupabaseStudents.length > 0 ? Array.from(new Set(mappedSupabaseStudents.map((student) => student.classe).filter(Boolean))) : serviceEleves.obtenirClassesActives()), [mappedSupabaseStudents, refresh])
 
   const chargerParCode = () => {
     const d = serviceTransfert.trouverParCode(code.trim())

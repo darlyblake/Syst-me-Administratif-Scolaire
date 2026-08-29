@@ -45,11 +45,32 @@ class SupabaseAuthentificationService {
     return error ? { succes: false, erreur: "Impossible de modifier le mot de passe." } : { succes: true }
   }
 
+  /**
+   * Retourne le chemin de redirection selon le account_type
+   * @param accountType Type de compte du backend
+   * @returns Chemin de redirection
+   */
+  getRedirectionPath(accountType: AccountType | undefined): string {
+    switch (accountType) {
+      case "platform_admin":
+        return "/admin"
+      case "parent":
+        return "/parent"
+      case "teacher":
+        return "/enseignant"
+      case "school_member":
+        return "/etablissement"
+      default:
+        return "/login"
+    }
+  }
+
   aLesPermissions(action: string, contexte: AuthContext | null) {
     if (!contexte?.authenticated || !contexte.account_type) return false
     if (contexte.account_type === "platform_admin") return true
     const permissions: Record<AccountType, string[]> = {
-      platform_admin: ["*"], parent: ["voir_profil", "voir_paiements"],
+      platform_admin: ["*"],
+      parent: ["voir_profil", "voir_paiements"],
       teacher: ["voir_emploi_du_temps", "pointage", "voir_profil", "voir_eleves", "notes", "devoirs", "presences", "notifier_administration"],
       school_member: ["school.manage", "members.manage", "academic.manage", "students.manage", "enrollments.manage", "tuition.manage", "payments.manage", "grades.manage", "attendance.manage", "teachers.manage", "staff.manage", "reports.view"],
     }

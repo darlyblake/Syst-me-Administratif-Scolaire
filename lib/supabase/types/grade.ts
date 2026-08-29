@@ -2,6 +2,7 @@ export interface Grade {
   id: string
   establishment_id: string
   student_id: string
+  class_id?: string | null
   subject: string
   term: "1" | "2" | "3" | string
   score: number

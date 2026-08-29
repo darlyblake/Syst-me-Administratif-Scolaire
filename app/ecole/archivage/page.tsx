@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,14 +8,66 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Archive, Download, Trash2, Search, Calendar } from "lucide-react"
 import Link from "next/link"
+import { useAuthentification } from "@/providers/authentification.provider"
+import { useStudents } from "@/hooks/useStudents"
 import { serviceArchivage } from "@/services/archivage.service"
 import { serviceEleves } from "@/services/eleves.service"
 import type { EleveArchive } from "@/services/archivage.service"
 
 export default function ArchivagePage() {
+  const { utilisateur } = useAuthentification()
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { data: supabaseStudents } = useStudents(establishmentId)
+
+  const mappedSupabaseStudents = useMemo(() => {
+    return (supabaseStudents ?? []).map((student) => ({
+      id: student.id,
+      identifiant: student.id.slice(0, 8).toUpperCase(),
+      motDePasse: "",
+      nom: student.last_name || "",
+      prenom: student.first_name || "",
+      dateNaissance: student.date_of_birth || "",
+      lieuNaissance: student.place_of_birth || "",
+      sexe: student.gender || "",
+      classe: "",
+      classeAncienne: "",
+      nomParent: "",
+      contactParent: "",
+      adresse: "",
+      dateInscription: student.created_at || "",
+      statut: "actif" as const,
+      totalAPayer: 0,
+      typeInscription: "inscription" as const,
+      informationsContact: {
+        telephone: student.phone || "",
+        email: student.email || "",
+        adresse: "",
+      },
+      modePaiement: "mensuel" as const,
+      optionsSupplementaires: {
+        tenueScolaire: false,
+        carteScolaire: false,
+        cooperative: false,
+        tenueEPS: false,
+        assurance: false,
+      },
+      fraisOptionsSupplementaires: {
+        tenueScolaire: 0,
+        carteScolaire: 0,
+        cooperative: 0,
+        tenueEPS: 0,
+        assurance: 0,
+      },
+      moisPaiement: [],
+      optionsPersonnalisees: [],
+    }))
+  }, [supabaseStudents])
+
+  const allStudents = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()
+
   const [archives, setArchives] = useState<EleveArchive[]>([])
   const [showArchiveModal, setShowArchiveModal] = useState(false)
-  const [selectedEleve, setSelectedEleve] = useState<string>("")
+  const [selectedEleve, setSelectedEleve] = useState("")
   const [motifArchivage, setMotifArchivage] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   const [filterAnnee, setFilterAnnee] = useState("tous")
@@ -23,8 +75,8 @@ export default function ArchivagePage() {
 
   useEffect(() => {
     setArchives(serviceArchivage.obtenirTousLesArchives())
-    setElevesActifs(serviceEleves.obtenirTousLesEleves().filter(e => e.statut === "actif"))
-  }, [])
+    setElevesActifs(allStudents.filter((e) => e.statut === "actif"))
+  }, [allStudents])
 
   const handleArchiverEleve = () => {
     if (!selectedEleve || !motifArchivage) {
@@ -40,12 +92,12 @@ export default function ArchivagePage() {
 
     if (confirm(`Êtes-vous sûr de vouloir archiver ${eleve.prenom} ${eleve.nom} ?`)) {
       serviceArchivage.archiverEleve(eleve, motifArchivage)
-      
+
       // Mettre à jour le statut de l'élève
       serviceEleves.mettreAJourStatut(selectedEleve, "archive")
-      
+
       setArchives(serviceArchivage.obtenirTousLesArchives())
-      setElevesActifs(serviceEleves.obtenirTousLesEleves().filter(e => e.statut === "actif"))
+      setElevesActifs(allStudents.filter((e) => e.statut === "actif"))
       setShowArchiveModal(false)
       setSelectedEleve("")
       setMotifArchivage("")
@@ -58,9 +110,9 @@ export default function ArchivagePage() {
       
       // Réactiver l'élève
       serviceEleves.mettreAJourStatut(id, "actif")
-      
+
       setArchives(serviceArchivage.obtenirTousLesArchives())
-      setElevesActifs(serviceEleves.obtenirTousLesEleves().filter(e => e.statut === "actif"))
+      setElevesActifs(allStudents.filter((e) => e.statut === "actif"))
     }
   }
 

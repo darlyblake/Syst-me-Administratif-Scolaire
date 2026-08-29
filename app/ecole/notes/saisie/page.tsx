@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,23 +10,104 @@ import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Save, Calculator } from "lucide-react"
 import Link from "next/link"
 import { serviceEleves } from "@/services/eleves.service"
+import { useAuthentification } from "@/providers/authentification.provider"
+import { useStudents } from "@/hooks/useStudents"
+import { useAcademicStructure } from "@/hooks/useAcademicStructure"
+import { useClassGrades } from "@/hooks/useGrades"
+import { createGrade, updateGrade } from "@/lib/supabase/services/grade.service"
 
 export default function SaisieNotes() {
+  const { utilisateur } = useAuthentification()
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { data: academicStructure } = useAcademicStructure(establishmentId)
   const [selectedClasse, setSelectedClasse] = useState("")
   const [selectedMatiere, setSelectedMatiere] = useState("")
   const [selectedTrimestre, setSelectedTrimestre] = useState("1")
+  const { data: supabaseStudents, isLoading: isLoadingSupabase } = useStudents(establishmentId, {
+    classId: selectedClasse || null,
+    status: "active",
+  })
+  const { grades: supabaseGrades, isLoading: isLoadingGrades } = useClassGrades(
+    selectedClasse || null,
+    { subject: selectedMatiere, term: selectedTrimestre }
+  )
+
+  const mappedSupabaseStudents = useMemo(() => {
+    return (supabaseStudents ?? []).map((student) => ({
+      id: student.id,
+      identifiant: student.id.slice(0, 8).toUpperCase(),
+      motDePasse: "",
+      nom: student.last_name || "",
+      prenom: student.first_name || "",
+      dateNaissance: student.date_of_birth || "",
+      lieuNaissance: student.place_of_birth || "",
+      sexe: student.gender || "",
+      classe: "",
+      classeAncienne: "",
+      nomParent: "",
+      contactParent: "",
+      adresse: "",
+      dateInscription: student.created_at || "",
+      statut: "actif" as const,
+      totalAPayer: 0,
+      typeInscription: "inscription" as const,
+      informationsContact: {
+        telephone: student.phone || "",
+        email: student.email || "",
+        adresse: "",
+      },
+      modePaiement: "mensuel" as const,
+      optionsSupplementaires: {
+        tenueScolaire: false,
+        carteScolaire: false,
+        cooperative: false,
+        tenueEPS: false,
+        assurance: false,
+      },
+      fraisOptionsSupplementaires: {
+        tenueScolaire: 0,
+        carteScolaire: 0,
+        cooperative: 0,
+        tenueEPS: 0,
+        assurance: 0,
+      },
+      moisPaiement: [],
+      optionsPersonnalisees: [],
+    }))
+  }, [supabaseStudents])
+
   const [notes, setNotes] = useState<Record<string, { note: number; appreciation: string }>>({})
 
-  const classes = ["PS1", "PS2", "MS1", "MS2", "GS", "CP", "CE1", "CE2", "CM1", "CM2", "6eme", "5eme", "4eme", "3eme"]
+  const legacyClasses = ["PS1", "PS2", "MS1", "MS2", "GS", "CP", "CE1", "CE2", "CM1", "CM2", "6eme", "5eme", "4eme", "3eme"]
+  const academicClasses = academicStructure.flatMap((cycle) =>
+    (cycle.grade_levels ?? []).flatMap((level) =>
+      (level.school_classes ?? []).map((schoolClass) => ({ id: schoolClass.id, name: schoolClass.name }))
+    )
+  )
+  const classes = academicClasses.length > 0 ? academicClasses : legacyClasses.map((name) => ({ id: name, name }))
+  const selectedClassName = classes.find((schoolClass) => schoolClass.id === selectedClasse)?.name || selectedClasse
   const matieres = [
     "Français", "Mathématiques", "Histoire-Géographie", "Sciences",
     "Anglais", "EPS", "Arts Plastiques", "Musique", "Informatique"
   ]
 
-  const allStudents = serviceEleves.obtenirTousLesEleves()
-  const filteredStudents = selectedClasse 
-    ? allStudents.filter(s => s.classe === selectedClasse)
+  const allStudents = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()
+  const filteredStudents = selectedClasse
+    ? mappedSupabaseStudents.length > 0
+      ? allStudents
+      : allStudents.filter(s => s.classe === selectedClassName)
     : []
+
+  useEffect(() => {
+    const loadedNotes: Record<string, { note: number; appreciation: string }> = {}
+    supabaseGrades.forEach((grade) => {
+      loadedNotes[grade.student_id] = {
+        note: grade.score,
+        appreciation: grade.appreciation || "",
+      }
+    })
+    setNotes(loadedNotes)
+  }, [supabaseGrades])
 
   const handleNoteChange = (studentId: string, value: string) => {
     const note = parseFloat(value) || 0
@@ -56,12 +137,32 @@ export default function SaisieNotes() {
     return (sum / notesArray.length).toFixed(2)
   }
 
-  const handleSave = () => {
-    console.log("Notes sauvegardées:", notes)
-    console.log("Classe:", selectedClasse)
-    console.log("Matière:", selectedMatiere)
-    console.log("Trimestre:", selectedTrimestre)
-    // TODO: Implémenter la sauvegarde dans la base de données
+  const handleSave = async () => {
+    if (!selectedClasse || !selectedMatiere || filteredStudents.length === 0) return
+
+    try {
+      await Promise.all(filteredStudents
+        .filter((student) => notes[student.id])
+        .map((student) => {
+          const note = notes[student.id]
+          const existingGrade = supabaseGrades.find((grade) => grade.student_id === student.id)
+          return existingGrade
+            ? updateGrade(existingGrade.id, { score: note.note, appreciation: note.appreciation })
+            : createGrade({
+                establishment_id: establishmentId,
+                student_id: student.id,
+                class_id: selectedClasse,
+                subject: selectedMatiere,
+                term: selectedTrimestre,
+                score: note.note,
+                max_score: 20,
+                appreciation: note.appreciation,
+              })
+        }))
+      alert("Les notes ont été sauvegardées.")
+    } catch {
+      alert("Impossible de sauvegarder les notes.")
+    }
   }
 
   return (
@@ -145,13 +246,16 @@ export default function SaisieNotes() {
           <Card>
             <CardHeader>
               <CardTitle>
-                {selectedClasse} - {selectedMatiere} - Trimestre {selectedTrimestre}
+                {selectedClassName} - {selectedMatiere} - Trimestre {selectedTrimestre}
               </CardTitle>
               <CardDescription>
                 Moyenne de classe: <span className="font-bold">{calculerMoyenneClasse()}/20</span>
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {isLoadingSupabase || isLoadingGrades ? (
+                <p className="py-8 text-center text-gray-500">Chargement des élèves et des notes...</p>
+              ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -193,6 +297,7 @@ export default function SaisieNotes() {
                   </tbody>
                 </table>
               </div>
+              )}
 
               {/* Boutons d'action */}
               <div className="flex gap-4 mt-6">

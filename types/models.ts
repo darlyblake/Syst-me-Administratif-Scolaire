@@ -8,6 +8,7 @@ export interface Utilisateur {
   id: string
   nomUtilisateur: string
   role: Role
+  etablissementId?: string
   dernierConnexion?: string
   donneesEleve?: DonneesEleve
   donneesEnseignant?: DonneesEnseignant

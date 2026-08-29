@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Save, Settings, Calendar, DollarSign, RotateCcw, CreditCard, Plus, Trash2, Edit, Check, X, HelpCircle } from "lucide-react"
 import Link from "next/link"
+import { useAuthentification } from "@/providers/authentification.provider"
+import { useEstablishment } from "@/hooks/useEstablishment"
+import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { serviceParametres } from "@/services/parametres.service"
 import type { ParametresEcole, TarificationClasse, OptionsSupplementaires, OptionSupplementaire, TarificationTypeEcole, TarificationNiveau } from "@/services/parametres.service"
 
@@ -26,6 +29,11 @@ interface ParametresPaiement {
 }
 
 export default function SettingsPage() {
+  const { utilisateur } = useAuthentification()
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { data: establishment, error: establishmentError } = useEstablishment(establishmentId)
+  const { data: academicYears, activeYear } = useAcademicYears(establishmentId)
+
   const [settings, setSettings] = useState<ParametresEcole>({
     anneeAcademique: "",
     dateDebut: "",
@@ -84,10 +92,10 @@ export default function SettingsPage() {
 
       // S'assurer que tous les champs sont définis
       setSettings({
-        anneeAcademique: parametresCharges.anneeAcademique || "",
-        dateDebut: parametresCharges.dateDebut || "",
-        dateFin: parametresCharges.dateFin || "",
-        nomEcole: parametresCharges.nomEcole || "",
+        anneeAcademique: parametresCharges.anneeAcademique || activeYear?.name || academicYears[0]?.name || "",
+        dateDebut: parametresCharges.dateDebut || activeYear?.start_date || "",
+        dateFin: parametresCharges.dateFin || activeYear?.end_date || "",
+        nomEcole: parametresCharges.nomEcole || establishment?.name || "",
         adresseEcole: parametresCharges.adresseEcole || "",
         telephoneEcole: parametresCharges.telephoneEcole || "",
         nomDirecteur: parametresCharges.nomDirecteur || "",
@@ -117,7 +125,7 @@ export default function SettingsPage() {
       console.error("Erreur lors du chargement des paramètres:", error)
       // Garder les valeurs par défaut en cas d'erreur
     }
-  }, [])
+  }, [academicYears, activeYear, establishment])
 
   // Fonctions de validation
   const validerPrix = (prix: number, champ: string) => {
@@ -415,6 +423,12 @@ export default function SettingsPage() {
               </Button>
             </div>
           </div>
+
+        {establishmentError ? (
+          <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Les paramètres d’établissement ne sont pas disponibles en temps réel, mais la configuration locale reste intacte.
+          </div>
+        ) : null}
 
         <Tabs defaultValue="general" className="space-y-6">
           <TabsList className="grid w-full grid-cols-6">

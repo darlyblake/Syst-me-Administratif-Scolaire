@@ -1,485 +1,1571 @@
-# AGENTS.md — Règles de développement du Système Administratif Scolaire
+# GUIDE AGENT IA — FRONTEND
 
-Ce fichier est la référence obligatoire pour Codex et tout agent travaillant sur ce dépôt.
+## Système Administratif Scolaire — EduPilot
 
-## 1. Objectif du projet
+## 1. Objectif du frontend
+Construire une interface de gestion scolaire professionnelle, moderne, claire et intuitive.
 
-Construire une application de gestion scolaire professionnelle, simple à utiliser au quotidien, moderne sans être artificielle, fiable et maintenable.
+L'application ne doit PAS avoir une apparence « application générée par IA ».
 
-Priorité : clarté opérationnelle, efficacité, cohérence, sécurité et non-régression.
+Éviter notamment :
 
-## 2. Architecture obligatoire
+- multiplication de cards ;
+- gradients inutiles ;
+- gros effets lumineux ;
+- interfaces ressemblant à des dashboards IA ;
+- éléments décoratifs sans utilité ;
+- trop de badges ;
+- trop de couleurs ;
+- animations excessives ;
+- informations répétées ;
+- écrans surchargés.
 
-Respecter la séparation :
+L'interface doit ressembler à un véritable logiciel professionnel utilisé quotidiennement par :
 
-`Page/UI → Hook → Service/Domaine → Source de données`
+- direction ;
+- administration ;
+- secrétariat ;
+- comptabilité ;
+- enseignants ;
+- surveillants.
 
-- Les pages et composants présentent les données et déclenchent les actions.
-- Les hooks constituent la couche de gestion/orchestration côté interface.
-- Les services portent l'accès aux données et les opérations métier de leur domaine.
-- Éviter la logique métier complexe dans les composants.
-- Lorsqu'un hook de domaine existe, une page doit l'utiliser plutôt que multiplier les appels directs aux services.
-- Ne pas créer de hook géant mélangeant plusieurs domaines.
-- Une fonctionnalité doit avoir une source de données clairement identifiée.
-- Ne pas introduire plusieurs sources concurrentes pour une même donnée sans raison documentée.
+Priorité :
 
-## 3. Phase actuelle : frontend + localStorage
+1. simplicité ;
+2. lisibilité ;
+3. rapidité ;
+4. cohérence ;
+5. accessibilité ;
+6. responsive ;
+7. sécurité.
 
-Pour la phase actuelle, **localStorage reste volontairement la source de persistance**.
+---
 
-Ne pas introduire Supabase pendant la refonte frontend.
+# 2. Architecture générale
+Utiliser une architecture par responsabilités.
 
-Ne pas mélanger refonte UI, migration de données et création du backend.
-
-L'objectif est de terminer et stabiliser l'interface et la logique métier locale. Supabase sera traité dans une phase ultérieure avec son propre modèle de données, son authentification, ses RLS et ses tests.
-
-Le code doit néanmoins être organisé pour permettre plus tard de remplacer la source de données sans réécrire toute l'interface.
-
-## 4. Multi-établissement et gestion municipale future
-
-L'application doit être conçue pour évoluer vers une gestion de plusieurs établissements.
-
-Règles métier futures à préserver dès maintenant dans la structure :
-
-- L'administrateur de l'établissement possède la vision la plus large des données de son établissement.
-- Le service comptabilité ne doit accéder qu'aux données nécessaires à la comptabilité.
-- Le secrétariat ne doit accéder qu'aux données nécessaires au secrétariat.
-- La direction ne doit accéder qu'aux données nécessaires à ses responsabilités.
-- La surveillance ne doit accéder qu'aux données nécessaires à la surveillance.
-- Les autres rôles futurs doivent avoir des permissions explicites.
-- Une donnée d'établissement devra être isolée par `etablissementId` ou mécanisme équivalent.
-- Un utilisateur connecté ne doit jamais être considéré automatiquement comme autorisé à toutes les données.
-
-Pendant la phase localStorage, refléter cette séparation dans les hooks, services et composants lorsque cela est pertinent, sans prétendre que l'UI constitue une sécurité backend.
-
-## 5. Sécurité
-
-La sécurité prime sur la commodité.
-
-- Ne jamais mettre de secret, clé privée ou credential sensible dans le frontend.
-- Ne jamais exposer une clé de service Supabase côté client.
-- Ne jamais considérer un rôle, `userId` ou `etablissementId` fourni uniquement par le navigateur comme une autorisation suffisante pour une opération sensible.
-- Lors de l'introduction de Supabase, appliquer RLS et vérifier réellement les policies.
-- Une table avec RLS activé mais sans policies correctes n'est pas considérée comme sécurisée.
-- Les tokens d'appareil et abonnements push doivent être isolés par utilisateur et protégés par des policies adaptées.
-- Les notifications d'une boutique doivent être liées à la boutique concernée et non simplement au vendeur lorsqu'un vendeur peut posséder plusieurs boutiques.
-- Les commandes clients doivent rester liées au client concerné.
-- Ne jamais mélanger les données de deux boutiques ou deux établissements.
-- Les contrôles frontend améliorent l'expérience utilisateur mais ne remplacent jamais les contrôles serveur/base de données.
-
-## 6. Direction UI/UX obligatoire
-
-L'application doit être **moderne, professionnelle, sobre, administrative et claire**.
-
-Elle ne doit pas ressembler à une interface générée par IA ou à un dashboard SaaS à la mode.
-
-### Interdit ou à éviter fortement
-
-- mur de cards ;
-- une card pour chaque information ;
-- grandes grilles de cartes statistiques ;
-- gradients décoratifs ;
-- glassmorphism ;
-- ombres lourdes ;
-- coins excessivement arrondis ;
-- badges colorés partout ;
-- gros chiffres uniquement décoratifs ;
-- icônes devant chaque ligne sans nécessité ;
-- animations permanentes ;
-- illustrations décoratives sans fonction ;
-- interface « AI startup » ;
-- boutons partout ;
-- modales imbriquées ;
-- informations importantes cachées derrière plusieurs clics.
-
-### À privilégier
-
-- hiérarchie typographique nette ;
-- espaces blancs maîtrisés ;
-- alignements précis ;
-- bordures discrètes ;
-- surfaces simples ;
-- tableaux pour les données administratives ;
-- listes lorsque plus adaptées ;
-- formulaires courts et structurés ;
-- recherche et filtres explicites ;
-- actions contextuelles ;
-- modales seulement pour les tâches courtes ;
-- états vides utiles ;
-- messages d'erreur compréhensibles ;
-- confirmations pour les actions destructives ;
-- responsive réellement pensé, pas seulement compressé.
-
-Une card n'est autorisée que lorsqu'elle représente un bloc autonome de contenu ou d'action.
-
-Le design doit être moderne par sa typographie, ses espacements, ses alignements et ses interactions, pas par des effets décoratifs.
-
-## 7. Layout global
-
-Toutes les pages doivent conserver une structure cohérente :
-
-```text
-[Titre]                              [Action principale]
-[Description courte si nécessaire]
-
-[Recherche] [Filtres] [Tri] [Actions secondaires]
-
-Contenu principal
+```
+src/
+│
+├── app/
+│   ├── ecole/
+│   │   ├── dashboard/
+│   │   ├── students/
+│   │   ├── classes/
+│   │   ├── enseignants/
+│   │   ├── personnel/
+│   │   ├── inscriptions/
+│   │   ├── paiements/
+│   │   ├── notes/
+│   │   ├── absences/
+│   │   └── settings/
+│   │
+│   └── ...
+│
+├── components/
+│   ├── ui/
+│   ├── layout/
+│   ├── forms/
+│   ├── tables/
+│   ├── students/
+│   ├── classes/
+│   ├── academic/
+│   ├── tuition/
+│   └── payments/
+│
+├── lib/
+│   ├── supabase/
+│   │   ├── client.ts
+│   │   ├── services/
+│   │   │   ├── establishment.service.ts
+│   │   │   ├── academic-year.service.ts
+│   │   │   ├── academic.service.ts
+│   │   │   ├── student.service.ts
+│   │   │   ├── tuition.service.ts
+│   │   │   ├── enrollment.service.ts
+│   │   │   └── payment.service.ts
+│   │   │
+│   │   └── types/
+│   │       ├── establishment.ts
+│   │       ├── academic.ts
+│   │       ├── student.ts
+│   │       ├── tuition.ts
+│   │       ├── enrollment.ts
+│   │       └── payment.ts
+│   │
+│   ├── validations/
+│   │   ├── student.schema.ts
+│   │   ├── class.schema.ts
+│   │   ├── tuition.schema.ts
+│   │   └── enrollment.schema.ts
+│   │
+│   └── utils/
+│
+└── hooks/
+    ├── use-academic-structure.ts
+    ├── use-students.ts
+    ├── use-tuition.ts
+    ├── use-enrollment.ts
+    └── use-payments.ts
 ```
 
-Le titre décrit la ressource : `Classes`, `Élèves`, `Enseignants`, etc. Éviter les titres marketing.
+Ne pas créer inutilement des fichiers.
 
-## 8. Pages de liste
+Avant de créer un nouveau composant ou service, vérifier s'il existe déjà un composant réutilisable.
 
-Pour une collection :
+---
 
-1. titre + contexte ;
-2. résumé compact si utile ;
-3. recherche ;
-4. filtres/tri ;
-5. tableau ou liste ;
-6. pagination ou résumé du nombre de résultats.
+# 3. Supabase
+Le frontend utilise uniquement les variables publiques :
 
-Le tableau est prioritaire lorsque l'utilisateur doit comparer plusieurs enregistrements.
+```
+NEXT_PUBLIC_SUPABASE_URL=https://mogbzexqcatpgfrwzjld.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<PUBLISHABLE_KEY>
+```
+
+Ne jamais mettre :
+
+```
+SUPABASE_SERVICE_ROLE_KEY
+```
+
+dans :
+
+- composants React ;
+- hooks client ;
+- `NEXT_PUBLIC_*` ;
+- code exécuté dans le navigateur.
+
+La service role key est exclusivement réservée au serveur lorsqu'elle sera nécessaire.
+
+---
+
+# 4. Client Supabase
+Créer :
+
+```
+src/lib/supabase/client.ts
+```
+
+Responsabilité :
+
+- créer le client Supabase ;
+- ne contenir aucune logique métier ;
+- être utilisé par les services.
 
 Exemple :
 
-`Classe | Niveau | Élèves | Responsable | Actions`
+```ts
+import { createBrowserClient } from "@supabase/ssr";
 
-Ne pas transformer chaque ligne en card.
-
-## 9. Pages de détail
-
-Structure recommandée :
-
-```text
-← Retour
-
-Nom de la ressource                       [Modifier]
-Informations d'identification
-
-Informations principales
-
-Données associées
-
-Historique/activité si pertinent
+export function createSupabaseBrowserClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
 ```
 
-Ne pas cacher inutilement les informations derrière des accordéons.
+Ne pas créer plusieurs clients Supabase différents dans les composants.
 
-## 10. Formulaires
+---
 
-Organiser les champs par groupes logiques.
+# 5. Types TypeScript
+Les types doivent correspondre aux tables Supabase.
 
-- Labels explicites.
-- Placeholder ne remplace jamais un label.
-- Champs obligatoires clairement identifiés.
-- Validation proche du champ.
-- Erreurs compréhensibles.
-- Bouton d'enregistrement avec état de chargement.
-- Empêcher les doubles soumissions.
-- Confirmer la fermeture si des données saisies risquent d'être perdues.
+Créer :
 
-## 11. Modales
+```
+src/lib/supabase/types/
+```
 
-Une modale doit correspondre à une tâche courte et focalisée.
+## academic.ts
+Doit contenir les types :
 
-Utiliser une modale pour : création rapide, modification courte, confirmation destructive ou détail secondaire simple.
+```
+Establishment
+AcademicYear
+EducationCycle
+GradeLevel
+SchoolClass
+```
 
-Utiliser une page pour un workflow long, un formulaire complexe, une configuration importante ou beaucoup de données associées.
+Relations :
 
-Éviter les modales imbriquées.
+```
+EducationCycle
+    ↓
+GradeLevel
+    ↓
+SchoolClass
+```
 
-## 12. Suppression
+---
 
-Toute suppression potentiellement irréversible doit être confirmée.
+## tuition.ts
+Types :
 
-La confirmation doit préciser ce qui sera supprimé et ses conséquences éventuelles.
+```
+TuitionPlan
+TuitionPlanInstallment
+PaymentMode
+```
 
-Ne jamais utiliser uniquement `Êtes-vous sûr ?`.
+Modes :
 
-## 13. Recherche, filtres et tri
+```ts
+type PaymentMode =
+  | "monthly"
+  | "installments"
+  | "single";
+```
 
-La recherche doit être simple et visible.
+---
 
-Les filtres doivent répondre à des besoins réels. Ne pas afficher une dizaine de filtres si deux suffisent.
+## student.ts
 
-Les filtres actifs doivent pouvoir être retirés rapidement.
+```ts
+Student
+```
 
-## 14. États d'interface obligatoires
+---
 
-Prévoir lorsque pertinent :
+## enrollment.ts
 
-- chargement ;
-- liste vide ;
-- recherche sans résultat ;
-- erreur ;
-- action en cours ;
-- succès ;
-- confirmation.
+```ts
+Enrollment
+```
 
-Un état vide doit expliquer la situation et proposer l'action suivante.
+---
 
-## 15. Feedback utilisateur
+## payment.ts
 
-Utiliser les toasts pour les retours courts : `Classe créée`, `Modifications enregistrées`, etc.
+```ts
+Payment
+PaymentSchedule
+PaymentAllocation
+InstallmentStatus
+```
 
-Ne pas utiliser un toast pour remplacer une information importante qui doit rester visible dans la page.
+Ne pas utiliser `any` pour contourner les types.
 
-## 16. Statistiques
+---
 
-Les statistiques sont secondaires.
+# 6. Service Academic
+Créer :
 
-Préférer une ligne compacte comme :
+```
+src/lib/supabase/services/academic.service.ts
+```
 
-`24 classes · 812 élèves · 34 enseignants`
+Fonctions obligatoires :
 
-plutôt que plusieurs grandes cards.
+```ts
+getCycles(establishmentId)
 
-Un graphique doit répondre à une question métier précise.
+createCycle(data)
 
-## 17. Module Classes
+updateCycle(cycleId, data)
 
-La page principale doit privilégier :
+deactivateCycle(cycleId)
 
-- titre `Classes` ;
-- description courte ;
-- action `Nouvelle classe` ;
-- résumé compact ;
-- recherche ;
-- filtre niveau/statut lorsque nécessaire ;
-- tableau principal ;
-- actions contextuelles.
+getLevelsByCycle(cycleId)
 
-Le tableau doit permettre de voir rapidement :
+createLevel(data)
 
-`Classe | Niveau | Effectif | Responsable | Actions`
+updateLevel(levelId, data)
 
-La fiche d'une classe doit pouvoir organiser :
+deactivateLevel(levelId)
 
-- informations générales ;
+getClassesByLevel(levelId)
+
+createClass(data)
+
+updateClass(classId, data)
+
+deactivateClass(classId)
+
+getAcademicStructure(establishmentId)
+```
+
+---
+
+# 7. getAcademicStructure()
+Cette fonction est fondamentale.
+
+Elle doit récupérer :
+
+```
+Cycle
+  ↓
+Niveaux
+  ↓
+Classes
+```
+
+Résultat attendu :
+
+```ts
+[
+  {
+    id: "...",
+    name: "Collège",
+
+    grade_levels: [
+      {
+        id: "...",
+        name: "6ème",
+
+        school_classes: [
+          {
+            id: "...",
+            name: "6ème A"
+          },
+          {
+            id: "...",
+            name: "6ème B"
+          }
+        ]
+      }
+    ]
+  }
+]
+```
+
+La page Structure académique doit utiliser cette fonction plutôt que multiplier les requêtes.
+
+---
+
+# 8. Service Academic Year
+Créer :
+
+```
+academic-year.service.ts
+```
+
+Fonctions :
+
+```ts
+getAcademicYears(establishmentId)
+
+getActiveAcademicYear(establishmentId)
+
+createAcademicYear(data)
+
+activateAcademicYear(yearId)
+
+closeAcademicYear(yearId)
+```
+
+L'année active doit être clairement identifiable.
+
+Dans l'interface :
+
+```
+Année scolaire
+
+[ 2026 - 2027 ▼ ]
+```
+
+Cette année sélectionnée doit être utilisée par les modules :
+
+- inscriptions ;
+- scolarité ;
+- classes ;
 - élèves ;
-- enseignants/responsables ;
-- horaires ;
-- actions de répartition ;
-- autres informations réellement nécessaires.
+- paiements ;
+- notes.
 
-Ne pas présenter ces domaines comme trois grosses cards décoratives.
+---
 
-## 18. Module Enseignants
+# 9. Service Tuition
+Créer :
+
+```
+tuition.service.ts
+```
+
+Fonctions :
+
+```ts
+getTuitionPlans(academicYearId)
+
+getTuitionPlan(academicYearId, gradeLevelId)
+
+createTuitionPlan(data)
+
+updateTuitionPlan(planId, data)
+
+deactivateTuitionPlan(planId)
+```
+
+---
+
+# 10. Logique des tarifs
+ATTENTION :
+
+Le tarif est lié au :
+
+```
+Niveau
+```
+
+et non à :
+
+```
+Classe
+```
+
+Exemple :
+
+```
+Collège
+│
+├── 6ème
+│     ├── 6ème A
+│     └── 6ème B
+│
+└── 5ème
+      ├── 5ème A
+      └── 5ème B
+```
+
+Si le tarif de 6ème est :
+
+```
+450 000 FCFA
+Paiement mensuel
+```
+
+alors :
+
+```
+6ème A → même tarif
+6ème B → même tarif
+```
+
+Ne jamais créer un tarif différent automatiquement pour chaque classe.
+
+---
+
+# 11. Interface Scolarité
+Route :
+
+```
+/ecole/settings/scolarite
+```
+
+Interface recommandée :
+
+```
+Scolarité
+
+Année scolaire
+[ 2026 - 2027 ]
+
+────────────────────────────────
+
+Collège
+
+6ème
+450 000 FCFA
+Paiement mensuel
+
+                              Modifier
+
+5ème
+500 000 FCFA
+4 tranches
+
+                              Modifier
+
+4ème
+550 000 FCFA
+6 tranches
+
+                              Modifier
+```
+
+Éviter les grosses cards.
 
 Privilégier :
 
-`Nom | Matières | Classes | Statut | Actions`
+- tableau ;
+- lignes ;
+- sections ;
+- panneaux latéraux ;
+- formulaires simples.
 
-La fiche enseignant doit organiser les informations professionnelles, classes associées et matières.
+---
 
-Les composants réellement génériques entre Enseignants et Classes doivent être mutualisés.
+# 12. Formulaire de configuration d'un tarif
+Quand l'utilisateur clique sur Modifier :
 
-## 19. Module Élèves
+```
+Configuration de la scolarité
 
-Priorité à la recherche rapide :
+Niveau
+4ème
 
-`Nom | Classe | Responsable | Statut | Actions`
+Frais d'inscription
+[ 25 000 FCFA ]
 
-La fiche élève peut organiser identité, scolarité, responsables, présence, finances et documents selon les permissions.
+Scolarité annuelle
+[ 550 000 FCFA ]
 
-## 20. Modules financiers
+Mode de paiement
 
-Privilégier précision et lisibilité : tableaux, montants alignés, dates, statuts, filtres par période et exports si nécessaires.
+( ) Mensuel
+(•) Par tranches
+( ) Paiement unique
+```
 
-Éviter les graphiques décoratifs.
+Si :
 
-## 21. Tableau de bord
+```
+Par tranches
+```
 
-Le dashboard doit répondre à : `Que dois-je savoir ou faire maintenant ?`
+est sélectionné :
 
-Éviter une collection de cards.
+```
+Nombre de tranches
+[ 6 ]
+```
 
-Afficher prioritairement :
+Puis :
 
-- éléments à traiter ;
-- validations en attente ;
-- absences ou problèmes à vérifier ;
-- paiements à contrôler pour les rôles concernés ;
-- résumé utile de l'établissement ;
-- activité récente.
+```
+Échéances
 
-Le contenu doit varier selon les permissions de l'utilisateur.
+1
+Libellé : Première tranche
+Montant : 100 000
+Date : 05/09/2026
 
-## 22. Permissions dans l'interface
+2
+Libellé : Deuxième tranche
+Montant : 100 000
+Date : 05/11/2026
 
-L'interface doit refléter les permissions : masquer les actions auxquelles l'utilisateur n'a pas accès lorsque cela améliore la clarté.
+...
 
-Mais l'UI ne constitue jamais le contrôle de sécurité final.
+Total configuré :
+550 000 FCFA
 
-Rôles principaux : administrateur d'établissement, direction, secrétariat, comptabilité, surveillance, et futurs rôles.
+Scolarité :
+550 000 FCFA
 
-## 23. Composants communs à privilégier
+✓ Les montants correspondent
+```
 
-Créer ou centraliser si le projet ne possède pas déjà un équivalent correct :
+Le bouton Enregistrer doit être désactivé si le total est incorrect.
 
-- `PageHeader` ;
-- `DataTable` ;
-- `SearchInput` ;
-- `FilterBar` ;
-- `EmptyState` ;
-- `ErrorState` ;
-- `LoadingState` ;
-- `ConfirmDialog` ;
-- `FormField` ;
-- `ActionMenu` ;
-- `StatusBadge` uniquement lorsqu'un statut nécessite réellement un repère visuel.
+---
 
-Avant de créer un composant, rechercher les composants existants.
+# 13. Service Student
+Créer :
 
-## 24. Composants à réutiliser
+```
+student.service.ts
+```
 
-Réutiliser un composant s'il :
+Fonctions :
 
-- possède la bonne responsabilité ;
-- est suffisamment générique ;
-- respecte le nouveau système visuel ;
-- n'embarque pas de logique métier spécifique inutile.
+```ts
+getStudents(establishmentId, filters)
 
-Ne pas dupliquer un composant uniquement pour changer quelques styles.
+getStudent(studentId)
 
-## 25. Composants à nettoyer
+createStudent(data)
 
-Les composants nommés `Fixed`, `New`, `V2`, `Final`, `Improved` ou équivalents doivent être considérés comme candidats au nettoyage.
+updateStudent(studentId, data)
 
-Comparer leur contenu avant suppression. Conserver une seule implémentation propre lorsque deux composants ont la même responsabilité.
+deactivateStudent(studentId)
+```
 
-Supprimer les wrappers inutiles et composants qui ne font que transmettre des props sans responsabilité claire.
+Filtres :
 
-## 26. Responsive
+```
+Recherche
+Classe
+Niveau
+Année scolaire
+Statut
+```
 
-### Desktop
-Tableaux complets et navigation confortable.
+---
 
-### Tablette
-Réduire les colonnes secondaires sans perdre les actions principales.
+# 14. Service Enrollment
+Créer :
 
-### Mobile
-Ne pas réduire un tableau desktop jusqu'à le rendre illisible. Adapter en liste structurée, masquer les colonnes secondaires ou utiliser un menu d'actions.
+```
+enrollment.service.ts
+```
 
-Les formulaires passent en une colonne lorsque nécessaire.
+Fonctions :
 
-## 27. Accessibilité
+```ts
+createEnrollment(data)
 
-- HTML sémantique.
-- Labels explicites.
-- Focus visible.
-- Navigation clavier.
-- Boutons réellement accessibles.
-- Modales avec focus correct.
-- `aria-label` uniquement lorsque le nom accessible n'est pas déjà fourni.
-- Ne jamais transmettre une information uniquement par la couleur.
+getEnrollments(filters)
 
-## 28. TypeScript
+getEnrollment(enrollmentId)
 
-- Éviter `any` lorsque le type réel est connu.
-- Réutiliser les types existants.
-- Définir des types précis pour formulaires et réponses.
-- Ne pas masquer les erreurs avec `as any`.
-- Valider les données externes selon le besoin.
+getEnrollmentSchedule(enrollmentId)
+```
 
-## 29. Performance
+La fonction principale :
 
-- Éviter les appels répétés à chaque rendu.
-- Éviter les `useEffect` superflus.
-- Ne charger que les données nécessaires à la page.
-- Utiliser pagination, filtrage efficace ou virtualisation lorsque les volumes le justifient.
-- Ne pas utiliser `useMemo` ou `useCallback` partout sans bénéfice réel.
+```ts
+createEnrollment()
+```
 
-## 30. Avant de modifier une page
+doit simplement créer l'inscription.
 
-Toujours :
+Ne pas générer manuellement l'échéancier dans React.
 
-1. lire la page ;
-2. rechercher les composants utilisés ;
-3. rechercher les hooks ;
-4. rechercher les services ;
-5. rechercher les types ;
-6. rechercher les pages qui utilisent les mêmes composants ;
-7. identifier les fonctionnalités existantes ;
-8. identifier les permissions ;
-9. définir la nouvelle structure ;
-10. réutiliser ou créer les composants nécessaires ;
-11. vérifier les états ;
-12. vérifier responsive et accessibilité ;
-13. lancer les vérifications disponibles.
+La base Supabase possède déjà le trigger prévu pour générer :
 
-Ne jamais réécrire un gros fichier à l'aveugle.
+```
+payment_schedules
+```
 
-## 31. Non-régression
+---
 
-Ne jamais supprimer une fonctionnalité existante pour obtenir une interface plus jolie.
+# 15. Formulaire d'inscription
+L'expérience utilisateur doit suivre cet ordre :
 
-Si une refonte UI nécessite une modification de logique métier, identifier clairement ce changement et vérifier son impact.
+```
+Élève
+ ↓
+Année scolaire
+ ↓
+Cycle
+ ↓
+Niveau
+ ↓
+Classe
+ ↓
+Informations financières
+ ↓
+Confirmation
+```
 
-## 32. Validation
+Exemple :
 
-Avant de considérer une modification terminée :
+```
+Nouvelle inscription
 
-- TypeScript/typecheck ;
-- ESLint ;
-- tests concernés ;
-- build si disponible ;
-- console navigateur lorsque possible ;
-- navigation ;
-- scénarios principaux ;
-- états loading/empty/error ;
-- responsive ;
-- permissions lorsque concernées.
+Élève
+[ Jean Dupont ]
 
-Compiler ne suffit pas.
+Année
+[ 2026-2027 ]
 
-## 33. Git
+Cycle
+[ Collège ]
 
-Pour une refonte importante, préférer une branche dédiée plutôt que travailler directement sur `main`.
+Niveau
+[ 6ème ]
+
+Classe
+[ 6ème B ]
+```
+
+Après sélection du niveau :
+
+```
+Scolarité
+
+450 000 FCFA / an
+
+Paiement mensuel
+
+10 échéances de 45 000 FCFA
+```
+
+Ces informations sont récupérées automatiquement.
+
+L'utilisateur ne doit pas devoir rechercher manuellement le tarif.
+
+---
+
+# 16. Chargement dynamique
+Lorsque l'utilisateur choisit :
+
+```
+Cycle = Collège
+```
+
+appeler :
+
+```ts
+getLevelsByCycle(cycleId)
+```
+
+Lorsque l'utilisateur choisit :
+
+```
+Niveau = 6ème
+```
+
+appeler simultanément :
+
+```ts
+getClassesByLevel(levelId)
+
+getTuitionPlan(
+  academicYearId,
+  levelId
+)
+```
+
+Utiliser :
+
+```ts
+Promise.all()
+```
+
+si les deux requêtes sont indépendantes.
+
+---
+
+# 17. Service Payment
+Créer :
+
+```
+payment.service.ts
+```
+
+Fonctions :
+
+```ts
+createPayment(data)
+
+allocatePayment(data)
+
+getPayments(enrollmentId)
+
+getStudentPaymentHistory(studentId)
+
+getPaymentSchedule(enrollmentId)
+```
+
+---
+
+# 18. Affichage d'un échéancier
+Ne pas présenter cela comme un dashboard IA.
+
+Faire simplement :
+
+```
+Scolarité de Jean Dupont
+
+Total :
+450 000 FCFA
+
+Payé :
+180 000 FCFA
+
+Reste :
+270 000 FCFA
+
+────────────────────────────
+
+Échéances
+
+Septembre
+45 000 FCFA
+Payé
+
+Octobre
+45 000 FCFA
+Payé
+
+Novembre
+45 000 FCFA
+Partiellement payé
+
+Décembre
+45 000 FCFA
+À payer
+```
+
+Utiliser une table ou une liste structurée.
+
+---
+
+# 19. Composants réutilisables
+Créer des composants génériques :
+
+```
+components/ui/
+```
 
 Exemples :
 
-`refactor/classes-architecture`
-`fix/ui-permissions`
-`feat/emploi-du-temps`
+```
+Button
+Input
+Select
+Dialog
+Drawer
+Table
+Badge
+Dropdown
+Tabs
+Pagination
+EmptyState
+ConfirmDialog
+Skeleton
+Toast
+```
 
-Commits courts et descriptifs :
+Ne pas recréer un bouton différent dans chaque module.
 
-`refactor(classes): rebuild classes interface`
-`fix(classes): prevent duplicate assignment`
-`docs(ui): update interface guidelines`
+---
 
-Avant fusion : relire le diff complet.
+# 20. Composants métier
+Créer :
 
-## 34. Règle de décision
+```
+components/academic/
+```
 
-Si le choix est entre une solution spectaculaire et complexe et une solution simple, claire et maintenable, choisir la seconde.
+avec par exemple :
 
-Si le choix est entre nouveauté et cohérence, choisir la cohérence.
+```
+CycleList
+CycleForm
+GradeLevelList
+GradeLevelForm
+ClassList
+ClassForm
+AcademicStructureTree
+```
 
-Si le choix est entre esthétique et efficacité, choisir l'efficacité.
+Puis :
 
-L'application doit donner l'impression d'avoir été conçue par une équipe professionnelle de logiciels administratifs, pas par un générateur de dashboards IA.
+```
+components/tuition/
+```
 
-## 35. Checklist finale
+avec :
 
-- [ ] Fonctionnalités existantes conservées
-- [ ] Page → Hook → Service respecté
-- [ ] Source de données clairement identifiée
-- [ ] Aucun secret côté frontend
-- [ ] Permissions vérifiées
-- [ ] Isolation établissement prise en compte dans l'architecture
-- [ ] Recherche/filtres cohérents
-- [ ] Loading/empty/error gérés
-- [ ] Interface sobre et professionnelle
-- [ ] Pas de cards décoratives inutiles
-- [ ] Tableau utilisé lorsque pertinent
-- [ ] Responsive vérifié
-- [ ] Accessibilité vérifiée
-- [ ] Pas de composants doublons inutiles
-- [ ] TypeScript correct
-- [ ] Lint passé
-- [ ] Tests/build passés lorsque disponibles
-- [ ] Diff relu
+```
+TuitionPlanList
+TuitionPlanForm
+InstallmentEditor
+PaymentModeSelector
+TuitionSummary
+```
+
+Puis :
+
+```
+components/enrollment/
+```
+
+avec :
+
+```
+EnrollmentForm
+EnrollmentSummary
+EnrollmentAcademicSelector
+EnrollmentTuitionSummary
+```
+
+---
+
+# 21. Hooks
+Les pages ne doivent pas contenir toute la logique de récupération des données.
+
+Créer :
+
+```
+hooks/
+```
+
+Exemples :
+
+```
+useAcademicStructure()
+
+useAcademicYears()
+
+useStudents()
+
+useTuitionPlans()
+
+useEnrollment()
+
+usePaymentSchedule()
+```
+
+Exemple :
+
+```ts
+const {
+  data,
+  isLoading,
+  error
+} = useAcademicStructure(establishmentId);
+```
+
+---
+
+# 22. États de chargement
+Chaque page doit prévoir :
+
+```
+Loading
+Empty
+Error
+Success
+```
+
+Ne jamais afficher une page vide pendant une requête.
+
+Exemple :
+
+```
+Chargement de la structure...
+```
+
+Utiliser des skeletons discrets.
+
+---
+
+# 23. États vides
+Exemple :
+
+```
+Aucune classe
+
+Aucune classe n'a encore été créée pour ce niveau.
+
+[ Ajouter une classe ]
+```
+
+Pas :
+
+```
+No data found
+```
+
+L'application doit être entièrement en français.
+
+---
+
+# 24. Gestion des erreurs
+Ne jamais afficher directement :
+
+```
+PostgREST error...
+```
+
+Transformer les erreurs techniques en messages utilisateur.
+
+Exemple :
+
+```
+Impossible d'enregistrer la scolarité.
+
+Vérifiez que le total des échéances
+correspond au montant annuel.
+```
+
+Les détails techniques doivent rester dans les logs.
+
+---
+
+# 25. Architecture des pages
+
+## Dashboard
+Afficher uniquement les informations utiles :
+
+```
+Bonjour
+
+Année scolaire : 2026-2027
+
+Élèves
+1 245
+
+Enseignants
+86
+
+Classes
+42
+
+Scolarité encaissée
+...
+```
+
+Pas 20 cartes.
+
+---
+
+# 26. Page Classes
+Route :
+
+```
+/ecole/classes
+```
+
+Présentation :
+
+```
+Classes
+
+[ Rechercher ]
+
+Cycle       Niveau       Classe       Effectif
+
+Collège     6ème         6ème A       35
+Collège     6ème         6ème B       32
+Collège     5ème         5ème A       30
+```
+
+Actions :
+
+```
+Voir
+Modifier
+```
+
+---
+
+# 27. Page Élèves
+Route :
+
+```
+/ecole/students
+```
+
+Utiliser une vraie table.
+
+Colonnes :
+
+```
+N° étudiant
+Nom
+Prénom
+Classe
+Statut
+Actions
+```
+
+Recherche visible en haut.
+
+Filtres secondaires.
+
+---
+
+# 28. Page Paramètres
+Route :
+
+```
+/ecole/settings
+```
+
+Ne pas mettre 50 paramètres sur une seule page.
+
+Organisation :
+
+```
+Paramètres
+
+Général
+Informations de l'établissement
+
+Année scolaire
+Gestion des années
+
+Structure académique
+Cycles, niveaux et classes
+
+Scolarité
+Tarifs et modes de paiement
+
+Utilisateurs
+Utilisateurs et permissions
+```
+
+---
+
+# 29. Responsive
+L'application doit fonctionner correctement :
+
+```
+Desktop
+Laptop
+Tablette
+Mobile
+```
+
+Sur mobile :
+
+- sidebar transformée en navigation compacte ;
+- tableaux pouvant devenir des listes ;
+- formulaires en une colonne ;
+- boutons accessibles au doigt ;
+- aucun débordement horizontal inutile.
+
+---
+
+# 30. Performance
+Éviter :
+
+```
+requête Supabase
+dans chaque composant
+```
+
+Préférer :
+
+```
+Page
+ ↓
+Hook
+ ↓
+Service
+ ↓
+Supabase
+```
+
+Mettre en cache les données relativement stables :
+
+- cycles ;
+- niveaux ;
+- classes ;
+- année scolaire.
+
+Après mutation :
+
+```
+invalidate/refetch
+```
+
+au lieu de recharger toute la page.
+
+---
+
+# 31. Sécurité frontend
+Ne jamais faire confiance au frontend pour la sécurité.
+
+Le frontend peut empêcher une mauvaise saisie pour améliorer UX.
+
+Mais la sécurité réelle doit être assurée par :
+
+```
+Supabase RLS
+PostgreSQL
+Contraintes
+Triggers
+Fonctions serveur
+```
+
+Ne jamais :
+
+```ts
+if (user.role === "admin") {
+   // sécurité uniquement frontend
+}
+```
+
+Cela ne suffit pas.
+
+---
+
+# 32. Validation des formulaires
+Utiliser une bibliothèque de validation déjà présente dans le projet si disponible.
+
+Sinon utiliser :
+
+```
+Zod
+```
+
+Valider :
+
+- champs obligatoires ;
+- montants ;
+- dates ;
+- nombre de tranches ;
+- cohérence des échéances.
+
+Exemple :
+
+```
+Scolarité annuelle = 550 000
+
+Échéances = 500 000
+
+❌ Impossible d'enregistrer
+```
+
+---
+
+# 33. Règle essentielle sur les montants
+Ne jamais utiliser des nombres flottants naïvement pour les calculs financiers.
+
+Préférer :
+
+```
+number
+```
+
+avec une gestion stricte des montants en FCFA, ou convertir les montants en unités entières si nécessaire.
+
+Afficher :
+
+```
+550 000 FCFA
+```
+
+et non :
+
+```
+550000
+```
+
+---
+
+# 34. Navigation
+La navigation doit rester stable.
+
+Exemple :
+
+```
+Tableau de bord
+
+Établissement
+├── Élèves
+├── Inscriptions
+├── Classes
+├── Enseignants
+├── Personnel
+├── Notes
+├── Absences
+└── Paiements
+
+Administration
+└── Paramètres
+```
+
+Ne pas multiplier les sous-menus inutilement.
+
+---
+
+# 35. Design system
+Style général :
+
+```
+Professionnel
+Moderne
+Sobre
+Administratif
+Clair
+```
+
+Utiliser une palette limitée.
+
+Éviter :
+
+```
+gradient violet/bleu
+glassmorphism excessif
+néons
+ombres énormes
+animations permanentes
+```
+
+Les animations doivent être fonctionnelles :
+
+- ouverture ;
+- fermeture ;
+- feedback ;
+- transition légère.
+
+---
+
+# 36. Cards
+Les cards ne sont PAS interdites.
+
+Mais elles doivent avoir une vraie utilité.
+
+Bon :
+
+```
+Élèves
+1 245
+```
+
+Mauvais :
+
+```
+[ CARD ]
+[ CARD ]
+[ CARD ]
+[ CARD ]
+[ CARD ]
+[ CARD ]
+```
+
+pour chaque petite information.
+
+Privilégier :
+
+- tableaux ;
+- listes ;
+- sections ;
+- panneaux ;
+- drawers ;
+- formulaires.
+
+---
+
+# 37. Ne pas utiliser une esthétique « AI SaaS »
+INTERDIT :
+
+```
+✨ Intelligence artificielle
+✨ Smart insights
+✨ AI assistant
+✨ gradients
+✨ énorme hero
+✨ cartes flottantes
+```
+
+sauf lorsqu'une véritable fonctionnalité IA existe.
+
+L'application est avant tout un logiciel de gestion scolaire.
+
+---
+
+# 38. Règle avant modification
+Avant de modifier une page :
+
+1. Lire la page entière.
+2. Identifier les composants utilisés.
+3. Identifier les hooks.
+4. Identifier les services.
+5. Identifier les appels Supabase.
+6. Vérifier les types.
+7. Vérifier les dépendances.
+8. Vérifier les autres pages qui utilisent les composants.
+9. Réutiliser ce qui fonctionne.
+10. Supprimer uniquement ce qui est réellement inutile.
+
+Ne jamais casser une fonctionnalité existante pour améliorer uniquement le design.
+
+---
+
+# 39. Règle avant création
+Avant de créer :
+
+```
+component
+hook
+service
+utility
+```
+
+chercher d'abord s'il existe déjà une implémentation équivalente.
+
+Si elle existe :
+
+```
+réutiliser
+```
+
+plutôt que :
+
+```
+dupliquer
+```
+
+---
+
+# 40. Règle Supabase
+Le frontend doit respecter exactement cette hiérarchie :
+
+```
+establishments
+      ↓
+academic_years
+
+education_cycles
+      ↓
+grade_levels
+      ↓
+school_classes
+
+students
+      ↓
+enrollments
+      ↓
+tuition_plans
+      ↓
+tuition_plan_installments
+      ↓
+payment_schedules
+      ↓
+payments
+      ↓
+payment_allocations
+```
+
+Ne pas inventer d'autres relations sans vérifier le schéma Supabase.
+
+---
+
+# 41. Workflow de développement de l'agent
+Pour chaque module :
+
+```
+1. Inspecter
+2. Comprendre
+3. Identifier les composants existants
+4. Identifier les services existants
+5. Identifier les problèmes UX
+6. Corriger la logique
+7. Corriger l'interface
+8. Tester TypeScript
+9. Tester lint
+10. Tester build
+11. Vérifier les régressions
+12. Commit
+```
+
+Ne pas modifier 10 modules simultanément.
+
+Finir complètement un module avant de passer au suivant.
+
+---
+
+# 42. Ordre de travail recommandé
+L'agent doit travailler dans cet ordre :
+
+```
+1. Configuration Supabase
+       ↓
+2. Année scolaire
+       ↓
+3. Structure académique
+       ↓
+4. Classes
+       ↓
+5. Scolarité / tarifs
+       ↓
+6. Élèves
+       ↓
+7. Inscriptions
+       ↓
+8. Échéanciers
+       ↓
+9. Paiements
+       ↓
+10. Dashboard
+       ↓
+11. Notes
+       ↓
+12. Absences
+       ↓
+13. Enseignants
+       ↓
+14. Personnel
+       ↓
+15. Paramètres
+```
+
+---
+
+# 43. Critère de validation
+Une fonctionnalité n'est pas considérée comme terminée simplement parce que :
+
+```
+ça compile
+```
+
+Elle doit :
+
+- fonctionner ;
+- être compréhensible ;
+- gérer le chargement ;
+- gérer les erreurs ;
+- gérer l'état vide ;
+- être responsive ;
+- respecter les types ;
+- respecter Supabase ;
+- ne pas dupliquer du code ;
+- ne pas introduire de faille évidente ;
+- conserver les fonctionnalités existantes.
+
+---
+
+# 44. Règle finale pour l'agent
+Tu travailles comme un développeur frontend senior.
+
+Ne cherche pas à produire beaucoup de code.
+
+Cherche à produire :
+
+```
+moins de complexité
++
+meilleure UX
++
+meilleure architecture
++
+meilleure maintenabilité
+```
+
+Chaque décision doit répondre à la question :
+
+> « Est-ce que cette modification rend réellement l'application plus simple et plus professionnelle pour un utilisateur d'établissement scolaire ? »
+
+Si la réponse est non, ne pas ajouter la fonctionnalité ou le composant.
+
+Avant chaque modification importante, inspecter le code existant et comprendre ses dépendances.
+
+Ne jamais supprimer une fonctionnalité métier sans vérifier son utilisation ailleurs.
+
+Ne jamais contourner Supabase/RLS pour faire fonctionner rapidement une interface.
+
+Toujours privilégier une architecture claire :
+
+```
+UI
+ ↓
+Hooks
+ ↓
+Services
+ ↓
+Supabase
+ ↓
+PostgreSQL
+```
+
+et non :
+
+```
+UI
+ ↓
+20 requêtes Supabase
+ ↓
+logique métier
+ ↓
+calculs
+ ↓
+gestion des erreurs
+```
+
+L'objectif final est une application scolaire professionnelle, simple à utiliser, rapide et maintenable.
+
+### Je te conseille aussi
+Mets ce guide dans **`AGENTS.md` à la racine du dépôt**. Ensuite, ton agent Codex pourra le lire automatiquement comme référence du projet.
+
+Et surtout, **ne lui demande pas de tout refaire d'un coup**. Donne-lui module par module, dans l'ordre indiqué. Ça évitera qu'il casse la logique existante en essayant de refaire toute l'application simultanément.

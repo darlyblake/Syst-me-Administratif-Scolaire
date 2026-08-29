@@ -6,8 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 import { Users, Plus, Trash2, Edit, Search, Settings, Shuffle, Check, X } from "lucide-react"
+import { AcademicStructureTree } from "@/components/academic/AcademicStructureTree"
+import { useAuthentification } from "@/providers/authentification.provider"
 import { useClasses } from "@/hooks/useClasses"
+import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { serviceParametres } from "@/services/parametres.service"
 import { serviceRepartition } from "@/services/repartition.service"
 import { serviceEleves } from "@/services/eleves.service"
@@ -17,6 +22,8 @@ import type { TarificationTypeEcole } from "@/services/parametres.service"
 type Tab = "liste" | "repartition" | "parametres"
 
 export default function ClassesPage() {
+  const { utilisateur } = useAuthentification()
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
   const {
     classes,
     loading,
@@ -29,6 +36,7 @@ export default function ClassesPage() {
     getEleves,
     getEnseignants,
   } = useClasses()
+  const { data: academicStructure, isLoading: isAcademicLoading, error: academicError } = useAcademicStructure(establishmentId)
   const [activeTab, setActiveTab] = useState<Tab>("liste")
   const [tarificationTypesEcole, setTarificationTypesEcole] = useState<TarificationTypeEcole[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
@@ -238,6 +246,14 @@ export default function ClassesPage() {
         </div>
       )}
 
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold text-slate-900">Structure académique</h2>
+          <Badge variant="outline">Supabase</Badge>
+        </div>
+        <AcademicStructureTree data={academicStructure} isLoading={isAcademicLoading} error={academicError} />
+      </div>
+
       {/* Onglet Liste */}
       {activeTab === "liste" && (
         <>
@@ -319,74 +335,58 @@ export default function ClassesPage() {
           </Card>
 
           {/* Liste des classes */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredClasses.map((classe) => {
-              const nombreEleves = getEleves(classe.id).length
-              const enseignants = getEnseignants(classe.id)
-              
-              return (
-                <Card key={classe.id} className="bg-papier shadow-soft hover:shadow-soft-lg transition border-0">
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <span className="text-terre">{classe.nom}</span>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleOuvrirEditModal(classe)} className="rounded-xl">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleSupprimerClasse(classe.id)} className="rounded-xl">
-                          <Trash2 className="h-4 w-4 text-rouge-terre" />
-                        </Button>
-                      </div>
-                    </CardTitle>
-                    <CardDescription>
-                      {classe.typeEcole && <span className="mr-2">{classe.typeEcole}</span>}
-                      {classe.niveau}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-pierre">Capacité:</span>
-                        <span className="font-medium">{classe.capacite} élèves</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-pierre">Élèves inscrits:</span>
-                        <span className="font-medium">{nombreEleves} / {classe.capacite}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-pierre">Frais scolarité:</span>
-                        <span className="font-medium">{classe.fraisScolarite.toLocaleString()} FCFA</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-pierre">Enseignants:</span>
-                        <span className="font-medium">{enseignants.length}</span>
-                      </div>
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-terre/10">
-                      <div className="w-full bg-terre/10 rounded-full h-2">
-                        <div 
-                          className="bg-terre h-2 rounded-full transition-all" 
-                          style={{ width: `${(nombreEleves / classe.capacite) * 100}%` }}
-                        ></div>
-                      </div>
-                      <p className="text-xs text-pierre mt-1">
-                        {nombreEleves >= classe.capacite ? "Classe complète" : `${classe.capacite - nombreEleves} places disponibles`}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cycle</TableHead>
+                  <TableHead>Niveau</TableHead>
+                  <TableHead>Classe</TableHead>
+                  <TableHead>Effectif</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredClasses.map((classe) => {
+                  const nombreEleves = getEleves(classe.id).length
+
+                  return (
+                    <TableRow key={classe.id}>
+                      <TableCell>
+                        <Badge variant="secondary">{classe.typeEcole || "—"}</Badge>
+                      </TableCell>
+                      <TableCell>{classe.niveau}</TableCell>
+                      <TableCell className="font-medium">{classe.nom}</TableCell>
+                      <TableCell>{nombreEleves}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleOuvrirEditModal(classe)}>
+                            Voir
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleOuvrirEditModal(classe)}>
+                            <Edit className="h-4 w-4 mr-1" />
+                            Modifier
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleSupprimerClasse(classe.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
           </div>
 
           {filteredClasses.length === 0 && (
             <Card className="bg-papier shadow-soft border-0">
               <CardContent className="py-12 text-center">
                 <Users className="h-12 w-12 mx-auto text-pierre mb-4" />
-                <p className="text-pierre">Aucune classe trouvée</p>
+                <p className="text-pierre">Aucune classe n’a encore été créée pour ce niveau.</p>
                 <Button onClick={() => setShowAddModal(true)} className="mt-4 bg-terre hover:bg-terre-dark rounded-2xl">
                   <Plus className="h-4 w-4 mr-2" />
-                  Créer une classe
+                  Ajouter une classe
                 </Button>
               </CardContent>
             </Card>

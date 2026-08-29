@@ -15,7 +15,7 @@ import {
 import Link from "next/link"
 import { serviceEnseignants } from "@/services/enseignants.service"
 import { serviceParametres } from "@/services/parametres.service"
-import { ConfigurationHorairesModal } from "@/components/ConfigurationHorairesModalFixed"
+import { ConfigurationHorairesModal } from "@/components/ConfigurationHorairesModal"
 import type { DonneesEnseignant, CreneauEmploiDuTemps } from "@/types/models"
 import { ProtectionRoute } from "@/components/protection-route"
 import jsPDF from "jspdf"

@@ -1,271 +1,53 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuthentification } from "@/providers/authentification.provider"
-import type { Role } from "@/types/models"
+
+const espaceLabels = { parent: "Espace Parent", ecole: "Mon établissement", enseignant: "Espace Enseignant" } as const
+
+type Espace = keyof typeof espaceLabels
 
 export default function LoginPage() {
   const router = useRouter()
-  const { connecter, estEnCoursDeChargement } = useAuthentification()
-  
-  const [adminCredentials, setAdminCredentials] = useState({ nomUtilisateur: "", motDePasse: "" })
-  const [ecoleCredentials, setEcoleCredentials] = useState({ identifiant: "", motDePasse: "" })
-  const [parentCredentials, setParentCredentials] = useState({ identifiant: "", motDePasse: "" })
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
+  const params = useSearchParams()
+  const espace = (params.get("espace") as Espace) || "ecole"
+  const { connecter, estConnecte, estEnCoursDeChargement } = useAuthentification()
+  const [email, setEmail] = useState("")
+  const [motDePasse, setMotDePasse] = useState("")
+  const [erreur, setErreur] = useState("")
+  const [chargement, setChargement] = useState(false)
 
-  const handleAdminLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
+  useEffect(() => {
+    if (!estEnCoursDeChargement && estConnecte) router.replace("/")
+  }, [estConnecte, estEnCoursDeChargement, router])
 
-    const result = await connecter(adminCredentials.nomUtilisateur, adminCredentials.motDePasse)
-    
-    if (result.succes) {
-      router.replace("/admin/dashboard")
-    } else {
-      setError(result.erreur || "Erreur de connexion")
-    }
-    
-    setLoading(false)
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault(); setErreur(""); setChargement(true)
+    const result = await connecter(email, motDePasse)
+    setChargement(false)
+    if (!result.succes) { setErreur(result.erreur ?? "Connexion impossible."); return }
+    router.replace("/")
   }
 
-  const handleEcoleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
-
-    // Pour l'instant, utiliser le même service d'auth
-    const result = await connecter(ecoleCredentials.identifiant, ecoleCredentials.motDePasse)
-    
-    if (result.succes) {
-      router.replace("/ecole/tableau-bord")
-    } else {
-      setError(result.erreur || "Erreur de connexion")
-    }
-    
-    setLoading(false)
-  }
-
-  const handleParentLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
-
-    // Pour l'instant, utiliser le même service d'auth
-    const result = await connecter(parentCredentials.identifiant, parentCredentials.motDePasse)
-    
-    if (result.succes) {
-      router.replace("/parents/tableau-bord")
-    } else {
-      setError(result.erreur || "Erreur de connexion")
-    }
-    
-    setLoading(false)
-  }
-
-  if (estEnCoursDeChargement) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-creme">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement...</p>
-        </div>
-      </div>
-    )
-  }
+  if (estEnCoursDeChargement || estConnecte) return <div className="min-h-screen flex items-center justify-center bg-creme"><p className="text-sm text-muted-foreground">Chargement...</p></div>
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-creme p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Système de Gestion Scolaire</CardTitle>
-          <CardDescription>Connectez-vous selon votre rôle</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="admin" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="admin">Admin</TabsTrigger>
-              <TabsTrigger value="ecole">École</TabsTrigger>
-              <TabsTrigger value="parent">Parent</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="admin" className="space-y-4 mt-4">
-              <form onSubmit={handleAdminLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="admin-username">Nom d'utilisateur</Label>
-                  <Input
-                    id="admin-username"
-                    type="text"
-                    placeholder="freid"
-                    value={adminCredentials.nomUtilisateur}
-                    onChange={(e) => setAdminCredentials({ ...adminCredentials, nomUtilisateur: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="admin-password">Mot de passe</Label>
-                  <Input
-                    id="admin-password"
-                    type="password"
-                    placeholder="••••••"
-                    value={adminCredentials.motDePasse}
-                    onChange={(e) => setAdminCredentials({ ...adminCredentials, motDePasse: e.target.value })}
-                    required
-                  />
-                </div>
-                {error && <p className="text-sm text-red-600">{error}</p>}
-                <div className="flex gap-2">
-                  <Button type="submit" className="flex-1" disabled={loading}>
-                    {loading ? "Connexion..." : "Se connecter"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={async () => {
-                      setError("")
-                      setLoading(true)
-                      const result = await connecter("freid", "123456")
-                      if (result.succes) {
-                        // Forcer le rechargement de la page pour que le provider détecte la session
-                        window.location.href = "/admin/dashboard"
-                      } else {
-                        setError(result.erreur || "Erreur de connexion")
-                      }
-                      setLoading(false)
-                    }}
-                  >
-                    Test 1
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={async () => {
-                      setError("")
-                      setLoading(true)
-                      const result = await connecter("admin_test", "admin123")
-                      if (result.succes) {
-                        window.location.href = "/admin/dashboard"
-                      } else {
-                        setError(result.erreur || "Erreur de connexion")
-                      }
-                      setLoading(false)
-                    }}
-                  >
-                    Test 2
-                  </Button>
-                </div>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="ecole" className="space-y-4 mt-4">
-              <form onSubmit={handleEcoleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ecole-username">Identifiant</Label>
-                  <Input
-                    id="ecole-username"
-                    type="text"
-                    placeholder="Votre identifiant"
-                    value={ecoleCredentials.identifiant}
-                    onChange={(e) => setEcoleCredentials({ ...ecoleCredentials, identifiant: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ecole-password">Mot de passe</Label>
-                  <Input
-                    id="ecole-password"
-                    type="password"
-                    placeholder="••••••"
-                    value={ecoleCredentials.motDePasse}
-                    onChange={(e) => setEcoleCredentials({ ...ecoleCredentials, motDePasse: e.target.value })}
-                    required
-                  />
-                </div>
-                {error && <p className="text-sm text-red-600">{error}</p>}
-                <div className="flex gap-2">
-                  <Button type="submit" className="flex-1" disabled={loading}>
-                    {loading ? "Connexion..." : "Se connecter"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={async () => {
-                      setError("")
-                      setLoading(true)
-                      const result = await connecter("ecole_test", "ecole123")
-                      if (result.succes) {
-                        window.location.href = "/ecole/tableau-bord"
-                      } else {
-                        setError(result.erreur || "Erreur de connexion")
-                      }
-                      setLoading(false)
-                    }}
-                  >
-                    Test
-                  </Button>
-                </div>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="parent" className="space-y-4 mt-4">
-              <form onSubmit={handleParentLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="parent-username">Identifiant parent</Label>
-                  <Input
-                    id="parent-username"
-                    type="text"
-                    placeholder="Votre identifiant"
-                    value={parentCredentials.identifiant}
-                    onChange={(e) => setParentCredentials({ ...parentCredentials, identifiant: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="parent-password">Mot de passe</Label>
-                  <Input
-                    id="parent-password"
-                    type="password"
-                    placeholder="••••••"
-                    value={parentCredentials.motDePasse}
-                    onChange={(e) => setParentCredentials({ ...parentCredentials, motDePasse: e.target.value })}
-                    required
-                  />
-                </div>
-                {error && <p className="text-sm text-red-600">{error}</p>}
-                <div className="flex gap-2">
-                  <Button type="submit" className="flex-1" disabled={loading}>
-                    {loading ? "Connexion..." : "Se connecter"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={async () => {
-                      setError("")
-                      setLoading(true)
-                      const result = await connecter("parent_test", "parent123")
-                      if (result.succes) {
-                        window.location.href = "/parents/tableau-bord"
-                      } else {
-                        setError(result.erreur || "Erreur de connexion")
-                      }
-                      setLoading(false)
-                    }}
-                  >
-                    Test
-                  </Button>
-                </div>
-              </form>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </div>
+    <main className="min-h-screen bg-creme flex items-center justify-center px-5 py-10">
+      <div className="w-full max-w-md">
+        <button className="mb-8 text-sm text-muted-foreground hover:text-foreground" onClick={() => router.push("/")}>← Retour</button>
+        <div className="mb-7"><p className="text-sm font-medium text-muted-foreground">Connexion</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">{espaceLabels[espace]}</h1><p className="mt-2 text-sm text-muted-foreground">Utilisez votre adresse email et votre mot de passe. Le système identifiera automatiquement votre compte et vos droits.</p></div>
+        <form onSubmit={submit} className="space-y-5 rounded-xl border bg-white p-6 shadow-sm">
+          <div className="space-y-2"><Label htmlFor="email">Adresse email</Label><Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="vous@exemple.com" /></div>
+          <div className="space-y-2"><Label htmlFor="password">Mot de passe</Label><Input id="password" type="password" autoComplete="current-password" value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} required placeholder="Votre mot de passe" /></div>
+          {erreur && <p role="alert" className="text-sm text-red-600">{erreur}</p>}
+          <Button type="submit" className="w-full" disabled={chargement}>{chargement ? "Connexion..." : "Se connecter"}</Button>
+          <button type="button" className="w-full text-center text-sm text-muted-foreground hover:text-foreground" onClick={() => router.push(`/auth/mot-de-passe-oublie?espace=${espace}`)}>Mot de passe oublié ?</button>
+        </form>
+      </div>
+    </main>
   )
 }

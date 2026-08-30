@@ -2,8 +2,9 @@
 
 import { useEffect, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Eye, EyeOff, Loader2, LogIn } from "lucide-react"
+import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2, LogIn, UserPlus } from "lucide-react"
 import { useAuthentification } from "@/providers/authentification.provider"
+import styles from "./LoginPage.module.css"
 
 const espaceLabels = {
   parent: "Espace Parent",
@@ -12,6 +13,7 @@ const espaceLabels = {
 } as const
 
 type Espace = keyof typeof espaceLabels
+type BookView = "closed" | "login" | "register"
 
 const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 
@@ -19,58 +21,56 @@ export function LoginPage() {
   const router = useRouter()
   const { connecter, estConnecte, estEnCoursDeChargement, obtenirCheminRedirection } = useAuthentification()
   const [espace, setEspace] = useState<Espace>("ecole")
+  const [view, setView] = useState<BookView>("closed")
+  const [introFinished, setIntroFinished] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false)
   const [loginEmail, setLoginEmail] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
   const [loginError, setLoginError] = useState("")
   const [loading, setLoading] = useState(false)
-  const [bookOpen, setBookOpen] = useState(false)
-  const [introFinished, setIntroFinished] = useState(false)
+  const [registerMessage, setRegisterMessage] = useState("")
+  const [registerData, setRegisterData] = useState({ firstName: "", lastName: "", email: "", password: "" })
+
+  const bookOpen = view !== "closed"
 
   useEffect(() => {
-    if (typeof window === "undefined") return
     const params = new URLSearchParams(window.location.search)
     const nextEspace = (params.get("espace") as Espace | null) || "ecole"
     setEspace(nextEspace in espaceLabels ? nextEspace : "ecole")
-  }, [])
-
-  useEffect(() => {
-    if (!estEnCoursDeChargement && estConnecte) {
-      router.replace(obtenirCheminRedirection())
-    }
-  }, [estConnecte, estEnCoursDeChargement, router, obtenirCheminRedirection])
-
-  useEffect(() => {
     const timer = window.setTimeout(() => setIntroFinished(true), 1250)
     return () => window.clearTimeout(timer)
   }, [])
 
+  useEffect(() => {
+    if (!estEnCoursDeChargement && estConnecte) router.replace(obtenirCheminRedirection())
+  }, [estConnecte, estEnCoursDeChargement, router, obtenirCheminRedirection])
+
+  const openBook = (nextView: "login" | "register") => {
+    if (!introFinished) return
+    setLoginError("")
+    setRegisterMessage("")
+    setView(nextView)
+  }
+
+  const closeBook = () => {
+    setLoginError("")
+    setRegisterMessage("")
+    setView("closed")
+  }
+
   const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setLoginError("")
-
     const email = loginEmail.trim()
-    const password = loginPassword
-
-    if (!email) {
-      setLoginError("L’email est requis")
-      return
-    }
-    if (!isValidEmail(email)) {
-      setLoginError("Format d’email invalide")
-      return
-    }
-    if (!password) {
-      setLoginError("Le mot de passe est requis")
-      return
-    }
+    if (!email) return setLoginError("L’email est requis")
+    if (!isValidEmail(email)) return setLoginError("Format d’email invalide")
+    if (!loginPassword) return setLoginError("Le mot de passe est requis")
 
     setLoading(true)
     try {
-      const result = await connecter(email, password)
-      if (!result.succes) {
-        setLoginError(result.erreur ?? "Connexion impossible.")
-      }
+      const result = await connecter(email, loginPassword)
+      if (!result.succes) setLoginError(result.erreur ?? "Connexion impossible.")
     } catch {
       setLoginError("Une erreur inattendue s’est produite.")
     } finally {
@@ -78,151 +78,96 @@ export function LoginPage() {
     }
   }
 
-  const handleForgotPassword = () => {
-    router.push(`/auth/mot-de-passe-oublie?espace=${espace}`)
+  const handleRegisterSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setRegisterMessage("Le formulaire d’inscription est prêt. La création du compte sera reliée au service d’authentification lors de l’implémentation backend.")
   }
 
-  const openBook = () => {
-    if (!introFinished || bookOpen) return
-    setBookOpen(true)
-  }
+  const handleForgotPassword = () => router.push(`/auth/mot-de-passe-oublie?espace=${espace}`)
 
   if (estEnCoursDeChargement || estConnecte) {
-    return (
-      <main className="login-shell loading-shell">
-        <div className="login-loading-card">
-          <div className="login-loading-spinner" />
-          <p>Chargement de votre espace…</p>
-        </div>
-      </main>
-    )
+    return <main className={styles.loading}><Loader2 className={styles.spinner} /><p>Chargement de votre espace…</p></main>
   }
 
   return (
-    <main className="login-shell login-shell--book">
-      <div className="login-back-button-wrap">
-        <button type="button" className="login-back-button" onClick={() => router.push("/")}>
-          <ArrowLeft className="h-4 w-4" />
-          Retour
+    <main className={styles.shell}>
+      <div className={styles.topBar}>
+        <button type="button" className={styles.backButton} onClick={() => (bookOpen ? closeBook() : router.push("/"))}>
+          <ArrowLeft size={16} /> {bookOpen ? "Fermer le livre" : "Retour"}
         </button>
       </div>
 
-      <div className={`login-book-scene ${introFinished ? "login-book-scene--ready" : "login-book-scene--approaching"} ${bookOpen ? "login-book-scene--opened" : ""}`}>
-        <div className={`login-book-shell ${bookOpen ? "login-book-shell--open" : "login-book-shell--closed"}`}>
-          <div className="login-book-shadow" aria-hidden="true" />
-          <div className="login-book-ribbon" aria-hidden="true" />
-          <div className="login-book-spine" aria-hidden="true" />
+      <div className={`${styles.stage} ${introFinished ? styles.stageReady : styles.stageApproaching} ${bookOpen ? styles.stageOpen : ""}`}>
+        <div className={`${styles.book} ${bookOpen ? styles.bookOpen : styles.bookClosed}`}>
+          <div className={styles.shadow} />
+          <div className={styles.spine} />
+          <div className={styles.ribbon} />
 
-          <aside className="login-book-page login-book-page--left" aria-label="Présentation de l'application">
-            <div className="login-book-page-inner">
-              <p className="login-book-page-kicker">Administration scolaire</p>
-              <h1 className="login-book-page-header">Système de Gestion Scolaire</h1>
-              <p className="login-book-page-intro">
-                Un espace unique pour organiser simplement la vie administrative et pédagogique de votre établissement.
-              </p>
-              <ul className="login-book-feature-list">
-                <li>Gestion des élèves</li>
-                <li>Gestion des enseignants</li>
-                <li>Classes et organisation académique</li>
-                <li>Notes et évaluations</li>
-                <li>Absences</li>
-                <li>Paiements et finances</li>
-                <li>Communication scolaire</li>
-              </ul>
+          <aside className={styles.leftPage} aria-label="Présentation de l'application">
+            <div className={styles.pageContent}>
+              <span className={styles.eyebrow}>Administration scolaire</span>
+              <h1>Système de Gestion Scolaire</h1>
+              <p className={styles.intro}>Un espace unique pour organiser simplement la vie administrative et pédagogique de votre établissement.</p>
+              <div className={styles.features}>
+                <span>Élèves</span><span>Enseignants</span><span>Classes</span><span>Notes</span><span>Absences</span><span>Finances</span><span>Communication</span>
+              </div>
             </div>
           </aside>
 
-          <section className="login-book-page login-book-page--right" aria-label="Formulaire de connexion" aria-hidden={!bookOpen}>
-            <div className="login-book-page-inner login-book-form-wrap">
-              <div className="login-header-block">
-                <p className="login-header-eyebrow">Accès sécurisé</p>
-                <h2 className="login-header-title">{espaceLabels[espace]}</h2>
-                <p className="login-book-form-subtitle">Connectez-vous pour accéder à votre espace.</p>
-              </div>
-
-              <form onSubmit={handleLoginSubmit} className="login-form-shell" noValidate>
-                <div className="space-y-5">
-                  <div className="space-y-2">
-                    <label htmlFor="login-email" className="login-field-label">Adresse email</label>
-                    <input
-                      id="login-email"
-                      type="email"
-                      value={loginEmail}
-                      onChange={(event) => setLoginEmail(event.target.value)}
-                      placeholder="votre@ecole.fr"
-                      autoComplete="email"
-                      className={loginError ? "login-input login-input--error" : "login-input"}
-                      tabIndex={bookOpen ? 0 : -1}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="login-password" className="login-field-label">Mot de passe</label>
-                    <div className="login-password-wrap">
-                      <input
-                        id="login-password"
-                        type={showPassword ? "text" : "password"}
-                        value={loginPassword}
-                        onChange={(event) => setLoginPassword(event.target.value)}
-                        placeholder="••••••••"
-                        autoComplete="current-password"
-                        className={loginError ? "login-input login-input--error login-input--password" : "login-input login-input--password"}
-                        tabIndex={bookOpen ? 0 : -1}
-                      />
-                      <button
-                        type="button"
-                        aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                        onClick={() => setShowPassword((current) => !current)}
-                        className="login-password-toggle"
-                        tabIndex={bookOpen ? 0 : -1}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {loginError ? <p role="alert" className="login-error-message">{loginError}</p> : null}
-
-                <button type="submit" className="login-submit-button" disabled={loading} tabIndex={bookOpen ? 0 : -1}>
-                  {loading ? (
-                    <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Connexion...</span>
-                  ) : (
-                    <><LogIn className="h-4 w-4" />Se connecter</>
-                  )}
-                </button>
-
-                <div className="mt-5 text-center">
-                  <button type="button" onClick={handleForgotPassword} className="login-link-button" tabIndex={bookOpen ? 0 : -1}>
-                    Mot de passe oublié ?
-                  </button>
-                </div>
-              </form>
+          <section className={styles.rightPage} aria-label={view === "register" ? "Formulaire d'inscription" : "Formulaire de connexion"} aria-hidden={!bookOpen}>
+            <div className={styles.pageContent}>
+              {view === "login" ? (
+                <>
+                  <span className={styles.eyebrow}>Accès sécurisé</span>
+                  <h2>{espaceLabels[espace]}</h2>
+                  <p className={styles.formIntro}>Connectez-vous pour accéder à votre espace.</p>
+                  <form onSubmit={handleLoginSubmit} className={styles.form} noValidate>
+                    <label>Adresse email<input type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="votre@ecole.fr" autoComplete="email" /></label>
+                    <label>Mot de passe
+                      <span className={styles.password}><input type={showPassword ? "text" : "password"} value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" /><button type="button" onClick={() => setShowPassword(v => !v)} aria-label="Afficher ou masquer le mot de passe">{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span>
+                    </label>
+                    {loginError && <p className={styles.error} role="alert">{loginError}</p>}
+                    <button type="submit" className={styles.primaryButton} disabled={loading}>{loading ? <><Loader2 className={styles.smallSpin} /> Connexion...</> : <><LogIn size={17} /> Se connecter</>}</button>
+                    <button type="button" className={styles.textButton} onClick={handleForgotPassword}>Mot de passe oublié ?</button>
+                  </form>
+                </>
+              ) : (
+                <>
+                  <span className={styles.eyebrow}>Nouveau compte</span>
+                  <h2>Inscription</h2>
+                  <p className={styles.formIntro}>Créez votre accès à l’espace de gestion scolaire.</p>
+                  <form onSubmit={handleRegisterSubmit} className={styles.form} noValidate>
+                    <div className={styles.twoColumns}><label>Prénom<input value={registerData.firstName} onChange={e => setRegisterData(v => ({ ...v, firstName: e.target.value }))} autoComplete="given-name" /></label><label>Nom<input value={registerData.lastName} onChange={e => setRegisterData(v => ({ ...v, lastName: e.target.value }))} autoComplete="family-name" /></label></div>
+                    <label>Adresse email<input type="email" value={registerData.email} onChange={e => setRegisterData(v => ({ ...v, email: e.target.value }))} autoComplete="email" /></label>
+                    <label>Mot de passe
+                      <span className={styles.password}><input type={showRegisterPassword ? "text" : "password"} value={registerData.password} onChange={e => setRegisterData(v => ({ ...v, password: e.target.value }))} autoComplete="new-password" /><button type="button" onClick={() => setShowRegisterPassword(v => !v)} aria-label="Afficher ou masquer le mot de passe">{showRegisterPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span>
+                    </label>
+                    {registerMessage && <p className={styles.notice} role="status">{registerMessage}</p>}
+                    <button type="submit" className={styles.primaryButton}><UserPlus size={17} /> Créer mon compte</button>
+                  </form>
+                </>
+              )}
             </div>
           </section>
 
-          <div className="login-book-closed-cover" aria-hidden={bookOpen}>
-            <div className="login-book-cover-border" aria-hidden="true" />
-            <div className="login-book-cover-emblem">GS</div>
-            <p className="login-book-cover-kicker">Établissement scolaire</p>
-            <div className="login-book-cover-title">Système de<br />Gestion Scolaire</div>
-            <div className="login-book-cover-rule" aria-hidden="true" />
-            <p className="login-book-cover-subtitle">Un espace pour toute votre école</p>
+          <div className={styles.cover} aria-hidden={bookOpen}>
+            <div className={styles.coverBorder} />
+            <div className={styles.emblem}>GS</div>
+            <span className={styles.coverKicker}>Établissement scolaire</span>
+            <strong>Système de<br />Gestion Scolaire</strong>
+            <span className={styles.coverRule} />
+            <small>Un espace pour toute votre école</small>
           </div>
         </div>
 
-        {!bookOpen ? (
-          <button
-            type="button"
-            className={`login-book-cta ${introFinished ? "login-book-cta--ready" : ""}`}
-            onClick={openBook}
-            disabled={!introFinished}
-            aria-label="Ouvrir le livre et accéder à la connexion"
-          >
-            <LogIn className="h-4 w-4" />
-            Connexion
-          </button>
-        ) : null}
+        {!bookOpen && (
+          <div className={`${styles.actions} ${introFinished ? styles.actionsReady : ""}`}>
+            <button type="button" className={styles.primaryAction} disabled={!introFinished} onClick={() => openBook("login")}><LogIn size={17} /> Connexion</button>
+            <button type="button" className={styles.secondaryAction} disabled={!introFinished} onClick={() => openBook("register")}><UserPlus size={17} /> Inscription</button>
+          </div>
+        )}
+
+        {bookOpen && <button type="button" className={styles.innerBack} onClick={closeBook}><ArrowLeft size={15} /> Retour au livre fermé</button>}
       </div>
     </main>
   )

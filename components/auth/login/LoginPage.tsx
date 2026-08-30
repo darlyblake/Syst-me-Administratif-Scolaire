@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2, LogIn, UserPlus } from "lucide-react"
+import { ArrowLeft, Eye, EyeOff, Loader2, LogIn, UserPlus, KeyRound } from "lucide-react"
 import { useAuthentification } from "@/providers/authentification.provider"
 import styles from "./LoginPage.module.css"
 
@@ -13,7 +13,7 @@ const espaceLabels = {
 } as const
 
 type Espace = keyof typeof espaceLabels
-type BookView = "closed" | "login" | "register"
+type BookView = "closed" | "login" | "forgot" | "register"
 
 const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 
@@ -23,12 +23,16 @@ export function LoginPage() {
   const [espace, setEspace] = useState<Espace>("ecole")
   const [view, setView] = useState<BookView>("closed")
   const [introFinished, setIntroFinished] = useState(false)
+  const [turning, setTurning] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showRegisterPassword, setShowRegisterPassword] = useState(false)
   const [loginEmail, setLoginEmail] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
   const [loginError, setLoginError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState("")
+  const [forgotMessage, setForgotMessage] = useState("")
+  const [forgotError, setForgotError] = useState("")
   const [registerMessage, setRegisterMessage] = useState("")
   const [registerData, setRegisterData] = useState({ firstName: "", lastName: "", email: "", password: "" })
 
@@ -47,16 +51,38 @@ export function LoginPage() {
   }, [estConnecte, estEnCoursDeChargement, router, obtenirCheminRedirection])
 
   const openBook = (nextView: "login" | "register") => {
-    if (!introFinished) return
+    if (!introFinished || turning) return
     setLoginError("")
     setRegisterMessage("")
-    setView(nextView)
+    setForgotError("")
+    setForgotMessage("")
+    setTurning(true)
+    window.setTimeout(() => {
+      setView(nextView)
+      setTurning(false)
+    }, 520)
+  }
+
+  const changeOpenPage = (nextView: "login" | "forgot" | "register") => {
+    if (turning) return
+    setTurning(true)
+    window.setTimeout(() => {
+      setView(nextView)
+      setTurning(false)
+    }, 520)
   }
 
   const closeBook = () => {
-    setLoginError("")
-    setRegisterMessage("")
-    setView("closed")
+    if (turning) return
+    setTurning(true)
+    window.setTimeout(() => {
+      setLoginError("")
+      setForgotError("")
+      setForgotMessage("")
+      setRegisterMessage("")
+      setView("closed")
+      setTurning(false)
+    }, 520)
   }
 
   const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -78,16 +104,27 @@ export function LoginPage() {
     }
   }
 
+  const handleForgotSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setForgotError("")
+    setForgotMessage("")
+    const email = forgotEmail.trim()
+    if (!email) return setForgotError("L’email est requis")
+    if (!isValidEmail(email)) return setForgotError("Format d’email invalide")
+    setForgotMessage("Le formulaire est prêt. La liaison avec le service de récupération sera activée avec l’authentification backend.")
+  }
+
   const handleRegisterSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setRegisterMessage("Le formulaire d’inscription est prêt. La création du compte sera reliée au service d’authentification lors de l’implémentation backend.")
   }
 
-  const handleForgotPassword = () => router.push(`/auth/mot-de-passe-oublie?espace=${espace}`)
-
   if (estEnCoursDeChargement || estConnecte) {
     return <main className={styles.loading}><Loader2 className={styles.spinner} /><p>Chargement de votre espace…</p></main>
   }
+
+  const pageNumber = view === "login" ? "2" : view === "forgot" ? "4" : view === "register" ? "6" : "—"
+  const guideNumber = view === "login" ? "1" : view === "forgot" ? "3" : view === "register" ? "5" : "—"
 
   return (
     <main className={styles.shell}>
@@ -97,25 +134,40 @@ export function LoginPage() {
         </button>
       </div>
 
-      <div className={`${styles.stage} ${introFinished ? styles.stageReady : styles.stageApproaching} ${bookOpen ? styles.stageOpen : ""}`}>
+      <div className={`${styles.stage} ${introFinished ? styles.stageReady : styles.stageApproaching} ${bookOpen ? styles.stageOpen : ""} ${turning ? styles.stageTurning : ""}`}>
         <div className={`${styles.book} ${bookOpen ? styles.bookOpen : styles.bookClosed}`}>
           <div className={styles.shadow} />
           <div className={styles.spine} />
           <div className={styles.ribbon} />
 
-          <aside className={styles.leftPage} aria-label="Présentation de l'application">
+          <aside className={styles.leftPage} aria-label="Guide de l'application">
             <div className={styles.pageContent}>
-              <span className={styles.eyebrow}>Administration scolaire</span>
-              <h1>Système de Gestion Scolaire</h1>
-              <p className={styles.intro}>Un espace unique pour organiser simplement la vie administrative et pédagogique de votre établissement.</p>
+              <span className={styles.pageNumber}>Page {guideNumber}</span>
+              <span className={styles.eyebrow}>{view === "forgot" ? "Guide récupération" : view === "register" ? "Guide inscription" : "Administration scolaire"}</span>
+              <h1>{view === "forgot" ? "Retrouver votre accès" : view === "register" ? "Créer votre espace" : "Système de Gestion Scolaire"}</h1>
+              <p className={styles.intro}>
+                {view === "forgot"
+                  ? "Quelques étapes simples permettent de récupérer l’accès à votre compte en toute sécurité."
+                  : view === "register"
+                    ? "Créez votre espace pour accéder aux outils de gestion et accompagner efficacement votre établissement."
+                    : "Un espace unique pour organiser simplement la vie administrative et pédagogique de votre établissement."}
+              </p>
               <div className={styles.features}>
-                <span>Élèves</span><span>Enseignants</span><span>Classes</span><span>Notes</span><span>Absences</span><span>Finances</span><span>Communication</span>
+                {view === "forgot" ? (
+                  <><span>Indiquer votre email</span><span>Recevoir les instructions</span><span>Vérifier votre boîte mail</span><span>Choisir un nouveau mot de passe</span></>
+                ) : view === "register" ? (
+                  <><span>Renseigner vos informations</span><span>Créer votre accès</span><span>Sécuriser votre compte</span><span>Accéder à votre espace</span></>
+                ) : (
+                  <><span>Élèves</span><span>Enseignants</span><span>Classes</span><span>Notes</span><span>Absences</span><span>Finances</span><span>Communication</span></>
+                )}
               </div>
             </div>
           </aside>
 
-          <section className={styles.rightPage} aria-label={view === "register" ? "Formulaire d'inscription" : "Formulaire de connexion"} aria-hidden={!bookOpen}>
+          <section className={styles.rightPage} aria-label={view === "register" ? "Formulaire d'inscription" : view === "forgot" ? "Récupération du mot de passe" : "Formulaire de connexion"} aria-hidden={!bookOpen}>
             <div className={styles.pageContent}>
+              <span className={styles.pageNumber}>Page {pageNumber}</span>
+
               {view === "login" ? (
                 <>
                   <span className={styles.eyebrow}>Accès sécurisé</span>
@@ -128,7 +180,20 @@ export function LoginPage() {
                     </label>
                     {loginError && <p className={styles.error} role="alert">{loginError}</p>}
                     <button type="submit" className={styles.primaryButton} disabled={loading}>{loading ? <><Loader2 className={styles.smallSpin} /> Connexion...</> : <><LogIn size={17} /> Se connecter</>}</button>
-                    <button type="button" className={styles.textButton} onClick={handleForgotPassword}>Mot de passe oublié ?</button>
+                    <button type="button" className={styles.textButton} onClick={() => changeOpenPage("forgot")}>Mot de passe oublié ?</button>
+                  </form>
+                </>
+              ) : view === "forgot" ? (
+                <>
+                  <span className={styles.eyebrow}>Récupération sécurisée</span>
+                  <h2>Mot de passe oublié</h2>
+                  <p className={styles.formIntro}>Saisissez l’adresse email associée à votre compte pour recevoir les instructions de récupération.</p>
+                  <form onSubmit={handleForgotSubmit} className={styles.form} noValidate>
+                    <label>Adresse email<input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} placeholder="votre@ecole.fr" autoComplete="email" /></label>
+                    {forgotError && <p className={styles.error} role="alert">{forgotError}</p>}
+                    {forgotMessage && <p className={styles.notice} role="status">{forgotMessage}</p>}
+                    <button type="submit" className={styles.primaryButton}><KeyRound size={17} /> Envoyer les instructions</button>
+                    <button type="button" className={styles.textButton} onClick={() => changeOpenPage("login")}>Retour à la connexion</button>
                   </form>
                 </>
               ) : (
@@ -167,7 +232,7 @@ export function LoginPage() {
           </div>
         )}
 
-        {bookOpen && <button type="button" className={styles.innerBack} onClick={closeBook}><ArrowLeft size={15} /> Retour au livre fermé</button>}
+        {bookOpen && <button type="button" className={styles.innerBack} onClick={closeBook}><ArrowLeft size={15} /> Fermer et revenir au livre</button>}
       </div>
     </main>
   )

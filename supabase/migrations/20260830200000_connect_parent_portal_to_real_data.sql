@@ -47,3 +47,31 @@ DROP POLICY IF EXISTS "Parents view linked events" ON public.school_events;
 CREATE POLICY "Parents view linked events" ON public.school_events
 FOR SELECT TO authenticated
 USING (EXISTS (SELECT 1 FROM public.student_guardians sg WHERE sg.establishment_id = school_events.establishment_id AND sg.guardian_user_id = (select auth.uid())));
+
+-- Include parent establishments in the authenticated context.
+CREATE OR REPLACE FUNCTION public.get_my_auth_context()
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $$
+DECLARE p public.profiles; result jsonb;
+BEGIN
+  SELECT * INTO p FROM public.profiles WHERE id=auth.uid();
+  IF p.id IS NULL THEN RETURN jsonb_build_object('authenticated',false); END IF;
+  result:=jsonb_build_object('authenticated',true,'user_id',p.id,'account_type',p.account_type,'first_name',p.first_name,'last_name',p.last_name,'email',(SELECT email FROM auth.users WHERE id=p.id));
+  IF p.account_type='platform_admin' THEN RETURN result; END IF;
+  IF p.account_type='parent' THEN
+    RETURN result || jsonb_build_object('establishments',COALESCE((SELECT jsonb_agg(x ORDER BY x->>'name') FROM (SELECT DISTINCT jsonb_build_object('id',e.id,'name',e.name) x FROM public.student_guardians sg JOIN public.establishments e ON e.id=sg.establishment_id WHERE sg.guardian_user_id=p.id) s),'[]'::jsonb));
+  END IF;
+  IF p.account_type='teacher' THEN
+    RETURN result || jsonb_build_object('establishments',COALESCE((SELECT jsonb_agg(x ORDER BY x->>'name') FROM (SELECT jsonb_build_object('id',e.id,'name',e.name) x FROM public.teacher_establishments te JOIN public.teachers t ON t.id=te.teacher_id JOIN public.establishments e ON e.id=te.establishment_id WHERE t.profile_id=p.id AND te.status='active') s),'[]'::jsonb));
+  END IF;
+  IF p.account_type='school_member' THEN
+    RETURN result || jsonb_build_object('establishments',COALESCE((SELECT jsonb_agg(x ORDER BY x->>'name') FROM (SELECT jsonb_build_object('id',e.id,'name',e.name,'role',m.role) x FROM public.establishment_members m JOIN public.establishments e ON e.id=m.establishment_id WHERE m.user_id=p.id AND m.active=true) s),'[]'::jsonb));
+  END IF;
+  RETURN result;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.get_my_auth_context() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_my_auth_context() TO authenticated;

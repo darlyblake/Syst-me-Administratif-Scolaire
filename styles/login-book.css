@@ -1,0 +1,468 @@
+/* Login book — visual layer kept separate from authentication logic. */
+.login-shell.login-shell--book {
+  isolation: isolate;
+  background: #111c2d;
+}
+
+.login-shell.login-shell--book::before {
+  background-image:
+    radial-gradient(circle at 50% 48%, rgba(214, 184, 124, .12), transparent 34%),
+    radial-gradient(rgba(255, 255, 255, .035) 1px, transparent 1px);
+  background-size: auto, 26px 26px;
+}
+
+.login-book-scene {
+  width: min(980px, 100%);
+  min-height: min(680px, calc(100vh - 80px));
+  gap: 22px;
+  perspective: 2400px;
+  transform-style: preserve-3d;
+}
+
+.login-book-scene--approaching {
+  animation: login-book-arrival 1.25s cubic-bezier(.16, 1, .3, 1) both;
+}
+
+@keyframes login-book-arrival {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 70px, 520px) scale(.42) rotateX(8deg);
+    filter: blur(1.5px);
+  }
+  45% {
+    opacity: .82;
+    filter: blur(.4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) rotateX(0deg);
+    filter: blur(0);
+  }
+}
+
+.login-book-shell {
+  width: min(900px, 90vw);
+  height: min(570px, 72vh);
+  min-height: 500px;
+  position: relative;
+  transform-style: preserve-3d;
+  perspective: 2400px;
+  overflow: visible;
+}
+
+.login-book-shadow {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: -34px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0,0,0,.48), transparent 70%);
+  filter: blur(5px);
+  transform: translateZ(-30px);
+  z-index: 0;
+  transition: transform .9s ease, opacity .9s ease;
+}
+
+.login-book-ribbon {
+  position: absolute;
+  top: -5px;
+  left: 8%;
+  width: 17px;
+  height: 72px;
+  background: linear-gradient(180deg, #8a2f2f, #642020);
+  clip-path: polygon(0 0,100% 0,100% 78%,50% 100%,0 78%);
+  transform-origin: top center;
+  transform: rotate(-7deg);
+  z-index: 25;
+  box-shadow: 1px 3px 7px rgba(0,0,0,.35);
+  transition: transform .7s cubic-bezier(.22,1,.36,1);
+}
+
+.login-book-scene--opened .login-book-ribbon {
+  transform: rotate(8deg) translateX(7px);
+}
+
+.login-book-spine {
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 50%;
+  width: 22px;
+  transform: translateX(-50%);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #304969, #17263a 55%, #0d1626);
+  box-shadow: inset 2px 0 3px rgba(255,255,255,.08), 3px 5px 15px rgba(0,0,0,.35);
+  z-index: 18;
+}
+
+.login-book-spine::after {
+  content: "";
+  position: absolute;
+  inset: 8px 4px;
+  border-radius: 8px;
+  background: repeating-linear-gradient(180deg, rgba(214,184,124,.35) 0 2px, transparent 2px 15px);
+}
+
+.login-book-page {
+  top: 22px;
+  bottom: 22px;
+  width: calc(50% - 12px);
+  padding: 36px 38px;
+  border: 1px solid #e1d6bc;
+  border-radius: 3px 15px 15px 3px;
+  background: #f7f2e6;
+  box-shadow: 0 3px 7px rgba(0,0,0,.14), 0 22px 48px rgba(0,0,0,.28);
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  transition: transform .95s cubic-bezier(.65,0,.35,1), opacity .28s ease, visibility 0s linear .95s;
+}
+
+.login-book-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(90deg, transparent 38px, rgba(178,59,46,.10) 39px, transparent 40px),
+    repeating-linear-gradient(transparent, transparent 29px, rgba(27,42,65,.055) 30px);
+}
+
+.login-book-page-inner {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+}
+
+.login-book-page--left {
+  left: 0;
+  transform-origin: right center;
+  transform: rotateY(26deg) translateX(18px);
+}
+
+.login-book-page--right {
+  right: 0;
+  transform-origin: left center;
+  transform: rotateY(-26deg) translateX(-18px);
+}
+
+.login-book-scene--opened .login-book-page {
+  opacity: 1;
+  visibility: visible;
+  transform: rotateY(0deg) translateX(0);
+  transition-delay: .48s, .42s, 0s;
+}
+
+.login-book-page--right {
+  border-radius: 15px 3px 3px 15px;
+}
+
+.login-book-page--right::before {
+  background-image:
+    linear-gradient(-90deg, transparent 38px, rgba(178,59,46,.10) 39px, transparent 40px),
+    repeating-linear-gradient(transparent, transparent 29px, rgba(27,42,65,.055) 30px);
+}
+
+.login-book-closed-cover {
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 0;
+  width: 50%;
+  border: 1px solid #0c1727;
+  border-radius: 7px 17px 17px 7px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(214,184,124,.13), transparent 48%),
+    linear-gradient(155deg, #29415e 0%, #1b2d45 48%, #101b2b 100%);
+  color: #f7f2e6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  transform-origin: right center;
+  transform: rotateY(0deg);
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  box-shadow: 4px 8px 20px rgba(0,0,0,.28), inset -5px 0 10px rgba(0,0,0,.16);
+  z-index: 22;
+  transition: transform 1.05s cubic-bezier(.65,0,.35,1), opacity .25s ease .82s;
+}
+
+.login-book-closed-cover::after {
+  content: "";
+  position: absolute;
+  inset: 13px;
+  border: 1px solid rgba(214,184,124,.55);
+  border-radius: 4px 13px 13px 4px;
+  pointer-events: none;
+}
+
+.login-book-cover-border {
+  position: absolute;
+  inset: 20px;
+  border: 1px solid rgba(214,184,124,.24);
+  border-radius: 4px 12px 12px 4px;
+}
+
+.login-book-cover-emblem {
+  width: 68px;
+  height: 68px;
+  border: 1px solid #d6b87c;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: Georgia, serif;
+  font-size: 22px;
+  letter-spacing: .08em;
+  color: #d6b87c;
+  margin-bottom: 22px;
+}
+
+.login-book-cover-kicker {
+  margin: 0 0 9px;
+  font-size: .68rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: #d6b87c;
+}
+
+.login-book-cover-title {
+  font-family: Georgia, serif;
+  font-size: clamp(1.45rem, 3vw, 2.1rem);
+  line-height: 1.18;
+  font-weight: 600;
+}
+
+.login-book-cover-rule {
+  width: 70px;
+  height: 1px;
+  background: #d6b87c;
+  margin: 20px 0 12px;
+  opacity: .7;
+}
+
+.login-book-cover-subtitle {
+  margin: 0;
+  font-size: .78rem;
+  color: rgba(247,242,230,.68);
+}
+
+.login-book-shell--open .login-book-closed-cover {
+  transform: rotateY(-178deg);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.login-book-page-kicker {
+  margin: 0 0 10px;
+  color: #b08d57;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.login-book-page-intro {
+  margin: 0 0 24px;
+  color: rgba(27,42,65,.68);
+  font-size: .9rem;
+  line-height: 1.55;
+}
+
+.login-book-page-header {
+  margin: 0 0 16px;
+  font-family: Georgia, serif;
+  font-size: clamp(1.35rem, 2.2vw, 1.9rem);
+  line-height: 1.18;
+  color: #1b2a41;
+}
+
+.login-book-feature-list {
+  gap: 10px;
+}
+
+.login-book-feature-list li {
+  padding-left: 17px;
+  font-size: .9rem;
+}
+
+.login-book-form-subtitle {
+  margin: 8px 0 0;
+  color: rgba(27,42,65,.62);
+  font-size: .84rem;
+}
+
+.login-book-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-width: 168px;
+  min-height: 46px;
+  padding: 12px 24px;
+  border: 1px solid rgba(214,184,124,.5);
+  border-radius: 999px;
+  background: #b08d57;
+  color: #111c2d;
+  font-weight: 700;
+  font-size: .9rem;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(0,0,0,.22);
+  opacity: 0;
+  transform: translateY(8px);
+  animation: login-cta-reveal .5s ease .95s forwards;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+@keyframes login-cta-reveal {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.login-book-cta:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 13px 28px rgba(0,0,0,.27);
+  background: #d6b87c;
+}
+
+.login-book-cta:disabled {
+  cursor: default;
+  opacity: 0;
+}
+
+.login-book-scene--opened .login-book-cta {
+  display: none;
+}
+
+.login-book-form-wrap {
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.login-submit-button {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-back-button-wrap {
+  z-index: 50;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-book-scene--approaching,
+  .login-book-cta,
+  .login-book-closed-cover,
+  .login-book-page,
+  .login-book-ribbon {
+    animation: none !important;
+    transition: none !important;
+  }
+  .login-book-scene--approaching { opacity: 1; transform: none; }
+  .login-book-cta { opacity: 1; transform: none; }
+}
+
+@media (max-width: 760px) {
+  .login-shell.login-shell--book {
+    padding: 74px 12px 28px;
+    align-items: flex-start;
+  }
+
+  .login-book-scene {
+    min-height: 0;
+    width: 100%;
+  }
+
+  .login-book-shell {
+    width: min(620px, 94vw);
+    height: 540px;
+    min-height: 0;
+  }
+
+  .login-book-page {
+    padding: 28px 26px;
+  }
+
+  .login-book-feature-list li {
+    font-size: .82rem;
+  }
+
+  .login-book-page-intro,
+  .login-book-form-subtitle {
+    font-size: .78rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .login-book-shell {
+    width: min(360px, 92vw);
+    height: 590px;
+  }
+
+  .login-book-page {
+    top: 8px;
+    bottom: 8px;
+    width: 100%;
+    padding: 28px 24px;
+    border-radius: 14px;
+  }
+
+  .login-book-page--left,
+  .login-book-page--right {
+    left: 0;
+    right: auto;
+    transform-origin: center;
+    transform: translateY(8px) scale(.98);
+  }
+
+  .login-book-scene--opened .login-book-page--left,
+  .login-book-scene--opened .login-book-page--right {
+    transform: translateY(0) scale(1);
+  }
+
+  .login-book-page--right {
+    margin-top: 0;
+    opacity: 0;
+  }
+
+  .login-book-scene--opened .login-book-page--right {
+    opacity: 1;
+    top: 300px;
+    bottom: 8px;
+  }
+
+  .login-book-scene--opened .login-book-page--left {
+    top: 8px;
+    bottom: 300px;
+  }
+
+  .login-book-spine {
+    display: none;
+  }
+
+  .login-book-closed-cover {
+    left: 0;
+    width: 100%;
+    top: 0;
+    bottom: 0;
+    transform-origin: center;
+    border-radius: 14px;
+  }
+
+  .login-book-shell--open .login-book-closed-cover {
+    transform: rotateY(-180deg) scale(.98);
+  }
+
+  .login-book-cover-title {
+    font-size: 1.65rem;
+  }
+
+  .login-book-cover-emblem {
+    width: 58px;
+    height: 58px;
+  }
+}

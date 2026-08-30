@@ -55,7 +55,7 @@ class SupabaseAuthentificationService {
       case "platform_admin":
         return "/admin"
       case "parent":
-        return "/parent"
+        return "/parents/tableau-bord"
       case "teacher":
         return "/enseignant"
       case "school_member":

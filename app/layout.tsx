@@ -7,6 +7,7 @@ import { ProviderAuthentification } from "@/providers/authentification.provider"
 import { Suspense } from "react"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
+import "@/styles/login-book.css"
 
 export const metadata: Metadata = {
   title: "Système de Gestion Scolaire",

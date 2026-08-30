@@ -2,169 +2,17 @@
 
 import { useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { CreditCard, Wallet, Receipt } from "lucide-react"
+import { CreditCard, Receipt, Wallet } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { serviceParents } from "@/services/parents.service"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useParentPortal } from "@/hooks/use-parent-portal"
 
-function formatMontant(n: number) {
-  return new Intl.NumberFormat("fr-FR").format(n) + " FCFA"
-}
-
-const METHODE_LABELS: Record<string, string> = {
-  especes: "Espèces",
-  cheque: "Chèque",
-  virement: "Virement",
-  mobile: "Mobile Money",
-}
-
-export default function ParentsPaiementsPage() {
-  const searchParams = useSearchParams()
-  const enfants = useMemo(() => serviceParents.obtenirEnfants(), [])
-  const [eleveId, setEleveId] = useState(searchParams.get("eleve") || "tous")
-
-  const paiements = useMemo(() => {
-    return serviceParents.obtenirPaiements(eleveId === "tous" ? undefined : eleveId)
-  }, [eleveId])
-
-  const resume = useMemo(() => {
-    const ids = eleveId === "tous" ? enfants.map((e) => e.id) : [eleveId]
-    let totalPaye = 0
-    let totalReste = 0
-    ids.forEach((id) => {
-      totalPaye += serviceParents.totalPaye(id)
-      totalReste += serviceParents.resteAPayer(id)
-    })
-    return { totalPaye, totalReste, totalDu: totalPaye + totalReste }
-  }, [eleveId, enfants])
-
-  const nomEleve = (id: string) => {
-    const e = enfants.find((x) => x.id === id)
-    return e ? `${e.prenom} ${e.nom}` : id
-  }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-terre">
-          <CreditCard className="h-6 w-6 text-terre" />
-          Paiements
-        </h1>
-        <p className="text-pierre">Historique et solde de scolarité</p>
-      </div>
-
-      <Select value={eleveId} onValueChange={setEleveId}>
-        <SelectTrigger className="w-[240px]">
-          <SelectValue placeholder="Filtrer par enfant" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="tous">Tous les enfants</SelectItem>
-          {enfants.map((e) => (
-            <SelectItem key={e.id} value={e.id}>
-              {e.prenom} {e.nom}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="border-terre/10">
-          <CardContent className="flex items-center gap-3 p-5">
-            <div className="rounded-xl bg-slate-100 p-3 text-slate-700">
-              <Wallet className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs uppercase text-pierre">Total dû</p>
-              <p className="text-lg font-bold text-terre">{formatMontant(resume.totalDu)}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-terre/10">
-          <CardContent className="flex items-center gap-3 p-5">
-            <div className="rounded-xl bg-emerald-100 p-3 text-emerald-700">
-              <Receipt className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs uppercase text-pierre">Déjà payé</p>
-              <p className="text-lg font-bold text-emerald-700">{formatMontant(resume.totalPaye)}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-terre/10">
-          <CardContent className="flex items-center gap-3 p-5">
-            <div className="rounded-xl bg-amber-100 p-3 text-amber-700">
-              <CreditCard className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs uppercase text-pierre">Reste à payer</p>
-              <p className="text-lg font-bold text-amber-700">{formatMontant(resume.totalReste)}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="h-3 overflow-hidden rounded-full bg-slate-200">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-violet-500 to-emerald-500 transition-all"
-          style={{
-            width: `${Math.min(100, (resume.totalPaye / (resume.totalDu || 1)) * 100)}%`,
-          }}
-        />
-      </div>
-      <p className="text-center text-sm text-pierre">
-        {Math.round((resume.totalPaye / (resume.totalDu || 1)) * 100)} % payé
-      </p>
-
-      <Card className="border-terre/10">
-        <CardHeader>
-          <CardTitle className="text-base">Historique des paiements</CardTitle>
-          <CardDescription>{paiements.length} opération(s)</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {paiements.length === 0 ? (
-            <p className="py-8 text-center text-pierre">Aucun paiement enregistré.</p>
-          ) : (
-            paiements.map((p) => (
-              <div
-                key={p.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-terre/10 p-4"
-              >
-                <div>
-                  <p className="font-medium text-terre">
-                    {p.description || p.typePaiement}
-                  </p>
-                  <p className="text-sm text-pierre">
-                    {nomEleve(p.eleveId)} ·{" "}
-                    {new Date(p.datePaiement).toLocaleDateString("fr-FR", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </p>
-                  <div className="mt-1 flex flex-wrap gap-1.5">
-                    <Badge variant="outline" className="font-normal">
-                      {METHODE_LABELS[p.methodePaiement] ?? p.methodePaiement}
-                    </Badge>
-                    {p.moisPaiement?.map((m) => (
-                      <Badge key={m} variant="secondary" className="font-normal">
-                        {m}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                <p className="text-lg font-bold text-emerald-700">+ {formatMontant(p.montant)}</p>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  )
+const METHODS:Record<string,string>={especes:"Espèces",cheque:"Chèque",virement:"Virement",mobile:"Mobile Money",mobile_money:"Mobile Money"}
+const money=(n:number)=>new Intl.NumberFormat("fr-FR").format(n)+" FCFA"
+export default function ParentsPaiementsPage(){
+ const params=useSearchParams();const {loading,error,children,payments}=useParentPortal();const [id,setId]=useState(params.get("eleve")||"tous")
+ const allowed=children.filter(c=>c.can_view_finance);const ids=id==="tous"?allowed.map(c=>c.id):[id];const list=payments.filter(p=>{const c=children.find(x=>x.enrollment_id===p.enrollment_id);return c?ids.includes(c.id):false});const paid=list.reduce((s,p)=>s+p.amount,0)
+ if(loading)return <div className="flex min-h-[50vh] items-center justify-center text-pierre">Chargement des paiements...</div>
+ return <div className="space-y-6"><div><h1 className="flex items-center gap-2 text-2xl font-bold text-terre"><CreditCard className="h-6 w-6"/>Paiements</h1><p className="text-pierre">Historique réel des paiements de scolarité</p></div>{error&&<Card className="border-red-200 bg-red-50"><CardContent className="p-4 text-red-700">{error}</CardContent></Card>}<Select value={id} onValueChange={setId}><SelectTrigger className="w-[240px]"><SelectValue placeholder="Filtrer par enfant"/></SelectTrigger><SelectContent><SelectItem value="tous">Tous les enfants</SelectItem>{allowed.map(c=><SelectItem key={c.id} value={c.id}>{c.first_name} {c.last_name}</SelectItem>)}</SelectContent></Select><div className="grid gap-4 sm:grid-cols-2"><Card><CardContent className="flex items-center gap-3 p-5"><Wallet className="h-5 w-5 text-terre"/><div><p className="text-xs uppercase text-pierre">Total enregistré</p><p className="text-xl font-bold text-terre">{money(paid)}</p></div></CardContent></Card><Card><CardContent className="flex items-center gap-3 p-5"><Receipt className="h-5 w-5 text-emerald-700"/><div><p className="text-xs uppercase text-pierre">Opérations</p><p className="text-xl font-bold text-terre">{list.length}</p></div></CardContent></Card></div><Card><CardHeader><CardTitle className="text-base">Historique</CardTitle><CardDescription>{list.length} paiement(s)</CardDescription></CardHeader><CardContent className="space-y-3">{list.length===0?<p className="py-8 text-center text-pierre">Aucun paiement enregistré.</p>:list.map(p=>{const c=children.find(x=>x.enrollment_id===p.enrollment_id);return <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-terre/10 p-4"><div><p className="font-medium text-terre">{c?`${c.first_name} ${c.last_name}`:"Paiement"}</p><p className="text-sm text-pierre">{new Date(p.payment_date).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"})}{p.method?` · ${METHODS[p.method]??p.method}`:""}</p>{p.reference&&<Badge variant="outline" className="mt-1">Réf. {p.reference}</Badge>}</div><p className="text-lg font-bold text-emerald-700">+ {money(p.amount)}</p></div>})}</CardContent></Card></div>
 }

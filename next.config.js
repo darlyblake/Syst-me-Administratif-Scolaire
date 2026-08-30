@@ -1,12 +1,3 @@
-if (typeof window === 'undefined') {
-  global.localStorage = {
-    getItem: () => null,
-    setItem: () => {},
-    removeItem: () => {},
-    clear: () => {}
-  };
-}
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Autoriser les origines de développement locales courantes pour HMR
@@ -28,7 +19,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  output: 'export',
 }
 
 module.exports = nextConfig

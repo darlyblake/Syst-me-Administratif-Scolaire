@@ -1,3 +1,15 @@
+if (typeof globalThis !== 'undefined' && !('localStorage' in globalThis)) {
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: {
+      getItem: () => null,
+      setItem: () => {},
+      removeItem: () => {},
+      clear: () => {},
+    },
+    configurable: true,
+  })
+}
+
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 

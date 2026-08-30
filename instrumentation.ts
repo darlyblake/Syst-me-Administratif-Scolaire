@@ -1,20 +1,31 @@
 export function register() {
-  if (typeof window === 'undefined') {
-    global.localStorage = {
-      getItem: () => null,
-      setItem: () => {},
-      removeItem: () => {},
-      clear: () => {},
-      length: 0,
-      key: () => null,
-    } as any;
-    global.sessionStorage = {
-      getItem: () => null,
-      setItem: () => {},
-      removeItem: () => {},
-      clear: () => {},
-      length: 0,
-      key: () => null,
-    } as any;
+  if (typeof globalThis === 'undefined') return
+
+  if (!('localStorage' in globalThis)) {
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: {
+        getItem: () => null,
+        setItem: () => {},
+        removeItem: () => {},
+        clear: () => {},
+        length: 0,
+        key: () => null,
+      },
+      configurable: true,
+    })
+  }
+
+  if (!('sessionStorage' in globalThis)) {
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: {
+        getItem: () => null,
+        setItem: () => {},
+        removeItem: () => {},
+        clear: () => {},
+        length: 0,
+        key: () => null,
+      },
+      configurable: true,
+    })
   }
 }

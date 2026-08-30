@@ -7,13 +7,14 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, BarChart3, TrendingUp, Award } from "lucide-react"
 import Link from "next/link"
-import { serviceEleves } from "@/services/eleves.service"
-import { useAuthentification } from "@/providers/authentification.provider"
+import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
+import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 
 export default function StatistiquesNotes() {
-  const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { primaryEstablishment } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? null
+  const { data: academicStructure } = useAcademicStructure(establishmentId)
   const { data: supabaseStudents } = useStudents(establishmentId)
 
   const mappedSupabaseStudents = useMemo(() => {
@@ -63,9 +64,16 @@ export default function StatistiquesNotes() {
   const [selectedClasse, setSelectedClasse] = useState("")
   const [selectedTrimestre, setSelectedTrimestre] = useState("1")
 
-  const classes = ["PS1", "PS2", "MS1", "MS2", "GS", "CP", "CE1", "CE2", "CM1", "CM2", "6eme", "5eme", "4eme", "3eme"]
-  const allStudents = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()
-  const filteredStudents = selectedClasse ? allStudents.filter((student) => student.classe === selectedClasse) : allStudents
+  const academicClasses = academicStructure.flatMap((cycle) =>
+    (cycle.grade_levels ?? []).flatMap((level) =>
+      (level.school_classes ?? []).map((schoolClass) => ({ id: schoolClass.id, name: schoolClass.name }))
+    )
+  )
+  const classes = academicClasses.length > 0
+    ? academicClasses.map((schoolClass) => schoolClass.name)
+    : ["PS1", "PS2", "MS1", "MS2", "GS", "CP", "CE1", "CE2", "CM1", "CM2", "6eme", "5eme", "4eme", "3eme"]
+  const allStudents = mappedSupabaseStudents
+  const filteredStudents = selectedClasse ? allStudents.filter((student) => student.classe === selectedClasse || !student.classe) : allStudents
 
   // Simulation des statistiques
   const stats = {

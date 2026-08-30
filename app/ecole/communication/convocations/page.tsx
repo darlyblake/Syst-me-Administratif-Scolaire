@@ -9,14 +9,15 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Calendar, Send, CheckCircle, Clock } from "lucide-react"
 import Link from "next/link"
-import { serviceEleves } from "@/services/eleves.service"
-import { useAuthentification } from "@/providers/authentification.provider"
+import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
+import { useNotifications } from "@/hooks/useNotifications"
 
 export default function Convocations() {
-  const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { primaryEstablishment } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? null
   const { data: supabaseStudents } = useStudents(establishmentId)
+  const { info, error: showError } = useNotifications()
 
   const mappedSupabaseStudents = useMemo(() => {
     return (supabaseStudents ?? []).map((student) => ({
@@ -78,20 +79,23 @@ export default function Convocations() {
   ]
 
   const classes = ["PS1", "PS2", "MS1", "MS2", "GS", "CP", "CE1", "CE2", "CM1", "CM2", "6eme", "5eme", "4eme", "3eme"]
-  const allStudents = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()
+  const allStudents = mappedSupabaseStudents
 
   const handleSend = () => {
-    console.log("Convocation envoyée:", {
-      type,
-      classeCible,
-      date,
-      heure,
-      lieu,
-      objet,
-      description,
-      rappelAuto,
+    if (!establishmentId) {
+      showError("Aucun établissement actif sélectionné pour envoyer une convocation.")
+      return
+    }
+
+    if (!type || !classeCible || !date || !heure || !lieu || !objet || !description) {
+      showError("Complétez tous les champs obligatoires avant de créer une convocation.")
+      return
+    }
+
+    info("Envoi de convocation non activé", {
+      description: "Le module de convocation doit être raccordé au backend et à l’établissement actif avant d’envoyer un message réel.",
+      duration: 5000,
     })
-    // TODO: Implémenter l'envoi de la convocation
   }
 
   return (

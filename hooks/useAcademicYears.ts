@@ -7,8 +7,6 @@ import {
 } from "@/lib/supabase/services/academic-year.service"
 import type { AcademicYear } from "@/lib/supabase/types"
 
-const STORAGE_KEY = "eduPilot.selectedAcademicYearId"
-
 export function useAcademicYears(establishmentId: string | null) {
   const [data, setData] = useState<AcademicYear[]>([])
   const [activeYear, setActiveYear] = useState<AcademicYear | null>(null)
@@ -17,12 +15,7 @@ export function useAcademicYears(establishmentId: string | null) {
   const [error, setError] = useState<string | null>(null)
 
   const applySelection = useCallback((years: AcademicYear[], preferred: AcademicYear | null) => {
-    const savedYearId = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null
-    const fallbackYear = preferred ?? years.find((year) => year.id === savedYearId) ?? years[0] ?? null
-
-    if (typeof window !== "undefined" && fallbackYear) {
-      window.localStorage.setItem(STORAGE_KEY, fallbackYear.id)
-    }
+    const fallbackYear = preferred ?? years[0] ?? null
 
     setSelectedYear(fallbackYear)
   }, [])
@@ -58,9 +51,6 @@ export function useAcademicYears(establishmentId: string | null) {
 
   const selectYear = useCallback((yearId: string) => {
     const year = data.find((item) => item.id === yearId) ?? null
-    if (year && typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, year.id)
-    }
     setSelectedYear(year)
   }, [data])
 

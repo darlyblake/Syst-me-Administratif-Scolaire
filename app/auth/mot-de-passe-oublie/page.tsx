@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,8 +9,13 @@ import { serviceAuthentification } from "@/services/authentification.supabase.se
 
 export default function MotDePasseOubliePage() {
   const router = useRouter()
-  const params = useSearchParams()
-  const espace = params.get("espace") || "ecole"
+  const [espace, setEspace] = useState("ecole")
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const params = new URLSearchParams(window.location.search)
+    setEspace(params.get("espace") || "ecole")
+  }, [])
   const [email, setEmail] = useState("")
   const [message, setMessage] = useState("")
   const [erreur, setErreur] = useState("")

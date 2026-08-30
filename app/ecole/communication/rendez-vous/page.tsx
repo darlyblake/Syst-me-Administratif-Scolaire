@@ -9,14 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Calendar, Clock, CheckCircle, XCircle, Bell } from "lucide-react"
 import Link from "next/link"
-import { serviceEleves } from "@/services/eleves.service"
-import { useAuthentification } from "@/providers/authentification.provider"
+import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
+import { useNotifications } from "@/hooks/useNotifications"
 
 export default function RendezVous() {
-  const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { primaryEstablishment } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? null
   const { data: supabaseStudents } = useStudents(establishmentId)
+  const { info, error: showError } = useNotifications()
 
   const mappedSupabaseStudents = useMemo(() => {
     return (supabaseStudents ?? []).map((student) => ({
@@ -68,7 +69,7 @@ export default function RendezVous() {
   const [motif, setMotif] = useState("")
   const [notes, setNotes] = useState("")
 
-  const allStudents = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()
+  const allStudents = mappedSupabaseStudents
 
   // Simulation des demandes de rendez-vous
   const demandes = [
@@ -130,18 +131,41 @@ export default function RendezVous() {
   ]
 
   const handleValider = (id: string) => {
+    if (!establishmentId) {
+      showError("Aucun établissement actif sélectionné pour valider un rendez-vous.")
+      return
+    }
+
+    info("Validation de rendez-vous non activée", {
+      description: "Le backend de gestion des rendez-vous doit être raccordé à l’établissement actif avant de valider une demande réelle.",
+      duration: 5000,
+    })
     console.log("Rendez-vous validé:", id)
-    // TODO: Implémenter la validation et l'envoi de confirmation
   }
 
   const handleRefuser = (id: string) => {
+    if (!establishmentId) {
+      showError("Aucun établissement actif sélectionné pour refuser un rendez-vous.")
+      return
+    }
+
+    info("Refus de rendez-vous non activé", {
+      description: "Le backend de gestion des rendez-vous doit être raccordé à l’établissement actif avant de traiter une demande réelle.",
+      duration: 5000,
+    })
     console.log("Rendez-vous refusé:", id)
-    // TODO: Implémenter le refus et l'envoi de notification
   }
 
   const handleAjouterDisponibilite = () => {
-    console.log("Disponibilité ajoutée:", { date: selectedDate, heure: selectedHeure })
-    // TODO: Implémenter l'ajout de disponibilité
+    if (!establishmentId) {
+      showError("Aucun établissement actif sélectionné pour ajouter une disponibilité.")
+      return
+    }
+
+    info("Ajout de disponibilité non activé", {
+      description: "Le backend de planification doit être raccordé à l’établissement actif avant d’ajouter un créneau réel.",
+      duration: 5000,
+    })
   }
 
   return (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,16 +8,60 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowLeft, Bell, Send, Calendar, Users } from "lucide-react"
+import { ArrowLeft, Bell, Send, Calendar, Users, CheckCheck } from "lucide-react"
 import Link from "next/link"
-import { serviceEleves } from "@/services/eleves.service"
-import { useAuthentification } from "@/providers/authentification.provider"
+import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
+import { useNotifications } from "@/hooks/useNotifications"
+import { getUnreadNotificationCount, listNotificationsPaginated, markNotificationRead, type NotificationRecord } from "@/lib/supabase/services/notifications.service"
 
 export default function Notifications() {
-  const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
-  const { data: supabaseStudents } = useStudents(establishmentId)
+  const { primaryEstablishment } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? null
+  const { data: supabaseStudents, isLoading: isStudentsLoading, error: studentsError } = useStudents(establishmentId)
+  const { info, error: showError } = useNotifications()
+  const [notifications, setNotifications] = useState<NotificationRecord[]>([])
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState<string | null>(null)
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  const loadNotifications = useCallback(async () => {
+    if (!establishmentId) {
+      setNotifications([])
+      setUnreadCount(0)
+      return
+    }
+
+    try {
+      setIsHistoryLoading(true)
+      setHistoryError(null)
+      const [pageResult, countResult] = await Promise.all([
+        listNotificationsPaginated(establishmentId, 1, 25, false),
+        getUnreadNotificationCount(establishmentId),
+      ])
+      setNotifications(pageResult.items)
+      setUnreadCount(countResult)
+    } catch (error) {
+      setHistoryError(error instanceof Error ? error.message : "Impossible de charger les notifications.")
+      setNotifications([])
+      setUnreadCount(0)
+    } finally {
+      setIsHistoryLoading(false)
+    }
+  }, [establishmentId])
+
+  useEffect(() => {
+    void loadNotifications()
+  }, [loadNotifications])
+
+  const handleMarkAsRead = async (notificationId: string) => {
+    try {
+      await markNotificationRead(notificationId)
+      await loadNotifications()
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Impossible de marquer la notification comme lue.")
+    }
+  }
 
   const mappedSupabaseStudents = useMemo(() => {
     return (supabaseStudents ?? []).map((student) => ({
@@ -66,6 +110,7 @@ export default function Notifications() {
   const [type, setType] = useState("")
   const [destinataire, setDestinataire] = useState("")
   const [classeCible, setClasseCible] = useState("")
+  const [selectedStudentId, setSelectedStudentId] = useState("")
   const [titre, setTitre] = useState("")
   const [message, setMessage] = useState("")
   const [dateEnvoi, setDateEnvoi] = useState("")
@@ -83,19 +128,39 @@ export default function Notifications() {
   const destinataires = ["tous", "classe", "individuel"]
   const classes = ["PS1", "PS2", "MS1", "MS2", "GS", "CP", "CE1", "CE2", "CM1", "CM2", "6eme", "5eme", "4eme", "3eme"]
 
-  const allStudents = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()
+  const allStudents = mappedSupabaseStudents
+
+  const isFormValid = Boolean(
+    establishmentId &&
+    type &&
+    destinataire &&
+    titre.trim() &&
+    message.trim() &&
+    (destinataire !== "classe" || classeCible) &&
+    (destinataire !== "individuel" || selectedStudentId)
+  )
 
   const handleSend = () => {
-    console.log("Notification envoyée:", {
-      type,
-      destinataire,
-      classeCible,
-      titre,
-      message,
-      dateEnvoi,
-      envoyerImmédiatement,
+    if (!establishmentId) {
+      showError("Aucun établissement actif sélectionné pour cet envoi.")
+      return
+    }
+
+    if (!isFormValid) {
+      showError("Complétez tous les champs requis avant d'envoyer une notification.")
+      return
+    }
+
+    info("Envoi de notification non activé", {
+      description: "Le service backend de messagerie doit être raccordé à l’établissement sélectionné avant de diffuser des notifications réelles.",
+      duration: 5000,
     })
-    // TODO: Implémenter l'envoi de la notification
+  }
+
+  const statistics = {
+    total: notifications.length,
+    unread: unreadCount,
+    read: notifications.filter((notification) => notification.is_read).length,
   }
 
   return (
@@ -143,7 +208,10 @@ export default function Notifications() {
             {/* Destinataire */}
             <div className="space-y-2">
               <Label htmlFor="destinataire">Destinataire *</Label>
-              <Select value={destinataire} onValueChange={setDestinataire}>
+              <Select value={destinataire} onValueChange={(value) => {
+                setDestinataire(value)
+                if (value !== "individuel") setSelectedStudentId("")
+              }}>
                 <SelectTrigger id="destinataire">
                   <SelectValue placeholder="Sélectionner" />
                 </SelectTrigger>
@@ -178,14 +246,14 @@ export default function Notifications() {
             {destinataire === "individuel" && (
               <div className="space-y-2">
                 <Label htmlFor="eleve">Élève Cible *</Label>
-                <Select>
+                <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
                   <SelectTrigger id="eleve">
                     <SelectValue placeholder="Sélectionner l'élève" />
                   </SelectTrigger>
                   <SelectContent>
                     {allStudents.map((student) => (
                       <SelectItem key={student.id} value={student.id}>
-                        {student.prenom} {student.nom} ({student.classe})
+                        {student.prenom} {student.nom} ({student.classe || "—"})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -250,16 +318,28 @@ export default function Notifications() {
                     <p className="text-sm text-gray-600">
                       {destinataire === "tous" ? `${allStudents.length} parents` 
                         : destinataire === "classe" && classeCible ? `${allStudents.filter(s => s.classe === classeCible).length} parents`
-                        : "1 parent"}
+                        : destinataire === "individuel" && selectedStudentId ? "1 parent" : "0 parent"}
                     </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
+            {studentsError && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {studentsError}
+              </div>
+            )}
+
+            {!establishmentId && !isStudentsLoading && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                Sélectionnez un établissement pour configurer les notifications.
+              </div>
+            )}
+
             {/* Boutons d'action */}
             <div className="flex gap-4">
-              <Button onClick={handleSend} className="flex-1" disabled={!type || !destinataire || !titre || !message}>
+              <Button onClick={handleSend} className="flex-1" disabled={!isFormValid || isStudentsLoading}>
                 <Send className="mr-2 h-4 w-4" />
                 {envoyerImmédiatement ? "Envoyer Maintenant" : "Programmer l'Envoi"}
               </Button>
@@ -267,6 +347,7 @@ export default function Notifications() {
                 setType("")
                 setDestinataire("")
                 setClasseCible("")
+                setSelectedStudentId("")
                 setTitre("")
                 setMessage("")
                 setDateEnvoi("")
@@ -281,42 +362,72 @@ export default function Notifications() {
         {/* Historique des notifications */}
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle>Notifications Récentes</CardTitle>
-            <CardDescription>Dernières notifications envoyées</CardDescription>
+            <CardTitle>Notifications de l’établissement</CardTitle>
+            <CardDescription>
+              {unreadCount > 0 ? `${unreadCount} notification(s) non lue(s)` : "Aucune notification non lue"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="p-4 border rounded-lg">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold">Convocation Réunion Parents-Professeurs</p>
-                    <p className="text-sm text-gray-600">Envoyé à: Tous les parents</p>
-                    <p className="text-xs text-gray-500">Envoyé le 05/07/2026 à 10:30</p>
-                  </div>
-                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">Envoyé</span>
-                </div>
+            {!establishmentId ? (
+              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-600">
+                Aucun établissement sélectionné.
               </div>
-              <div className="p-4 border rounded-lg">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold">Rappel Paiement Frais Scolarité</p>
-                    <p className="text-sm text-gray-600">Envoyé à: Classe CE1</p>
-                    <p className="text-xs text-gray-500">Envoyé le 03/07/2026 à 14:00</p>
-                  </div>
-                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">Envoyé</span>
-                </div>
+            ) : isHistoryLoading ? (
+              <div className="space-y-3">
+                <div className="h-12 animate-pulse rounded-md bg-slate-200" />
+                <div className="h-12 animate-pulse rounded-md bg-slate-200" />
+                <div className="h-12 animate-pulse rounded-md bg-slate-200" />
               </div>
-              <div className="p-4 border rounded-lg">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold">Bulletin Trimestre 1 Disponible</p>
-                    <p className="text-sm text-gray-600">Envoyé à: Tous les parents</p>
-                    <p className="text-xs text-gray-500">Envoyé le 01/07/2026 à 09:00</p>
-                  </div>
-                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">Envoyé</span>
-                </div>
+            ) : historyError ? (
+              <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {historyError}
               </div>
-            </div>
+            ) : notifications.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-600">
+                Aucune notification reçue pour cet établissement pour le moment.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-slate-600">
+                      <th className="pb-3 pr-4 font-medium">Titre</th>
+                      <th className="pb-3 pr-4 font-medium">Message</th>
+                      <th className="pb-3 pr-4 font-medium">Date</th>
+                      <th className="pb-3 pr-4 font-medium">Statut</th>
+                      <th className="pb-3 font-medium text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {notifications.map((notification) => (
+                      <tr key={notification.id} className="border-b align-top text-slate-700">
+                        <td className="py-3 pr-4 font-medium">{notification.title ?? notification.subject ?? "Notification"}</td>
+                        <td className="py-3 pr-4">{notification.message ?? notification.content ?? notification.body ?? "—"}</td>
+                        <td className="py-3 pr-4 whitespace-nowrap">
+                          {notification.created_at ? new Date(notification.created_at).toLocaleString("fr-FR", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          }) : "—"}
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span className="inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
+                            {notification.is_read ? "Lue" : "Non lue"}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right">
+                          {!notification.is_read && (
+                            <Button variant="outline" size="sm" onClick={() => void handleMarkAsRead(notification.id)}>
+                              <CheckCheck className="mr-2 h-4 w-4" />
+                              Marquer comme lue
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

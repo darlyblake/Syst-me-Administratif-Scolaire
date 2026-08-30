@@ -10,15 +10,17 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ArrowLeft, CheckCircle, XCircle, Clock, Save } from "lucide-react"
 import Link from "next/link"
 import { serviceEleves } from "@/services/eleves.service"
-import { useAuthentification } from "@/providers/authentification.provider"
+import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
+import { useAttendance } from "@/hooks/useAttendance"
 
 export default function PointagePresences() {
-  const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { primaryEstablishment } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? null
   const { data: supabaseStudents } = useStudents(establishmentId)
   const { data: academicStructure } = useAcademicStructure(establishmentId)
+  const { saveAttendance, isSaving, error: attendanceError } = useAttendance()
 
   const mappedSupabaseStudents = useMemo(() => {
     return (supabaseStudents ?? []).map((student) => ({
@@ -128,12 +130,22 @@ export default function PointagePresences() {
 
   const stats = calculerStatistiques()
 
-  const handleSave = () => {
-    console.log("Pointage sauvegardé:", presences)
-    console.log("Classe:", selectedClasse)
-    console.log("Date:", selectedDate)
-    console.log("Statistiques:", stats)
-    // TODO: Implémenter la sauvegarde dans la base de données
+  const handleSave = async () => {
+    if (!establishmentId || !selectedClasse) return
+
+    const entries = filteredStudents
+      .filter((student) => presences[student.id])
+      .map((student) => ({
+        establishmentId,
+        studentId: student.id,
+        classId: selectedClasse,
+        date: selectedDate,
+        status: presences[student.id].statut,
+        reason: presences[student.id].motif,
+      }))
+
+    const saved = await saveAttendance(entries)
+    if (saved) alert("Les présences ont été enregistrées.")
   }
 
   const handleToutPresent = () => {
@@ -183,7 +195,7 @@ export default function PointagePresences() {
                   </SelectTrigger>
                   <SelectContent>
                     {classes.map((schoolClass) => (
-                      <SelectItem key={schoolClass.id} value={schoolClass.name}>
+                      <SelectItem key={schoolClass.id} value={schoolClass.id}>
                         {schoolClass.name}
                       </SelectItem>
                     ))}
@@ -320,9 +332,9 @@ export default function PointagePresences() {
 
               {/* Boutons d'action */}
               <div className="flex gap-4 mt-6">
-                <Button onClick={handleSave} className="flex-1">
+                <Button onClick={handleSave} className="flex-1" disabled={isSaving || filteredStudents.length === 0}>
                   <Save className="mr-2 h-4 w-4" />
-                  Sauvegarder le Pointage
+                  {isSaving ? "Enregistrement..." : "Sauvegarder le pointage"}
                 </Button>
                 <Button variant="outline" onClick={() => setPresences({})}>
                   Réinitialiser

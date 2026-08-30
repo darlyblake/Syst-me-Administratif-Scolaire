@@ -7,15 +7,14 @@ import { ArrowLeft, Send, Download, Copy, Check, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { serviceEleves } from "@/services/eleves.service"
 import { serviceTransfert } from "@/services/transfert.service"
-import { useAuthentification } from "@/providers/authentification.provider"
+import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
 import type { DonneesEleve, DossierTransfert } from "@/types/models"
 
 export default function TransfertPage() {
-  const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { primaryEstablishment } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? null
   const { data: supabaseStudents } = useStudents(establishmentId)
 
   const mappedSupabaseStudents = useMemo(() => {
@@ -67,7 +66,7 @@ export default function TransfertPage() {
 
   // --- Envoyer ---
   const elevesActifs = useMemo(
-    () => (mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()).filter((e) => e.statut === "actif"),
+    () => mappedSupabaseStudents.filter((e) => e.statut === "actif"),
     [mappedSupabaseStudents, refresh]
   )
   const [eleveId, setEleveId] = useState("")
@@ -107,7 +106,7 @@ export default function TransfertPage() {
   const [code, setCode] = useState("")
   const [dossierRecu, setDossierRecu] = useState<DossierTransfert | null>(null)
   const [classeAccueil, setClasseAccueil] = useState("")
-  const classes = useMemo(() => (mappedSupabaseStudents.length > 0 ? Array.from(new Set(mappedSupabaseStudents.map((student) => student.classe).filter(Boolean))) : serviceEleves.obtenirClassesActives()), [mappedSupabaseStudents, refresh])
+  const classes = useMemo(() => Array.from(new Set(mappedSupabaseStudents.map((student) => student.classe).filter(Boolean))), [mappedSupabaseStudents, refresh])
 
   const chargerParCode = () => {
     const d = serviceTransfert.trouverParCode(code.trim())

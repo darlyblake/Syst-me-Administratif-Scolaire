@@ -4,8 +4,11 @@ export interface Student {
   academic_year_id?: string | null
   first_name: string
   last_name: string
+  student_number?: string | null
   full_name?: string | null
   gender?: string | null
+  sex?: string | null
+  birth_date?: string | null
   date_of_birth?: string | null
   place_of_birth?: string | null
   phone?: string | null

@@ -8,14 +8,12 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, BarChart3, TrendingUp, Users, Calendar } from "lucide-react"
 import Link from "next/link"
-import { serviceEleves } from "@/services/eleves.service"
-import { servicePaiements } from "@/services/paiements.service"
-import { useAuthentification } from "@/providers/authentification.provider"
+import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
 
 export default function StatistiquesInscriptions() {
-  const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { primaryEstablishment } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? null
   const { data: supabaseStudents } = useStudents(establishmentId)
 
   const mappedSupabaseStudents = useMemo(() => {
@@ -76,15 +74,13 @@ export default function StatistiquesInscriptions() {
     parAnnee: [] as { annee: string; nombre: number; evolution?: number }[],
   })
 
-  const allStudents = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()
-
   useEffect(() => {
     calculerStatistiques()
   }, [dateDebut, dateFin])
 
   const calculerStatistiques = () => {
-    const sourceStudents = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()
-    const allPayments = servicePaiements.obtenirTousLesPaiements()
+    const sourceStudents = mappedSupabaseStudents
+    const allPayments: Array<{ montant: number; datePaiement: string }> = []
     
     // Filtrer les élèves par plage de dates
     const filteredStudents = sourceStudents.filter(student => {

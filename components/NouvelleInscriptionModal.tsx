@@ -11,11 +11,13 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { X, ArrowRight, ArrowLeft, UserPlus, QrCode } from "lucide-react"
 import { genererCodeUnique, genererQRCode } from "@/utils/codeGenerator"
-import { serviceEleves } from "@/services/eleves.service"
-import { serviceParametres } from "@/services/parametres.service"
-import { servicePaiements } from "@/services/paiements.service"
-import { serviceFinances } from "@/services/finances.service"
 import type { DonneesEleve } from "@/types/models"
+import { useUserContext } from "@/hooks/useUserContext"
+import { useStudents } from "@/hooks/useStudents"
+import { useAcademicStructure } from "@/hooks/useAcademicStructure"
+import { useAcademicYears } from "@/hooks/useAcademicYears"
+import { useTuitionPlans } from "@/hooks/useTuitionPlans"
+import { useEnrollment } from "@/hooks/useEnrollment"
 
 interface NouvelleInscriptionModalProps {
   isOpen: boolean
@@ -26,6 +28,13 @@ interface NouvelleInscriptionModalProps {
 }
 
 export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, typeInscription = "inscription", studentId }: NouvelleInscriptionModalProps) {
+  const { primaryEstablishment } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? null
+  const { data: students } = useStudents(establishmentId, { search: "", pageSize: 50 })
+  const { data: academicStructure } = useAcademicStructure(establishmentId)
+  const { selectedYear } = useAcademicYears(establishmentId)
+  const { data: tuitionPlans } = useTuitionPlans(selectedYear?.id ?? null)
+  const { createStudentEnrollment, isSubmitting, error: submissionError } = useEnrollment(null)
   const [currentStep, setCurrentStep] = useState(1)
   const totalSteps = 6
 
@@ -73,38 +82,33 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
     autresDocuments: [] as File[],
   })
 
-  const [totalFrais, setTotalFrais] = useState(0)
-  const [fraisDetails, setFraisDetails] = useState({
-    fraisInscription: 0,
-    fraisScolarite: 0,
-    fraisOptions: 0,
-    fraisParMois: 0,
-    tranches: [] as { numero: number; montant: number }[],
-  })
+  const [financialSummary, setFinancialSummary] = useState<Record<string, unknown> | null>(null)
   const [codeUnique, setCodeUnique] = useState("")
   const [qrCodeUrl, setQrCodeUrl] = useState("")
   const [inscriptionValidee, setInscriptionValidee] = useState(false)
   const [studentIdentifiant, setStudentIdentifiant] = useState("")
 
-  // État pour paiement cash
-  const [payeCash, setPayeCash] = useState(false)
-  const [montantRecu, setMontantRecu] = useState(0)
-
   const [siblingSuggestions, setSiblingSuggestions] = useState<DonneesEleve[]>([])
 
-  const niveaux = Array.from(
-    new Set(
-      serviceParametres
-        .obtenirTarificationParTypeEcole()
-        .flatMap((typeEcole) => typeEcole.niveaux.map((niveau) => niveau.niveau)),
-    ),
+  const classes = academicStructure.flatMap((cycle) =>
+    (cycle.grade_levels ?? []).flatMap((level) =>
+      (level.school_classes ?? []).map((schoolClass) => ({
+        id: schoolClass.id,
+        name: schoolClass.name,
+        gradeLevelId: level.id,
+      }))
+    )
   )
+  const selectedClassId = typeInscription === "reinscription" ? formData.nouvelleClasse : formData.classe
+  const selectedClass = classes.find((schoolClass) => schoolClass.id === selectedClassId)
+  const selectedPlan = tuitionPlans.find((plan) => plan.grade_level_id === selectedClass?.gradeLevelId && plan.is_active !== false)
+  const niveaux = classes
   const moisDisponibles = ["Septembre", "Octobre", "Novembre", "Décembre", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin"]
 
   // Charger les données de l'élève existant pour la réinscription
   useEffect(() => {
     if (typeInscription === "reinscription" && studentId) {
-      const existingStudent = serviceEleves.obtenirTousLesEleves().find(s => s.id === studentId)
+      const existingStudent = students.find(s => s.id === studentId)
       if (existingStudent) {
         setFormData(prev => ({
           ...prev,
@@ -136,32 +140,6 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
       ...prev,
       optionsSupplementaires: newOptions
     }))
-    calculerFrais(newOptions)
-  }
-
-  const calculerFrais = (options = formData.optionsSupplementaires) => {
-    if (!formData.classe) return
-
-    const fraisCalcules = serviceFinances.calculerFraisDetaille(
-      {
-        classe: formData.classe,
-        typeInscription: "inscription",
-        optionsSupplementaires: options,
-        optionsPersonnalisees: [],
-      },
-      formData.modePaiement,
-      formData.moisPaiement,
-      serviceParametres.obtenirParametresPaiement().tranchesPaiement
-    )
-
-    setFraisDetails({
-      fraisInscription: fraisCalcules.fraisInscription,
-      fraisScolarite: fraisCalcules.fraisScolarite,
-      fraisOptions: Object.values(fraisCalcules.fraisOptions).reduce((a, b) => a + b, 0),
-      fraisParMois: fraisCalcules.fraisParMois,
-      tranches: fraisCalcules.tranches,
-    })
-    setTotalFrais(fraisCalcules.totalAPayer)
   }
 
   const handleMoisPaiementChange = (mois: string, checked: boolean) => {
@@ -171,7 +149,6 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
         : prev.moisPaiement.filter(m => m !== mois)
       return { ...prev, moisPaiement: newMois }
     })
-    calculerFrais()
   }
 
   const handleSiblingSearch = (term: string) => {
@@ -181,15 +158,19 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
       return
     }
 
-    const allStudents = serviceEleves.obtenirTousLesEleves()
     const searchTerm = term.toLowerCase()
-    const suggestions = allStudents.filter(student =>
-      student.nom.toLowerCase().includes(searchTerm) ||
-      student.prenom.toLowerCase().includes(searchTerm) ||
-      `${student.prenom} ${student.nom}`.toLowerCase().includes(searchTerm)
+    const suggestions = students.filter(student =>
+      student.last_name.toLowerCase().includes(searchTerm) ||
+      student.first_name.toLowerCase().includes(searchTerm) ||
+      `${student.first_name} ${student.last_name}`.toLowerCase().includes(searchTerm)
     ).slice(0, 5)
 
-    setSiblingSuggestions(suggestions)
+    setSiblingSuggestions(suggestions.map((student) => ({
+      id: student.id,
+      nom: student.last_name,
+      prenom: student.first_name,
+      identifiant: student.student_number || student.id.slice(0, 8).toUpperCase(),
+    } as DonneesEleve)))
   }
 
   const handleSelectSibling = (sibling: DonneesEleve) => {
@@ -234,7 +215,6 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
-      if (currentStep === 4) calculerFrais()
       setCurrentStep(prev => Math.min(prev + 1, totalSteps))
     } else {
       toast.error("Champs obligatoires", {
@@ -247,7 +227,7 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
     setCurrentStep(prev => Math.max(prev - 1, 1))
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Validation finale
     if (!formData.nom || !formData.prenom || !formData.dateNaissance || !formData.classe || !formData.nomParent || !formData.telephoneParent || !formData.adresse) {
       toast.error("Champs obligatoires", {
@@ -256,111 +236,38 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
       return
     }
 
-    // Pour la réinscription, modifier l'élève existant
-    if (typeInscription === "reinscription" && studentId) {
-      const existingStudent = serviceEleves.obtenirTousLesEleves().find(s => s.id === studentId)
-      if (existingStudent) {
-        const updatedStudent = {
-          ...existingStudent,
-          classe: formData.nouvelleClasse,
-          classeAncienne: formData.classeAncienne,
-          nomParent: formData.nomParent,
-          contactParent: formData.telephoneParent,
-          adresse: formData.adresse,
-          informationsContact: {
-            telephone: formData.telephoneParent,
-            email: formData.emailParent,
-            adresse: formData.adresse,
-          },
-        }
-        updatedStudent.totalAPayer = totalFrais
-        updatedStudent.modePaiement = formData.modePaiement
-        updatedStudent.nombreTranches = formData.modePaiement === "tranches" ? formData.nombreTranches : undefined
-        updatedStudent.moisPaiement = formData.modePaiement === "mensuel" ? formData.moisPaiement : undefined
-        updatedStudent.optionsSupplementaires = formData.optionsSupplementaires
-        updatedStudent.fraisOptionsSupplementaires = {
-          tenueScolaire: formData.optionsSupplementaires.tenueScolaire ? 25000 : 0,
-          carteScolaire: formData.optionsSupplementaires.carteScolaire ? 5000 : 0,
-          cooperative: formData.optionsSupplementaires.cooperative ? 5000 : 0,
-          tenueEPS: formData.optionsSupplementaires.tenueEPS ? 15000 : 0,
-          assurance: formData.optionsSupplementaires.assurance ? 10000 : 0,
-        }
-        updatedStudent.typeInscription = "reinscription" as const
-        updatedStudent.dateInscription = new Date().toISOString()
-
-        serviceEleves.modifierEleve(updatedStudent)
-
-        // Note: Les paiements ne sont plus créés automatiquement lors de l'inscription
-        // Ils seront créés seulement lorsque le parent effectue un paiement réel
-        // L'élève a maintenant les informations de ce qu'il doit payer (totalAPayer, modePaiement, etc.)
-
-        setStudentIdentifiant(studentId)
-        const code = genererCodeUnique()
-        setCodeUnique(code)
-        const qrUrl = genererQRCode(code)
-        setQrCodeUrl(qrUrl)
-        setInscriptionValidee(true)
-        return
-      }
+    if (!establishmentId || !selectedYear?.id || !selectedClass?.id || !selectedPlan) {
+      toast.error("Sélection académique incomplète", { description: "Vérifiez l'année, la classe et le forfait sélectionnés." })
+      return
     }
 
-    // Créer l'élève sans id/identifiant/motDePasse - le service les générera
-    const nouvelEleve: Omit<DonneesEleve, "id" | "identifiant" | "motDePasse"> = {
-      nom: formData.nom,
-      prenom: formData.prenom,
-      dateNaissance: formData.dateNaissance,
-      lieuNaissance: formData.lieuNaissance,
-      sexe: formData.sexe,
-      classe: formData.classe,
-      nomParent: formData.nomParent,
-      contactParent: formData.telephoneParent,
-      adresse: formData.adresse,
-      dateInscription: new Date().toISOString(),
-      typeInscription: "inscription" as const,
-      totalAPayer: totalFrais,
-      modePaiement: formData.modePaiement,
-      nombreTranches: formData.modePaiement === "tranches" ? formData.nombreTranches : undefined,
-      moisPaiement: formData.modePaiement === "mensuel" ? formData.moisPaiement : undefined,
-      optionsSupplementaires: formData.optionsSupplementaires,
-      fraisOptionsSupplementaires: {
-        tenueScolaire: formData.optionsSupplementaires.tenueScolaire ? 25000 : 0,
-        carteScolaire: formData.optionsSupplementaires.carteScolaire ? 5000 : 0,
-        cooperative: formData.optionsSupplementaires.cooperative ? 5000 : 0,
-        tenueEPS: formData.optionsSupplementaires.tenueEPS ? 15000 : 0,
-        assurance: formData.optionsSupplementaires.assurance ? 10000 : 0,
-      },
-      informationsContact: {
-        telephone: formData.telephoneParent,
-        email: formData.emailParent,
-        adresse: formData.adresse,
-      },
-      statut: "actif" as const,
-      ...(formData.selectedSibling && {
-        frereSoeurId: formData.selectedSibling.id,
-        lienParente: formData.lienParente,
-      }),
+    const result = await createStudentEnrollment({
+      establishmentId,
+      studentId: typeInscription === "reinscription" ? studentId : null,
+      academicYearId: selectedYear.id,
+      classId: selectedClass.id,
+      tuitionPlanId: selectedPlan.id,
+      enrollmentDate: new Date().toISOString().slice(0, 10),
+      firstName: formData.prenom,
+      lastName: formData.nom,
+      studentNumber: studentIdentifiant || genererCodeUnique(),
+      birthDate: formData.dateNaissance,
+      sex: formData.sexe,
+      phone: formData.telephoneParent,
+      email: formData.emailParent,
+    })
+
+    if (!result) {
+      toast.error(submissionError || "Impossible d'enregistrer l'inscription.")
+      return
     }
 
-    const eleveCree = serviceEleves.ajouterEleve(nouvelEleve)
-
-    // Paiement cash si activé
-    if (payeCash && montantRecu > 0) {
-      servicePaiements.ajouterPaiement({
-        eleveId: eleveCree.id,
-        montant: montantRecu,
-        datePaiement: new Date().toISOString(),
-        typePaiement: "inscription",
-        methodePaiement: "especes",
-        description: "Paiement inscription (espèces)",
-      })
-    }
-
-    // Générer le code unique et QR code
     const code = genererCodeUnique()
     setCodeUnique(code)
-    setStudentIdentifiant(eleveCree.identifiant)
+    setStudentIdentifiant(result.student_id)
     const qrUrl = genererQRCode(code)
     setQrCodeUrl(qrUrl)
+    setFinancialSummary(result.financial_summary)
     setInscriptionValidee(true)
   }
 
@@ -521,7 +428,7 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
                           </SelectTrigger>
                           <SelectContent>
                             {niveaux.map((niveau) => (
-                              <SelectItem key={niveau} value={niveau}>{niveau}</SelectItem>
+                              <SelectItem key={niveau.id} value={niveau.id}>{niveau.name}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -542,7 +449,7 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
                               </SelectTrigger>
                               <SelectContent>
                                 {niveaux.map((niveau) => (
-                                  <SelectItem key={niveau} value={niveau}>{niveau}</SelectItem>
+                                  <SelectItem key={niveau.id} value={niveau.id}>{niveau.name}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -731,41 +638,14 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
                       </div>
                     )}
 
-                    {/* Paiement cash */}
                     <div className="space-y-4 pt-4 border-t">
                       <div className="rounded-2xl bg-creme p-4 border border-terre/10">
-                        <p className="text-sm text-pierre">Total à payer</p>
-                        <p className="text-2xl font-bold text-terre tabular">{totalFrais.toLocaleString("fr-FR")} FCFA</p>
+                        <p className="text-sm text-pierre">Scolarité</p>
+                        <p className="text-2xl font-bold text-terre tabular">
+                          {selectedPlan ? `${selectedPlan.annual_amount.toLocaleString("fr-FR")} FCFA` : "Sélectionnez une classe"}
+                        </p>
                       </div>
-
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <Checkbox
-                          checked={payeCash}
-                          onCheckedChange={(checked) => setPayeCash(checked as boolean)}
-                        />
-                        <span>Payé en espèces maintenant</span>
-                      </label>
-
-                      {payeCash && (
-                        <>
-                          <div>
-                            <Label>Montant reçu (FCFA)</Label>
-                            <Input
-                              type="number"
-                              min={0}
-                              value={montantRecu}
-                              onChange={(e) => setMontantRecu(Number(e.target.value) || 0)}
-                              className="rounded-2xl"
-                            />
-                          </div>
-                          <p className="text-sm text-pierre">
-                            Reste :{" "}
-                            <span className="font-semibold text-encre">
-                              {Math.max(0, totalFrais - montantRecu).toLocaleString("fr-FR")} FCFA
-                            </span>
-                          </p>
-                        </>
-                      )}
+                      <p className="text-sm text-pierre">Les échéances seront générées par le backend.</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -822,25 +702,10 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
                       </div>
                     </div>
 
-                    {/* Récapitulatif des frais */}
                     <div className="border-t pt-4 space-y-3">
-                      <div className="flex justify-between">
-                        <span>Frais d'inscription</span>
-                        <span className="font-semibold">{fraisDetails.fraisInscription?.toLocaleString() || 0} FCFA</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Frais de scolarité</span>
-                        <span className="font-semibold">{fraisDetails.fraisScolarite?.toLocaleString() || 0} FCFA</span>
-                      </div>
-                      {fraisDetails.fraisOptions > 0 && (
-                        <div className="flex justify-between">
-                          <span>Options supplémentaires</span>
-                          <span className="font-semibold">{fraisDetails.fraisOptions.toLocaleString()} FCFA</span>
-                        </div>
-                      )}
                       <div className="border-t pt-3 flex justify-between text-lg font-bold">
-                        <span>Total à payer</span>
-                        <span className="text-blue-600">{totalFrais.toLocaleString()} FCFA</span>
+                        <span>Plan tarifaire sélectionné</span>
+                        <span className="text-blue-600">{selectedPlan ? `${selectedPlan.annual_amount.toLocaleString()} FCFA` : "-"}</span>
                       </div>
                     </div>
                   </CardContent>

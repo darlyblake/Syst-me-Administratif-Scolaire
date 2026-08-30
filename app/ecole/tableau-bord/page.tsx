@@ -3,14 +3,21 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { serviceStatistiques } from "@/services/statistiques.service"
-import { serviceAbsences } from "@/services/absences.service"
 import { serviceEvenements } from "@/services/evenements.service"
 import type { StatistiquesTableauBord } from "@/types/models"
 import { NumberTicker } from "@/components/magicui/NumberTicker"
 import { BlurFade } from "@/components/magicui/BlurFade"
 import { AnimatedList } from "@/components/magicui/AnimatedList"
+import { useUserContext } from "@/hooks/useUserContext"
+import { useDailyAbsences } from "@/hooks/useAbsences"
 
 export default function PageTableauBord() {
+  const { primaryEstablishment } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? null
+  const aujourdhui = new Date().toISOString().split("T")[0]
+
+  const { absences: absencesDuJourList } = useDailyAbsences(establishmentId, aujourdhui)
+
   const [statistiques, setStatistiques] = useState<StatistiquesTableauBord>({
     totalEleves: 0,
     totalEnseignants: 0,
@@ -20,17 +27,12 @@ export default function PageTableauBord() {
     enseignantsPresents: 0,
     tauxPresenceEnseignants: 0,
   })
-  const [absencesDuJour, setAbsencesDuJour] = useState(0)
   const [evenementsPlanifies, setEvenementsPlanifies] = useState(0)
   const [activitesRecentes, setActivitesRecentes] = useState<string[]>([])
 
   useEffect(() => {
     const nouvellesStatistiques = serviceStatistiques.calculerStatistiquesTableauBord()
     setStatistiques(nouvellesStatistiques)
-
-    const aujourdhui = new Date().toISOString().split("T")[0]
-    const absencesAujourdhui = serviceAbsences.obtenirAbsencesParDate(aujourdhui)
-    setAbsencesDuJour(absencesAujourdhui.length)
 
     const evtPlanifies = serviceEvenements.obtenirEvenementsParStatut("planifie")
     setEvenementsPlanifies(evtPlanifies.length)
@@ -70,7 +72,7 @@ export default function PageTableauBord() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           </div>
           <div>
-            <NumberTicker value={absencesDuJour} className="text-lg font-bold tabular" />
+            <NumberTicker value={absencesDuJourList.length} className="text-lg font-bold tabular" />
             <p className="text-xs text-pierre">Absences du jour</p>
           </div>
         </Link>

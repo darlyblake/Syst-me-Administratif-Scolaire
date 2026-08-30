@@ -1,6 +1,87 @@
 import { supabaseBrowser } from "@/lib/supabase/client"
 import type { Enrollment } from "@/lib/supabase/types"
 
+export interface StudentEnrollmentResult {
+  student_id: string
+  enrollment_id: string
+  schedule: unknown[]
+  financial_summary: Record<string, unknown>
+}
+
+export interface EnrollmentPage {
+  items: import("@/lib/supabase/types").EnrollmentWithRelations[]
+  page: number
+  page_size: number
+  total: number
+  total_pages: number
+}
+
+export async function listEnrollmentsPaginated(data: {
+  establishmentId: string
+  page?: number
+  pageSize?: number
+  academicYearId?: string | null
+  classId?: string | null
+  status?: string | null
+  search?: string
+}): Promise<EnrollmentPage> {
+  const { data: result, error } = await supabaseBrowser.rpc("list_enrollments_paginated", {
+    p_establishment_id: data.establishmentId,
+    p_page: data.page ?? 1,
+    p_page_size: data.pageSize ?? 25,
+    p_academic_year_id: data.academicYearId || null,
+    p_class_id: data.classId || null,
+    p_status: data.status || null,
+    p_search: data.search || null,
+  })
+
+  if (error) throw new Error("Impossible de charger les inscriptions.")
+  const value = (result && typeof result === "object" ? result : {}) as Record<string, unknown>
+  const rawItems = value.items ?? value.data
+  return {
+    items: Array.isArray(rawItems) ? rawItems as EnrollmentPage["items"] : [],
+    page: typeof value.page === "number" ? value.page : data.page ?? 1,
+    page_size: typeof value.page_size === "number" ? value.page_size : data.pageSize ?? 25,
+    total: typeof value.total === "number" ? value.total : 0,
+    total_pages: typeof value.total_pages === "number" ? value.total_pages : 0,
+  }
+}
+
+export async function createStudentEnrollmentWithSchedule(data: {
+  establishmentId: string
+  studentId?: string | null
+  academicYearId: string
+  classId: string
+  tuitionPlanId: string
+  enrollmentDate: string
+  firstName?: string
+  lastName?: string
+  studentNumber?: string
+  birthDate?: string
+  sex?: string
+  phone?: string
+  email?: string
+}): Promise<StudentEnrollmentResult> {
+  const { data: result, error } = await supabaseBrowser.rpc("create_student_enrollment_with_schedule", {
+    p_establishment_id: data.establishmentId,
+    p_student_id: data.studentId || null,
+    p_academic_year_id: data.academicYearId,
+    p_class_id: data.classId,
+    p_tuition_plan_id: data.tuitionPlanId,
+    p_enrollment_date: data.enrollmentDate,
+    p_first_name: data.firstName || null,
+    p_last_name: data.lastName || null,
+    p_student_number: data.studentNumber || null,
+    p_birth_date: data.birthDate || null,
+    p_sex: data.sex || null,
+    p_phone: data.phone || null,
+    p_email: data.email || null,
+  })
+
+  if (error) throw new Error("Impossible d'enregistrer l'inscription.")
+  return result as StudentEnrollmentResult
+}
+
 export async function createEnrollment(data: Partial<Enrollment>): Promise<Enrollment> {
   const { data: result, error } = await supabaseBrowser
     .from("enrollments")

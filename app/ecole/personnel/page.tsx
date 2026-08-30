@@ -8,19 +8,25 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Users, Plus, Edit, Trash2, Search, Clock, Calendar, FileText } from "lucide-react"
 import Link from "next/link"
-import { servicePersonnel } from "@/services/personnel.service"
 import { servicePointage } from "@/services/pointage.service"
 import { serviceConges } from "@/services/conges.service"
 import type { DonneesPersonnel } from "@/types/personnel"
 import type { Pointage } from "@/services/pointage.service"
 import type { DemandeConge } from "@/services/conges.service"
-import { useAuthentification } from "@/providers/authentification.provider"
+import { useUserContext } from "@/hooks/useUserContext"
 import { useStaff } from "@/hooks/useStaff"
+import { createStaff, updateStaff } from "@/lib/supabase/services/staff.service"
 
 export default function PersonnelPage() {
-  const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
-  const { staff, isLoading: isLoadingStaff } = useStaff(establishmentId)
+  const { primaryEstablishment, estEnCoursDeChargement, utilisateur } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? null
+  const [searchTerm, setSearchTerm] = useState("")
+  const [page, setPage] = useState(1)
+  const { staff, total, totalPages, isLoading: isLoadingStaff, error: staffError, refresh, deactivate, isDeactivating } = useStaff(establishmentId, {
+    page,
+    pageSize: 25,
+    search: searchTerm,
+  })
   const [personnel, setPersonnel] = useState<DonneesPersonnel[]>([])
   const [pointages, setPointages] = useState<Pointage[]>([])
   const [conges, setConges] = useState<DemandeConge[]>([])
@@ -30,7 +36,6 @@ export default function PersonnelPage() {
   const [showCongeModal, setShowCongeModal] = useState(false)
   const [editingPersonnel, setEditingPersonnel] = useState<DonneesPersonnel | null>(null)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
-  const [searchTerm, setSearchTerm] = useState("")
   const [filterPoste, setFilterPoste] = useState("")
   const [filterStatut, setFilterStatut] = useState("")
   const [nouveauPersonnel, setNouveauPersonnel] = useState({
@@ -59,7 +64,7 @@ export default function PersonnelPage() {
     id: member.id,
     nom: member.last_name,
     prenom: member.first_name,
-    poste: member.department || member.role,
+    poste: member.position || member.department || member.role,
     email: member.email || undefined,
     typeContrat: "cdi",
     modeRemuneration: "fixe",
@@ -77,25 +82,44 @@ export default function PersonnelPage() {
     dateModification: member.updated_at || member.created_at || new Date().toISOString(),
   })), [staff])
 
-  const legacyPersonnel = useMemo(() => servicePersonnel.obtenirToutLePersonnel(), [])
-  const personnelSource = supabasePersonnel.length > 0 ? supabasePersonnel : legacyPersonnel
+  const personnelSource = supabasePersonnel
 
   useEffect(() => {
     setPersonnel(personnelSource)
     setPointages(servicePointage.obtenirTousLesPointages())
     setConges(serviceConges.obtenirToutesLesDemandes())
-    setIsLoaded(!isLoadingStaff)
-  }, [isLoadingStaff, personnelSource])
+    setIsLoaded(!estEnCoursDeChargement && !isLoadingStaff)
+  }, [estEnCoursDeChargement, isLoadingStaff, personnelSource])
 
-  const handleAjouterPersonnel = () => {
+  const handleAjouterPersonnel = async () => {
     if (!nouveauPersonnel.nom || !nouveauPersonnel.prenom || !nouveauPersonnel.poste) {
       alert("Veuillez remplir tous les champs obligatoires")
       return
     }
 
-    servicePersonnel.ajouterPersonnel(nouveauPersonnel)
-    setPersonnel(servicePersonnel.obtenirToutLePersonnel())
-    setShowAddModal(false)
+    if (!establishmentId || !utilisateur?.id) {
+      alert("Le contexte de l'établissement est indisponible.")
+      return
+    }
+
+    try {
+      await createStaff({
+        establishmentId,
+        profileId: utilisateur.id,
+        firstName: nouveauPersonnel.prenom,
+        lastName: nouveauPersonnel.nom,
+        position: nouveauPersonnel.poste,
+        phone: nouveauPersonnel.telephone,
+        email: nouveauPersonnel.email,
+        hireDate: nouveauPersonnel.dateEmbauche,
+        active: nouveauPersonnel.statut === "actif",
+      })
+      refresh()
+      setShowAddModal(false)
+    } catch {
+      alert("Impossible de créer le membre du personnel.")
+      return
+    }
     setNouveauPersonnel({
       nom: "",
       prenom: "",
@@ -112,16 +136,29 @@ export default function PersonnelPage() {
     })
   }
 
-  const handleModifierPersonnel = () => {
+  const handleModifierPersonnel = async () => {
     if (!editingPersonnel || !editingPersonnel.nom || !editingPersonnel.prenom || !editingPersonnel.poste) {
       alert("Veuillez remplir tous les champs obligatoires")
       return
     }
 
-    servicePersonnel.mettreAJourPersonnel(editingPersonnel.id, editingPersonnel)
-    setPersonnel(servicePersonnel.obtenirToutLePersonnel())
-    setShowEditModal(false)
-    setEditingPersonnel(null)
+    try {
+      await updateStaff({
+        staffId: editingPersonnel.id,
+        firstName: editingPersonnel.prenom,
+        lastName: editingPersonnel.nom,
+        position: editingPersonnel.poste,
+        phone: editingPersonnel.telephone,
+        email: editingPersonnel.email,
+        hireDate: editingPersonnel.dateEmbauche,
+        active: editingPersonnel.statut === "actif",
+      })
+      refresh()
+      setShowEditModal(false)
+      setEditingPersonnel(null)
+    } catch {
+      alert("Impossible de modifier le membre du personnel.")
+    }
   }
 
   const handleOuvrirEditModal = (person: DonneesPersonnel) => {
@@ -129,11 +166,11 @@ export default function PersonnelPage() {
     setShowEditModal(true)
   }
 
-  const handleSupprimerPersonnel = (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer ce membre du personnel ?")) {
-      servicePersonnel.supprimerPersonnel(id)
-      setPersonnel(servicePersonnel.obtenirToutLePersonnel())
-    }
+  const handleSupprimerPersonnel = async (id: string) => {
+    if (!confirm("Désactiver ce membre du personnel ?\n\nIl ne sera plus considéré comme actif, mais son historique sera conservé.")) return
+
+    const deactivated = await deactivate(id)
+    if (deactivated) alert("Membre désactivé avec succès.")
   }
 
   const handlePointageArrivee = (personnelId: string) => {
@@ -240,7 +277,9 @@ export default function PersonnelPage() {
       <div className="max-w-7xl mx-auto">
         {!isLoaded ? (
           <div className="flex items-center justify-center h-64">
-            <p className="text-gray-600">Chargement...</p>
+            <p className={staffError ? "text-red-600" : "text-gray-600"}>
+              {staffError || "Chargement..."}
+            </p>
           </div>
         ) : (
           <>
@@ -332,7 +371,7 @@ export default function PersonnelPage() {
             <Card className="mb-6">
               <CardHeader>
                 <CardTitle>Liste du Personnel</CardTitle>
-                <CardDescription>{filteredPersonnel.length} membre(s) trouvé(s)</CardDescription>
+                <CardDescription>{total} membre(s) trouvé(s)</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -418,7 +457,7 @@ export default function PersonnelPage() {
                                   <Edit className="h-4 w-4 mr-1" />
                                   Modifier
                                 </Button>
-                                <Button variant="ghost" size="sm" onClick={() => handleSupprimerPersonnel(person.id)}>
+                                <Button variant="ghost" size="sm" disabled={isDeactivating} onClick={() => handleSupprimerPersonnel(person.id)}>
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>

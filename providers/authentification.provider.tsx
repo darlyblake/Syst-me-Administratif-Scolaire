@@ -19,8 +19,6 @@ interface ContexteAuthentification {
   obtenirCheminRedirection: () => string
 }
 
-const STORAGE_KEY = "eduPilot.currentEstablishmentId"
-
 const ContexteAuthentification = createContext<ContexteAuthentification | undefined>(undefined)
 
 function ProviderAuthentification({ children }: { children: React.ReactNode }) {
@@ -30,22 +28,17 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
   const [estEnCoursDeChargement, setEstEnCoursDeChargement] = useState(true)
 
   const actualiserSelectionEtablissement = (establishments: AuthContext["establishments"] | undefined) => {
-    if (typeof window === "undefined") return
-
     if (!establishments?.length) {
       setEtablissementActif(null)
-      window.localStorage.removeItem(STORAGE_KEY)
       return
     }
 
-    const savedId = window.localStorage.getItem(STORAGE_KEY)
-    const candidate = establishments.find((etablissement) => etablissement.id === savedId) ?? establishments[0]
+    const candidate = establishments[0]
 
     setEtablissementActif(candidate)
     setUtilisateur((previous) =>
       previous ? { ...previous, etablissementId: candidate.id } : previous,
     )
-    window.localStorage.setItem(STORAGE_KEY, candidate.id)
   }
 
   const actualiser = async () => {
@@ -94,7 +87,6 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
     setUtilisateur(null)
     setContexte(null)
     setEtablissementActif(null)
-    if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY)
   }
 
   const selectionnerEtablissement = (etablissementId: string) => {
@@ -103,7 +95,6 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
 
     setEtablissementActif(found)
     setUtilisateur((previous) => (previous ? { ...previous, etablissementId: found.id } : previous))
-    if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_KEY, found.id)
   }
 
   const obtenirCheminRedirection = () => serviceAuthentification.getRedirectionPath(contexte?.account_type)

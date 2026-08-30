@@ -1,6 +1,97 @@
 import { supabaseBrowser } from "@/lib/supabase/client"
 import type { Absence, AbsenceWithStudent } from "@/lib/supabase/types"
 
+export interface AttendanceStatistics {
+  total: number
+  present: number
+  absent: number
+  late: number
+  excused: number
+  presence_rate: number
+}
+
+export async function getAttendanceStatistics(data: {
+  establishmentId: string
+  from: string
+  to: string
+  classId?: string | null
+}): Promise<AttendanceStatistics> {
+  const { data: result, error } = await supabaseBrowser.rpc("get_attendance_statistics", {
+    p_establishment_id: data.establishmentId,
+    p_from: data.from,
+    p_to: data.to,
+    p_class_id: data.classId || null,
+  })
+
+  if (error) throw new Error("Impossible de charger les statistiques de présence.")
+  return result as AttendanceStatistics
+}
+
+export interface AttendanceHistory {
+  id: string
+  student_id: string
+  class_id: string
+  attendance_date: string
+  status: string
+  reason?: string
+  recorded_by?: string
+  created_at?: string
+  first_name?: string
+  last_name?: string
+}
+
+export interface AttendanceHistoryPaginatedResponse {
+  data: AttendanceHistory[]
+  page: number
+  page_size: number
+  total: number
+  total_pages: number
+}
+
+export async function listAttendanceHistoryPaginated(params: {
+  establishmentId: string
+  page: number
+  pageSize: number
+  classId?: string | null
+  studentId?: string | null
+  from?: string
+  to?: string
+}): Promise<AttendanceHistoryPaginatedResponse> {
+  const { data: result, error } = await supabaseBrowser.rpc("list_attendance_history_paginated", {
+    p_establishment_id: params.establishmentId,
+    p_page: params.page,
+    p_page_size: params.pageSize,
+    p_class_id: params.classId || null,
+    p_student_id: params.studentId || null,
+    p_from: params.from || null,
+    p_to: params.to || null,
+  })
+
+  if (error) throw new Error("Impossible de charger l'historique des présences.")
+  return result as AttendanceHistoryPaginatedResponse
+}
+
+export async function recordAttendance(data: {
+  establishmentId: string
+  studentId: string
+  classId: string
+  date: string
+  status: string
+  reason?: string
+}): Promise<string> {
+  const { data: result, error } = await supabaseBrowser.rpc("record_attendance", {
+    p_establishment_id: data.establishmentId,
+    p_student_id: data.studentId,
+    p_class_id: data.classId,
+    p_date: data.date,
+    p_status: data.status,
+    p_reason: data.reason || null,
+  })
+
+  if (error) throw new Error("Impossible d'enregistrer la présence.")
+  return result as string
+}
+
 export async function recordAbsence(data: Partial<Absence>): Promise<Absence> {
   const { data: result, error } = await supabaseBrowser
     .from("absences")

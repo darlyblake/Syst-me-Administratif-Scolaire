@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import Fuse from "fuse.js"
 import { toast } from "sonner"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,10 +9,12 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Users, UserPlus, Download, FileText, RotateCcw, Upload, AlertCircle, CheckCircle2, XCircle } from "lucide-react"
 import Link from "next/link"
-import { serviceEleves } from "@/services/eleves.service"
 import { printHtml } from "@/lib/print"
-import { useAuthentification } from "@/providers/authentification.provider"
+import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
+import { useAcademicStructure } from "@/hooks/useAcademicStructure"
+import { useAcademicYears } from "@/hooks/useAcademicYears"
+import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import type { DonneesEleve } from "@/types/models"
 
 // Import des composants
@@ -26,9 +27,22 @@ import StudentDetailsModal from "@/components/StudentDetailsModal"
 
 export default function StudentsPage() {
   const router = useRouter()
-  const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
-  const { data: supabaseStudents, isLoading: isLoadingSupabase } = useStudents(establishmentId)
+  const { primaryEstablishment, estEnCoursDeChargement } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? null
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedClass, setSelectedClass] = useState("all")
+  const [selectedStatus, setSelectedStatus] = useState("all")
+  const [selectedLevel, setSelectedLevel] = useState("all")
+  const [currentPage, setCurrentPage] = useState(1)
+  const { data: academicStructure } = useAcademicStructure(establishmentId)
+  const { selectedYear } = useAcademicYears(establishmentId)
+  const { data: tuitionPlans } = useTuitionPlans(selectedYear?.id ?? null)
+  const { data: supabaseStudents, total, totalPages: backendTotalPages, isLoading: isLoadingSupabase, error: studentsError, create, update, deactivate, assignToClass, isCreating, isUpdating, isDeactivating, isAssigning } = useStudents(establishmentId, {
+    page: currentPage,
+    pageSize: 50,
+    search: searchTerm,
+    active: selectedStatus !== "inactif",
+  })
 
   // Convert Supabase students to DonneesEleve format and merge with legacy data
   const supabseStudentsConverted = useMemo(() => {
@@ -72,17 +86,10 @@ export default function StudentsPage() {
     } as DonneesEleve))
   }, [supabaseStudents])
 
-  // Use Supabase data if available, otherwise fallback to legacy
-  const legacyStudents = useMemo(() => serviceEleves.obtenirTousLesEleves(), [])
-  const displayStudents = supabseStudentsConverted.length > 0 ? supabseStudentsConverted : legacyStudents
+  const displayStudents = supabseStudentsConverted
   const [students, setStudents] = useState<DonneesEleve[]>([])
   const [filteredStudents, setFilteredStudents] = useState<DonneesEleve[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedClass, setSelectedClass] = useState("all")
-  const [selectedStatus, setSelectedStatus] = useState("all")
-  const [selectedLevel, setSelectedLevel] = useState("all")
   const [selectedStudent, setSelectedStudent] = useState<DonneesEleve | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
@@ -104,6 +111,16 @@ export default function StudentsPage() {
   ]
 
   const classes = selectedLevel === "all" ? allClasses : levels[selectedLevel as keyof typeof levels] || []
+
+  const assignmentClasses = academicStructure.flatMap((cycle) =>
+    (cycle.grade_levels ?? []).flatMap((level) =>
+      (level.school_classes ?? []).map((schoolClass) => ({
+        id: schoolClass.id,
+        name: schoolClass.name,
+        gradeLevelId: level.id,
+      }))
+    )
+  )
 
   // Load displayStudents (Supabase or legacy fallback)
   useEffect(() => {
@@ -144,15 +161,6 @@ export default function StudentsPage() {
       })
     }
     
-    if (searchTerm) {
-      const fuse = new Fuse(filtered, {
-        keys: ['nom', 'prenom', 'identifiant'],
-        threshold: 0.3,
-        ignoreLocation: true
-      })
-      const results = fuse.search(searchTerm).map(result => result.item)
-      filtered = results
-    }
     setFilteredStudents(filtered)
   }, [students, selectedClass, selectedStatus, selectedLevel, searchTerm, filterOptions, filterAgeMin, filterAgeMax])
 
@@ -162,25 +170,35 @@ export default function StudentsPage() {
 
 
 
-  const handleDeleteStudent = (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir archiver cet élève ?")) {
-      serviceEleves.archiverEleve(id)
-      const updatedStudents = serviceEleves.obtenirTousLesEleves()
-      setStudents(updatedStudents)
-      if (selectedStudent && selectedStudent.id === id) {
+  const handleDeleteStudent = async (id: string) => {
+    if (confirm("Désactiver cet élève ?\n\nSon historique sera conservé.")) {
+      const success = await deactivate(id)
+      if (success) {
+        toast.success("Élève désactivé avec succès")
         setSelectedStudent(null)
+      } else {
+        toast.error("Impossible de désactiver cet élève")
       }
     }
   }
 
-  const handleToggleStatus = (student: DonneesEleve) => {
+  const handleToggleStatus = async (student: DonneesEleve) => {
     const updatedStudent = {
       ...student,
       statut: (student.statut === "actif" ? "inactif" : "actif") as "actif" | "inactif" | "transfere"
     }
-    serviceEleves.modifierEleve(updatedStudent)
-    const updatedStudents = serviceEleves.obtenirTousLesEleves()
-    setStudents(updatedStudents)
+    const success = await update({
+      studentId: student.id,
+      firstName: updatedStudent.prenom,
+      lastName: updatedStudent.nom,
+      studentNumber: updatedStudent.identifiant,
+      birthDate: updatedStudent.dateNaissance,
+      sex: updatedStudent.sexe,
+      phone: updatedStudent.informationsContact.telephone,
+      email: updatedStudent.informationsContact.email,
+      active: updatedStudent.statut === "actif",
+    })
+    if (!success) toast.error("Impossible de modifier le statut de l'élève")
     if (selectedStudent && selectedStudent.id === student.id) {
       setSelectedStudent(updatedStudent)
     }
@@ -195,27 +213,52 @@ export default function StudentsPage() {
     })
   }
 
-  const handleBulkStatusChange = () => {
-    selectedIds.forEach(id => {
+  const handleBulkStatusChange = async () => {
+    for (const id of selectedIds) {
       const student = students.find(s => s.id === id)
-      if (student) handleToggleStatus(student)
-    })
+      if (student) await handleToggleStatus(student)
+    }
     setSelectedIds(new Set())
   }
 
-  const handleBulkClassChange = () => {
-    const newClass = prompt("Nouvelle classe pour les élèves sélectionnés:")
-    if (newClass) {
-      selectedIds.forEach(id => {
-        const student = students.find(s => s.id === id)
-        if (student) {
-          const updatedStudent = { ...student, classe: newClass }
-          serviceEleves.modifierEleve(updatedStudent)
-        }
-      })
-      const updatedStudents = serviceEleves.obtenirTousLesEleves()
-      setStudents(updatedStudents)
+  const handleBulkClassChange = async () => {
+    if (!establishmentId || !selectedYear?.id || selectedIds.size === 0) {
+      toast.error("Le contexte académique est indisponible")
+      return
+    }
+
+    if (assignmentClasses.length === 0 || tuitionPlans.length === 0) {
+      toast.error("Aucune classe ou aucun forfait actif disponible")
+      return
+    }
+
+    const classChoice = prompt(`Classe cible (1-${assignmentClasses.length}) :\n${assignmentClasses.map((item, index) => `${index + 1}. ${item.name}`).join("\n")}`)
+    const classIndex = Number(classChoice) - 1
+    const targetClass = assignmentClasses[classIndex]
+    if (!targetClass) return
+
+    const classPlans = tuitionPlans.filter((plan) => plan.grade_level_id === targetClass.gradeLevelId)
+    const targetPlan = classPlans.length === 1
+      ? classPlans[0]
+      : classPlans[Number(prompt(`Forfait (1-${classPlans.length}) :\n${classPlans.map((plan, index) => `${index + 1}. ${plan.annual_amount.toLocaleString()} FCFA`).join("\n")}`)) - 1]
+    if (!targetPlan) {
+      toast.error("Aucun forfait valide sélectionné")
+      return
+    }
+
+    const result = await assignToClass({
+      establishmentId,
+      studentIds: Array.from(selectedIds),
+      academicYearId: selectedYear.id,
+      classId: targetClass.id,
+      tuitionPlanId: targetPlan.id,
+      enrollmentDate: new Date().toISOString().slice(0, 10),
+    })
+    if (result) {
+      toast.success(`${result.total} élève(s) affecté(s) : ${result.created} inscription(s) créée(s), ${result.updated} mise(s) à jour`)
       setSelectedIds(new Set())
+    } else {
+      toast.error("Impossible d'affecter les élèves")
     }
   }
 
@@ -274,15 +317,12 @@ export default function StudentsPage() {
     setSelectedIds(new Set())
   }
 
-  const handleBulkArchive = () => {
-    if (confirm(`Archiver ${selectedIds.size} élève(s) ?`)) {
-      selectedIds.forEach(id => {
-        serviceEleves.archiverEleve(id)
-      })
-      const updatedStudents = serviceEleves.obtenirTousLesEleves()
-      setStudents(updatedStudents)
+  const handleBulkArchive = async () => {
+    const selectedCount = selectedIds.size
+    if (confirm(`Désactiver ${selectedCount} élève(s) ?`)) {
+      for (const id of selectedIds) await deactivate(id)
       setSelectedIds(new Set())
-      toast.success(`${selectedIds.size} élève(s) archivé(s)`)
+      toast.success(`${selectedCount} élève(s) désactivé(s)`)
     }
   }
 
@@ -440,12 +480,25 @@ export default function StudentsPage() {
       }
 
       if (importedStudents.length > 0) {
-        importedStudents.forEach(student => {
-          serviceEleves.ajouterEleve(student)
+        if (!establishmentId) {
+          toast.error("Le contexte de l'établissement est indisponible")
+          return
+        }
+        Promise.all(importedStudents.map((student) => create({
+          establishmentId,
+          firstName: student.prenom,
+          lastName: student.nom,
+          studentNumber: student.identifiant,
+          birthDate: student.dateNaissance,
+          sex: student.sexe,
+          phone: student.informationsContact.telephone,
+          email: student.informationsContact.email,
+          active: true,
+        }))).then((results) => {
+          const importedCount = results.filter(Boolean).length
+          if (importedCount > 0) toast.success(`${importedCount} élève(s) importé(s) avec succès`)
+          if (importedCount < importedStudents.length) toast.error("Certains élèves n'ont pas pu être importés")
         })
-        const updatedStudents = serviceEleves.obtenirTousLesEleves()
-        setStudents(updatedStudents)
-        toast.success(`${importedStudents.length} élève(s) importé(s) avec succès`)
       }
     }
     reader.readAsText(file)
@@ -497,7 +550,7 @@ export default function StudentsPage() {
     {} as { [key: string]: DonneesEleve[] },
   )
 
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage)
+  const totalPages = backendTotalPages || Math.ceil(filteredStudents.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const paginatedStudents = filteredStudents.slice(startIndex, endIndex)
@@ -508,6 +561,16 @@ export default function StudentsPage() {
 
   return (
     <div className="space-y-6">
+      {(estEnCoursDeChargement || isLoadingSupabase) && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          Chargement des élèves...
+        </div>
+      )}
+      {studentsError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {studentsError}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -689,7 +752,9 @@ export default function StudentsPage() {
               <p className="text-sm font-medium text-terre">{selectedIds.size} élève{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}</p>
               <div className="flex gap-2 mt-2 flex-wrap">
                 <Button size="sm" onClick={handleBulkStatusChange} className="rounded-xl">Changer statut</Button>
-                <Button size="sm" onClick={handleBulkClassChange} className="rounded-xl">Changer classe</Button>
+                <Button size="sm" onClick={handleBulkClassChange} disabled={isAssigning} className="rounded-xl">
+                  {isAssigning ? "Affectation..." : "Affecter à une classe"}
+                </Button>
                 <Button size="sm" onClick={handleBulkGenerateCertificates} className="rounded-xl">Générer certificats</Button>
                 <Button size="sm" onClick={handleBulkArchive} className="rounded-xl">Archiver</Button>
                 <Button size="sm" onClick={handleBulkMessage} className="rounded-xl">Message</Button>

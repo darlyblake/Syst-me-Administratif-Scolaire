@@ -472,11 +472,11 @@ class ServiceParents {
   }
 
   obtenirConversations(): ConversationParent[] {
-    return DEMO_CONVERSATIONS
+    return []
   }
 
   compterMessagesNonLus(): number {
-    return DEMO_CONVERSATIONS.reduce((s, c) => s + c.nonLus, 0)
+    return 0
   }
 
   obtenirEvenements(): EvenementParent[] {

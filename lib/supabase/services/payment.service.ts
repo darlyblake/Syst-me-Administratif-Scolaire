@@ -1,6 +1,82 @@
 import { supabaseBrowser } from "@/lib/supabase/client"
 import type { Payment, PaymentSchedule, PaymentAllocation, PaymentSummary } from "@/lib/supabase/types"
 
+export interface PaymentPage {
+  data: Payment[]
+  page: number
+  page_size: number
+  total: number
+  total_pages: number
+}
+
+export interface EstablishmentPaymentSummary {
+  expected: number
+  paid: number
+  remaining: number
+  overdue: number
+  paid_schedules: number
+  pending_schedules: number
+}
+
+export async function getPaymentSummaryByEstablishment(establishmentId: string, academicYearId: string): Promise<EstablishmentPaymentSummary> {
+  const { data, error } = await supabaseBrowser.rpc("get_payment_summary", {
+    p_establishment_id: establishmentId,
+    p_academic_year_id: academicYearId,
+  })
+
+  if (error) throw new Error("Impossible de charger le résumé financier.")
+  return data as EstablishmentPaymentSummary
+}
+
+export async function listPaymentsPaginated(data: {
+  establishmentId: string
+  page?: number
+  pageSize?: number
+  studentId?: string | null
+  from?: string | null
+  to?: string | null
+}): Promise<PaymentPage> {
+  const { data: result, error } = await supabaseBrowser.rpc("list_payments_paginated", {
+    p_establishment_id: data.establishmentId,
+    p_page: data.page ?? 1,
+    p_page_size: data.pageSize ?? 25,
+    p_student_id: data.studentId || null,
+    p_from: data.from || null,
+    p_to: data.to || null,
+  })
+
+  if (error) throw new Error("Impossible de charger les paiements.")
+  const value = (result && typeof result === "object" ? result : {}) as Record<string, unknown>
+  return {
+    data: Array.isArray(value.data) ? value.data as Payment[] : [],
+    page: typeof value.page === "number" ? value.page : data.page ?? 1,
+    page_size: typeof value.page_size === "number" ? value.page_size : data.pageSize ?? 25,
+    total: typeof value.total === "number" ? value.total : 0,
+    total_pages: typeof value.total_pages === "number" ? value.total_pages : 0,
+  }
+}
+
+export async function createPaymentWithAllocations(data: {
+  enrollmentId: string
+  amount: number
+  reference?: string
+  method: string
+  notes?: string
+  allocations: Array<{ schedule_id: string; amount: number }>
+}): Promise<string> {
+  const { data: result, error } = await supabaseBrowser.rpc("create_payment_with_allocations", {
+    p_enrollment_id: data.enrollmentId,
+    p_amount: data.amount,
+    p_reference: data.reference || null,
+    p_method: data.method,
+    p_notes: data.notes || null,
+    p_allocations: data.allocations,
+  })
+
+  if (error) throw new Error("Impossible d'enregistrer le paiement.")
+  return result as string
+}
+
 export async function getPaymentSchedule(enrollmentId: string): Promise<PaymentSchedule[]> {
   const { data, error } = await supabaseBrowser
     .from("payment_schedules")
@@ -13,28 +89,6 @@ export async function getPaymentSchedule(enrollmentId: string): Promise<PaymentS
   }
 
   return (data ?? []) as PaymentSchedule[]
-}
-
-export async function createPayment(data: Partial<Payment>): Promise<Payment> {
-  const { data: result, error } = await supabaseBrowser
-    .from("payments")
-    .insert({
-      enrollment_id: data.enrollment_id,
-      schedule_id: data.schedule_id,
-      amount: data.amount,
-      payment_date: data.payment_date || new Date().toISOString(),
-      payment_method: data.payment_method,
-      reference: data.reference,
-      notes: data.notes,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    throw new Error("Impossible de créer le paiement.")
-  }
-
-  return result as Payment
 }
 
 export async function getPayments(enrollmentId: string): Promise<Payment[]> {
@@ -51,47 +105,11 @@ export async function getPayments(enrollmentId: string): Promise<Payment[]> {
   return (data ?? []) as Payment[]
 }
 
-export async function getPaymentSummary(enrollmentId: string): Promise<PaymentSummary> {
-  // Get the enrollment and tuition plan to calculate totals
-  const { data: enrollment, error: enrollmentError } = await supabaseBrowser
-    .from("enrollments")
-    .select("tuition_plan_id")
-    .eq("id", enrollmentId)
-    .single()
+export async function getEnrollmentFinancialSummary(enrollmentId: string): Promise<PaymentSummary> {
+  const { data, error } = await supabaseBrowser.rpc("get_enrollment_financial_summary", {
+    p_enrollment_id: enrollmentId,
+  })
 
-  if (enrollmentError) {
-    throw new Error("Impossible de charger l'inscription.")
-  }
-
-  const { data: tuitionPlan, error: tuitionError } = await supabaseBrowser
-    .from("tuition_plans")
-    .select("annual_amount, registration_fee")
-    .eq("id", enrollment.tuition_plan_id)
-    .single()
-
-  if (tuitionError) {
-    throw new Error("Impossible de charger le plan de scolarité.")
-  }
-
-  const totalDue = (tuitionPlan.annual_amount || 0) + (tuitionPlan.registration_fee || 0)
-
-  // Get paid amount
-  const { data: payments, error: paymentsError } = await supabaseBrowser
-    .from("payments")
-    .select("amount")
-    .eq("enrollment_id", enrollmentId)
-
-  if (paymentsError) {
-    throw new Error("Impossible de charger les paiements.")
-  }
-
-  const paid = (payments ?? []).reduce((sum, p) => sum + (p.amount || 0), 0)
-  const pending = Math.max(0, totalDue - paid)
-
-  return {
-    total_due: totalDue,
-    paid,
-    pending,
-    overdue: 0, // Would need date comparison logic
-  }
+  if (error) throw new Error("Impossible de charger le résumé financier.")
+  return data as PaymentSummary
 }

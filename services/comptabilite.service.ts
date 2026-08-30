@@ -42,7 +42,7 @@ class ServiceComptabilite {
         return this.obtenirPlanComptableParDefaut()
       }
 
-      const donnees = window.safeLocalStorage.getItem(this.CLE_STOCKAGE)
+      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE)
       if (donnees) {
         const planCharge = JSON.parse(donnees) as PlanComptable
         const planNormalise = this.normaliserPlanComptable(planCharge)
@@ -71,7 +71,7 @@ class ServiceComptabilite {
       }
 
       const donneesNormalisees = this.normaliserPlanComptable(donnees)
-      window.safeLocalStorage.setItem(this.CLE_STOCKAGE, JSON.stringify(donneesNormalisees))
+      safeLocalStorage.setItem(this.CLE_STOCKAGE, JSON.stringify(donneesNormalisees))
     } catch (error) {
       console.error("Erreur lors de la sauvegarde des données comptables:", error)
     }

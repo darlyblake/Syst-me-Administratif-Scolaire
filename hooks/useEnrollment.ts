@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { getEnrollment, getEnrollmentSchedule } from "@/lib/supabase/services/enrollment.service"
+import { useCallback, useEffect, useState } from "react"
+import { createStudentEnrollmentWithSchedule, getEnrollment, getEnrollmentSchedule } from "@/lib/supabase/services/enrollment.service"
 import type { Enrollment } from "@/lib/supabase/types"
 
 export function useEnrollment(enrollmentId: string | null) {
@@ -9,6 +9,7 @@ export function useEnrollment(enrollmentId: string | null) {
   const [schedule, setSchedule] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     if (!enrollmentId) {
@@ -51,5 +52,19 @@ export function useEnrollment(enrollmentId: string | null) {
     }
   }, [enrollmentId])
 
-  return { enrollment, schedule, isLoading, error }
+  const createStudentEnrollment = useCallback(async (data: Parameters<typeof createStudentEnrollmentWithSchedule>[0]) => {
+    if (isSubmitting) return null
+    try {
+      setIsSubmitting(true)
+      setError(null)
+      return await createStudentEnrollmentWithSchedule(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible d'enregistrer l'inscription.")
+      return null
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [isSubmitting])
+
+  return { enrollment, schedule, isLoading, error, isSubmitting, createStudentEnrollment }
 }

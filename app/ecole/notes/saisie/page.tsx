@@ -9,16 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Save, Calculator } from "lucide-react"
 import Link from "next/link"
-import { serviceEleves } from "@/services/eleves.service"
-import { useAuthentification } from "@/providers/authentification.provider"
+import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { useClassGrades } from "@/hooks/useGrades"
 import { createGrade, updateGrade } from "@/lib/supabase/services/grade.service"
 
 export default function SaisieNotes() {
-  const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { primaryEstablishment } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? null
   const { data: academicStructure } = useAcademicStructure(establishmentId)
   const [selectedClasse, setSelectedClasse] = useState("")
   const [selectedMatiere, setSelectedMatiere] = useState("")
@@ -91,11 +90,9 @@ export default function SaisieNotes() {
     "Anglais", "EPS", "Arts Plastiques", "Musique", "Informatique"
   ]
 
-  const allStudents = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()
+  const allStudents = mappedSupabaseStudents
   const filteredStudents = selectedClasse
-    ? mappedSupabaseStudents.length > 0
-      ? allStudents
-      : allStudents.filter(s => s.classe === selectedClassName)
+    ? allStudents
     : []
 
   useEffect(() => {

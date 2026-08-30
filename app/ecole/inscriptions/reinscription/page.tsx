@@ -6,16 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ArrowLeft, RotateCcw, Search } from "lucide-react"
 import Link from "next/link"
-import { serviceEleves } from "@/services/eleves.service"
-import { serviceParametres } from "@/services/parametres.service"
 import NouvelleInscriptionModal from "@/components/NouvelleInscriptionModal"
-import { useAuthentification } from "@/providers/authentification.provider"
+import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
 import type { DonneesEleve } from "@/types/models"
 
 export default function Reinscription() {
-  const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { primaryEstablishment } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? null
   const { data: supabaseStudents } = useStudents(establishmentId)
 
   const mappedSupabaseStudents = useMemo(() => {
@@ -77,18 +75,14 @@ export default function Reinscription() {
     return null
   }
 
-  const allStudents = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()
-  const parametres = serviceParametres.obtenirParametres()
-  const anneeCourante = parametres.anneeAcademique
+  const allStudents = mappedSupabaseStudents
 
-  // Obtenir les années académiques uniques
-  const anneesDisponibles = Array.from(new Set(allStudents.map(s => {
+  const anneesDisponibles = Array.from(new Set(allStudents.map((s) => {
     const year = new Date(s.dateInscription).getFullYear()
     return `${year}-${year + 1}`
   })))
 
-  // Obtenir les classes uniques
-  const classesDisponibles = Array.from(new Set(allStudents.map(s => s.classe)))
+  const classesDisponibles = Array.from(new Set(allStudents.map((s) => s.classe).filter(Boolean)))
 
   const filteredStudents = allStudents.filter(
     (student) => {
@@ -120,7 +114,6 @@ export default function Reinscription() {
   const handleModalSuccess = () => {
     setShowModal(false)
     setSelectedStudent(null)
-    setAllStudents(serviceEleves.obtenirTousLesEleves())
   }
 
   return (

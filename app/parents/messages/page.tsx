@@ -1,165 +1,168 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { MessageSquare, Send } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { MessageSquare, Send, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { serviceParents } from "@/services/parents.service"
-import { cn } from "@/lib/utils"
+import { useMessages } from "@/hooks/useMessages"
+import { useUserContext } from "@/hooks/useUserContext"
+import { useNotifications } from "@/hooks/useNotifications"
 
 export default function ParentsMessagesPage() {
-  const conversations = useMemo(() => serviceParents.obtenirConversations(), [])
-  const [selectedId, setSelectedId] = useState(conversations[0]?.id ?? "")
+  const { utilisateur, primaryEstablishment } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? null
+  const userId = utilisateur?.id ?? null
+  const { success: showSuccess, error: showError } = useNotifications()
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
-  const [localMessages, setLocalMessages] = useState<Record<string, { id: string; contenu: string; date: string }[]>>(
-    {},
+  const [isSending, setIsSending] = useState(false)
+
+  const { conversations, messages, sendMessage, markConversationRead } = useMessages(establishmentId, userId, selectedId)
+
+  useEffect(() => {
+    if (!conversations.data.length) {
+      setSelectedId(null)
+      return
+    }
+    if (!selectedId || !conversations.data.some((conversation) => conversation.id === selectedId)) {
+      setSelectedId(conversations.data[0].id)
+    }
+  }, [conversations.data, selectedId])
+
+  useEffect(() => {
+    if (!selectedId || !userId) return
+    void markConversationRead(selectedId, userId)
+  }, [selectedId, userId, markConversationRead])
+
+  const selectedConversation = useMemo(
+    () => conversations.data.find((conversation) => conversation.id === selectedId) ?? null,
+    [conversations.data, selectedId],
   )
 
-  const selected = conversations.find((c) => c.id === selectedId)
-  const extra = localMessages[selectedId] || []
+  const handleSend = async () => {
+    if (!selectedId || !userId || !draft.trim()) return
 
-  const handleSend = () => {
-    if (!draft.trim() || !selectedId) return
-    setLocalMessages((prev) => ({
-      ...prev,
-      [selectedId]: [
-        ...(prev[selectedId] || []),
-        {
-          id: `local-${Date.now()}`,
-          contenu: draft.trim(),
-          date: new Date().toISOString(),
-        },
-      ],
-    }))
-    setDraft("")
+    try {
+      setIsSending(true)
+      await sendMessage({ conversation_id: selectedId, sender_id: userId, content: draft.trim() })
+      setDraft("")
+      showSuccess("Message envoyé.")
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Impossible d’envoyer le message.")
+    } finally {
+      setIsSending(false)
+    }
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-terre">
-          <MessageSquare className="h-6 w-6 text-terre" />
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
+          <MessageSquare className="h-6 w-6" />
           Messages
         </h1>
-        <p className="text-pierre">Échangez avec l&apos;école et les enseignants</p>
+        <p className="text-slate-600">Échangez avec l&apos;école et les enseignants</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-        <Card className="border-terre/10">
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-pierre">Conversations</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-700">Conversations</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1 p-2">
-            {conversations.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setSelectedId(c.id)}
-                className={cn(
-                  "w-full rounded-xl px-3 py-3 text-left transition",
-                  selectedId === c.id ? "bg-terre-soft" : "hover:bg-creme",
-                )}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold text-terre line-clamp-1">{c.sujet}</p>
-                  {c.nonLus > 0 && (
-                    <Badge className="shrink-0 bg-violet-600 text-white hover:bg-violet-600">
-                      {c.nonLus}
-                    </Badge>
-                  )}
-                </div>
-                {c.eleveNom && <p className="text-xs text-terre">{c.eleveNom}</p>}
-                <p className="mt-0.5 line-clamp-1 text-xs text-pierre">{c.dernierMessage}</p>
-              </button>
-            ))}
+          <CardContent className="space-y-2 p-2">
+            {conversations.isLoading ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                Chargement des conversations...
+              </div>
+            ) : conversations.data.length ? (
+              conversations.data.map((conversation) => (
+                <button
+                  key={conversation.id}
+                  type="button"
+                  onClick={() => setSelectedId(conversation.id)}
+                  className={`w-full rounded-xl px-3 py-3 text-left transition ${selectedId === conversation.id ? "bg-slate-100" : "hover:bg-slate-50"}`}
+                >
+                  <p className="text-sm font-semibold text-slate-800">{conversation.title}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-slate-600">
+                    {conversation.last_message_preview || "Aucun message."}
+                  </p>
+                </button>
+              ))
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                Aucune conversation n’est disponible pour le moment.
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        <Card className="flex min-h-[420px] flex-col border-terre/10">
-          {selected ? (
+        <Card className="flex min-h-[420px] flex-col">
+          {conversations.error ? (
+            <CardContent className="flex flex-1 items-center justify-center text-center p-6">
+              <div className="max-w-md">
+                <AlertCircle className="mx-auto h-8 w-8 text-red-600" />
+                <p className="mt-4 text-sm text-slate-600">{conversations.error}</p>
+                <Button className="mt-4" variant="outline" onClick={() => void conversations.refetch()}>
+                  Réessayer
+                </Button>
+              </div>
+            </CardContent>
+          ) : selectedConversation ? (
             <>
               <CardHeader className="border-b pb-3">
-                <CardTitle className="text-base">{selected.sujet}</CardTitle>
-                {selected.eleveNom && (
-                  <p className="text-sm text-pierre">Concernant : {selected.eleveNom}</p>
-                )}
+                <CardTitle className="text-base">{selectedConversation.title}</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
                 <div className="flex-1 space-y-3">
-                  {selected.messages.map((m) => (
-                    <div
-                      key={m.id}
-                      className={cn(
-                        "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
-                        m.expediteur === "parent"
-                          ? "ml-auto bg-violet-600 text-white"
-                          : "bg-slate-100 text-slate-800",
-                      )}
-                    >
-                      {m.expediteur !== "parent" && (
-                        <p className="mb-0.5 text-xs font-semibold opacity-70">{m.auteur}</p>
-                      )}
-                      <p>{m.contenu}</p>
-                      <p
-                        className={cn(
-                          "mt-1 text-[10px]",
-                          m.expediteur === "parent" ? "text-white/70" : "text-slate-400",
-                        )}
-                      >
-                        {new Date(m.date).toLocaleString("fr-FR", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                  ))}
-                  {extra.map((m) => (
-                    <div
-                      key={m.id}
-                      className="ml-auto max-w-[85%] rounded-2xl bg-violet-600 px-4 py-2.5 text-sm text-white"
-                    >
-                      <p>{m.contenu}</p>
-                      <p className="mt-1 text-[10px] text-white/70">
-                        {new Date(m.date).toLocaleString("fr-FR", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                  ))}
+                  {messages.isLoading ? (
+                    <div className="text-sm text-slate-600">Chargement des messages...</div>
+                  ) : messages.data.length ? (
+                    messages.data.map((message) => {
+                      const isMine = message.sender_id === userId
+                      return (
+                        <div key={message.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                          <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${isMine ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-800"}`}>
+                            {!isMine && (
+                              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                {message.sender_name || "Participant"}
+                              </p>
+                            )}
+                            <p className="whitespace-pre-wrap">{message.content}</p>
+                            <p className={`mt-1 text-[10px] ${isMine ? "text-slate-300" : "text-slate-400"}`}>
+                              {new Date(message.created_at).toLocaleString("fr-FR", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <div className="text-sm text-slate-600">Aucun message dans cette conversation.</div>
+                  )}
                 </div>
+
                 <div className="flex gap-2 border-t pt-3">
                   <Textarea
-                    placeholder="Écrire un message…"
+                    placeholder="Écrire un message..."
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
-                    className="min-h-[44px] resize-none"
-                    rows={2}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault()
-                        handleSend()
-                      }
-                    }}
+                    rows={3}
                   />
-                  <Button
-                    className="shrink-0 bg-violet-600 hover:bg-violet-700"
-                    onClick={handleSend}
-                    disabled={!draft.trim()}
-                  >
-                    <Send className="h-4 w-4" />
+                  <Button onClick={() => void handleSend()} disabled={isSending || !draft.trim()}>
+                    <Send className="mr-2 h-4 w-4" />
+                    {isSending ? "Envoi..." : "Envoyer"}
                   </Button>
                 </div>
               </CardContent>
             </>
           ) : (
-            <CardContent className="flex flex-1 items-center justify-center text-pierre">
+            <CardContent className="flex flex-1 items-center justify-center text-slate-600">
               Sélectionnez une conversation
             </CardContent>
           )}

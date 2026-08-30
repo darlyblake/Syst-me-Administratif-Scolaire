@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import {
   getAbsencesByStudent,
   getAbsencesByClass,
   getAbsencesForDate,
+  getAttendanceStatistics,
 } from "@/lib/supabase/services/absence.service"
 import type { Absence, AbsenceWithStudent } from "@/lib/supabase/types"
 
@@ -126,4 +127,30 @@ export function useDailyAbsences(establishmentId: string | null, date: string) {
   }, [establishmentId, date])
 
   return { absences, isLoading, error }
+}
+
+export function useAttendanceStatistics(filters: { establishmentId: string | null; from: string; to: string; classId?: string | null }) {
+  const [data, setData] = useState<Awaited<ReturnType<typeof getAttendanceStatistics>> | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const refetch = useCallback(() => setRefreshKey((value) => value + 1), [])
+
+  useEffect(() => {
+    if (!filters.establishmentId) {
+      setData(null)
+      setIsLoading(false)
+      return
+    }
+    let active = true
+    setIsLoading(true)
+    void getAttendanceStatistics({ ...filters, establishmentId: filters.establishmentId })
+      .then((result) => { if (active) { setData(result); setError(null) } })
+      .catch((err) => { if (active) setError(err instanceof Error ? err.message : "Impossible de charger les statistiques de présence.") })
+      .finally(() => { if (active) setIsLoading(false) })
+    return () => { active = false }
+  }, [filters.establishmentId, filters.from, filters.to, filters.classId, refreshKey])
+
+  return { data, isLoading, error, refetch }
 }

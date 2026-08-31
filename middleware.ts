@@ -3,8 +3,14 @@ import { createServerClient } from '@supabase/ssr'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const publicRoutes = ['/login', '/register', '/auth', '/offline']
-  const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
+
+  // Toutes les pages d'authentification doivent rester accessibles sans session.
+  // /auth/login redirige vers /connexion, donc /connexion doit également être public
+  // pour éviter une boucle /auth/login -> /connexion -> /auth/login.
+  const publicRoutes = ['/login', '/register', '/auth', '/connexion', '/offline']
+  const isPublicRoute = publicRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  )
 
   if (isPublicRoute) return NextResponse.next()
 
@@ -13,7 +19,9 @@ export async function middleware(request: NextRequest) {
 
   if (!supabaseUrl || !supabaseAnonKey) {
     console.error('Supabase middleware configuration is missing')
-    return NextResponse.redirect(new URL('/auth/login', request.url))
+    const loginUrl = new URL('/auth/login', request.url)
+    loginUrl.searchParams.set('redirectTo', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
   let response = NextResponse.next({ request })
@@ -33,7 +41,10 @@ export async function middleware(request: NextRequest) {
       },
     })
 
-    const { data: { user }, error } = await supabase.auth.getUser()
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
 
     if (error || !user) {
       const loginUrl = new URL('/auth/login', request.url)

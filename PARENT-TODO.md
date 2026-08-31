@@ -21,7 +21,7 @@ Cette checklist suit l'avancement réel du module Parent. Une tâche n'est coch�
 - [ ] Vérification de l'identité de l'enfant
 - [ ] Demande d'association
 - [ ] Gestion d'une association existante
-- [ ] Retirer une association
+- [x] Retirer une association
 - [ ] Historique des associations
 - [ ] Protection contre l'accès à un enfant non autorisé
 

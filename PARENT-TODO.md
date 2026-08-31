@@ -22,7 +22,7 @@ Cette checklist suit l'avancement réel du module Parent. Une tâche n'est coch�
 - [ ] Demande d'association
 - [ ] Gestion d'une association existante
 - [x] Retirer une association
-- [ ] Historique des associations
+- [x] Historique des associations
 - [ ] Protection contre l'accès à un enfant non autorisé
 
 ## 3. Scolarité

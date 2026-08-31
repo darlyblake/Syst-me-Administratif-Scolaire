@@ -8,6 +8,7 @@ export type TeacherContext = { teacher_id: string; profile_id: string; first_nam
 export type TeacherAssessment = { assessment_id: string; establishment_id: string; academic_year_id: string; academic_year_name: string; class_id: string; class_name: string; subject_id: string; subject_name: string; title: string; assessment_date: string; max_score: number; term: string | null; grade_count: number }
 export type TeacherAssessmentStudent = { student_id: string; first_name: string; last_name: string; student_number: string | null; score: number | null; comment: string | null }
 export type TeacherAttendanceStudent = { student_id: string; first_name: string; last_name: string; student_number: string | null; status: string | null; reason: string | null }
+export type TeacherClassOverview = { class_id: string; class_name: string; student_count: number; assessment_count: number; graded_count: number; average_percentage: number | null; attendance_present: number; attendance_absent: number; attendance_late: number; attendance_excused: number }
 
 async function rpc<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabaseBrowser.rpc(name, args)
@@ -27,4 +28,5 @@ export const enseignantPortalService = {
   recordGrade: (assessmentId: string, studentId: string, score: number, comment?: string) => rpc<string>("record_grade", { p_assessment_id: assessmentId, p_student_id: studentId, p_score: score, p_comment: comment || null }),
   getAttendance: (establishmentId: string, classId: string, date: string) => rpc<TeacherAttendanceStudent[]>("teacher_attendance_for_date", { p_establishment_id: establishmentId, p_class_id: classId, p_date: date }),
   recordAttendance: (establishmentId: string, studentId: string, classId: string, date: string, status: string, reason?: string) => rpc<string>("record_attendance", { p_establishment_id: establishmentId, p_student_id: studentId, p_class_id: classId, p_date: date, p_status: status, p_reason: reason || null }),
+  getClassOverview: (establishmentId: string, classId: string) => rpc<TeacherClassOverview[]>("teacher_class_overview", { p_establishment_id: establishmentId, p_class_id: classId }),
 }

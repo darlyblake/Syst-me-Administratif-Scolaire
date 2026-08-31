@@ -73,6 +73,12 @@ export type ParentEvent = {
   location: string | null
 }
 
+export type ClaimStudentInput = {
+  studentId?: string
+  studentNumber?: string
+  birthDate: string
+}
+
 export function useParentPortal() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -195,6 +201,31 @@ export function useParentPortal() {
     }
   }, [])
 
+  const claimChild = useCallback(async (input: ClaimStudentInput) => {
+    const studentNumber = input.studentNumber?.trim()
+    const studentId = input.studentId?.trim()
+    const birthDate = input.birthDate.trim()
+    if ((!studentNumber && !studentId) || !birthDate) throw new Error("L'identifiant et la date de naissance sont obligatoires.")
+
+    const { data, error } = await supabaseBrowser.functions.invoke("claim-student", {
+      body: { student_id: studentId || undefined, student_number: studentNumber || undefined, birth_date: birthDate },
+    })
+    if (error) {
+      let message = error.message
+      try {
+        const context = (error as { context?: Response }).context
+        if (context) {
+          const payload = await context.json() as { error?: string }
+          message = payload.error ?? message
+        }
+      } catch {}
+      throw new Error(message)
+    }
+    if (!data?.linked) throw new Error("Le rattachement de l'élève n'a pas été confirmé.")
+    await refresh()
+    return data
+  }, [refresh])
+
   const markNotificationRead = useCallback(async (notificationId: string) => {
     const { data: authData, error: authError } = await supabaseBrowser.auth.getUser()
     if (authError || !authData.user) throw new Error("Session parent introuvable.")
@@ -209,5 +240,5 @@ export function useParentPortal() {
 
   useEffect(() => { void refresh() }, [refresh])
 
-  return { loading, error, refresh, children, grades, payments, attendance, notifications, events, markNotificationRead }
+  return { loading, error, refresh, children, grades, payments, attendance, notifications, events, claimChild, markNotificationRead }
 }

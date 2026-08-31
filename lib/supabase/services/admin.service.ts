@@ -64,6 +64,32 @@ export type AdminParent = {
   created_at: string
 }
 
+export const PLATFORM_ADMIN_PERMISSIONS = [
+  { value: "dashboard.view", label: "Tableau de bord" },
+  { value: "establishments.view", label: "Voir les établissements" },
+  { value: "establishments.manage", label: "Gérer les établissements" },
+  { value: "subscriptions.manage", label: "Gérer les abonnements" },
+  { value: "users.view", label: "Voir les utilisateurs" },
+  { value: "admins.manage", label: "Gérer les administrateurs" },
+  { value: "support.manage", label: "Service technique" },
+  { value: "settings.manage", label: "Paramètres plateforme" },
+] as const
+
+export type PlatformAdminPermission = (typeof PLATFORM_ADMIN_PERMISSIONS)[number]["value"]
+
+export type PlatformAdmin = {
+  user_id: string
+  email: string | null
+  first_name: string | null
+  last_name: string | null
+  active: boolean
+  is_root: boolean
+  created_by: string | null
+  created_by_name: string | null
+  permissions: PlatformAdminPermission[]
+  created_at: string
+}
+
 export async function refreshSubscriptionMonitoring(): Promise<number> {
   const { data, error } = await supabaseBrowser.rpc("monitor_subscription_expirations")
   if (error) throw error
@@ -96,11 +122,7 @@ export async function getAdminParents(): Promise<AdminParent[]> {
   return (data ?? []) as AdminParent[]
 }
 
-export async function setAdminParentActive(
-  guardianUserId: string,
-  establishmentId: string,
-  active: boolean,
-): Promise<boolean> {
+export async function setAdminParentActive(guardianUserId: string, establishmentId: string, active: boolean): Promise<boolean> {
   const { data, error } = await supabaseBrowser.rpc("platform_admin_set_parent_active", {
     p_guardian_user_id: guardianUserId,
     p_establishment_id: establishmentId,
@@ -108,4 +130,49 @@ export async function setAdminParentActive(
   })
   if (error) throw error
   return Boolean(data)
+}
+
+export async function getPlatformAdmins(): Promise<PlatformAdmin[]> {
+  const { data, error } = await supabaseBrowser.rpc("platform_admin_list")
+  if (error) throw error
+  return (data ?? []) as PlatformAdmin[]
+}
+
+export async function setPlatformAdminActive(userId: string, active: boolean): Promise<boolean> {
+  const { data, error } = await supabaseBrowser.rpc("platform_admin_set_active", { p_user_id: userId, p_active: active })
+  if (error) throw error
+  return Boolean(data)
+}
+
+export async function updatePlatformAdminPermissions(userId: string, permissions: PlatformAdminPermission[]): Promise<boolean> {
+  const { data, error } = await supabaseBrowser.rpc("platform_admin_update_permissions", {
+    p_user_id: userId,
+    p_permissions: permissions,
+  })
+  if (error) throw error
+  return Boolean(data)
+}
+
+export async function createPlatformAdmin(input: {
+  first_name: string
+  last_name: string
+  email: string
+  password?: string
+  permissions: PlatformAdminPermission[]
+}) {
+  const { data, error } = await supabaseBrowser.functions.invoke("create-platform-admin", {
+    body: { action: "create", ...input },
+  })
+  if (error) throw new Error(data?.error ?? error.message)
+  if (data?.error) throw new Error(data.error)
+  return data as { status: "created"; user_id: string; email: string; temporary_password: string; permissions: PlatformAdminPermission[] }
+}
+
+export async function deletePlatformAdmin(userId: string): Promise<boolean> {
+  const { data, error } = await supabaseBrowser.functions.invoke("create-platform-admin", {
+    body: { action: "delete", user_id: userId },
+  })
+  if (error) throw new Error(data?.error ?? error.message)
+  if (data?.error) throw new Error(data.error)
+  return data?.status === "deleted"
 }

@@ -1,73 +1,41 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { ArrowLeft, Loader2, Save } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { ArrowLeft, Check, CheckCheck, Loader2, Save, Search } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { enseignantPortalService, type TeacherAttendanceStudent, type TeacherClass } from "@/services/enseignant-portal.service"
 
-const statuses = [
-  { value: "present", label: "Présent" },
-  { value: "absent", label: "Absent" },
-  { value: "late", label: "En retard" },
-  { value: "excused", label: "Excusé" },
-] as const
+const statuses = [{ value: "present", label: "Présent" }, { value: "absent", label: "Absent" }, { value: "late", label: "En retard" }, { value: "excused", label: "Excusé" }] as const
+const localDate = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}` }
 
 export default function PresencesEnseignantPage() {
-  const { id } = useParams<{ id: string }>()
-  const router = useRouter()
-  const { utilisateur, contexte, estEnCoursDeChargement } = useAuthentification()
-  const [classes, setClasses] = useState<TeacherClass[]>([])
-  const [classId, setClassId] = useState("")
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [students, setStudents] = useState<TeacherAttendanceStudent[]>([])
-  const [statusesByStudent, setStatusesByStudent] = useState<Record<string, string>>({})
-  const [reasons, setReasons] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
+  const { id } = useParams<{ id: string }>(); const router = useRouter(); const { utilisateur, contexte, estEnCoursDeChargement } = useAuthentification()
+  const [classes, setClasses] = useState<TeacherClass[]>([]); const [classId, setClassId] = useState(""); const [date, setDate] = useState(localDate); const [students, setStudents] = useState<TeacherAttendanceStudent[]>([])
+  const [statusesByStudent, setStatusesByStudent] = useState<Record<string, string>>({}); const [reasons, setReasons] = useState<Record<string, string>>({}); const [search, setSearch] = useState("")
+  const [loading, setLoading] = useState(false); const [saving, setSaving] = useState<string | null>(null); const [message, setMessage] = useState<string | null>(null)
   const establishment = contexte?.establishments?.find((item) => item.id === id)
 
-  useEffect(() => {
-    if (!estEnCoursDeChargement && (!utilisateur || utilisateur.role !== "enseignant" || !establishment)) router.replace("/enseignant")
-  }, [estEnCoursDeChargement, utilisateur, establishment, router])
+  useEffect(() => { if (!estEnCoursDeChargement && (!utilisateur || utilisateur.role !== "enseignant" || !establishment)) router.replace("/enseignant") }, [estEnCoursDeChargement, utilisateur, establishment, router])
+  useEffect(() => { if (!id || !establishment) return; enseignantPortalService.getClasses(id).then((rows) => { setClasses(rows); if (!classId && rows[0]) setClassId(rows[0].class_id) }).catch((e) => setMessage(e instanceof Error ? e.message : "Impossible de charger vos classes.")) }, [id, establishment])
+  useEffect(() => { if (!classId || !date || !id) return; setLoading(true); setMessage(null); setSearch(""); enseignantPortalService.getAttendance(id, classId, date).then((rows) => { setStudents(rows); setStatusesByStudent(Object.fromEntries(rows.map((row) => [row.student_id, row.status ?? "present"]))); setReasons(Object.fromEntries(rows.map((row) => [row.student_id, row.reason ?? ""]))) }).catch((e) => setMessage(e instanceof Error ? e.message : "Impossible de charger les présences.")).finally(() => setLoading(false)) }, [classId, date, id])
 
-  useEffect(() => {
-    if (!id || !establishment) return
-    enseignantPortalService.getClasses(id).then((rows) => {
-      setClasses(rows)
-      if (!classId && rows[0]) setClassId(rows[0].class_id)
-    }).catch((error) => setMessage(error instanceof Error ? error.message : "Impossible de charger vos classes."))
-  }, [id, establishment, classId])
+  const uniqueClasses = useMemo(() => Array.from(new Map(classes.map((item) => [item.class_id, item])).values()), [classes])
+  const filteredStudents = useMemo(() => { const q = search.trim().toLowerCase(); if (!q) return students; return students.filter((s) => `${s.last_name} ${s.first_name} ${s.student_number ?? ""}`.toLowerCase().includes(q)) }, [students, search])
+  const counts = useMemo(() => students.reduce((acc, s) => { const status = statusesByStudent[s.student_id] ?? "present"; acc[status] = (acc[status] ?? 0) + 1; return acc }, {} as Record<string, number>), [students, statusesByStudent])
 
-  useEffect(() => {
-    if (!classId || !date || !id) return
-    setLoading(true); setMessage(null)
-    enseignantPortalService.getAttendance(id, classId, date).then((rows) => {
-      setStudents(rows)
-      setStatusesByStudent(Object.fromEntries(rows.map((row) => [row.student_id, row.status ?? "present"])))
-      setReasons(Object.fromEntries(rows.map((row) => [row.student_id, row.reason ?? ""])))
-    }).catch((error) => setMessage(error instanceof Error ? error.message : "Impossible de charger les présences.")).finally(() => setLoading(false))
-  }, [classId, date, id])
-
-  const save = async (student: TeacherAttendanceStudent) => {
-    setSaving(student.student_id); setMessage(null)
-    try {
-      await enseignantPortalService.recordAttendance(id, student.student_id, classId, date, statusesByStudent[student.student_id] ?? "present", reasons[student.student_id])
-      setStudents((current) => current.map((row) => row.student_id === student.student_id ? { ...row, status: statusesByStudent[student.student_id] ?? "present", reason: reasons[student.student_id] || null } : row))
-      setMessage("Présence enregistrée.")
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Enregistrement impossible.") }
-    finally { setSaving(null) }
-  }
+  const markAllPresent = () => { setStatusesByStudent(Object.fromEntries(students.map((s) => [s.student_id, "present"]))); setMessage("Tous les élèves sont marqués présents. Enregistrez chaque ligne pour confirmer.") }
+  const save = async (student: TeacherAttendanceStudent) => { setSaving(student.student_id); setMessage(null); try { const status = statusesByStudent[student.student_id] ?? "present"; await enseignantPortalService.recordAttendance(id, student.student_id, classId, date, status, reasons[student.student_id]); setStudents((current) => current.map((row) => row.student_id === student.student_id ? { ...row, status, reason: reasons[student.student_id] || null } : row)); setMessage(`Présence de ${student.last_name} ${student.first_name} enregistrée.`) } catch (e) { setMessage(e instanceof Error ? e.message : "Enregistrement impossible.") } finally { setSaving(null) } }
 
   if (estEnCoursDeChargement || !utilisateur || !establishment) return <main className="min-h-screen bg-creme flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin" /></main>
-
   return <main className="min-h-screen bg-creme"><div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-    <header className="mb-6"><Button variant="ghost" size="sm" onClick={() => router.push(`/enseignant/etablissement/${id}`)}><ArrowLeft className="mr-2 h-4 w-4" />Retour</Button><h1 className="mt-3 text-2xl font-semibold">Présences</h1><p className="text-sm text-muted-foreground">{establishment.name} · uniquement vos classes</p></header>
-    <Card className="mb-5"><CardHeader><CardTitle className="text-base">Choisir une classe et une date</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium">Classe<select className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm" value={classId} onChange={(event) => setClassId(event.target.value)}><option value="">Sélectionner…</option>{Array.from(new Map(classes.map((item) => [item.class_id, item]))).map(([value, item]) => <option key={value} value={value}>{item.class_name}</option>)}</select></label><label className="text-sm font-medium">Date<input type="date" className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm" value={date} onChange={(event) => setDate(event.target.value)} /></label></CardContent></Card>
-    {message && <div className="mb-5 rounded-lg border bg-white p-3 text-sm">{message}</div>}
-    <Card><CardContent className="p-0">{!classId ? <p className="p-8 text-center text-sm text-muted-foreground">Sélectionnez une classe pour commencer l'appel.</p> : loading ? <div className="flex justify-center p-8"><Loader2 className="h-5 w-5 animate-spin" /></div> : <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-sm"><thead className="border-b bg-muted/30 text-left text-muted-foreground"><tr><th className="px-5 py-3">Élève</th><th className="px-5 py-3">Statut</th><th className="px-5 py-3">Motif</th><th className="px-5 py-3 text-right">Action</th></tr></thead><tbody className="divide-y">{students.map((student) => <tr key={student.student_id}><td className="px-5 py-3 font-medium">{student.last_name} {student.first_name}</td><td className="px-5 py-3"><select className="h-9 rounded-md border bg-background px-2" value={statusesByStudent[student.student_id] ?? "present"} onChange={(event) => setStatusesByStudent((current) => ({ ...current, [student.student_id]: event.target.value }))}>{statuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></td><td className="px-5 py-3"><input className="h-9 w-full rounded-md border bg-background px-3" value={reasons[student.student_id] ?? ""} onChange={(event) => setReasons((current) => ({ ...current, [student.student_id]: event.target.value }))} placeholder="Facultatif" /></td><td className="px-5 py-3 text-right"><Button size="sm" onClick={() => void save(student)} disabled={saving === student.student_id}><Save className="mr-2 h-4 w-4" />{saving === student.student_id ? "…" : "Enregistrer"}</Button></td></tr>)}</tbody></table>{students.length === 0 && !loading && <p className="p-8 text-center text-sm text-muted-foreground">Aucun élève dans cette classe.</p>}</div>}</CardContent></Card>
+    <header className="mb-6"><Button variant="ghost" size="sm" onClick={() => router.push(`/enseignant/etablissement/${id}`)}><ArrowLeft className="mr-2 h-4 w-4" />Retour à mon espace</Button><div className="mt-3"><p className="text-xs font-medium uppercase tracking-wide text-terre">Suivi quotidien</p><h1 className="text-2xl font-semibold">Présences</h1><p className="text-sm text-muted-foreground">{establishment.name} · vos classes uniquement</p></div></header>
+    <Card className="mb-5"><CardHeader><CardTitle className="text-base">1. Choisir la classe et la date</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-[1fr_180px_auto] sm:items-end"><label className="text-sm font-medium">Classe<select aria-label="Classe" className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm" value={classId} onChange={(e) => setClassId(e.target.value)}><option value="">Sélectionner…</option>{uniqueClasses.map((item) => <option key={item.class_id} value={item.class_id}>{item.class_name}</option>)}</select></label><label className="text-sm font-medium">Date<input aria-label="Date" type="date" className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm" value={date} onChange={(e) => setDate(e.target.value)} /></label><Button variant="outline" onClick={markAllPresent} disabled={!students.length || loading}><CheckCheck className="mr-2 h-4 w-4" />Tous présents</Button></CardContent></Card>
+    {classId && !loading && students.length > 0 && <Card className="mb-5"><CardContent className="flex flex-wrap items-center gap-3 p-4 text-sm"><span className="font-medium">{students.length} élève(s)</span><span className="text-muted-foreground">·</span><span>Présents : {counts.present ?? 0}</span><span>Absents : {counts.absent ?? 0}</span><span>Retards : {counts.late ?? 0}</span><span>Excusés : {counts.excused ?? 0}</span><div className="relative ml-auto w-full sm:w-64"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Rechercher un élève" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un élève…" /></div></CardContent></Card>}
+    {message && <div role="status" className="mb-5 rounded-lg border bg-white p-3 text-sm">{message}</div>}
+    <Card><CardContent className="p-0">{!classId ? <p className="p-8 text-center text-sm text-muted-foreground">Choisissez une classe pour commencer l’appel.</p> : loading ? <div className="flex justify-center p-10"><Loader2 className="h-5 w-5 animate-spin" /></div> : students.length === 0 ? <p className="p-8 text-center text-sm text-muted-foreground">Aucun élève dans cette classe.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-sm"><thead className="border-b bg-muted/30 text-left text-muted-foreground"><tr><th className="px-5 py-3">Élève</th><th className="px-5 py-3">Statut</th><th className="px-5 py-3">Motif</th><th className="px-5 py-3 text-right">Action</th></tr></thead><tbody className="divide-y">{filteredStudents.map((student) => <tr key={student.student_id}><td className="px-5 py-3 font-medium">{student.last_name} {student.first_name}<span className="ml-2 text-xs font-normal text-muted-foreground">{student.student_number ?? ""}</span></td><td className="px-5 py-3"><select aria-label={`Statut de ${student.last_name} ${student.first_name}`} className="h-9 rounded-md border bg-background px-2" value={statusesByStudent[student.student_id] ?? "present"} onChange={(e) => setStatusesByStudent((current) => ({ ...current, [student.student_id]: e.target.value }))}>{statuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></td><td className="px-5 py-3"><Input value={reasons[student.student_id] ?? ""} onChange={(e) => setReasons((current) => ({ ...current, [student.student_id]: e.target.value }))} placeholder="Facultatif" /></td><td className="px-5 py-3 text-right"><Button size="sm" onClick={() => void save(student)} disabled={saving === student.student_id}>{saving === student.student_id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}{saving === student.student_id ? "Enregistrement…" : <><Check className="mr-2 h-4 w-4" />Enregistrer</>}</Button></td></tr>)}</tbody></table>{filteredStudents.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">Aucun élève trouvé.</p>}</div>}</CardContent></Card>
   </div></main>
 }

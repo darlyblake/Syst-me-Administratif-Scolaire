@@ -7,28 +7,40 @@ const admin = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+const allowedOrigins = new Set([
+  "https://syst-me-administratif-scolaire.vercel.app",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+])
+
+function getCorsHeaders(origin: string | null) {
+  const allowedOrigin = origin && allowedOrigins.has(origin) ? origin : "https://syst-me-administratif-scolaire.vercel.app"
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  }
 }
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, req: Request, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...getCorsHeaders(req.headers.get("Origin")), "Content-Type": "application/json" },
   })
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
-  if (req.method !== "POST") return json({ error: "Méthode non autorisée." }, 405)
+  const origin = req.headers.get("Origin")
+  if (origin && !allowedOrigins.has(origin)) return json({ error: "Origine non autorisée." }, req, 403)
+  if (req.method === "OPTIONS") return new Response("ok", { headers: getCorsHeaders(origin) })
+  if (req.method !== "POST") return json({ error: "Méthode non autorisée." }, req, 405)
 
   const authorization = req.headers.get("Authorization")
-  if (!authorization?.startsWith("Bearer ")) return json({ error: "Authentification requise." }, 401)
+  if (!authorization?.startsWith("Bearer ")) return json({ error: "Authentification requise." }, req, 401)
 
   const { data: { user }, error: authError } = await admin.auth.getUser(authorization.slice(7))
-  if (authError || !user) return json({ error: "Session invalide." }, 401)
+  if (authError || !user) return json({ error: "Session invalide." }, req, 401)
 
   try {
     const { data: profile, error: profileError } = await admin
@@ -39,7 +51,7 @@ Deno.serve(async (req) => {
 
     if (profileError) throw profileError
     if (profile?.account_type !== "parent") {
-      return json({ error: "Cette opération est réservée aux comptes parents." }, 403)
+      return json({ error: "Cette opération est réservée aux comptes parents." }, req, 403)
     }
 
     const body = await req.json().catch(() => ({}))
@@ -48,9 +60,11 @@ Deno.serve(async (req) => {
     const birthDate = typeof body.birth_date === "string" ? body.birth_date.trim() : ""
 
     if ((!studentId && !studentNumber) || !birthDate) {
-      return json({ error: "L'identifiant de l'élève et la date de naissance sont obligatoires." }, 400)
+      return json({ error: "L'identifiant de l'élève et la date de naissance sont obligatoires." }, req, 400)
     }
 
+    // The identifier + birth date pair is the ownership proof for the claim flow.
+    // The resulting relationship is still protected by RLS everywhere else.
     let query = admin
       .from("students")
       .select("id,establishment_id,student_number,first_name,last_name,birth_date,sex,active")
@@ -63,7 +77,7 @@ Deno.serve(async (req) => {
     if (studentError) throw studentError
 
     if (!student) {
-      return json({ error: "Aucun élève actif ne correspond à ces informations." }, 404)
+      return json({ error: "Aucun élève actif ne correspond à ces informations." }, req, 404)
     }
 
     const { data: existing, error: existingError } = await admin
@@ -98,9 +112,10 @@ Deno.serve(async (req) => {
         first_name: student.first_name,
         last_name: student.last_name,
       },
-    })
+    }, req)
   } catch (error) {
     console.error("claim-student error", error)
-    return json({ error: error instanceof Error ? error.message : "Impossible de rattacher l'élève." }, 400)
+    // Never expose database/service internals to the client.
+    return json({ error: "Impossible de rattacher l'élève pour le moment." }, req, 500)
   }
 })

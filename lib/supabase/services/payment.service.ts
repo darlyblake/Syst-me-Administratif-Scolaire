@@ -16,6 +16,13 @@ export interface EstablishmentPaymentSummary {
   overdue: number
   paid_schedules: number
   pending_schedules: number
+  family_expected: number
+  family_paid: number
+  family_remaining: number
+  state_expected: number
+  state_paid: number
+  state_remaining: number
+  state_schedules: number
 }
 
 export async function getPaymentSummaryByEstablishment(establishmentId: string, academicYearId: string): Promise<EstablishmentPaymentSummary> {
@@ -84,9 +91,7 @@ export async function getPaymentSchedule(enrollmentId: string): Promise<PaymentS
     .eq("enrollment_id", enrollmentId)
     .order("installment_number", { ascending: true })
 
-  if (error) {
-    throw new Error("Impossible de charger l'échéancier.")
-  }
+  if (error) throw new Error("Impossible de charger l'échéancier.")
 
   return (data ?? []) as PaymentSchedule[]
 }
@@ -98,9 +103,7 @@ export async function getPayments(enrollmentId: string): Promise<Payment[]> {
     .eq("enrollment_id", enrollmentId)
     .order("payment_date", { ascending: false })
 
-  if (error) {
-    throw new Error("Impossible de charger les paiements.")
-  }
+  if (error) throw new Error("Impossible de charger les paiements.")
 
   return (data ?? []) as Payment[]
 }

@@ -26,6 +26,17 @@ export type AdminExpiringSubscription = {
   days_remaining: number
 }
 
+export type AdminEstablishment = {
+  id: string
+  name: string
+  code: string | null
+  status: "active" | "inactive"
+  created_at: string
+  subscription_status: "active" | "expired" | "suspended" | null
+  subscription_ends_at: string | null
+  users_count: number
+}
+
 export async function refreshSubscriptionMonitoring(): Promise<number> {
   const { data, error } = await supabaseBrowser.rpc("monitor_subscription_expirations")
   if (error) throw error
@@ -37,10 +48,7 @@ export async function getAdminDashboardSummary(): Promise<AdminDashboardSummary>
   if (error) throw error
 
   const row = Array.isArray(data) ? data[0] : data
-  if (!row) {
-    throw new Error("Impossible de récupérer les statistiques administrateur.")
-  }
-
+  if (!row) throw new Error("Impossible de récupérer les statistiques administrateur.")
   return row as AdminDashboardSummary
 }
 
@@ -48,4 +56,10 @@ export async function getAdminExpiringSubscriptions(): Promise<AdminExpiringSubs
   const { data, error } = await supabaseBrowser.rpc("platform_admin_expiring_subscriptions")
   if (error) throw error
   return (data ?? []) as AdminExpiringSubscription[]
+}
+
+export async function getAdminEstablishments(): Promise<AdminEstablishment[]> {
+  const { data, error } = await supabaseBrowser.rpc("platform_admin_establishments")
+  if (error) throw error
+  return (data ?? []) as AdminEstablishment[]
 }

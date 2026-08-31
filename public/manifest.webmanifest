@@ -2,7 +2,7 @@
   "name": "NOVA — Système de Gestion Scolaire",
   "short_name": "NOVA",
   "description": "Plateforme professionnelle de gestion scolaire pour les établissements.",
-  "start_url": "/auth/login",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",

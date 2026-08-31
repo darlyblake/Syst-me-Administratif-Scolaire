@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/internal/subscription-monitor",
+      "schedule": "0 7 * * *"
+    }
+  ]
+}

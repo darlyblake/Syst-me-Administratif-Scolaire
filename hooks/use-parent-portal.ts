@@ -101,6 +101,7 @@ export function useParentPortal() {
         .from("student_guardians")
         .select("student_id, establishment_id, relationship, can_view_academic, can_view_finance")
         .eq("guardian_user_id", userId)
+        .eq("active", true)
       if (linksError) throw linksError
 
       const studentIds = (links ?? []).map((link) => link.student_id)
@@ -128,7 +129,9 @@ export function useParentPortal() {
         supabaseBrowser.from("enrollments").select("*").in("student_id", studentIds).eq("status", "active"),
         supabaseBrowser.from("grades").select("*").in("student_id", studentIds).order("created_at", { ascending: false }),
         supabaseBrowser.from("attendance_records").select("*").in("student_id", studentIds).order("attendance_date", { ascending: false }),
-        establishmentIds.length ? supabaseBrowser.from("school_events").select("*").in("establishment_id", establishmentIds).order("starts_at") : Promise.resolve({ data: [], error: null }),
+        establishmentIds.length
+          ? supabaseBrowser.from("school_events").select("*").in("establishment_id", establishmentIds).order("starts_at")
+          : Promise.resolve({ data: [], error: null }),
       ])
       for (const result of [studentsResult, enrollmentsResult, gradesResult, attendanceResult, eventsResult]) {
         if (result.error) throw result.error
@@ -139,8 +142,12 @@ export function useParentPortal() {
       const assessmentIds = [...new Set((gradesResult.data ?? []).map((item) => item.assessment_id))]
 
       const [classesResult, assessmentsResult] = await Promise.all([
-        classIds.length ? supabaseBrowser.from("school_classes").select("id,name").in("id", classIds) : Promise.resolve({ data: [], error: null }),
-        assessmentIds.length ? supabaseBrowser.from("assessments").select("id,title,assessment_date,term,max_score,subject_id").in("id", assessmentIds) : Promise.resolve({ data: [], error: null }),
+        classIds.length
+          ? supabaseBrowser.from("school_classes").select("id,name").in("id", classIds)
+          : Promise.resolve({ data: [], error: null }),
+        assessmentIds.length
+          ? supabaseBrowser.from("assessments").select("id,title,assessment_date,term,max_score,subject_id").in("id", assessmentIds)
+          : Promise.resolve({ data: [], error: null }),
       ])
       for (const result of [classesResult, assessmentsResult]) {
         if (result.error) throw result.error
@@ -163,6 +170,7 @@ export function useParentPortal() {
       const linkMap = new Map((links ?? []).map((item) => [item.student_id, item]))
       const assessmentMap = new Map((assessmentsResult.data ?? []).map((item) => [item.id, item]))
       const subjectMap = new Map((subjectsResult.data ?? []).map((item) => [item.id, item.name]))
+      const enrollmentStudentMap = new Map(enrollments.map((item) => [item.id, item.student_id]))
 
       setChildren((studentsResult.data ?? []).map((student) => {
         const enrollment = enrollmentMap.get(student.id)
@@ -178,20 +186,32 @@ export function useParentPortal() {
         }
       }))
 
-      setGrades((gradesResult.data ?? []).map((grade) => {
-        const assessment = assessmentMap.get(grade.assessment_id)
-        return {
-          ...grade,
-          score: Number(grade.score),
-          title: assessment?.title,
-          assessment_date: assessment?.assessment_date,
-          term: assessment?.term,
-          max_score: assessment?.max_score ? Number(assessment.max_score) : undefined,
-          subject: assessment?.subject_id ? subjectMap.get(assessment.subject_id) : undefined,
-        }
-      }))
-      setPayments((paymentsResult.data ?? []).map((payment) => ({ ...payment, amount: Number(payment.amount) })))
-      setAttendance(attendanceResult.data ?? [])
+      // RLS is the authoritative security boundary. These filters are defense in depth
+      // so the client never retains data that the guardian link does not explicitly grant.
+      setGrades((gradesResult.data ?? [])
+        .filter((grade) => linkMap.get(grade.student_id)?.can_view_academic === true)
+        .map((grade) => {
+          const assessment = assessmentMap.get(grade.assessment_id)
+          return {
+            ...grade,
+            score: Number(grade.score),
+            title: assessment?.title,
+            assessment_date: assessment?.assessment_date,
+            term: assessment?.term,
+            max_score: assessment?.max_score ? Number(assessment.max_score) : undefined,
+            subject: assessment?.subject_id ? subjectMap.get(assessment.subject_id) : undefined,
+          }
+        }))
+
+      setPayments((paymentsResult.data ?? [])
+        .filter((payment) => {
+          const studentId = enrollmentStudentMap.get(payment.enrollment_id)
+          return studentId ? linkMap.get(studentId)?.can_view_finance === true : false
+        })
+        .map((payment) => ({ ...payment, amount: Number(payment.amount) })))
+
+      setAttendance((attendanceResult.data ?? [])
+        .filter((record) => linkMap.get(record.student_id)?.can_view_academic === true))
       setEvents(eventsResult.data ?? [])
     } catch (cause) {
       console.error("Parent portal error:", cause)
@@ -229,13 +249,14 @@ export function useParentPortal() {
   const markNotificationRead = useCallback(async (notificationId: string) => {
     const { data: authData, error: authError } = await supabaseBrowser.auth.getUser()
     if (authError || !authData.user) throw new Error("Session parent introuvable.")
+    const now = new Date().toISOString()
     const { error } = await supabaseBrowser
       .from("notifications")
-      .update({ read_at: new Date().toISOString() })
+      .update({ read_at: now })
       .eq("id", notificationId)
       .eq("recipient_user_id", authData.user.id)
     if (error) throw error
-    setNotifications((current) => current.map((item) => item.id === notificationId ? { ...item, read_at: new Date().toISOString() } : item))
+    setNotifications((current) => current.map((item) => item.id === notificationId ? { ...item, read_at: now } : item))
   }, [])
 
   useEffect(() => { void refresh() }, [refresh])

@@ -37,6 +37,33 @@ export type AdminEstablishment = {
   users_count: number
 }
 
+export type AdminParentChild = {
+  id: string
+  student_number: string | null
+  first_name: string
+  last_name: string
+  active: boolean
+  relationship: string | null
+  is_primary: boolean
+  can_view_finance: boolean
+  can_view_academic: boolean
+}
+
+export type AdminParent = {
+  guardian_user_id: string
+  establishment_id: string
+  establishment_name: string
+  establishment_code: string | null
+  first_name: string | null
+  last_name: string | null
+  phone: string | null
+  email: string | null
+  active: boolean
+  children_count: number
+  children: AdminParentChild[]
+  created_at: string
+}
+
 export async function refreshSubscriptionMonitoring(): Promise<number> {
   const { data, error } = await supabaseBrowser.rpc("monitor_subscription_expirations")
   if (error) throw error
@@ -62,4 +89,24 @@ export async function getAdminEstablishments(): Promise<AdminEstablishment[]> {
   const { data, error } = await supabaseBrowser.rpc("platform_admin_establishments")
   if (error) throw error
   return (data ?? []) as AdminEstablishment[]
+}
+
+export async function getAdminParents(): Promise<AdminParent[]> {
+  const { data, error } = await supabaseBrowser.rpc("platform_admin_parents")
+  if (error) throw error
+  return (data ?? []) as AdminParent[]
+}
+
+export async function setAdminParentActive(
+  guardianUserId: string,
+  establishmentId: string,
+  active: boolean,
+): Promise<boolean> {
+  const { data, error } = await supabaseBrowser.rpc("platform_admin_set_parent_active", {
+    p_guardian_user_id: guardianUserId,
+    p_establishment_id: establishmentId,
+    p_active: active,
+  })
+  if (error) throw error
+  return Boolean(data)
 }

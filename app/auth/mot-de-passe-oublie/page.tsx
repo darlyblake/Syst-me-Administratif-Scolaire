@@ -1,20 +1,33 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, Mail, ShieldCheck, LockKeyhole } from "lucide-react"
 import { serviceAuthentification } from "@/services/authentification.supabase.service"
+import styles from "@/components/auth/login/LoginPage.module.css"
+
+type Etape = 1 | 2 | 3
+
+const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+
+const etapeInfo: Record<Etape, { guidePage: string; formPage: string; label: string }> = {
+  1: { guidePage: "1", formPage: "2", label: "Demander le code" },
+  2: { guidePage: "3", formPage: "4", label: "Vérifier le code" },
+  3: { guidePage: "5", formPage: "6", label: "Créer le mot de passe" },
+}
 
 export default function MotDePasseOubliePage() {
   const router = useRouter()
   const [espace, setEspace] = useState("ecole")
-  const [etape, setEtape] = useState<1 | 2 | 3>(1)
+  const [etape, setEtape] = useState<Etape>(1)
+  const [introFinished, setIntroFinished] = useState(false)
+  const [turning, setTurning] = useState(false)
   const [email, setEmail] = useState("")
   const [code, setCode] = useState("")
   const [nouveauMotDePasse, setNouveauMotDePasse] = useState("")
   const [confirmation, setConfirmation] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmation, setShowConfirmation] = useState(false)
   const [message, setMessage] = useState("")
   const [erreur, setErreur] = useState("")
   const [loading, setLoading] = useState(false)
@@ -23,6 +36,8 @@ export default function MotDePasseOubliePage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     setEspace(params.get("espace") || "ecole")
+    const timer = window.setTimeout(() => setIntroFinished(true), 500)
+    return () => window.clearTimeout(timer)
   }, [])
 
   useEffect(() => {
@@ -31,30 +46,54 @@ export default function MotDePasseOubliePage() {
     return () => window.clearInterval(timer)
   }, [resendSeconds])
 
-  const clearFeedback = () => { setErreur(""); setMessage("") }
-
-  const envoyerCode = async (event: React.FormEvent) => {
-    event.preventDefault()
-    clearFeedback()
-    setLoading(true)
-    const result = await serviceAuthentification.reinitialiserMotDePasse(email)
-    setLoading(false)
-    if (!result.succes) {
-      setErreur(result.erreur ?? "Impossible d'envoyer le code.")
-      return
-    }
-    setEtape(2)
-    setResendSeconds(60)
-    setMessage("Si cette adresse correspond à un compte, un code de validation à 6 chiffres vient d'être envoyé.")
+  const clearFeedback = () => {
+    setErreur("")
+    setMessage("")
   }
 
-  const verifierCode = async (event: React.FormEvent) => {
+  const tournerVers = (nextStep: Etape) => {
+    if (turning) return
+    setTurning(true)
+    window.setTimeout(() => {
+      setEtape(nextStep)
+      setTurning(false)
+    }, 520)
+  }
+
+  const retourConnexion = () => {
+    if (turning) return
+    router.push(`/connexion?espace=${encodeURIComponent(espace)}`)
+  }
+
+  const envoyerCode = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    clearFeedback()
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!normalizedEmail) return setErreur("L'adresse email est requise.")
+    if (!isValidEmail(normalizedEmail)) return setErreur("Format d'email invalide.")
+
+    setLoading(true)
+    const result = await serviceAuthentification.reinitialiserMotDePasse(normalizedEmail)
+    setLoading(false)
+    if (!result.succes) {
+      setErreur(result.erreur ?? "Impossible d'envoyer le code de réinitialisation.")
+      return
+    }
+
+    setEmail(normalizedEmail)
+    setResendSeconds(60)
+    setMessage("Le code de validation a été envoyé. Consultez votre boîte email, puis continuez avec l'étape suivante.")
+    tournerVers(2)
+  }
+
+  const verifierCode = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     clearFeedback()
     if (!/^\d{6}$/.test(code)) {
       setErreur("Le code doit contenir exactement 6 chiffres.")
       return
     }
+
     setLoading(true)
     const result = await serviceAuthentification.verifierCodeReinitialisation(email, code)
     setLoading(false)
@@ -62,11 +101,26 @@ export default function MotDePasseOubliePage() {
       setErreur(result.erreur ?? "Code invalide ou expiré.")
       return
     }
-    setEtape(3)
-    setMessage("Code validé. Choisissez maintenant votre nouveau mot de passe.")
+
+    setMessage("Code validé. Vous pouvez maintenant choisir votre nouveau mot de passe.")
+    tournerVers(3)
   }
 
-  const changerMotDePasse = async (event: React.FormEvent) => {
+  const renvoyerCode = async () => {
+    if (resendSeconds > 0 || loading) return
+    clearFeedback()
+    setLoading(true)
+    const result = await serviceAuthentification.reinitialiserMotDePasse(email)
+    setLoading(false)
+    if (!result.succes) {
+      setErreur(result.erreur ?? "Impossible de renvoyer le code.")
+      return
+    }
+    setResendSeconds(60)
+    setMessage("Un nouveau code de validation vient d'être envoyé.")
+  }
+
+  const changerMotDePasse = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     clearFeedback()
     if (nouveauMotDePasse.length < 8) {
@@ -77,6 +131,7 @@ export default function MotDePasseOubliePage() {
       setErreur("Les deux mots de passe ne correspondent pas.")
       return
     }
+
     setLoading(true)
     const result = await serviceAuthentification.mettreAJourMotDePasse(nouveauMotDePasse)
     setLoading(false)
@@ -84,94 +139,142 @@ export default function MotDePasseOubliePage() {
       setErreur(result.erreur ?? "Impossible de modifier le mot de passe.")
       return
     }
+
     await serviceAuthentification.deconnecter()
-    router.replace(`/login?espace=${encodeURIComponent(espace)}&reset=success`)
+    router.replace(`/connexion?espace=${encodeURIComponent(espace)}&reset=success`)
   }
 
-  const titre = etape === 1 ? "Mot de passe oublié" : etape === 2 ? "Vérifier le code" : "Nouveau mot de passe"
-  const description = etape === 1
-    ? "Saisissez votre adresse email pour recevoir un code sécurisé."
+  const guide = etape === 1
+    ? {
+        eyebrow: "Étape 1 · Votre adresse",
+        title: "Retrouver votre accès",
+        intro: "Indiquez l'adresse email associée à votre compte. Un code de validation sécurisé vous sera envoyé.",
+        features: ["Saisir votre email", "Recevoir le code", "Vérifier votre identité", "Créer un nouveau mot de passe"],
+      }
     : etape === 2
-      ? `Saisissez le code à 6 chiffres reçu sur ${email}.`
-      : "Votre identité est vérifiée. Définissez un nouveau mot de passe."
+      ? {
+          eyebrow: "Étape 2 · Votre code",
+          title: "Vérifier votre identité",
+          intro: "Un code à 6 chiffres vous a été envoyé par email. Saisissez-le ici pour poursuivre la réinitialisation.",
+          features: ["Ouvrir votre boîte email", "Saisir le code à 6 chiffres", "Valider le code", "Passer à l'étape suivante"],
+        }
+      : {
+          eyebrow: "Étape 3 · Sécuriser l'accès",
+          title: "Créer un nouveau mot de passe",
+          intro: "Votre code est validé. Choisissez maintenant un mot de passe suffisamment robuste pour protéger votre compte.",
+          features: ["Choisir un mot de passe", "Confirmer le mot de passe", "Enregistrer la modification", "Se reconnecter"],
+        }
+
+  const formTitle = etape === 1 ? "Adresse email" : etape === 2 ? "Code de validation" : "Nouveau mot de passe"
 
   return (
-    <main className="min-h-screen bg-creme flex items-center justify-center px-5 py-10">
-      <div className="w-full max-w-md">
-        <button className="mb-8 text-sm text-muted-foreground" onClick={() => router.push(`/login?espace=${espace}`)}>
-          ← Retour à la connexion
+    <main className={styles.shell}>
+      <div className={styles.topBar}>
+        <button type="button" className={styles.backButton} onClick={retourConnexion}>
+          <ArrowLeft size={16} /> Retour à la connexion
         </button>
+      </div>
 
-        <div className="mb-7">
-          <p className="text-sm text-muted-foreground">Sécurité du compte · Étape {etape}/3</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">{titre}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{description}</p>
-        </div>
+      <div className={`${styles.stage} ${introFinished ? styles.stageReady : styles.stageApproaching} ${styles.stageOpen} ${turning ? styles.stageTurning : ""}`}>
+        <div className={`${styles.book} ${styles.bookOpen}`}>
+          <div className={styles.shadow} />
+          <div className={styles.spine} />
+          <div className={styles.ribbon} />
 
-        <form onSubmit={etape === 1 ? envoyerCode : etape === 2 ? verifierCode : changerMotDePasse} className="space-y-5 rounded-xl border bg-white p-6 shadow-sm">
-          {etape === 1 && (
-            <div className="space-y-2">
-              <Label htmlFor="email">Adresse email</Label>
-              <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <aside className={styles.leftPage} aria-label={`Instructions de l'étape ${etape}`}>
+            <div className={styles.pageContent}>
+              <span className={styles.pageNumber}>Page {etapeInfo[etape].guidePage}</span>
+              <span className={styles.eyebrow}>{guide.eyebrow}</span>
+              <h1>{guide.title}</h1>
+              <p className={styles.intro}>{guide.intro}</p>
+              <div className={styles.features}>
+                {guide.features.map((feature) => <span key={feature}>{feature}</span>)}
+              </div>
             </div>
-          )}
+          </aside>
 
-          {etape === 2 && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="code">Code de validation</Label>
-                <Input
-                  id="code"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  pattern="[0-9]{6}"
-                  placeholder="000000"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  required
-                  autoFocus
-                />
-              </div>
-              <button
-                type="button"
-                disabled={resendSeconds > 0 || loading}
-                className="text-sm text-primary underline disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={async () => {
-                  clearFeedback()
-                  setLoading(true)
-                  const result = await serviceAuthentification.reinitialiserMotDePasse(email)
-                  setLoading(false)
-                  if (!result.succes) setErreur(result.erreur ?? "Impossible de renvoyer le code.")
-                  else { setResendSeconds(60); setMessage("Un nouveau code vient d'être demandé.") }
-                }}
-              >
-                {resendSeconds > 0 ? `Renvoyer le code dans ${resendSeconds}s` : "Renvoyer le code"}
-              </button>
-            </>
-          )}
+          <section className={styles.rightPage} aria-label={`Formulaire de réinitialisation, étape ${etape}`}>
+            <div className={styles.pageContent}>
+              <span className={styles.pageNumber}>Page {etapeInfo[etape].formPage}</span>
 
-          {etape === 3 && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="new-password">Nouveau mot de passe</Label>
-                <Input id="new-password" type="password" autoComplete="new-password" minLength={8} value={nouveauMotDePasse} onChange={(e) => setNouveauMotDePasse(e.target.value)} required />
-                <p className="text-xs text-muted-foreground">Minimum 8 caractères.</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">Confirmer le mot de passe</Label>
-                <Input id="confirm-password" type="password" autoComplete="new-password" minLength={8} value={confirmation} onChange={(e) => setConfirmation(e.target.value)} required />
-              </div>
-            </>
-          )}
+              {etape === 1 && (
+                <>
+                  <span className={styles.eyebrow}>Récupération du compte</span>
+                  <h2>{formTitle}</h2>
+                  <p className={styles.formIntro}>Saisissez l'adresse email utilisée pour votre compte. Vous recevrez ensuite un code de validation.</p>
+                  <form onSubmit={envoyerCode} className={styles.form} noValidate>
+                    <label>
+                      Adresse email
+                      <span className={styles.password}>
+                        <input id="email" type="email" autoComplete="email" placeholder="votre@ecole.fr" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+                        <Mail size={17} style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "#697386" }} />
+                      </span>
+                    </label>
+                    {erreur && <p role="alert" className={styles.error}>{erreur}</p>}
+                    <button type="submit" className={styles.primaryButton} disabled={loading}>
+                      {loading ? <><Loader2 className={styles.smallSpin} /> Envoi...</> : <><KeyRound size={17} /> Envoyer le code</>}
+                    </button>
+                  </form>
+                </>
+              )}
 
-          {erreur && <p role="alert" className="text-sm text-red-600">{erreur}</p>}
-          {message && <p role="status" className="text-sm text-green-700">{message}</p>}
+              {etape === 2 && (
+                <>
+                  <span className={styles.eyebrow}>Code reçu par email</span>
+                  <h2>{formTitle}</h2>
+                  <p className={styles.formIntro}>Entrez le code à 6 chiffres envoyé à <strong>{email}</strong>.</p>
+                  <form onSubmit={verifierCode} className={styles.form} noValidate>
+                    <label>
+                      Code de validation
+                      <input id="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" placeholder="000000" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} required autoFocus />
+                    </label>
+                    {erreur && <p role="alert" className={styles.error}>{erreur}</p>}
+                    {message && <p role="status" className={styles.notice}>{message}</p>}
+                    <button type="submit" className={styles.primaryButton} disabled={loading}>
+                      {loading ? <><Loader2 className={styles.smallSpin} /> Vérification...</> : <><ShieldCheck size={17} /> Vérifier le code</>}
+                    </button>
+                    <button type="button" className={styles.textButton} onClick={renvoyerCode} disabled={resendSeconds > 0 || loading}>
+                      {resendSeconds > 0 ? `Renvoyer le code dans ${resendSeconds}s` : "Renvoyer le code"}
+                    </button>
+                  </form>
+                </>
+              )}
 
-          <Button className="w-full" disabled={loading}>
-            {loading ? "Traitement..." : etape === 1 ? "Envoyer le code" : etape === 2 ? "Vérifier le code" : "Modifier le mot de passe"}
-          </Button>
-        </form>
+              {etape === 3 && (
+                <>
+                  <span className={styles.eyebrow}>Accès sécurisé</span>
+                  <h2>{formTitle}</h2>
+                  <p className={styles.formIntro}>Définissez votre nouveau mot de passe, puis confirmez-le pour terminer.</p>
+                  <form onSubmit={changerMotDePasse} className={styles.form} noValidate>
+                    <label>
+                      Nouveau mot de passe
+                      <span className={styles.password}>
+                        <input id="new-password" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={8} value={nouveauMotDePasse} onChange={(e) => setNouveauMotDePasse(e.target.value)} required autoFocus />
+                        <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label="Afficher ou masquer le mot de passe">{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button>
+                      </span>
+                    </label>
+                    <label>
+                      Confirmer le mot de passe
+                      <span className={styles.password}>
+                        <input id="confirm-password" type={showConfirmation ? "text" : "password"} autoComplete="new-password" minLength={8} value={confirmation} onChange={(e) => setConfirmation(e.target.value)} required />
+                        <button type="button" onClick={() => setShowConfirmation((value) => !value)} aria-label="Afficher ou masquer la confirmation">{showConfirmation ? <EyeOff size={17} /> : <Eye size={17} />}</button>
+                      </span>
+                    </label>
+                    <p className={styles.formIntro}>Minimum 8 caractères.</p>
+                    {erreur && <p role="alert" className={styles.error}>{erreur}</p>}
+                    {message && <p role="status" className={styles.notice}>{message}</p>}
+                    <button type="submit" className={styles.primaryButton} disabled={loading}>
+                      {loading ? <><Loader2 className={styles.smallSpin} /> Enregistrement...</> : <><LockKeyhole size={17} /> Modifier le mot de passe</>}
+                    </button>
+                  </form>
+                </>
+              )}
+            </div>
+          </section>
+        </div>
+        <button type="button" className={styles.innerBack} onClick={retourConnexion}>
+          <ArrowLeft size={15} /> Retour à la connexion
+        </button>
       </div>
     </main>
   )

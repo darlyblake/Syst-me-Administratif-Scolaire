@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowLeft, Check, Loader2, Save } from "lucide-react"
+import { ArrowLeft, Loader2, Save } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,63 +10,19 @@ import { useAuthentification } from "@/providers/authentification.provider"
 import { enseignantPortalService, type TeacherAssessment, type TeacherAssessmentStudent } from "@/services/enseignant-portal.service"
 
 export default function NotesEnseignantPage() {
-  const { id } = useParams<{ id: string }>()
-  const router = useRouter()
+  const { id } = useParams<{ id: string }>(); const router = useRouter()
   const { utilisateur, contexte, estEnCoursDeChargement } = useAuthentification()
-  const [assessments, setAssessments] = useState<TeacherAssessment[]>([])
-  const [selected, setSelected] = useState<TeacherAssessment | null>(null)
-  const [students, setStudents] = useState<TeacherAssessmentStudent[]>([])
-  const [scores, setScores] = useState<Record<string, string>>({})
-  const [comments, setComments] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
+  const [assessments, setAssessments] = useState<TeacherAssessment[]>([]); const [selected, setSelected] = useState<TeacherAssessment | null>(null)
+  const [students, setStudents] = useState<TeacherAssessmentStudent[]>([]); const [scores, setScores] = useState<Record<string, string>>({}); const [comments, setComments] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true); const [saving, setSaving] = useState<string | null>(null); const [message, setMessage] = useState<string | null>(null)
   const establishment = contexte?.establishments?.find((item) => item.id === id)
 
-  useEffect(() => {
-    if (!estEnCoursDeChargement && (!utilisateur || utilisateur.role !== "enseignant" || !establishment)) router.replace("/enseignant")
-  }, [estEnCoursDeChargement, utilisateur, establishment, router])
+  useEffect(() => { if (!estEnCoursDeChargement && (!utilisateur || utilisateur.role !== "enseignant" || !establishment)) router.replace("/enseignant") }, [estEnCoursDeChargement, utilisateur, establishment, router])
+  useEffect(() => { if (!establishment || !id) return; setLoading(true); enseignantPortalService.getAssessments(id).then(setAssessments).catch((e) => setMessage(e instanceof Error ? e.message : "Impossible de charger les évaluations.")).finally(() => setLoading(false)) }, [id, establishment])
 
-  useEffect(() => {
-    if (!establishment || !id) return
-    setLoading(true)
-    enseignantPortalService.getAssessments(id).then(setAssessments).catch((error) => setMessage(error instanceof Error ? error.message : "Impossible de charger les évaluations.")).finally(() => setLoading(false))
-  }, [id, establishment])
-
-  const openAssessment = async (assessment: TeacherAssessment) => {
-    setSelected(assessment)
-    setMessage(null)
-    try {
-      const rows = await enseignantPortalService.getAssessmentStudents(assessment.assessment_id)
-      setStudents(rows)
-      setScores(Object.fromEntries(rows.map((row) => [row.student_id, row.score == null ? "" : String(row.score)])))
-      setComments(Object.fromEntries(rows.map((row) => [row.student_id, row.comment ?? ""])))
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Impossible de charger les élèves.") }
-  }
-
-  const save = async (student: TeacherAssessmentStudent) => {
-    if (!selected) return
-    const raw = scores[student.student_id]?.replace(",", ".").trim()
-    const score = Number(raw)
-    if (!raw || !Number.isFinite(score) || score < 0 || score > selected.max_score) {
-      setMessage(`La note doit être comprise entre 0 et ${selected.max_score}.`)
-      return
-    }
-    setSaving(student.student_id); setMessage(null)
-    try {
-      await enseignantPortalService.recordGrade(selected.assessment_id, student.student_id, score, comments[student.student_id])
-      setStudents((current) => current.map((row) => row.student_id === student.student_id ? { ...row, score, comment: comments[student.student_id] || null } : row))
-      setAssessments((current) => current.map((row) => row.assessment_id === selected.assessment_id && row.grade_count < current.length ? { ...row, grade_count: row.grade_count + (student.score == null ? 1 : 0) } : row))
-      setMessage("Note enregistrée.")
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Enregistrement impossible.") }
-    finally { setSaving(null) }
-  }
+  const openAssessment = async (assessment: TeacherAssessment) => { setSelected(assessment); setMessage(null); try { const rows = await enseignantPortalService.getAssessmentStudents(assessment.assessment_id); setStudents(rows); setScores(Object.fromEntries(rows.map((r) => [r.student_id, r.score == null ? "" : String(r.score)]))); setComments(Object.fromEntries(rows.map((r) => [r.student_id, r.comment ?? ""]))) } catch (e) { setMessage(e instanceof Error ? e.message : "Impossible de charger les élèves.") } }
+  const save = async (student: TeacherAssessmentStudent) => { if (!selected) return; const raw = scores[student.student_id]?.replace(",", ".").trim(); const score = Number(raw); if (!raw || !Number.isFinite(score) || score < 0 || score > selected.max_score) { setMessage(`La note doit être comprise entre 0 et ${selected.max_score}.`); return }; setSaving(student.student_id); setMessage(null); try { await enseignantPortalService.recordGrade(selected.assessment_id, student.student_id, score, comments[student.student_id]); setStudents((c) => c.map((r) => r.student_id === student.student_id ? { ...r, score, comment: comments[student.student_id] || null } : r)); if (student.score == null) setAssessments((c) => c.map((r) => r.assessment_id === selected.assessment_id ? { ...r, grade_count: r.grade_count + 1 } : r)); setMessage("Note enregistrée.") } catch (e) { setMessage(e instanceof Error ? e.message : "Enregistrement impossible.") } finally { setSaving(null) } }
 
   if (estEnCoursDeChargement || !utilisateur || !establishment) return <main className="min-h-screen bg-creme flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin" /></main>
-
-  return <main className="min-h-screen bg-creme"><div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-    <header className="mb-6 flex flex-wrap items-center justify-between gap-3"><div><Button variant="ghost" size="sm" onClick={() => router.push(`/enseignant/etablissement/${id}`)}><ArrowLeft className="mr-2 h-4 w-4" />Retour</Button><h1 className="mt-3 text-2xl font-semibold">Saisie des notes</h1><p className="text-sm text-muted-foreground">{establishment.name} · uniquement vos évaluations</p></div></header>
-    {message && <div className="mb-5 rounded-lg border bg-white p-3 text-sm">{message}</div>}
-    {!selected ? <Card><CardHeader><CardTitle className="text-base">Mes évaluations</CardTitle></CardHeader><CardContent>{loading ? <div className="flex justify-center p-8"><Loader2 className="h-5 w-5 animate-spin" /></div> : assessments.length === 0 ? <p className="p-8 text-center text-sm text-muted-foreground">Aucune évaluation disponible.</p> : <div className="divide-y">{assessments.map((assessment) => <button key={assessment.assessment_id} type="button" onClick={() => void openAssessment(assessment)} className="flex w-full items-center justify-between gap-4 py-4 text-left hover:bg-muted/30"><div><p className="font-medium">{assessment.title}</p><p className="text-sm text-muted-foreground">{assessment.class_name} · {assessment.subject_name} · {assessment.term ?? "Période non précisée"}</p></div><div className="shrink-0 text-right text-sm"><p>{assessment.assessment_date}</p><p className="text-muted-foreground">{assessment.grade_count} note(s) / {assessment.max_score}</p></div></button>)}</div>}</CardContent></Card> : <div><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold">{selected.title}</h2><p className="text-sm text-muted-foreground">{selected.class_name} · {selected.subject_name} · sur {selected.max_score}</p></div><Button variant="outline" onClick={() => setSelected(null)}>Changer d'évaluation</Button></div><Card><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-sm"><thead className="border-b bg-muted/30 text-left text-muted-foreground"><tr><th className="px-5 py-3">Élève</th><th className="px-5 py-3">Note</th><th className="px-5 py-3">Commentaire</th><th className="px-5 py-3 text-right">Action</th></tr></thead><tbody className="divide-y">{students.map((student) => <tr key={student.student_id}><td className="px-5 py-3 font-medium">{student.last_name} {student.first_name}<span className="ml-2 text-xs font-normal text-muted-foreground">{student.student_number ?? ""}</span></td><td className="w-32 px-5 py-3"><Input inputMode="decimal" value={scores[student.student_id] ?? ""} onChange={(event) => setScores((current) => ({ ...current, [student.student_id]: event.target.value }))} aria-label={`Note de ${student.last_name} ${student.first_name}`} /></td><td className="px-5 py-3"><Input value={comments[student.student_id] ?? ""} onChange={(event) => setComments((current) => ({ ...current, [student.student_id]: event.target.value }))} placeholder="Facultatif" /></td><td className="px-5 py-3 text-right"><Button size="sm" onClick={() => void save(student)} disabled={saving === student.student_id}><Save className="mr-2 h-4 w-4" />{saving === student.student_id ? "…" : "Enregistrer"}</Button></td></tr>)}</tbody></table></div>{students.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">Aucun élève inscrit à cette évaluation.</p>}</CardContent></Card></div>}
-  </div></main>
+  return <main className="min-h-screen bg-creme"><div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8"><header className="mb-6"><Button variant="ghost" size="sm" onClick={() => router.push(`/enseignant/etablissement/${id}`)}><ArrowLeft className="mr-2 h-4 w-4" />Retour</Button><h1 className="mt-3 text-2xl font-semibold">Saisie des notes</h1><p className="text-sm text-muted-foreground">{establishment.name} · uniquement vos évaluations</p></header>{message && <div className="mb-5 rounded-lg border bg-white p-3 text-sm">{message}</div>}{!selected ? <Card><CardHeader><CardTitle className="text-base">Mes évaluations</CardTitle></CardHeader><CardContent>{loading ? <div className="flex justify-center p-8"><Loader2 className="h-5 w-5 animate-spin" /></div> : assessments.length === 0 ? <p className="p-8 text-center text-sm text-muted-foreground">Aucune évaluation disponible.</p> : <div className="divide-y">{assessments.map((a) => <button key={a.assessment_id} type="button" onClick={() => void openAssessment(a)} className="flex w-full items-center justify-between gap-4 py-4 text-left hover:bg-muted/30"><div><p className="font-medium">{a.title}</p><p className="text-sm text-muted-foreground">{a.class_name} · {a.subject_name} · {a.term ?? "Période non précisée"}</p></div><div className="shrink-0 text-right text-sm"><p>{a.assessment_date}</p><p className="text-muted-foreground">{a.grade_count} note(s) / {a.max_score}</p></div></button>)}</div>}</CardContent></Card> : <div><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold">{selected.title}</h2><p className="text-sm text-muted-foreground">{selected.class_name} · {selected.subject_name} · sur {selected.max_score}</p></div><Button variant="outline" onClick={() => setSelected(null)}>Changer d'évaluation</Button></div><Card><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-sm"><thead className="border-b bg-muted/30 text-left text-muted-foreground"><tr><th className="px-5 py-3">Élève</th><th className="px-5 py-3">Note</th><th className="px-5 py-3">Commentaire</th><th className="px-5 py-3 text-right">Action</th></tr></thead><tbody className="divide-y">{students.map((s) => <tr key={s.student_id}><td className="px-5 py-3 font-medium">{s.last_name} {s.first_name}<span className="ml-2 text-xs font-normal text-muted-foreground">{s.student_number ?? ""}</span></td><td className="w-32 px-5 py-3"><Input inputMode="decimal" value={scores[s.student_id] ?? ""} onChange={(e) => setScores((c) => ({ ...c, [s.student_id]: e.target.value }))} /></td><td className="px-5 py-3"><Input value={comments[s.student_id] ?? ""} onChange={(e) => setComments((c) => ({ ...c, [s.student_id]: e.target.value }))} placeholder="Facultatif" /></td><td className="px-5 py-3 text-right"><Button size="sm" onClick={() => void save(s)} disabled={saving === s.student_id}><Save className="mr-2 h-4 w-4" />{saving === s.student_id ? "…" : "Enregistrer"}</Button></td></tr>)}</tbody></table></div>{students.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">Aucun élève inscrit à cette évaluation.</p>}</CardContent></Card></div>}</div></main>
 }

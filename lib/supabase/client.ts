@@ -1,11 +1,17 @@
 import { createBrowserClient } from "@supabase/ssr"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
+// Les variables d'environnement restent prioritaires en local/CI.
+// Les valeurs publiques de Supabase peuvent être utilisées côté navigateur ;
+// le fallback évite qu'un build Next.js échoue lorsqu'elles ne sont pas
+// injectées par Vercel au moment du prerendering.
+const DEFAULT_SUPABASE_URL = "https://mogbzexqcatpgfrwzjld.supabase.co"
+const DEFAULT_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_AfPR3uNAwy0jjP4VLvZcQA_8Zml0U80"
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Configuration Supabase manquante: NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY sont requis.")
-}
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || DEFAULT_SUPABASE_URL
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
+  DEFAULT_SUPABASE_PUBLISHABLE_KEY
 
 /**
  * Client Supabase navigateur partagé avec le middleware SSR.

@@ -35,65 +35,67 @@ class SupabaseAuthentificationService {
 
   async deconnecter() { await supabaseBrowser.auth.signOut() }
 
-  /**
-   * Demande l'envoi du code OTP de récupération.
-   * Le template Recovery de Supabase doit afficher {{ .Token }}.
-   * Le redirect est calculé depuis l'origine actuelle afin de ne jamais
-   * envoyer l'utilisateur vers localhost en production.
-   */
+  /** Sends the Supabase recovery email. The Recovery email template must expose {{ .Token }}. */
   async reinitialiserMotDePasse(email: string) {
     const normalizedEmail = email.trim().toLowerCase()
     if (!normalizedEmail) return { succes: false, erreur: "L'adresse email est requise." }
 
-    const redirectTo = typeof window !== "undefined"
-      ? `${window.location.origin}/auth/mot-de-passe-oublie`
-      : undefined
+    const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "")
+    const origin = typeof window !== "undefined" ? window.location.origin : configuredAppUrl
+    const redirectTo = origin ? `${origin}/auth/mot-de-passe-oublie` : undefined
 
-    const { error } = await supabaseBrowser.auth.resetPasswordForEmail(normalizedEmail, {
-      ...(redirectTo ? { redirectTo } : {}),
-    })
-
-    if (error) {
-      console.error("Erreur envoi code de récupération:", error)
-      return { succes: false, erreur: this.messageErreurRecuperation(error.message) }
+    try {
+      const { error } = await supabaseBrowser.auth.resetPasswordForEmail(normalizedEmail, redirectTo ? { redirectTo } : undefined)
+      if (error) {
+        console.error("Erreur envoi récupération Supabase:", error)
+        return { succes: false, erreur: this.messageErreurRecuperation(error.message) }
+      }
+      return { succes: true }
+    } catch (error) {
+      console.error("Erreur réseau Supabase pendant la récupération:", error)
+      return { succes: false, erreur: "Impossible de contacter le service de récupération. Vérifiez la configuration Supabase et votre connexion internet, puis réessayez." }
     }
-
-    return { succes: true }
   }
 
   private messageErreurRecuperation(message: string) {
     const normalized = message.toLowerCase()
-    if (normalized.includes("rate limit") || normalized.includes("too many")) {
-      return "Trop de demandes. Attendez quelques instants avant de demander un nouveau code."
-    }
-    if (normalized.includes("email") && (normalized.includes("disabled") || normalized.includes("provider"))) {
-      return "L'envoi d'emails de récupération n'est pas disponible actuellement. Vérifiez la configuration Email de Supabase."
-    }
+    if (normalized.includes("rate limit") || normalized.includes("too many")) return "Trop de demandes. Attendez quelques instants avant de demander un nouveau code."
+    if (normalized.includes("email") && (normalized.includes("disabled") || normalized.includes("provider"))) return "L'envoi d'emails de récupération n'est pas disponible actuellement. Vérifiez la configuration Email de Supabase."
+    if (normalized.includes("redirect") || normalized.includes("not allowed")) return "L'adresse de retour de récupération n'est pas autorisée dans Supabase. Ajoutez l'URL de l'application dans Authentication → URL Configuration → Redirect URLs."
+    if (normalized.includes("fetch") || normalized.includes("network")) return "Impossible de contacter Supabase. Vérifiez les variables NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY dans Vercel."
     return `Impossible d'envoyer le code de réinitialisation. ${message}`
   }
 
-  /** Vérifie le code OTP envoyé par email pour une récupération. */
   async verifierCodeReinitialisation(email: string, token: string) {
-    const { data, error } = await supabaseBrowser.auth.verifyOtp({
-      email: email.trim().toLowerCase(),
-      token: token.trim(),
-      type: "recovery",
-    })
+    const normalizedEmail = email.trim().toLowerCase()
+    const normalizedToken = token.trim()
+    if (!normalizedEmail || !/^\d{6,8}$/.test(normalizedToken)) return { succes: false, erreur: "Le code de validation est invalide." }
 
-    if (error || !data.session || !data.user) {
-      console.error("Erreur vérification code de récupération:", error)
-      return { succes: false, erreur: "Code invalide ou expiré. Demandez un nouveau code." }
+    try {
+      const { data, error } = await supabaseBrowser.auth.verifyOtp({ email: normalizedEmail, token: normalizedToken, type: "recovery" })
+      if (error || !data.session || !data.user) {
+        console.error("Erreur vérification code de récupération:", error)
+        return { succes: false, erreur: "Code invalide ou expiré. Demandez un nouveau code." }
+      }
+      return { succes: true }
+    } catch (error) {
+      console.error("Erreur réseau lors de la vérification du code:", error)
+      return { succes: false, erreur: "Impossible de vérifier le code. Vérifiez votre connexion et réessayez." }
     }
-    return { succes: true }
   }
 
   async mettreAJourMotDePasse(password: string) {
-    const { error } = await supabaseBrowser.auth.updateUser({ password })
-    if (error) {
-      console.error("Erreur changement mot de passe:", error)
-      return { succes: false, erreur: "Impossible de modifier le mot de passe." }
+    try {
+      const { error } = await supabaseBrowser.auth.updateUser({ password })
+      if (error) {
+        console.error("Erreur changement mot de passe:", error)
+        return { succes: false, erreur: "Impossible de modifier le mot de passe." }
+      }
+      return { succes: true }
+    } catch (error) {
+      console.error("Erreur réseau lors du changement de mot de passe:", error)
+      return { succes: false, erreur: "Impossible de contacter le service d'authentification. Réessayez." }
     }
-    return { succes: true }
   }
 
   getRedirectionPath(accountType: AccountType | undefined): string {

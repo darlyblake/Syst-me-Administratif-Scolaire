@@ -2,30 +2,27 @@ import type { MetadataRoute } from "next"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Système de Gestion Scolaire",
-    short_name: "Gestion Scolaire",
-    description: "Application de gestion des établissements et de la scolarité.",
+    name: "NOVA — Système de Gestion Scolaire",
+    short_name: "NOVA",
+    description: "Système professionnel de gestion scolaire",
     start_url: "/",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#ffffff",
-    lang: "fr",
     orientation: "portrait-primary",
+    background_color: "#ffffff",
+    theme_color: "#102b55",
+    categories: ["education", "productivity"],
+    lang: "fr",
     icons: [
       {
-        src: "/icon-192.png",
-        sizes: "192x192",
-        type: "image/png",
+        src: "/nova-logo.webp",
+        sizes: "512x512",
+        type: "image/webp",
+        purpose: "any",
       },
       {
-        src: "/icon-512.png",
+        src: "/nova-logo.webp",
         sizes: "512x512",
-        type: "image/png",
-      },
-      {
-        src: "/icon-512-maskable.png",
-        sizes: "512x512",
-        type: "image/png",
+        type: "image/webp",
         purpose: "maskable",
       },
     ],

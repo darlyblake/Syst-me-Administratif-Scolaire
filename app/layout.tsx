@@ -1,18 +1,43 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { ProviderAuthentification } from "@/providers/authentification.provider"
 import { Suspense } from "react"
 import { Toaster } from "@/components/ui/toaster"
+import { PWARegister } from "@/components/pwa/PWARegister"
 import "./globals.css"
 import "@/styles/login-book.css"
 
 export const metadata: Metadata = {
-  title: "Système de Gestion Scolaire",
-  description: "Application de gestion des inscriptions et de la scolarité",
-  generator: "v0.app",
+  title: {
+    default: "NOVA — Système de Gestion Scolaire",
+    template: "%s | NOVA",
+  },
+  description: "Plateforme professionnelle de gestion scolaire pour les établissements.",
+  applicationName: "NOVA",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "NOVA",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: [{ url: "/nova-logo.webp", type: "image/webp" }],
+    apple: [{ url: "/nova-logo.webp", type: "image/webp" }],
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: "#102b55",
+  colorScheme: "light",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 }
 
 export default function RootLayout({
@@ -26,6 +51,7 @@ export default function RootLayout({
         <Suspense fallback={<div>Loading...</div>}>
           <ProviderAuthentification>{children}</ProviderAuthentification>
         </Suspense>
+        <PWARegister />
         <Toaster />
         <Analytics />
       </body>

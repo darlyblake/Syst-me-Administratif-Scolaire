@@ -1,80 +1,58 @@
-if (typeof globalThis !== 'undefined' && !('localStorage' in globalThis)) {
-  Object.defineProperty(globalThis, 'localStorage', {
-    value: {
-      getItem: () => null,
-      setItem: () => {},
-      removeItem: () => {},
-      clear: () => {},
-    },
-    configurable: true,
-  })
-}
-
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
+/** Refresh the Supabase session without allowing configuration errors to crash the Edge middleware. */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-
-  // Routes publiques
   const publicRoutes = ['/login', '/register', '/auth']
-  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route)) || pathname === '/'
+  const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route)) || pathname === '/'
 
-  // "/" laisse passer (la page gère la redirection)
-  if (pathname === '/') {
-    return NextResponse.next()
+  if (isPublicRoute) return NextResponse.next()
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Supabase middleware configuration is missing')
+    return NextResponse.redirect(new URL('/auth/login', request.url))
   }
 
-  // Routes publiques : laisser passer
-  if (isPublicRoute) {
-    return NextResponse.next()
-  }
+  let response = NextResponse.next({ request })
 
-  // Créer un client Supabase pour le middleware
-  let supabase
   try {
-    supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getSetCookie()
-          },
-          setAll(cookiesToSet) {
-            // Les cookies ne peuvent pas être définis dans le middleware
-            // Cela se fait dans les pages/composants
-          },
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
         },
-      }
-    )
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set(name, value)
+            response.cookies.set(name, value, options)
+          })
+        },
+      },
+    })
+
+    const { data: { user }, error } = await supabase.auth.getUser()
+
+    if (error || !user) {
+      const loginUrl = new URL('/auth/login', request.url)
+      loginUrl.searchParams.set('redirectTo', pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+
+    return response
   } catch (error) {
-    console.error('Erreur création client Supabase:', error)
-    return NextResponse.redirect(new URL('/login', request.url))
+    console.error('Supabase middleware error:', error)
+    const loginUrl = new URL('/auth/login', request.url)
+    loginUrl.searchParams.set('redirectTo', pathname)
+    return NextResponse.redirect(loginUrl)
   }
-
-  // Vérifier la session Supabase
-  const { data: { session } } = await supabase.auth.getSession()
-
-  if (!session) {
-    // Pas de session : rediriger vers login
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
-
-  // Session présente : laisser passer
-  // Les pages vont valider le rôle exact via useAuthentification()
-  return NextResponse.next()
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map)$).*)',
   ],
 }

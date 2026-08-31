@@ -2,25 +2,12 @@
 
 import { useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { FileText, TrendingUp } from "lucide-react"
+import { FileText, TrendingUp, RefreshCw } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { serviceParents, type NoteEleve } from "@/services/parents.service"
-
-const TYPE_LABELS: Record<NoteEleve["type"], string> = {
-  devoir: "Devoir",
-  controle: "Contrôle",
-  oral: "Oral",
-  composition: "Composition",
-}
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useParentPortal } from "@/hooks/use-parent-portal"
 
 function noteColor(note: number) {
   if (note >= 16) return "text-emerald-700 bg-emerald-50"
@@ -31,151 +18,94 @@ function noteColor(note: number) {
 
 export default function ParentsNotesPage() {
   const searchParams = useSearchParams()
-  const enfants = useMemo(() => serviceParents.obtenirEnfants(), [])
-  const [eleveId, setEleveId] = useState(searchParams.get("eleve") || enfants[0]?.id || "")
-  const [trimestre, setTrimestre] = useState<"all" | "1" | "2" | "3">("1")
+  const { loading, error, refresh, children, grades } = useParentPortal()
+  const [eleveId, setEleveId] = useState(searchParams.get("eleve") || "tous")
+  const [trimestre, setTrimestre] = useState("all")
+
+  const allowedChildren = children.filter((child) => child.can_view_academic)
+  const selectedIds = eleveId === "tous" ? allowedChildren.map((child) => child.id) : [eleveId]
 
   const notes = useMemo(() => {
-    const t = trimestre === "all" ? undefined : (Number(trimestre) as 1 | 2 | 3)
-    return serviceParents.obtenirNotes(eleveId || undefined, t)
-  }, [eleveId, trimestre])
-
-  const moyenne = useMemo(() => {
-    if (!eleveId) return 0
-    const t = trimestre === "all" ? undefined : (Number(trimestre) as 1 | 2 | 3)
-    return serviceParents.calculerMoyenne(eleveId, t)
-  }, [eleveId, trimestre])
-
-  const parMatiere = useMemo(() => {
-    const map = new Map<string, NoteEleve[]>()
-    notes.forEach((n) => {
-      const list = map.get(n.matiere) || []
-      list.push(n)
-      map.set(n.matiere, list)
+    return grades.filter((grade) => {
+      if (!selectedIds.includes(grade.student_id)) return false
+      return trimestre === "all" || grade.term === trimestre || grade.term === `T${trimestre}`
     })
-    return Array.from(map.entries()).map(([matiere, list]) => {
-      const coef = list.reduce((s, n) => s + n.coefficient, 0)
-      const moy = list.reduce((s, n) => s + n.note * n.coefficient, 0) / (coef || 1)
-      return { matiere, notes: list, moyenne: Math.round(moy * 10) / 10 }
-    })
+  }, [grades, selectedIds, trimestre])
+
+  const moyenne = notes.length ? notes.reduce((sum, note) => sum + note.score, 0) / notes.length : 0
+  const enfant = eleveId === "tous" ? null : allowedChildren.find((child) => child.id === eleveId)
+
+  const subjectGroups = useMemo(() => {
+    const map = new Map<string, typeof notes>()
+    for (const note of notes) {
+      const key = note.subject || "Matière non renseignée"
+      const list = map.get(key) || []
+      list.push(note)
+      map.set(key, list)
+    }
+    return Array.from(map.entries())
   }, [notes])
 
-  const enfant = enfants.find((e) => e.id === eleveId)
+  if (loading) return <div className="flex min-h-[50vh] items-center justify-center text-pierre">Chargement des notes...</div>
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-terre">
-          <FileText className="h-6 w-6 text-terre" />
-          Notes & bulletins
-        </h1>
-        <p className="text-pierre">Suivi des évaluations par enfant et par trimestre</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-terre"><FileText className="h-6 w-6" />Notes & bulletins</h1>
+          <p className="text-pierre">Notes réellement publiées par l'établissement</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => void refresh()}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
       </div>
+
+      {error && <Card className="border-red-200 bg-red-50"><CardContent className="p-4 text-sm text-red-700">{error}</CardContent></Card>}
 
       <div className="flex flex-wrap gap-3">
         <Select value={eleveId} onValueChange={setEleveId}>
-          <SelectTrigger className="w-[220px]">
-            <SelectValue placeholder="Choisir un enfant" />
-          </SelectTrigger>
+          <SelectTrigger className="w-[240px]"><SelectValue placeholder="Choisir un enfant" /></SelectTrigger>
           <SelectContent>
-            {enfants.map((e) => (
-              <SelectItem key={e.id} value={e.id}>
-                {e.prenom} {e.nom} ({e.classe})
-              </SelectItem>
-            ))}
+            <SelectItem value="tous">Tous mes enfants</SelectItem>
+            {allowedChildren.map((child) => <SelectItem key={child.id} value={child.id}>{child.first_name} {child.last_name}</SelectItem>)}
           </SelectContent>
         </Select>
-
-        <div className="flex gap-1 rounded-lg border bg-papier p-1">
-          {(
-            [
-              ["1", "T1"],
-              ["2", "T2"],
-              ["3", "T3"],
-              ["all", "Tous"],
-            ] as const
-          ).map(([v, label]) => (
-            <Button
-              key={v}
-              size="sm"
-              variant={trimestre === v ? "default" : "ghost"}
-              className={trimestre === v ? "bg-violet-600" : ""}
-              onClick={() => setTrimestre(v)}
-            >
-              {label}
-            </Button>
+        <div className="flex gap-1 rounded-lg border border-terre/10 bg-papier p-1">
+          {[['all','Tous'],['1','T1'],['2','T2'],['3','T3']].map(([value,label]) => (
+            <Button key={value} size="sm" variant={trimestre === value ? "default" : "ghost"} onClick={() => setTrimestre(value)}>{label}</Button>
           ))}
         </div>
       </div>
 
-      {enfant && (
-        <Card className="border-terre/10 bg-gradient-to-r from-violet-50 to-fuchsia-50">
+      {notes.length > 0 && (
+        <Card className="border-terre/10 bg-papier">
           <CardContent className="flex flex-wrap items-center justify-between gap-4 p-6">
             <div>
-              <p className="text-sm text-pierre">
-                {enfant.prenom} {enfant.nom} · Classe {enfant.classe}
-              </p>
-              <p className="mt-1 flex items-center gap-2 text-2xl font-bold text-terre">
-                <TrendingUp className="h-6 w-6" />
-                Moyenne : {moyenne.toFixed(1)} / 20
-              </p>
+              <p className="text-sm text-pierre">{enfant ? `${enfant.first_name} ${enfant.last_name}` : "Tous mes enfants"}</p>
+              <p className="mt-1 flex items-center gap-2 text-2xl font-bold text-terre"><TrendingUp className="h-6 w-6" />Moyenne : {moyenne.toFixed(1)} / 20</p>
             </div>
-            <Badge className="bg-violet-600 text-white hover:bg-violet-600">
-              {notes.length} note{notes.length > 1 ? "s" : ""}
-            </Badge>
+            <Badge>{notes.length} évaluation{notes.length > 1 ? "s" : ""}</Badge>
           </CardContent>
         </Card>
       )}
 
-      {parMatiere.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-pierre">
-            Aucune note pour cette sélection.
-          </CardContent>
-        </Card>
+      {subjectGroups.length === 0 ? (
+        <Card><CardContent className="py-12 text-center text-pierre">Aucune note publiée pour cette sélection.</CardContent></Card>
       ) : (
         <div className="space-y-4">
-          {parMatiere.map(({ matiere, notes: list, moyenne: moy }) => (
-            <Card key={matiere} className="border-terre/10">
+          {subjectGroups.map(([subject, list]) => {
+            const subjectAverage = list.reduce((sum, note) => sum + note.score, 0) / list.length
+            return <Card key={subject} className="border-terre/10">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div>
-                  <CardTitle className="text-base">{matiere}</CardTitle>
-                  <CardDescription>{list.length} évaluation(s)</CardDescription>
-                </div>
-                <div className={`rounded-lg px-3 py-1.5 text-sm font-bold ${noteColor(moy)}`}>
-                  {moy.toFixed(1)} / 20
-                </div>
+                <div><CardTitle className="text-base text-terre">{subject}</CardTitle><CardDescription>{list.length} évaluation{list.length > 1 ? "s" : ""}</CardDescription></div>
+                <div className={`rounded-lg px-3 py-1.5 text-sm font-bold ${noteColor(subjectAverage)}`}>{subjectAverage.toFixed(1)} / 20</div>
               </CardHeader>
-              <CardContent>
-                <div className="divide-y">
-                  {list.map((n) => (
-                    <div
-                      key={n.id}
-                      className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="font-normal">
-                            {TYPE_LABELS[n.type]}
-                          </Badge>
-                          <span className="text-xs text-pierre">
-                            Coef. {n.coefficient} ·{" "}
-                            {new Date(n.date).toLocaleDateString("fr-FR")}
-                          </span>
-                        </div>
-                        {n.appreciation && (
-                          <p className="mt-1 text-sm text-pierre">{n.appreciation}</p>
-                        )}
-                      </div>
-                      <span className={`rounded-lg px-2.5 py-1 text-sm font-bold ${noteColor(n.note)}`}>
-                        {n.note.toFixed(1)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+              <CardContent className="divide-y">
+                {list.map((note) => <div key={note.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <div><p className="font-medium text-terre">{note.title || "Évaluation"}</p><p className="text-xs text-pierre">{note.assessment_date ? new Date(note.assessment_date).toLocaleDateString("fr-FR") : "Date non renseignée"}{note.term ? ` · ${note.term}` : ""}</p>{note.comment && <p className="mt-1 text-sm text-pierre">{note.comment}</p>}</div>
+                  <span className={`rounded-lg px-2.5 py-1 text-sm font-bold ${noteColor(note.score)}`}>{note.score.toFixed(1)}{note.max_score ? ` / ${note.max_score}` : " / 20"}</span>
+                </div>)}
               </CardContent>
             </Card>
-          ))}
+          })}
         </div>
       )}
     </div>

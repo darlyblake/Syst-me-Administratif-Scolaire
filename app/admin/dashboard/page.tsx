@@ -5,10 +5,9 @@ import Link from "next/link"
 import { AlertTriangle, ArrowRight, Building2, CalendarClock, CheckCircle2, Clock3, CreditCard, Plus, RefreshCw, ShieldCheck } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { supabaseBrowser } from "@/lib/supabase/client"
-import { getAdminDashboardSummary, getAdminExpiringSubscriptions, refreshSubscriptionMonitoring, type AdminDashboardSummary, type AdminExpiringSubscription } from "@/lib/supabase/services/admin.service"
+import { getAdminDashboardSummary, getAdminEstablishments, getAdminExpiringSubscriptions, refreshSubscriptionMonitoring, type AdminDashboardSummary, type AdminEstablishment, type AdminExpiringSubscription } from "@/lib/supabase/services/admin.service"
 
-type School = { id: string; name: string; code: string | null; status: "active" | "inactive"; created_at: string }
+type School = AdminEstablishment
 const initialSummary: AdminDashboardSummary = { establishments_count: 0, active_establishments_count: 0, inactive_establishments_count: 0, students_count: 0, staff_count: 0, classes_count: 0, admins_count: 0, active_subscriptions_count: 0, expiring_subscriptions_count: 0, expired_subscriptions_count: 0, suspended_subscriptions_count: 0 }
 function formatDate(value: string) { return new Date(`${value}T00:00:00`).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }) }
 function subscriptionLabel(item: AdminExpiringSubscription) { if (item.subscription_status === "suspended") return "Suspendu"; if (item.days_remaining < 0) return "Expiré"; if (item.days_remaining === 0) return "Expire aujourd'hui"; return `${item.days_remaining} jour${item.days_remaining > 1 ? "s" : ""}` }
@@ -25,18 +24,18 @@ export default function AdminDashboard() {
     if (showRefresh) setRefreshing(true); else setLoading(true)
     setError("")
     try {
-      // Monitoring is useful but must never prevent the platform dashboard from loading.
       try { await refreshSubscriptionMonitoring() } catch (monitorError) { console.warn("Subscription monitoring unavailable", monitorError) }
-      const [{ data: schoolData, error: schoolError }, dashboardSummary, alerts] = await Promise.all([
-        supabaseBrowser.from("establishments").select("id,name,code,status,created_at").order("created_at", { ascending: false }),
+      const [schoolData, dashboardSummary, alerts] = await Promise.all([
+        getAdminEstablishments(),
         getAdminDashboardSummary(),
         getAdminExpiringSubscriptions(),
       ])
-      if (schoolError) throw schoolError
-      setSchools((schoolData ?? []) as School[]); setSummary(dashboardSummary); setExpiring(alerts)
-    } catch (loadError) { setError(loadError instanceof Error ? loadError.message : "Impossible de charger le tableau de bord.") }
-    finally { setLoading(false); setRefreshing(false) }
+      setSchools(schoolData); setSummary(dashboardSummary); setExpiring(alerts)
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Impossible de charger le tableau de bord.")
+    } finally { setLoading(false); setRefreshing(false) }
   }, [])
+
   useEffect(() => { void loadDashboard() }, [loadDashboard])
 
   const stats = [

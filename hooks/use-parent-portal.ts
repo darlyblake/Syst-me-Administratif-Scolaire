@@ -86,78 +86,77 @@ export function useParentPortal() {
   const refresh = useCallback(async () => {
     setLoading(true)
     setError(null)
-
     try {
       const { data: authData, error: authError } = await supabaseBrowser.auth.getUser()
       if (authError || !authData.user) throw new Error("Session parent introuvable.")
-
       const userId = authData.user.id
+
       const { data: links, error: linksError } = await supabaseBrowser
         .from("student_guardians")
         .select("student_id, establishment_id, relationship, can_view_academic, can_view_finance")
         .eq("guardian_user_id", userId)
-
       if (linksError) throw linksError
+
       const studentIds = (links ?? []).map((link) => link.student_id)
+      const establishmentIds = [...new Set((links ?? []).map((link) => link.establishment_id))]
+
+      const notificationsResult = await supabaseBrowser
+        .from("notifications")
+        .select("id,title,body,type,read_at,created_at")
+        .eq("recipient_user_id", userId)
+        .order("created_at", { ascending: false })
+      if (notificationsResult.error) throw notificationsResult.error
+      setNotifications(notificationsResult.data ?? [])
 
       if (studentIds.length === 0) {
         setChildren([])
         setGrades([])
         setPayments([])
         setAttendance([])
-        const [{ data: userNotifications }, { data: schoolEvents }] = await Promise.all([
-          supabaseBrowser.from("notifications").select("*").eq("recipient_user_id", userId).order("created_at", { ascending: false }),
-          supabaseBrowser.from("school_events").select("*").limit(0),
-        ])
-        setNotifications(userNotifications ?? [])
-        setEvents(schoolEvents ?? [])
+        setEvents([])
         return
       }
 
-      const [studentsResult, enrollmentsResult, gradesResult, attendanceResult, notificationsResult] = await Promise.all([
+      const [studentsResult, enrollmentsResult, gradesResult, attendanceResult, eventsResult] = await Promise.all([
         supabaseBrowser.from("students").select("*").in("id", studentIds).order("last_name"),
         supabaseBrowser.from("enrollments").select("*").in("student_id", studentIds).eq("status", "active"),
         supabaseBrowser.from("grades").select("*").in("student_id", studentIds).order("created_at", { ascending: false }),
         supabaseBrowser.from("attendance_records").select("*").in("student_id", studentIds).order("attendance_date", { ascending: false }),
-        supabaseBrowser.from("notifications").select("*").eq("recipient_user_id", userId).order("created_at", { ascending: false }),
+        establishmentIds.length ? supabaseBrowser.from("school_events").select("*").in("establishment_id", establishmentIds).order("starts_at") : Promise.resolve({ data: [], error: null }),
       ])
-
-      for (const result of [studentsResult, enrollmentsResult, gradesResult, attendanceResult, notificationsResult]) {
+      for (const result of [studentsResult, enrollmentsResult, gradesResult, attendanceResult, eventsResult]) {
         if (result.error) throw result.error
       }
 
       const enrollments = enrollmentsResult.data ?? []
       const classIds = [...new Set(enrollments.map((item) => item.class_id).filter(Boolean))]
       const assessmentIds = [...new Set((gradesResult.data ?? []).map((item) => item.assessment_id))]
-      const establishmentIds = [...new Set((links ?? []).map((item) => item.establishment_id))]
 
-      const [classesResult, assessmentsResult, eventsResult] = await Promise.all([
+      const [classesResult, assessmentsResult] = await Promise.all([
         classIds.length ? supabaseBrowser.from("school_classes").select("id,name").in("id", classIds) : Promise.resolve({ data: [], error: null }),
         assessmentIds.length ? supabaseBrowser.from("assessments").select("id,title,assessment_date,term,max_score,subject_id").in("id", assessmentIds) : Promise.resolve({ data: [], error: null }),
-        establishmentIds.length ? supabaseBrowser.from("school_events").select("*").in("establishment_id", establishmentIds).order("starts_at") : Promise.resolve({ data: [], error: null }),
       ])
-
-      for (const result of [classesResult, assessmentsResult, eventsResult]) {
+      for (const result of [classesResult, assessmentsResult]) {
         if (result.error) throw result.error
       }
 
-      const classMap = new Map((classesResult.data ?? []).map((item) => [item.id, item.name]))
-      const enrollmentMap = new Map(enrollments.map((item) => [item.student_id, item]))
-      const linkMap = new Map((links ?? []).map((item) => [item.student_id, item]))
-
-      const assessmentMap = new Map((assessmentsResult.data ?? []).map((item) => [item.id, item]))
       const subjectIds = [...new Set((assessmentsResult.data ?? []).map((item) => item.subject_id).filter(Boolean))]
       const subjectsResult = subjectIds.length
         ? await supabaseBrowser.from("subjects").select("id,name").in("id", subjectIds)
         : { data: [], error: null }
       if (subjectsResult.error) throw subjectsResult.error
-      const subjectMap = new Map((subjectsResult.data ?? []).map((item) => [item.id, item.name]))
 
       const paymentEnrollmentIds = enrollments.map((item) => item.id)
       const paymentsResult = paymentEnrollmentIds.length
         ? await supabaseBrowser.from("payments").select("*").in("enrollment_id", paymentEnrollmentIds).order("payment_date", { ascending: false })
         : { data: [], error: null }
       if (paymentsResult.error) throw paymentsResult.error
+
+      const classMap = new Map((classesResult.data ?? []).map((item) => [item.id, item.name]))
+      const enrollmentMap = new Map(enrollments.map((item) => [item.student_id, item]))
+      const linkMap = new Map((links ?? []).map((item) => [item.student_id, item]))
+      const assessmentMap = new Map((assessmentsResult.data ?? []).map((item) => [item.id, item]))
+      const subjectMap = new Map((subjectsResult.data ?? []).map((item) => [item.id, item.name]))
 
       setChildren((studentsResult.data ?? []).map((student) => {
         const enrollment = enrollmentMap.get(student.id)
@@ -187,7 +186,6 @@ export function useParentPortal() {
       }))
       setPayments((paymentsResult.data ?? []).map((payment) => ({ ...payment, amount: Number(payment.amount) })))
       setAttendance(attendanceResult.data ?? [])
-      setNotifications(notificationsResult.data ?? [])
       setEvents(eventsResult.data ?? [])
     } catch (cause) {
       console.error("Parent portal error:", cause)
@@ -197,7 +195,19 @@ export function useParentPortal() {
     }
   }, [])
 
+  const markNotificationRead = useCallback(async (notificationId: string) => {
+    const { data: authData, error: authError } = await supabaseBrowser.auth.getUser()
+    if (authError || !authData.user) throw new Error("Session parent introuvable.")
+    const { error } = await supabaseBrowser
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("id", notificationId)
+      .eq("recipient_user_id", authData.user.id)
+    if (error) throw error
+    setNotifications((current) => current.map((item) => item.id === notificationId ? { ...item, read_at: new Date().toISOString() } : item))
+  }, [])
+
   useEffect(() => { void refresh() }, [refresh])
 
-  return { loading, error, refresh, children, grades, payments, attendance, notifications, events }
+  return { loading, error, refresh, children, grades, payments, attendance, notifications, events, markNotificationRead }
 }

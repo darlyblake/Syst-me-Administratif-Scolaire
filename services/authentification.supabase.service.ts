@@ -35,9 +35,29 @@ class SupabaseAuthentificationService {
 
   async deconnecter() { await supabaseBrowser.auth.signOut() }
 
+  /**
+   * Demande un code OTP de récupération de mot de passe.
+   * Le template Recovery de Supabase doit afficher {{ .Token }}.
+   */
   async reinitialiserMotDePasse(email: string) {
-    const { error } = await supabaseBrowser.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${window.location.origin}/auth/reinitialiser-mot-de-passe` })
-    return error ? { succes: false, erreur: "Impossible d'envoyer le lien de réinitialisation." } : { succes: true }
+    const { error } = await supabaseBrowser.auth.resetPasswordForEmail(email.trim().toLowerCase())
+    return error
+      ? { succes: false, erreur: "Impossible d'envoyer le code de réinitialisation." }
+      : { succes: true }
+  }
+
+  /** Vérifie le code à 6 chiffres envoyé par email pour une récupération. */
+  async verifierCodeReinitialisation(email: string, token: string) {
+    const { data, error } = await supabaseBrowser.auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token: token.trim(),
+      type: "recovery",
+    })
+
+    if (error || !data.session || !data.user) {
+      return { succes: false, erreur: "Code invalide ou expiré. Demandez un nouveau code." }
+    }
+    return { succes: true }
   }
 
   async mettreAJourMotDePasse(password: string) {
@@ -45,23 +65,13 @@ class SupabaseAuthentificationService {
     return error ? { succes: false, erreur: "Impossible de modifier le mot de passe." } : { succes: true }
   }
 
-  /**
-   * Retourne le chemin de redirection selon le account_type
-   * @param accountType Type de compte du backend
-   * @returns Chemin de redirection
-   */
   getRedirectionPath(accountType: AccountType | undefined): string {
     switch (accountType) {
-      case "platform_admin":
-        return "/admin"
-      case "parent":
-        return "/parents/tableau-bord"
-      case "teacher":
-        return "/enseignant"
-      case "school_member":
-        return "/etablissement"
-      default:
-        return "/login"
+      case "platform_admin": return "/admin"
+      case "parent": return "/parents/tableau-de-bord"
+      case "teacher": return "/enseignant"
+      case "school_member": return "/etablissement"
+      default: return "/login"
     }
   }
 

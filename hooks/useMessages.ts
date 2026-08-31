@@ -45,7 +45,7 @@ export function useMessages(
   const [messagesLoading, setMessagesLoading] = useState<boolean>(false)
 
   const refetchConversations = useCallback(async () => {
-    if (!establishmentId || !userId) {
+    if (!userId) {
       setConversations([])
       setConversationError(null)
       return []
@@ -101,24 +101,16 @@ export function useMessages(
   }, [refetchMessages, selectedConversationId])
 
   const create = useCallback(async (payload: CreateConversationPayload) => {
-    try {
-      const result = await createConversation(payload)
-      await refetchConversations()
-      return result
-    } catch (error) {
-      throw error
-    }
+    const result = await createConversation(payload)
+    await refetchConversations()
+    return result
   }, [refetchConversations])
 
   const send = useCallback(async (payload: SendMessagePayload) => {
-    try {
-      const result = await sendMessage(payload)
-      await refetchMessages(payload.conversation_id)
-      await refetchConversations()
-      return result
-    } catch (error) {
-      throw error
-    }
+    const result = await sendMessage(payload)
+    await refetchMessages(payload.conversation_id)
+    await refetchConversations()
+    return result
   }, [refetchConversations, refetchMessages])
 
   const markRead = useCallback(async (conversationId: string | null, currentUserId: string | null) => {

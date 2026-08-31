@@ -1,5 +1,6 @@
 "use client"
 
+import type React from "react"
 import { useEffect, useMemo, useState } from "react"
 import { ArrowLeft, BarChart3, BookOpen, CalendarCheck, ClipboardList, Loader2, Users } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
@@ -16,7 +17,6 @@ export default function ClasseEnseignantPage() {
   const [students, setStudents] = useState<TeacherStudent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
   const establishment = contexte?.establishments?.find((item) => item.id === id)
 
   useEffect(() => {
@@ -26,27 +26,16 @@ export default function ClasseEnseignantPage() {
     }
     if (!estEnCoursDeChargement && establishment) {
       setLoading(true)
-      Promise.all([
-        enseignantPortalService.getClassOverview(id, classId),
-        enseignantPortalService.getStudents(id),
-      ]).then(([stats, roster]) => {
-        const classOverview = stats[0] ?? null
-        setOverview(classOverview)
-        setStudents(roster.filter((student) => student.class_id === classId))
-      }).catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Impossible de charger la classe."))
+      Promise.all([enseignantPortalService.getClassOverview(id, classId), enseignantPortalService.getStudents(id)])
+        .then(([stats, roster]) => { setOverview(stats[0] ?? null); setStudents(roster.filter((student) => student.class_id === classId)) })
+        .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Impossible de charger la classe."))
         .finally(() => setLoading(false))
     }
   }, [classId, establishment, estEnCoursDeChargement, id, router, utilisateur])
 
-  const attendanceTotal = useMemo(() => {
-    if (!overview) return 0
-    return overview.attendance_present + overview.attendance_absent + overview.attendance_late + overview.attendance_excused
-  }, [overview])
+  const attendanceTotal = useMemo(() => overview ? overview.attendance_present + overview.attendance_absent + overview.attendance_late + overview.attendance_excused : 0, [overview])
 
-  if (estEnCoursDeChargement || !utilisateur || !establishment) {
-    return <main className="min-h-screen bg-creme flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin" /></main>
-  }
-
+  if (estEnCoursDeChargement || !utilisateur || !establishment) return <main className="min-h-screen bg-creme flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin" /></main>
   if (loading) return <main className="min-h-screen bg-creme flex items-center justify-center"><div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Chargement de la classe…</div></main>
 
   return <main className="min-h-screen bg-creme"><div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">

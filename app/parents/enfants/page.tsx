@@ -18,8 +18,28 @@ function formatAmount(value: number) {
 }
 
 export default function ParentsEnfantsPage() {
-  const { loading, error, refresh, children, grades, payments, claimChild } = useParentPortal()
+  const { loading, error, refresh, children, grades, payments, claimChild, unclaimChild } = useParentPortal()
   const [linkOpen, setLinkOpen] = useState(false)
+  const [removingChildId, setRemovingChildId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  const handleUnclaim = async (childId: string, childName: string) => {
+    const confirmed = window.confirm(
+      `Retirer ${childName} de votre compte ?\n\nVous ne pourrez plus consulter ses informations depuis votre espace parent. Cette action ne supprime pas l'élève de son établissement.`
+    )
+    if (!confirmed) return
+
+    setActionError(null)
+    setRemovingChildId(childId)
+    try {
+      await unclaimChild(childId)
+    } catch (cause) {
+      console.error("Parent child unclaim error:", cause)
+      setActionError(cause instanceof Error ? cause.message : "Impossible de retirer cette association.")
+    } finally {
+      setRemovingChildId(null)
+    }
+  }
 
   if (loading) {
     return (
@@ -45,16 +65,16 @@ export default function ParentsEnfantsPage() {
         </div>
       </header>
 
-      {error && (
+      {(error || actionError) && (
         <Card className="border-red-200 bg-red-50">
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-red-700">{error}</p>
-            <Button variant="outline" size="sm" onClick={() => void refresh()}>Réessayer</Button>
+            <p className="text-sm text-red-700">{actionError ?? error}</p>
+            {error && <Button variant="outline" size="sm" onClick={() => void refresh()}>Réessayer</Button>}
           </CardContent>
         </Card>
       )}
 
-      {children.length === 0 && !error && (
+      {children.length === 0 && !error && !actionError && (
         <Card className="border-dashed border-terre/20 bg-papier">
           <CardContent className="flex flex-col items-center justify-center py-14 text-center">
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-terre/10 text-terre"><GraduationCap className="h-7 w-7" /></div>
@@ -75,6 +95,8 @@ export default function ParentsEnfantsPage() {
           const paid = child.can_view_finance
             ? payments.filter((payment) => payment.enrollment_id === child.enrollment_id).reduce((sum, payment) => sum + payment.amount, 0)
             : 0
+          const isRemoving = removingChildId === child.id
+          const childName = `${child.first_name} ${child.last_name}`.trim()
 
           return (
             <Card key={child.id} className="overflow-hidden border-terre/10 bg-papier shadow-sm">
@@ -84,7 +106,7 @@ export default function ParentsEnfantsPage() {
                     {child.first_name?.[0]}{child.last_name?.[0]}
                   </div>
                   <div className="min-w-0">
-                    <h2 className="truncate text-xl font-bold">{child.first_name} {child.last_name}</h2>
+                    <h2 className="truncate text-xl font-bold">{childName}</h2>
                     <p className="mt-1 flex items-center gap-1 text-sm text-white/90"><GraduationCap className="h-4 w-4" />{child.class_name ?? "Classe non attribuée"}</p>
                   </div>
                 </div>
@@ -124,6 +146,16 @@ export default function ParentsEnfantsPage() {
                     </>
                   )}
                   {child.can_view_finance && <Button size="sm" variant="outline" asChild><Link href={"/parents/paiements?eleve=" + child.id}><CreditCard className="mr-1.5 h-4 w-4" />Paiements</Link></Button>}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isRemoving}
+                    onClick={() => void handleUnclaim(child.id, childName)}
+                    className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                  >
+                    {isRemoving ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <UserX className="mr-1.5 h-4 w-4" />}
+                    {isRemoving ? "Retrait…" : "Retirer l'association"}
+                  </Button>
                 </div>
               </CardContent>
             </Card>

@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useState } from "react"
-import { Building2, CreditCard, LayoutDashboard, Menu, Settings, ShieldCheck, Users, X, LogOut, Bell, LifeBuoy } from "lucide-react"
+import { Baby, BookOpen, Building2, CreditCard, LayoutDashboard, Menu, Settings, ShieldCheck, Users, X, LogOut, Bell, LifeBuoy } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -12,6 +12,8 @@ import { useAuthentification } from "@/providers/authentification.provider"
 const items = [
   { href: "/admin/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/admin/etablissements", label: "Établissements", icon: Building2 },
+  { href: "/admin/enseignants", label: "Enseignants", icon: BookOpen },
+  { href: "/admin/parents", label: "Parents", icon: Baby },
   { href: "/admin/utilisateurs", label: "Utilisateurs", icon: Users },
   { href: "/admin/administrateurs", label: "Administrateurs", icon: ShieldCheck },
   { href: "/admin/abonnements", label: "Abonnements", icon: CreditCard },

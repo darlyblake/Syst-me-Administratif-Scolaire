@@ -1,0 +1,59 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { CheckCircle2, Loader2 } from "lucide-react"
+import { getStateFinanceSettings, upsertStateFinanceSettings, type StateFinanceSettings } from "@/lib/supabase/services/state-financing.service"
+
+export function StateFundingSettingsCard({ establishmentId }: { establishmentId: string }) {
+  const [settings, setSettings] = useState<StateFinanceSettings | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    getStateFinanceSettings(establishmentId).then((data) => mounted && setSettings(data)).catch(() => mounted && setMessage("La configuration n'a pas pu être chargée.")).finally(() => mounted && setLoading(false))
+    return () => { mounted = false }
+  }, [establishmentId])
+
+  const update = <K extends keyof StateFinanceSettings>(key: K, value: StateFinanceSettings[K]) => {
+    setSettings((current) => current ? { ...current, [key]: value } : current)
+    setMessage(null)
+  }
+
+  const save = async () => {
+    if (!settings) return
+    setSaving(true)
+    setMessage(null)
+    try { await upsertStateFinanceSettings(settings); setMessage("Configuration enregistrée.") }
+    catch (error) { setMessage(error instanceof Error ? error.message : "Impossible d'enregistrer la configuration.") }
+    finally { setSaving(false) }
+  }
+
+  if (loading) return <Card><CardContent className="flex items-center gap-2 py-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Chargement...</CardContent></Card>
+  if (!settings) return <Card><CardContent className="py-6 text-sm text-red-700">{message ?? "Configuration indisponible."}</CardContent></Card>
+
+  return <Card>
+    <CardHeader>
+      <CardTitle>Élèves pris en charge par l'État</CardTitle>
+      <CardDescription>Ces règles sont réutilisées lors des inscriptions et des imports groupés.</CardDescription>
+    </CardHeader>
+    <CardContent className="space-y-5">
+      <div className="flex items-center justify-between gap-4 rounded-lg border p-3"><div><div className="font-medium">Activer la prise en charge</div><div className="text-sm text-slate-500">Autorise l'import et l'inscription groupée.</div></div><Switch checked={settings.state_students_enabled} onCheckedChange={(v) => update("state_students_enabled", v)} /></div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="flex items-center justify-between gap-3 rounded-lg border p-3"><span className="text-sm">L'État couvre l'inscription</span><Switch checked={settings.state_covers_registration} onCheckedChange={(v) => update("state_covers_registration", v)} /></label>
+        <label className="flex items-center justify-between gap-3 rounded-lg border p-3"><span className="text-sm">L'État couvre la scolarité</span><Switch checked={settings.state_covers_tuition} onCheckedChange={(v) => update("state_covers_tuition", v)} /></label>
+        <label className="flex items-center justify-between gap-3 rounded-lg border p-3"><span className="text-sm">Options à la charge de la famille</span><Switch checked={settings.state_allows_family_options} onCheckedChange={(v) => update("state_allows_family_options", v)} /></label>
+        <label className="flex items-center justify-between gap-3 rounded-lg border p-3"><span className="text-sm">Autoriser une caution</span><Switch checked={settings.state_allows_caution} onCheckedChange={(v) => update("state_allows_caution", v)} /></label>
+      </div>
+      {settings.state_allows_caution && <div className="grid gap-4 md:grid-cols-2"><div className="space-y-2"><Label htmlFor="state-caution">Caution par défaut</Label><Input id="state-caution" type="number" min={0} value={settings.state_caution_default_amount} onChange={(e) => update("state_caution_default_amount", Number(e.target.value) || 0)} /></div><label className="flex items-center justify-between gap-3 rounded-lg border p-3 self-end"><span className="text-sm">Caution remboursable</span><Switch checked={settings.state_caution_refundable} onCheckedChange={(v) => update("state_caution_refundable", v)} /></label></div>}
+      {message && <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-700"><CheckCircle2 className="h-4 w-4" />{message}</div>}
+      <Button onClick={save} disabled={saving}>{saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enregistrement...</> : "Enregistrer les règles"}</Button>
+    </CardContent>
+  </Card>
+}

@@ -1,66 +1,16 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-
-  // Pages accessibles sans authentification.
-  // La page d'accueil doit toujours rester publique : elle présente NOVA
-  // avant que l'utilisateur choisisse de se connecter.
-  const publicRoutes = ['/', '/login', '/register', '/auth', '/connexion', '/offline']
-  const isPublicRoute = publicRoutes.some(
-    (route) => pathname === route || (route !== '/' && pathname.startsWith(`${route}/`)),
-  )
-
-  if (isPublicRoute) return NextResponse.next()
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  // Ne jamais transformer une configuration serveur incomplète en boucle de
-  // redirection. Les variables publiques Supabase doivent être présentes sur Vercel.
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('Supabase middleware configuration is missing')
-    const loginUrl = new URL('/connexion', request.url)
-    loginUrl.searchParams.set('redirectTo', pathname)
-    return NextResponse.redirect(loginUrl)
-  }
-
-  let response = NextResponse.next({ request })
-
-  try {
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            request.cookies.set(name, value)
-            response.cookies.set(name, value, options)
-          })
-        },
-      },
-    })
-
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser()
-
-    if (error || !user) {
-      const loginUrl = new URL('/connexion', request.url)
-      loginUrl.searchParams.set('redirectTo', pathname)
-      return NextResponse.redirect(loginUrl)
-    }
-
-    return response
-  } catch (error) {
-    console.error('Supabase middleware error:', error)
-    const loginUrl = new URL('/connexion', request.url)
-    loginUrl.searchParams.set('redirectTo', pathname)
-    return NextResponse.redirect(loginUrl)
-  }
+/**
+ * Middleware de compatibilité réseau.
+ *
+ * L'authentification Supabase est résolue côté application par le provider
+ * (qui partage la session navigateur). Ne pas appeler auth.getUser() ici :
+ * pendant une connexion client, le cookie SSR peut ne pas encore être propagé
+ * au moment de la première navigation et provoquer une boucle
+ * /connexion -> /admin -> /connexion.
+ */
+export function middleware(_request: NextRequest) {
+  return NextResponse.next()
 }
 
 export const config = {

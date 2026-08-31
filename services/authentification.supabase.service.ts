@@ -38,12 +38,21 @@ class SupabaseAuthentificationService {
   /**
    * Demande l'envoi du code OTP de récupération.
    * Le template Recovery de Supabase doit afficher {{ .Token }}.
+   * Le redirect est calculé depuis l'origine actuelle afin de ne jamais
+   * envoyer l'utilisateur vers localhost en production.
    */
   async reinitialiserMotDePasse(email: string) {
     const normalizedEmail = email.trim().toLowerCase()
     if (!normalizedEmail) return { succes: false, erreur: "L'adresse email est requise." }
 
-    const { error } = await supabaseBrowser.auth.resetPasswordForEmail(normalizedEmail)
+    const redirectTo = typeof window !== "undefined"
+      ? `${window.location.origin}/auth/mot-de-passe-oublie`
+      : undefined
+
+    const { error } = await supabaseBrowser.auth.resetPasswordForEmail(normalizedEmail, {
+      ...(redirectTo ? { redirectTo } : {}),
+    })
+
     if (error) {
       console.error("Erreur envoi code de récupération:", error)
       return { succes: false, erreur: this.messageErreurRecuperation(error.message) }
@@ -63,7 +72,7 @@ class SupabaseAuthentificationService {
     return `Impossible d'envoyer le code de réinitialisation. ${message}`
   }
 
-  /** Vérifie le code à 6 chiffres envoyé par email pour une récupération. */
+  /** Vérifie le code OTP envoyé par email pour une récupération. */
   async verifierCodeReinitialisation(email: string, token: string) {
     const { data, error } = await supabaseBrowser.auth.verifyOtp({
       email: email.trim().toLowerCase(),

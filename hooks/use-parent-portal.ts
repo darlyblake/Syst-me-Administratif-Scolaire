@@ -186,8 +186,6 @@ export function useParentPortal() {
         }
       }))
 
-      // RLS is the authoritative security boundary. These filters are defense in depth
-      // so the client never retains data that the guardian link does not explicitly grant.
       setGrades((gradesResult.data ?? [])
         .filter((grade) => linkMap.get(grade.student_id)?.can_view_academic === true)
         .map((grade) => {
@@ -246,6 +244,20 @@ export function useParentPortal() {
     return data
   }, [refresh])
 
+  const unclaimChild = useCallback(async (studentId: string) => {
+    const normalizedStudentId = studentId.trim()
+    if (!normalizedStudentId) throw new Error("Identifiant de l'élève invalide.")
+
+    const { data, error } = await supabaseBrowser.rpc("unclaim_student", {
+      p_student_id: normalizedStudentId,
+    })
+    if (error) throw error
+    if (data !== true) throw new Error("Cette association n'est plus active ou n'appartient pas à votre compte.")
+
+    setChildren((current) => current.filter((child) => child.id !== normalizedStudentId))
+    return true
+  }, [])
+
   const markNotificationRead = useCallback(async (notificationId: string) => {
     const { data: authData, error: authError } = await supabaseBrowser.auth.getUser()
     if (authError || !authData.user) throw new Error("Session parent introuvable.")
@@ -261,5 +273,5 @@ export function useParentPortal() {
 
   useEffect(() => { void refresh() }, [refresh])
 
-  return { loading, error, refresh, children, grades, payments, attendance, notifications, events, claimChild, markNotificationRead }
+  return { loading, error, refresh, children, grades, payments, attendance, notifications, events, claimChild, unclaimChild, markNotificationRead }
 }

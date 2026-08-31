@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 
 export default function ParentsNotificationsPage() {
-  const { loading, error, refresh, notifications, markNotificationRead } = useParentPortal()
+  const { loading, error, refresh, notifications, markNotificationRead, markAllNotificationsRead } = useParentPortal()
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [markingAll, setMarkingAll] = useState(false)
   const unread = useMemo(() => notifications.filter((notification) => !notification.read_at).length, [notifications])
 
   const markRead = async (id: string) => {
@@ -18,6 +19,16 @@ export default function ParentsNotificationsPage() {
       await markNotificationRead(id)
     } finally {
       setBusyId(null)
+    }
+  }
+
+  const markAllRead = async () => {
+    if (unread === 0) return
+    setMarkingAll(true)
+    try {
+      await markAllNotificationsRead()
+    } finally {
+      setMarkingAll(false)
     }
   }
 
@@ -35,8 +46,13 @@ export default function ParentsNotificationsPage() {
 
       {unread > 0 && (
         <div className="flex flex-col gap-3 rounded-xl border border-terre/10 bg-terre-soft/30 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-medium text-terre">{unread} notification{unread > 1 ? "s" : ""} non lue{unread > 1 ? "s" : ""}</p>
-          <p className="text-xs text-pierre">Ouvrez une notification puis marquez-la comme lue.</p>
+          <div>
+            <p className="text-sm font-medium text-terre">{unread} notification{unread > 1 ? "s" : ""} non lue{unread > 1 ? "s" : ""}</p>
+            <p className="mt-1 text-xs text-pierre">Vous pouvez les marquer toutes comme lues.</p>
+          </div>
+          <Button size="sm" variant="outline" disabled={markingAll} onClick={() => void markAllRead()}>
+            <Check className="mr-1.5 h-4 w-4" />{markingAll ? "Enregistrement..." : "Tout marquer comme lu"}
+          </Button>
         </div>
       )}
 

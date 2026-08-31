@@ -1,9 +1,19 @@
-const CACHE_NAME = "nova-static-v1"
+const CACHE_NAME = "nova-static-v2"
 const APP_SHELL = ["/", "/offline", "/nova-logo.webp"]
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME)
+      .then(async (cache) => {
+        for (const asset of APP_SHELL) {
+          try {
+            await cache.add(asset)
+          } catch (error) {
+            console.warn("NOVA: impossible de mettre en cache", asset, error)
+          }
+        }
+      })
+      .then(() => self.skipWaiting())
   )
 })
 
@@ -19,6 +29,9 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return
 
   const request = event.request
+  const url = new URL(request.url)
+
+  if (url.origin !== self.location.origin) return
 
   if (request.mode === "navigate") {
     event.respondWith(
@@ -30,9 +43,6 @@ self.addEventListener("fetch", (event) => {
     return
   }
 
-  const url = new URL(request.url)
-  if (url.origin !== self.location.origin) return
-
   event.respondWith(
     caches.match(request).then((cached) =>
       cached ||
@@ -40,7 +50,7 @@ self.addEventListener("fetch", (event) => {
         .then((response) => {
           if (response.ok && (url.pathname.startsWith("/_next/static/") || url.pathname === "/nova-logo.webp")) {
             const copy = response.clone()
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {})
           }
           return response
         })

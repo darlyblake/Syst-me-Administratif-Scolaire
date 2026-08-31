@@ -1,5 +1,5 @@
-const CACHE_NAME = "nova-static-v2"
-const APP_SHELL = ["/", "/offline", "/nova-logo.webp"]
+const CACHE_NAME = "nova-static-v3"
+const APP_SHELL = ["/", "/offline", "/nova-logo.webp", "/manifest.webmanifest"]
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -48,7 +48,11 @@ self.addEventListener("fetch", (event) => {
       cached ||
       fetch(request)
         .then((response) => {
-          if (response.ok && (url.pathname.startsWith("/_next/static/") || url.pathname === "/nova-logo.webp")) {
+          if (response.ok && (
+            url.pathname.startsWith("/_next/static/") ||
+            url.pathname === "/nova-logo.webp" ||
+            url.pathname === "/manifest.webmanifest"
+          )) {
             const copy = response.clone()
             caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {})
           }

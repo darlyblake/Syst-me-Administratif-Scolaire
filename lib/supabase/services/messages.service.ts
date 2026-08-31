@@ -99,12 +99,41 @@ async function tryRpc<T>(procedureName: string, payload: Record<string, unknown>
   return (data as T) ?? null
 }
 
+/**
+ * Returns only conversations in which the current user is a participant.
+ * When no establishment is supplied, this intentionally spans all establishments
+ * represented by the user's authorized conversations. RLS remains authoritative.
+ */
 export async function getAccessibleConversations(
   establishmentId: string | null,
   userId: string | null,
 ): Promise<MessageConversation[]> {
-  if (!establishmentId || !userId) {
-    return []
+  if (!userId) return []
+
+  if (!establishmentId) {
+    const { data: participantRows, error: participantError } = await supabaseBrowser
+      .from("conversation_participants")
+      .select("conversation_id")
+      .eq("user_id", userId)
+
+    if (participantError) {
+      throw new Error("Impossible de vérifier les conversations accessibles.")
+    }
+
+    const conversationIds = [...new Set((participantRows ?? []).map((row) => String(row.conversation_id)).filter(Boolean))]
+    if (!conversationIds.length) return []
+
+    const { data, error } = await supabaseBrowser
+      .from("conversations")
+      .select("*")
+      .in("id", conversationIds)
+      .order("last_message_at", { ascending: false, nullsLast: true })
+
+    if (error) {
+      throw new Error("Impossible de charger les conversations.")
+    }
+
+    return (data ?? []).map(normalizeConversationRecord)
   }
 
   const { data, error } = await supabaseBrowser
@@ -118,15 +147,12 @@ export async function getAccessibleConversations(
   }
 
   const conversations = (data ?? []).map((item) => normalizeConversationRecord(item))
-  if (!conversations.length) {
-    return []
-  }
+  if (!conversations.length) return []
 
   const conversationIds = conversations.map((conversation) => conversation.id)
-
   const { data: participants, error: participantsError } = await supabaseBrowser
     .from("conversation_participants")
-    .select("*")
+    .select("conversation_id")
     .eq("user_id", userId)
     .in("conversation_id", conversationIds)
 
@@ -135,14 +161,11 @@ export async function getAccessibleConversations(
   }
 
   const visibleIds = new Set((participants ?? []).map((participant) => String(participant.conversation_id)))
-
   return conversations.filter((conversation) => visibleIds.has(conversation.id))
 }
 
 export async function getConversationMessages(conversationId: string | null): Promise<MessageRecord[]> {
-  if (!conversationId) {
-    return []
-  }
+  if (!conversationId) return []
 
   const { data, error } = await supabaseBrowser
     .from("messages")
@@ -178,9 +201,7 @@ export async function createConversation(payload: CreateConversationPayload): Pr
     if (data) {
       const conversationData = data.conversation ?? data
       const normalizedConversation = normalizeConversationRecord(conversationData)
-      if (normalizedConversation.id) {
-        return normalizedConversation
-      }
+      if (normalizedConversation.id) return normalizedConversation
       const chosenId = data.id ?? data.conversation_id ?? null
       if (chosenId) {
         return normalizeConversationRecord({ id: chosenId, title: payload.title, establishment_id: payload.establishment_id })
@@ -198,9 +219,7 @@ export async function createConversation(payload: CreateConversationPayload): Pr
     .select()
     .single()
 
-  if (fallback.error) {
-    throw new Error("Impossible de créer la conversation.")
-  }
+  if (fallback.error) throw new Error("Impossible de créer la conversation.")
 
   const participantValues = Array.from(new Set([...(payload.participant_ids ?? []), payload.created_by ?? payload.participant_ids[0] ?? ""]))
     .filter(Boolean)
@@ -212,9 +231,7 @@ export async function createConversation(payload: CreateConversationPayload): Pr
 
   if (participantValues.length) {
     const { error: participantError } = await supabaseBrowser.from("conversation_participants").insert(participantValues)
-    if (participantError) {
-      throw new Error("La conversation a été créée mais ses participants n’ont pas pu être enregistrés.")
-    }
+    if (participantError) throw new Error("La conversation a été créée mais ses participants n’ont pas pu être enregistrés.")
   }
 
   return normalizeConversationRecord(fallback.data)
@@ -239,9 +256,7 @@ export async function sendMessage(payload: SendMessagePayload): Promise<MessageR
     if (data) {
       const messageData = data.message ?? data
       const normalizedMessage = normalizeMessageRecord(messageData)
-      if (normalizedMessage.id) {
-        return normalizedMessage
-      }
+      if (normalizedMessage.id) return normalizedMessage
       const chosenId = data.id ?? data.message_id ?? null
       if (chosenId) {
         return normalizeMessageRecord({ id: chosenId, conversation_id: payload.conversation_id, sender_id: payload.sender_id, content: payload.content, created_at: new Date().toISOString() })
@@ -259,10 +274,7 @@ export async function sendMessage(payload: SendMessagePayload): Promise<MessageR
     .select()
     .single()
 
-  if (error) {
-    throw new Error("Impossible d’envoyer le message.")
-  }
-
+  if (error) throw new Error("Impossible d’envoyer le message.")
   return normalizeMessageRecord(data)
 }
 
@@ -270,9 +282,7 @@ export async function markConversationRead(
   conversationId: string | null,
   userId: string | null,
 ): Promise<boolean> {
-  if (!conversationId || !userId) {
-    return false
-  }
+  if (!conversationId || !userId) return false
 
   const { error } = await supabaseBrowser
     .from("conversation_participants")
@@ -280,9 +290,6 @@ export async function markConversationRead(
     .eq("conversation_id", conversationId)
     .eq("user_id", userId)
 
-  if (error) {
-    throw new Error("Impossible de mettre à jour la lecture de la conversation.")
-  }
-
+  if (error) throw new Error("Impossible de mettre à jour la lecture de la conversation.")
   return true
 }

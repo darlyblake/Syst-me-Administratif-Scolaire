@@ -11,6 +11,9 @@ export type TeacherAttendanceStudent = { student_id: string; first_name: string;
 export type TeacherClassOverview = { class_id: string; class_name: string; student_count: number; assessment_count: number; graded_count: number; average_percentage: number | null; attendance_present: number; attendance_absent: number; attendance_late: number; attendance_excused: number }
 export type TeacherNotification = { id: string; establishment_id: string; type: string; title: string; body: string | null; entity_type: string | null; entity_id: string | null; read_at: string | null; created_at: string }
 export type TeacherProfile = { profile_id: string; first_name: string | null; last_name: string | null; phone: string | null; avatar_url: string | null; teacher_id: string; employee_number: string | null; email: string | null; specialty: string | null; hire_date: string | null }
+export type TeacherAttendanceHistoryRow = { id: string; student_id: string; class_id: string; attendance_date: string; status: "present" | "absent" | "late" | "excused"; reason: string | null; recorded_by: string | null; created_at: string; first_name: string; last_name: string }
+export type TeacherAttendanceHistory = { data: TeacherAttendanceHistoryRow[]; page: number; page_size: number; total: number; total_pages: number }
+export type TeacherAttendanceStatistics = { total: number; present: number; absent: number; late: number; excused: number; presence_rate: number }
 
 async function rpc<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabaseBrowser.rpc(name, args)
@@ -36,4 +39,6 @@ export const enseignantPortalService = {
   markAllNotificationsRead: () => rpc<number>("teacher_mark_all_notifications_read"),
   getProfile: () => rpc<TeacherProfile[]>("teacher_profile"),
   updateProfile: (firstName: string, lastName: string, phone: string) => rpc<boolean>("teacher_update_profile", { p_first_name: firstName, p_last_name: lastName, p_phone: phone }),
+  getAttendanceHistory: (establishmentId: string, page = 1, pageSize = 30, classId?: string, studentId?: string, from?: string, to?: string) => rpc<TeacherAttendanceHistory>("list_attendance_history_paginated", { p_establishment_id: establishmentId, p_page: page, p_page_size: pageSize, p_class_id: classId || null, p_student_id: studentId || null, p_from: from || null, p_to: to || null }),
+  getAttendanceStatistics: (establishmentId: string, from: string, to: string, classId?: string) => rpc<TeacherAttendanceStatistics>("get_attendance_statistics", { p_establishment_id: establishmentId, p_from: from, p_to: to, p_class_id: classId || null }),
 }

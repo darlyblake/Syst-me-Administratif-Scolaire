@@ -1,11 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-/** Refresh the Supabase session without allowing configuration errors to crash the Edge middleware. */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const publicRoutes = ['/login', '/register', '/auth']
-  const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route)) || pathname === '/'
+  const publicRoutes = ['/login', '/register', '/auth', '/offline']
+  const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
 
   if (isPublicRoute) return NextResponse.next()
 
@@ -53,6 +52,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|manifest\\.webmanifest|sw\\.js|workbox[^/]*\\.js|robots\\.txt|sitemap\\.xml|offline|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|mjs|map|json|webmanifest|woff|woff2|ttf|otf)$).*)',
   ],
 }

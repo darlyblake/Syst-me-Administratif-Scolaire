@@ -36,14 +36,31 @@ class SupabaseAuthentificationService {
   async deconnecter() { await supabaseBrowser.auth.signOut() }
 
   /**
-   * Demande un code OTP de récupération de mot de passe.
+   * Demande l'envoi du code OTP de récupération.
    * Le template Recovery de Supabase doit afficher {{ .Token }}.
    */
   async reinitialiserMotDePasse(email: string) {
-    const { error } = await supabaseBrowser.auth.resetPasswordForEmail(email.trim().toLowerCase())
-    return error
-      ? { succes: false, erreur: "Impossible d'envoyer le code de réinitialisation." }
-      : { succes: true }
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!normalizedEmail) return { succes: false, erreur: "L'adresse email est requise." }
+
+    const { error } = await supabaseBrowser.auth.resetPasswordForEmail(normalizedEmail)
+    if (error) {
+      console.error("Erreur envoi code de récupération:", error)
+      return { succes: false, erreur: this.messageErreurRecuperation(error.message) }
+    }
+
+    return { succes: true }
+  }
+
+  private messageErreurRecuperation(message: string) {
+    const normalized = message.toLowerCase()
+    if (normalized.includes("rate limit") || normalized.includes("too many")) {
+      return "Trop de demandes. Attendez quelques instants avant de demander un nouveau code."
+    }
+    if (normalized.includes("email") && (normalized.includes("disabled") || normalized.includes("provider"))) {
+      return "L'envoi d'emails de récupération n'est pas disponible actuellement. Vérifiez la configuration Email de Supabase."
+    }
+    return `Impossible d'envoyer le code de réinitialisation. ${message}`
   }
 
   /** Vérifie le code à 6 chiffres envoyé par email pour une récupération. */
@@ -55,6 +72,7 @@ class SupabaseAuthentificationService {
     })
 
     if (error || !data.session || !data.user) {
+      console.error("Erreur vérification code de récupération:", error)
       return { succes: false, erreur: "Code invalide ou expiré. Demandez un nouveau code." }
     }
     return { succes: true }
@@ -62,7 +80,11 @@ class SupabaseAuthentificationService {
 
   async mettreAJourMotDePasse(password: string) {
     const { error } = await supabaseBrowser.auth.updateUser({ password })
-    return error ? { succes: false, erreur: "Impossible de modifier le mot de passe." } : { succes: true }
+    if (error) {
+      console.error("Erreur changement mot de passe:", error)
+      return { succes: false, erreur: "Impossible de modifier le mot de passe." }
+    }
+    return { succes: true }
   }
 
   getRedirectionPath(accountType: AccountType | undefined): string {
@@ -71,7 +93,7 @@ class SupabaseAuthentificationService {
       case "parent": return "/parents/tableau-de-bord"
       case "teacher": return "/enseignant"
       case "school_member": return "/etablissement"
-      default: return "/login"
+      default: return "/connexion"
     }
   }
 

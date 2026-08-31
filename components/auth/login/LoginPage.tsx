@@ -11,10 +11,16 @@ type Espace = keyof typeof espaceLabels
 type BookView = "closed" | "login" | "register"
 const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 
+function safeRedirect(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return null
+  return value
+}
+
 export function LoginPage() {
   const router = useRouter()
   const { connecter, estConnecte, estEnCoursDeChargement, obtenirCheminRedirection } = useAuthentification()
   const [espace, setEspace] = useState<Espace>("ecole")
+  const [redirectTo, setRedirectTo] = useState<string | null>(null)
   const [view, setView] = useState<BookView>("closed")
   const [introFinished, setIntroFinished] = useState(false)
   const [turning, setTurning] = useState(false)
@@ -33,13 +39,16 @@ export function LoginPage() {
     const params = new URLSearchParams(window.location.search)
     const nextEspace = (params.get("espace") as Espace | null) || "ecole"
     setEspace(nextEspace in espaceLabels ? nextEspace : "ecole")
+    setRedirectTo(safeRedirect(params.get("redirectTo")))
     const timer = window.setTimeout(() => setIntroFinished(true), 1250)
     return () => window.clearTimeout(timer)
   }, [])
 
   useEffect(() => {
-    if (!estEnCoursDeChargement && estConnecte) router.replace(obtenirCheminRedirection())
-  }, [estConnecte, estEnCoursDeChargement, router, obtenirCheminRedirection])
+    if (!estEnCoursDeChargement && estConnecte) {
+      router.replace(redirectTo ?? obtenirCheminRedirection())
+    }
+  }, [estConnecte, estEnCoursDeChargement, router, obtenirCheminRedirection, redirectTo])
 
   const openBook = (nextView: "login" | "register") => {
     if (!introFinished || turning) return
@@ -65,8 +74,16 @@ export function LoginPage() {
     setLoading(true)
     try {
       const result = await connecter(email, loginPassword)
-      if (!result.succes) setLoginError(result.erreur ?? "Connexion impossible.")
-    } catch { setLoginError("Une erreur inattendue s’est produite.") } finally { setLoading(false) }
+      if (!result.succes) {
+        setLoginError(result.erreur ?? "Connexion impossible.")
+      } else {
+        router.replace(redirectTo ?? obtenirCheminRedirection())
+      }
+    } catch {
+      setLoginError("Une erreur inattendue s’est produite.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleRegisterSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -74,7 +91,8 @@ export function LoginPage() {
     setRegisterMessage("Le formulaire d’inscription est prêt. La création du compte sera reliée au service d’authentification lors de l’implémentation backend.")
   }
 
-  if (estEnCoursDeChargement || estConnecte) return <main className={styles.loading}><Loader2 className={styles.spinner} /><p>Chargement de votre espace…</p></main>
+  if (estEnCoursDeChargement) return <main className={styles.loading}><Loader2 className={styles.spinner} /><p>Chargement de votre espace…</p></main>
+  if (estConnecte) return <main className={styles.loading}><Loader2 className={styles.spinner} /><p>Redirection vers votre espace…</p></main>
 
   const pageNumber = view === "login" ? "2" : view === "register" ? "6" : "—"
   const guideNumber = view === "login" ? "1" : view === "register" ? "5" : "—"
@@ -92,53 +110,32 @@ export function LoginPage() {
               <h1>{view === "register" ? "Créer votre espace" : "Système de Gestion Scolaire"}</h1>
               <p className={styles.intro}>{view === "register" ? "Créez votre espace pour accéder aux outils de gestion et accompagner efficacement votre établissement." : "Un espace unique pour organiser simplement la vie administrative et pédagogique de votre établissement."}</p>
               <div className={styles.features}>
-                {view === "register" ? (
-                  <>
-                    <span>Renseigner vos informations</span>
-                    <span>Créer votre accès</span>
-                    <span>Sécuriser votre compte</span>
-                    <span>Accéder à votre espace</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Élèves</span>
-                    <span>Enseignants</span>
-                    <span>Classes</span>
-                    <span>Notes</span>
-                    <span>Absences</span>
-                    <span>Finances</span>
-                    <span>Communication</span>
-                  </>
-                )}
+                {view === "register" ? <><span>Renseigner vos informations</span><span>Créer votre accès</span><span>Sécuriser votre compte</span><span>Accéder à votre espace</span></> : <><span>Élèves</span><span>Enseignants</span><span>Classes</span><span>Notes</span><span>Absences</span><span>Finances</span><span>Communication</span></>}
               </div>
             </div>
           </aside>
           <section className={styles.rightPage} aria-label={view === "register" ? "Formulaire d'inscription" : "Formulaire de connexion"} aria-hidden={!bookOpen}>
             <div className={styles.pageContent}>
               <span className={styles.pageNumber}>Page {pageNumber}</span>
-              {view === "login" ? (
-                <>
-                  <span className={styles.eyebrow}>Accès sécurisé</span><h2>{espaceLabels[espace]}</h2><p className={styles.formIntro}>Connectez-vous pour accéder à votre espace.</p>
-                  <form onSubmit={handleLoginSubmit} className={styles.form} noValidate>
-                    <label>Adresse email<input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder="votre@ecole.fr" autoComplete="email" /></label>
-                    <label>Mot de passe<span className={styles.password}><input type={showPassword ? "text" : "password"} value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" /><button type="button" onClick={() => setShowPassword(v => !v)} aria-label="Afficher ou masquer le mot de passe">{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
-                    {loginError && <p className={styles.error} role="alert">{loginError}</p>}
-                    <button type="submit" className={styles.primaryButton} disabled={loading}>{loading ? <><Loader2 className={styles.smallSpin} /> Connexion...</> : <><LogIn size={17} /> Se connecter</>}</button>
-                    <button type="button" className={styles.textButton} onClick={() => router.push(`/auth/mot-de-passe-oublie?espace=${encodeURIComponent(espace)}`)}><KeyRound size={15} /> Mot de passe oublié ?</button>
-                  </form>
-                </>
-              ) : (
-                <>
-                  <span className={styles.eyebrow}>Nouveau compte</span><h2>Inscription</h2><p className={styles.formIntro}>Créez votre accès à l’espace de gestion scolaire.</p>
-                  <form onSubmit={handleRegisterSubmit} className={styles.form} noValidate>
-                    <div className={styles.twoColumns}><label>Prénom<input value={registerData.firstName} onChange={e => setRegisterData(v => ({ ...v, firstName: e.target.value }))} autoComplete="given-name" /></label><label>Nom<input value={registerData.lastName} onChange={e => setRegisterData(v => ({ ...v, lastName: e.target.value }))} autoComplete="family-name" /></label></div>
-                    <label>Adresse email<input type="email" value={registerData.email} onChange={e => setRegisterData(v => ({ ...v, email: e.target.value }))} autoComplete="email" /></label>
-                    <label>Mot de passe<span className={styles.password}><input type={showRegisterPassword ? "text" : "password"} value={registerData.password} onChange={e => setRegisterData(v => ({ ...v, password: e.target.value }))} autoComplete="new-password" /><button type="button" onClick={() => setShowRegisterPassword(v => !v)} aria-label="Afficher ou masquer le mot de passe">{showRegisterPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
-                    {registerMessage && <p className={styles.notice} role="status">{registerMessage}</p>}
-                    <button type="submit" className={styles.primaryButton}><UserPlus size={17} /> Créer mon compte</button>
-                  </form>
-                </>
-              )}
+              {view === "login" ? <>
+                <span className={styles.eyebrow}>Accès sécurisé</span><h2>{espaceLabels[espace]}</h2><p className={styles.formIntro}>Connectez-vous pour accéder à votre espace.</p>
+                <form onSubmit={handleLoginSubmit} className={styles.form} noValidate>
+                  <label>Adresse email<input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder="votre@ecole.fr" autoComplete="email" /></label>
+                  <label>Mot de passe<span className={styles.password}><input type={showPassword ? "text" : "password"} value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" /><button type="button" onClick={() => setShowPassword(v => !v)} aria-label="Afficher ou masquer le mot de passe">{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
+                  {loginError && <p className={styles.error} role="alert">{loginError}</p>}
+                  <button type="submit" className={styles.primaryButton} disabled={loading}>{loading ? <><Loader2 className={styles.smallSpin} /> Connexion...</> : <><LogIn size={17} /> Se connecter</>}</button>
+                  <button type="button" className={styles.textButton} onClick={() => router.push(`/auth/mot-de-passe-oublie?espace=${encodeURIComponent(espace)}`)}><KeyRound size={15} /> Mot de passe oublié ?</button>
+                </form>
+              </> : <>
+                <span className={styles.eyebrow}>Nouveau compte</span><h2>Inscription</h2><p className={styles.formIntro}>Créez votre accès à l’espace de gestion scolaire.</p>
+                <form onSubmit={handleRegisterSubmit} className={styles.form} noValidate>
+                  <div className={styles.twoColumns}><label>Prénom<input value={registerData.firstName} onChange={e => setRegisterData(v => ({ ...v, firstName: e.target.value }))} autoComplete="given-name" /></label><label>Nom<input value={registerData.lastName} onChange={e => setRegisterData(v => ({ ...v, lastName: e.target.value }))} autoComplete="family-name" /></label></div>
+                  <label>Adresse email<input type="email" value={registerData.email} onChange={e => setRegisterData(v => ({ ...v, email: e.target.value }))} autoComplete="email" /></label>
+                  <label>Mot de passe<span className={styles.password}><input type={showRegisterPassword ? "text" : "password"} value={registerData.password} onChange={e => setRegisterData(v => ({ ...v, password: e.target.value }))} autoComplete="new-password" /><button type="button" onClick={() => setShowRegisterPassword(v => !v)} aria-label="Afficher ou masquer le mot de passe">{showRegisterPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
+                  {registerMessage && <p className={styles.notice} role="status">{registerMessage}</p>}
+                  <button type="submit" className={styles.primaryButton}><UserPlus size={17} /> Créer mon compte</button>
+                </form>
+              </>}
             </div>
           </section>
           <div className={styles.cover} aria-hidden={bookOpen}><div className={styles.coverBorder} /><div className={styles.emblem}>GS</div><span className={styles.coverKicker}>Établissement scolaire</span><strong>Système de<br />Gestion Scolaire</strong><span className={styles.coverRule} /><small>Un espace pour toute votre école</small></div>

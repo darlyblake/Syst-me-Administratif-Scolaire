@@ -272,7 +272,20 @@ export function useParentPortal() {
     setNotifications((current) => current.map((item) => item.id === notificationId ? { ...item, read_at: now } : item))
   }, [])
 
+  const markAllNotificationsRead = useCallback(async () => {
+    const { data: authData, error: authError } = await supabaseBrowser.auth.getUser()
+    if (authError || !authData.user) throw new Error("Session parent introuvable.")
+    const now = new Date().toISOString()
+    const { error } = await supabaseBrowser
+      .from("notifications")
+      .update({ read_at: now })
+      .eq("recipient_user_id", authData.user.id)
+      .is("read_at", null)
+    if (error) throw error
+    setNotifications((current) => current.map((item) => item.read_at ? item : { ...item, read_at: now }))
+  }, [])
+
   useEffect(() => { void refresh() }, [refresh])
 
-  return { loading, error, refresh, children, grades, payments, attendance, notifications, events, claimChild, unclaimChild, markNotificationRead }
+  return { loading, error, refresh, children, grades, payments, attendance, notifications, events, claimChild, unclaimChild, markNotificationRead, markAllNotificationsRead }
 }

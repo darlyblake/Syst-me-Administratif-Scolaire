@@ -23,7 +23,7 @@ Cette checklist suit l'avancement réel du module Parent. Une tâche n'est coch�
 - [ ] Gestion d'une association existante
 - [x] Retirer une association
 - [x] Historique des associations
-- [ ] Protection contre l'accès à un enfant non autorisé
+- [x] Protection contre l'accès à un enfant non autorisé
 
 ## 3. Scolarité
 - [ ] Notes
@@ -110,35 +110,35 @@ Cette checklist suit l'avancement réel du module Parent. Une tâche n'est coch�
 
 ## 12. Sécurité
 - [ ] RLS Supabase
-- [ ] Isolation parent / enfant
-- [ ] Isolation entre établissements
+- [x] Isolation parent / enfant
+- [x] Isolation entre établissements
 - [ ] Permissions backend
 - [ ] Protection des identifiants enfants
 - [ ] Protection des bulletins / documents
-- [ ] Protection des paiements
-- [ ] Protection des messages
+- [x] Protection des paiements
+- [x] Protection des messages
 - [ ] Protection des fichiers uploadés
 - [ ] Gestion des sessions
 - [ ] Audit des accès sensibles
 
 ## 13. Performance
-- [ ] Requêtes Supabase optimisées
+- [x] Requêtes Supabase optimisées
 - [ ] Index PostgreSQL nécessaires
 - [ ] Pagination
 - [ ] Chargement différé
-- [ ] Réduction des requêtes répétitives
+- [x] Réduction des requêtes répétitives
 - [ ] Cache lorsque pertinent
 - [ ] Optimisation mobile
 - [ ] Optimisation images / documents
 
 ## 14. Scalabilité
-- [ ] Plusieurs établissements
-- [ ] Plusieurs enfants par parent
-- [ ] Plusieurs parents pour un enfant selon les règles métier
+- [x] Plusieurs établissements
+- [x] Plusieurs enfants par parent
+- [x] Plusieurs parents pour un enfant selon les règles métier
 - [ ] Pagination côté serveur
-- [ ] Requêtes adaptées aux gros volumes
-- [ ] Architecture multi-tenant
-- [ ] Pas de récupération massive de données
+- [x] Requêtes adaptées aux gros volumes
+- [x] Architecture multi-tenant
+- [x] Pas de récupération massive de données
 - [ ] Préparation aux notifications à grande échelle
 
 ## 15. Tests finaux

@@ -99,7 +99,7 @@ export function useParentPortal() {
 
       const { data: links, error: linksError } = await supabaseBrowser
         .from("student_guardians")
-        .select("student_id, establishment_id, relationship, can_view_academic, can_view_finance")
+        .select("student_id,establishment_id,relationship,can_view_academic,can_view_finance")
         .eq("guardian_user_id", userId)
         .eq("active", true)
       if (linksError) throw linksError
@@ -112,6 +112,7 @@ export function useParentPortal() {
         .select("id,title,body,type,read_at,created_at")
         .eq("recipient_user_id", userId)
         .order("created_at", { ascending: false })
+        .limit(50)
       if (notificationsResult.error) throw notificationsResult.error
       setNotifications(notificationsResult.data ?? [])
 
@@ -125,12 +126,12 @@ export function useParentPortal() {
       }
 
       const [studentsResult, enrollmentsResult, gradesResult, attendanceResult, eventsResult] = await Promise.all([
-        supabaseBrowser.from("students").select("*").in("id", studentIds).order("last_name"),
-        supabaseBrowser.from("enrollments").select("*").in("student_id", studentIds).eq("status", "active"),
-        supabaseBrowser.from("grades").select("*").in("student_id", studentIds).order("created_at", { ascending: false }),
-        supabaseBrowser.from("attendance_records").select("*").in("student_id", studentIds).order("attendance_date", { ascending: false }),
+        supabaseBrowser.from("students").select("id,establishment_id,student_number,first_name,last_name,birth_date,sex,phone,email,active").in("id", studentIds).order("last_name").limit(100),
+        supabaseBrowser.from("enrollments").select("id,student_id,class_id,status").in("student_id", studentIds).eq("status", "active").limit(200),
+        supabaseBrowser.from("grades").select("id,student_id,score,comment,assessment_id,created_at").in("student_id", studentIds).order("created_at", { ascending: false }).limit(500),
+        supabaseBrowser.from("attendance_records").select("id,student_id,attendance_date,status,reason").in("student_id", studentIds).order("attendance_date", { ascending: false }).limit(500),
         establishmentIds.length
-          ? supabaseBrowser.from("school_events").select("*").in("establishment_id", establishmentIds).order("starts_at")
+          ? supabaseBrowser.from("school_events").select("id,establishment_id,title,description,event_type,starts_at,ends_at,location").in("establishment_id", establishmentIds).order("starts_at").limit(100)
           : Promise.resolve({ data: [], error: null }),
       ])
       for (const result of [studentsResult, enrollmentsResult, gradesResult, attendanceResult, eventsResult]) {
@@ -161,7 +162,7 @@ export function useParentPortal() {
 
       const paymentEnrollmentIds = enrollments.map((item) => item.id)
       const paymentsResult = paymentEnrollmentIds.length
-        ? await supabaseBrowser.from("payments").select("*").in("enrollment_id", paymentEnrollmentIds).order("payment_date", { ascending: false })
+        ? await supabaseBrowser.from("payments").select("id,enrollment_id,amount,payment_date,reference,method,notes").in("enrollment_id", paymentEnrollmentIds).order("payment_date", { ascending: false }).limit(500)
         : { data: [], error: null }
       if (paymentsResult.error) throw paymentsResult.error
 

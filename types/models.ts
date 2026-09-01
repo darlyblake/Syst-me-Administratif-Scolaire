@@ -8,8 +8,6 @@ export interface Utilisateur {
   id: string
   nomUtilisateur: string
   role: Role
-  /** Rôle réel de l'utilisateur dans l'établissement (owner, director, secretary, etc.). */
-  etablissementRole?: string
   etablissementId?: string
   dernierConnexion?: string
   donneesEleve?: DonneesEleve
@@ -80,7 +78,9 @@ export interface DonneesEleve {
 }
 
 export interface Paiement { id: string; eleveId: string; montant: number; datePaiement: string; typePaiement: "scolarite" | "inscription" | "autre" | string; methodePaiement: "especes" | "cheque" | "virement" | "mobile"; description?: string; moisPaiement?: string[] }
+
 export interface EleveAvecSuivi extends DonneesEleve { detteScolarite: number; detteTotaleGlobale: number; totalPayeScolarite: number; totalPayeGlobal: number; resteAPayerScolarite: number; resteAPayerGlobal: number; pourcentagePaye: number; moisRestants: string[]; tranchesRestantes: any[]; optionsRestantes: { nom: string; prix: number }[] }
+
 export interface Parametres { nomEcole: string; adresse: string; telephone: string; email: string; anneeAcademique: string; dateDebut: string; dateFin: string }
 export interface Tarification { classe: string; fraisInscription: number; fraisScolariteAnnuelle: number }
 export interface OptionsSupplementaires { tenueScolaire: number; carteScolaire: number; cooperative: number; tenueEPS: number; assurance: number }
@@ -100,7 +100,7 @@ export interface SessionPointageTelephone { id: string; enseignantId: string; co
 export interface HistoriqueAffectation { id: string; enseignantId: string; dateModification: string; modifiePar: string; type: "classe" | "matiere" | "statut" | "salaire" | string; ancienneValeur?: string; nouvelleValeur?: string; motif?: string }
 export interface DocumentAdministratif { id: string; enseignantId: string; nom: string; type: "contrat" | "diplome" | "certificat" | "attestation" | "autre" | string; dateAjout: string; ajoutePar: string; statut: "actif" | "archive" | "supprime" | string; description?: string; url?: string }
 export interface Contact { id: string; enseignantId: string; type: "email" | "telephone" | "sms" | "reunion" | string; statut: "envoye" | "lu" | "repondu" | "archive" | string; dateEnvoi: string; envoyePar: string; sujet?: string; message?: string }
-export interface AffectationNotification { id: string; enseignantId: string; notificationId?: string; titre?: string; message?: string; dateAffectation: string; affectePar: string; statut: "active" | "inactive" | "traitee"; priorite?: "urgente" | "importante" | "normale" | string }
+export interface AffectationNotification { id: string; enseignantId: string; notificationId?: string; titre?: string; message?: string; dateAffectation: string; affectePar: string; statut: "active" | "inactive" | "traitee" | string; priorite?: "urgente" | "importante" | "normale" | string }
 export type StatutTransfert = "en_attente" | "accepte" | "refuse"
 export interface DossierTransfert { id: string; code: string; dateCreation: string; motif: string; ecoleOrigine: string; eleve: { nom: string; prenom: string; dateNaissance: string; lieuNaissance: string; sexe?: string; classe: string; nomParent: string; contactParent: string; adresse: string; informationsContact?: { telephone: string; email: string; adresse: string } }; statut: StatutTransfert; classeAccueil?: string; dateTraitement?: string; motifRefus?: string }
 export type StatutDossierPapier = "complet" | "incomplet" | "emprunte" | "archive"

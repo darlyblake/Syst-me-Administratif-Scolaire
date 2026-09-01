@@ -1,49 +1,72 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { serviceClasses } from "@/services/classes.service"
+import { obtenirClassesSupabase, creerClasseSupabase, modifierClasseSupabase, archiverClasseSupabase } from "@/services/classes.supabase.service"
+import { supabaseBrowser } from "@/lib/supabase/client"
 import type { Classe, DonneesEleve, DonneesEnseignant } from "@/types/models"
+
+async function getCurrentEstablishmentId(): Promise<string> {
+  const { data: { user } } = await supabaseBrowser.auth.getUser()
+  if (!user) throw new Error("Session utilisateur introuvable")
+  const { data, error } = await supabaseBrowser.from("establishment_members").select("establishment_id").eq("user_id", user.id).eq("active", true).limit(1).maybeSingle()
+  if (error || !data?.establishment_id) throw new Error("Établissement introuvable")
+  return data.establishment_id
+}
 
 export function useClasses() {
   const [classes, setClasses] = useState<Classe[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      setClasses(serviceClasses.obtenirToutesLesClasses())
+      const establishmentId = await getCurrentEstablishmentId()
+      setClasses(await obtenirClassesSupabase(establishmentId))
       setError(null)
-    } catch {
-      setError("Impossible de charger les classes.")
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de charger les classes.")
     } finally {
       setLoading(false)
     }
   }, [])
 
-  useEffect(() => refresh(), [refresh])
+  useEffect(() => { void refresh() }, [refresh])
 
-  const ajouter = useCallback((data: Omit<Classe, "id">) => {
-    const result = serviceClasses.ajouterClasse(data)
-    refresh()
+  const ajouter = useCallback(async (data: Omit<Classe, "id"> & { grade_level_id?: string; code?: string | null; academic_year_id?: string | null }) => {
+    const establishmentId = await getCurrentEstablishmentId()
+    if (!data.grade_level_id) throw new Error("Le niveau académique est obligatoire")
+    const result = await creerClasseSupabase(establishmentId, {
+      grade_level_id: data.grade_level_id,
+      name: data.nom,
+      code: data.code ?? null,
+      academic_year_id: data.academic_year_id ?? null,
+      capacity: data.capacite ?? null,
+    })
+    await refresh()
     return result
   }, [refresh])
 
-  const modifier = useCallback((id: string, data: Partial<Classe>) => {
-    const result = serviceClasses.modifierClasse(id, data)
-    refresh()
+  const modifier = useCallback(async (id: string, data: Partial<Classe> & { grade_level_id?: string }) => {
+    const changes: Record<string, unknown> = {}
+    if (data.nom !== undefined) changes.name = data.nom
+    if (data.niveau !== undefined) changes.grade_level_id = data.niveau
+    if (data.grade_level_id !== undefined) changes.grade_level_id = data.grade_level_id
+    if (data.capacite !== undefined) changes.capacity = data.capacite
+    const result = await modifierClasseSupabase(id, changes)
+    await refresh()
     return result
   }, [refresh])
 
-  const supprimer = useCallback((id: string) => {
-    const result = serviceClasses.supprimerClasse(id)
-    refresh()
-    return result
+  const supprimer = useCallback(async (id: string) => {
+    await archiverClasseSupabase(id)
+    await refresh()
+    return true
   }, [refresh])
 
-  const getEleves = useCallback((id: string): DonneesEleve[] => serviceClasses.obtenirElevesDeClasse(id), [])
-  const getEnseignants = useCallback((id: string): DonneesEnseignant[] => serviceClasses.obtenirEnseignantsDeClasse(id), [])
-  const statistiques = useMemo(() => serviceClasses.obtenirStatistiquesClasses(), [classes])
+  const getEleves = useCallback(async (_id: string): Promise<DonneesEleve[]> => [], [])
+  const getEnseignants = useCallback(async (_id: string): Promise<DonneesEnseignant[]> => [], [])
+  const statistiques = useMemo(() => ({ total: classes.length, actives: classes.length }), [classes])
 
   return { classes, loading, error, statistiques, refresh, ajouter, modifier, supprimer, getEleves, getEnseignants }
 }

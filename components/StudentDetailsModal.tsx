@@ -88,7 +88,7 @@ export default function StudentDetailsModal({
   const paymentStatus = getPaymentStatus()
 
   return (
-    <div className="fixed inset-0 bg-encre/30 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-[2px]">
       <Card className="bg-papier shadow-soft max-w-2xl w-full max-h-[90vh] overflow-y-auto border-0">
         <CardHeader className="flex flex-row items-center justify-between pb-4">
           <div>

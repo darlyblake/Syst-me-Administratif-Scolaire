@@ -6,6 +6,10 @@ export interface RuntimeSchoolUser {
 }
 
 const ROLE_DEFAULTS: Record<string, string[]> = {
+  // `owner` est le rôle établissement attribué au propriétaire/
+  // administrateur principal de l'établissement. Il doit conserver
+  // l'ensemble des permissions prévues pour l'administration de son école.
+  owner: ["*"],
   school_admin: ["*"],
   admin: ["*"],
   director: ["students.view", "students.edit", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "documents.view", "documents.create", "staff.view", "finance.view"],

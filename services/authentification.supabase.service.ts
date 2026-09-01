@@ -20,11 +20,24 @@ class SupabaseAuthentificationService {
   }
 
   async obtenirContexte(): Promise<AuthContext | null> {
-    const { data: { user } } = await supabaseBrowser.auth.getUser()
-    if (!user) return null
-    const { data, error } = await supabaseBrowser.rpc("get_my_auth_context")
-    if (error) { console.error("Erreur contexte authentification:", error); return null }
-    return data as AuthContext
+    // getUser() force un appel réseau à Supabase Auth. Au démarrage de l'app,
+    // cela rend l'initialisation très sensible aux changements momentanés de
+    // réseau (ERR_NETWORK_CHANGED). La session persistée contient déjà l'id
+    // utilisateur nécessaire au RPC et évite cet appel réseau supplémentaire.
+    const { data: { session }, error: sessionError } = await supabaseBrowser.auth.getSession()
+    if (sessionError || !session?.user) return null
+
+    try {
+      const { data, error } = await supabaseBrowser.rpc("get_my_auth_context")
+      if (error) {
+        console.error("Erreur contexte authentification:", error)
+        return null
+      }
+      return data as AuthContext
+    } catch (error) {
+      console.error("Erreur réseau contexte authentification:", error)
+      return null
+    }
   }
 
   async obtenirUtilisateurConnecte(): Promise<Utilisateur | null> {

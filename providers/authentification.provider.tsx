@@ -21,12 +21,25 @@ interface ContexteAuthentification {
 
 const ContexteAuthentification = createContext<ContexteAuthentification | undefined>(undefined)
 
+type UtilisateurAvecRoleEtablissement = Utilisateur & { etablissementRole?: string }
+
 function roleUtilisateurPourEtablissement(accountType: AuthContext["account_type"], establishmentRole?: string): Utilisateur["role"] {
   if (accountType !== "school_member") return ({ platform_admin: "admin", parent: "parent", teacher: "enseignant", school_member: "ecole" } as const)[accountType!]
-  // Le rôle établissement est la source de vérité pour les permissions de navigation.
-  // `owner`/`school_admin`/`admin` doivent être reconnus comme administrateurs suprêmes.
   if (establishmentRole === "owner" || establishmentRole === "school_admin" || establishmentRole === "admin") return "admin"
   return "ecole"
+}
+
+function construireUtilisateur(
+  base: Utilisateur,
+  accountType: AuthContext["account_type"],
+  establishment?: { id: string; name: string; role?: string },
+): UtilisateurAvecRoleEtablissement {
+  return {
+    ...base,
+    role: roleUtilisateurPourEtablissement(accountType, establishment?.role),
+    etablissementRole: establishment?.role,
+    etablissementId: establishment?.id ?? base.etablissementId,
+  }
 }
 
 function ProviderAuthentification({ children }: { children: React.ReactNode }) {
@@ -34,14 +47,6 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
   const [contexte, setContexte] = useState<AuthContext | null>(null)
   const [etablissementActif, setEtablissementActif] = useState<{ id: string; name: string; role?: string } | null>(null)
   const [estEnCoursDeChargement, setEstEnCoursDeChargement] = useState(true)
-
-  const actualiserSelectionEtablissement = (establishments: AuthContext["establishments"] | undefined) => {
-    const candidate = establishments?.[0]
-    setEtablissementActif(candidate ?? null)
-    if (candidate) {
-      setUtilisateur((previous) => previous ? { ...previous, etablissementId: candidate.id, role: roleUtilisateurPourEtablissement("school_member", candidate.role) } : previous)
-    }
-  }
 
   const actualiser = async () => {
     try {
@@ -60,13 +65,12 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
       }
 
       const firstEstablishment = nextContext.establishments?.[0]
-      const selectedUser: Utilisateur = {
+      const selectedUser = construireUtilisateur({
         id: session.user.id,
         nomUtilisateur: nextContext.email ?? session.user.email ?? "",
-        role: roleUtilisateurPourEtablissement(nextContext.account_type, firstEstablishment?.role),
+        role: "ecole",
         dernierConnexion: session.user.last_sign_in_at ?? new Date().toISOString(),
-        etablissementId: firstEstablishment?.id,
-      }
+      }, nextContext.account_type, firstEstablishment)
 
       setUtilisateur(selectedUser)
       setContexte(nextContext)
@@ -89,7 +93,7 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
     if (result.succes) {
       const firstEstablishment = result.contexte?.establishments?.[0]
       const nextUser = result.utilisateur
-        ? { ...result.utilisateur, etablissementId: firstEstablishment?.id ?? result.utilisateur.etablissementId, role: roleUtilisateurPourEtablissement(result.contexte?.account_type, firstEstablishment?.role) }
+        ? construireUtilisateur(result.utilisateur, result.contexte?.account_type, firstEstablishment)
         : null
       setUtilisateur(nextUser)
       setContexte(result.contexte ?? null)
@@ -107,7 +111,7 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
     const found = contexte?.establishments?.find((etablissement) => etablissement.id === etablissementId)
     if (!found) return
     setEtablissementActif(found)
-    setUtilisateur((previous) => previous ? { ...previous, etablissementId: found.id, role: roleUtilisateurPourEtablissement(contexte?.account_type, found.role) } : previous)
+    setUtilisateur((previous) => previous ? construireUtilisateur(previous, contexte?.account_type, found) : previous)
   }
 
   const obtenirCheminRedirection = () => serviceAuthentification.getRedirectionPath(contexte?.account_type)

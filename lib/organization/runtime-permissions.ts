@@ -6,13 +6,13 @@ export interface RuntimeSchoolUser {
 }
 
 const ROLE_DEFAULTS: Record<string, string[]> = {
-  school_admin: ["*"] ,
+  school_admin: ["*"],
   admin: ["*"],
-  director: ["students.view", "students.manage", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "documents.view", "documents.generate", "staff.view", "finance.view"],
-  accountant: ["students.view", "payments.view", "payments.create", "finance.view", "finance.manage"],
-  secretary: ["students.view", "students.manage", "enrollment.view", "enrollment.manage", "documents.view", "documents.generate"],
-  teacher: ["students.view", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "timetable.view"],
-  supervisor: ["students.view", "attendance.view", "attendance.manage", "documents.view", "documents.generate"],
+  director: ["students.view", "students.edit", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "documents.view", "documents.create", "staff.view", "finance.view"],
+  accountant: ["dashboard.view", "students.view", "payments.view", "payments.create", "finance.view"],
+  secretary: ["dashboard.view", "students.view", "students.create", "students.edit", "enrollments.view", "enrollments.create", "documents.view", "documents.create"],
+  teacher: ["dashboard.view", "students.view", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "classes.view", "timetable.view"],
+  supervisor: ["dashboard.view", "students.view", "attendance.view", "attendance.manage", "documents.view", "documents.create", "exclusions.create"],
 }
 
 export function hasEffectiveSchoolPermission(user: RuntimeSchoolUser | null | undefined, permission: string): boolean {

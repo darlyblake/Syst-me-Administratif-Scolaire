@@ -92,100 +92,110 @@ export async function recordAttendance(data: {
   return result as string
 }
 
-export async function recordAbsence(data: Partial<Absence>): Promise<Absence> {
-  const { data: result, error } = await supabaseBrowser
-    .from("absences")
-    .insert({
-      establishment_id: data.establishment_id,
-      student_id: data.student_id,
-      class_id: data.class_id,
-      date: data.date || new Date().toISOString(),
-      status: data.status || "absent",
-      reason: data.reason,
-      justified: data.justified || false,
-      justified_by: data.justified_by,
-      notes: data.notes,
-    })
-    .select()
-    .single()
+function toAbsence(record: any): Absence {
+  return {
+    id: record.id,
+    establishment_id: record.establishment_id,
+    student_id: record.student_id,
+    class_id: record.class_id,
+    date: record.attendance_date,
+    status: record.status,
+    reason: record.reason ?? null,
+    justified: record.status === "justified",
+    justified_by: null,
+    notes: null,
+    created_at: record.created_at,
+    updated_at: record.updated_at,
+  }
+}
 
-  if (error) {
-    throw new Error("Impossible d'enregistrer l'absence.")
+export async function recordAbsence(data: Partial<Absence>): Promise<Absence> {
+  if (!data.establishment_id || !data.student_id || !data.class_id) {
+    throw new Error("Les informations de l'établissement, de l'élève et de la classe sont requises.")
   }
 
-  return result as Absence
+  const date = data.date ? data.date.slice(0, 10) : new Date().toISOString().slice(0, 10)
+  const { data: id, error } = await supabaseBrowser.rpc("record_attendance", {
+    p_establishment_id: data.establishment_id,
+    p_student_id: data.student_id,
+    p_class_id: data.class_id,
+    p_date: date,
+    p_status: data.status || "absent",
+    p_reason: data.reason || null,
+  })
+
+  if (error) throw new Error("Impossible d'enregistrer l'absence.")
+
+  return {
+    id: id as string,
+    establishment_id: data.establishment_id,
+    student_id: data.student_id,
+    class_id: data.class_id,
+    date,
+    status: data.status || "absent",
+    reason: data.reason ?? null,
+    justified: data.status === "justified",
+    justified_by: null,
+    notes: data.notes ?? null,
+  }
 }
 
 export async function updateAbsence(absenceId: string, data: Partial<Absence>): Promise<Absence> {
   const { data: result, error } = await supabaseBrowser
-    .from("absences")
+    .from("attendance_records")
     .update({
       status: data.status,
       reason: data.reason,
-      justified: data.justified,
-      justified_by: data.justified_by,
-      notes: data.notes,
     })
     .eq("id", absenceId)
-    .select()
+    .select("*")
     .single()
 
-  if (error) {
-    throw new Error("Impossible de modifier l'absence.")
-  }
-
-  return result as Absence
+  if (error) throw new Error("Impossible de modifier l'absence.")
+  return toAbsence(result)
 }
 
 export async function getAbsencesByStudent(studentId: string, dateRange?: { start: string; end: string }): Promise<Absence[]> {
   let query = supabaseBrowser
-    .from("absences")
+    .from("attendance_records")
     .select("*")
     .eq("student_id", studentId)
+    .in("status", ["absent", "late", "justified"])
 
   if (dateRange) {
-    query = query.gte("date", dateRange.start).lte("date", dateRange.end)
+    query = query.gte("attendance_date", dateRange.start).lte("attendance_date", dateRange.end)
   }
 
-  const { data, error } = await query.order("date", { ascending: false })
+  const { data, error } = await query.order("attendance_date", { ascending: false })
 
-  if (error) {
-    throw new Error("Impossible de charger les absences de l'élève.")
-  }
-
-  return (data ?? []) as Absence[]
+  if (error) throw new Error("Impossible de charger les absences de l'élève.")
+  return (data ?? []).map(toAbsence)
 }
 
 export async function getAbsencesByClass(classId: string, date?: string): Promise<AbsenceWithStudent[]> {
   let query = supabaseBrowser
-    .from("absences")
+    .from("attendance_records")
     .select("*, student:students(id, first_name, last_name)")
     .eq("class_id", classId)
+    .in("status", ["absent", "late", "justified"])
 
-  if (date) {
-    query = query.eq("date", date)
-  }
+  if (date) query = query.eq("attendance_date", date)
 
-  const { data, error } = await query.order("date", { ascending: false })
+  const { data, error } = await query.order("attendance_date", { ascending: false })
 
-  if (error) {
-    throw new Error("Impossible de charger les absences de la classe.")
-  }
-
-  return (data ?? []) as AbsenceWithStudent[]
+  if (error) throw new Error("Impossible de charger les absences de la classe.")
+  return (data ?? []).map((record: any) => ({ ...toAbsence(record), student: record.student }))
 }
 
 export async function getAbsencesForDate(establishmentId: string, date: string): Promise<AbsenceWithStudent[]> {
   const { data, error } = await supabaseBrowser
-    .from("absences")
+    .from("attendance_records")
     .select("*, student:students(id, first_name, last_name)")
     .eq("establishment_id", establishmentId)
-    .eq("date", date)
+    .eq("attendance_date", date)
+    .in("status", ["absent", "late", "justified"])
     .order("class_id", { ascending: true })
 
-  if (error) {
-    throw new Error("Impossible de charger les absences de la journée.")
-  }
-
-  return (data ?? []) as AbsenceWithStudent[]
+  if (error) throw new Error("Impossible de charger les absences de la journée.")
+  return (data ?? []).map((record: any) => ({ ...toAbsence(record), student: record.student }))
 }

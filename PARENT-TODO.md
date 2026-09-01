@@ -3,15 +3,15 @@
 Cette checklist suit l'avancement réel du module Parent. Une tâche n'est cochée que lorsque le frontend, le backend nécessaire, la sécurité et la vérification associée sont terminés.
 
 ## 1. Tableau de bord
-- [ ] Résumé des enfants
-- [ ] Moyennes / notes disponibles
-- [ ] Absences / retards
-- [ ] Paiements
-- [ ] Notifications importantes
-- [ ] Événements à venir
-- [ ] Alertes importantes
-- [ ] Actualisation des données
-- [ ] États chargement / erreur / vide
+- [x] Résumé des enfants
+- [x] Moyennes / notes disponibles
+- [x] Absences / retards
+- [x] Paiements
+- [x] Notifications importantes
+- [x] Événements à venir
+- [x] Alertes importantes
+- [x] Actualisation des données
+- [x] États chargement / erreur / vide
 
 ## 2. Gestion des enfants
 - [ ] Liste des enfants associés
@@ -55,15 +55,15 @@ Cette checklist suit l'avancement réel du module Parent. Une tâche n'est coch�
 - [ ] Gestion multi-enfants / multi-établissements
 
 ## 6. Notifications
-- [ ] Notifications générales
-- [ ] Notifications liées à un enfant
-- [ ] Notifications financières
-- [ ] Notifications d'absence
-- [ ] Notifications scolaires
-- [ ] Marquer comme lu
-- [ ] Tout marquer comme lu
-- [ ] Historique
-- [ ] Compteur non lu
+- [x] Notifications générales
+- [x] Notifications liées à un enfant
+- [x] Notifications financières
+- [x] Notifications d'absence
+- [x] Notifications scolaires
+- [x] Marquer comme lu
+- [x] Tout marquer comme lu
+- [x] Historique
+- [x] Compteur non lu
 
 ## 7. Calendrier / événements
 - [ ] Calendrier scolaire

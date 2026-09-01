@@ -15,6 +15,54 @@
   --forest-light: #3E6350;
   --error: #B23B2E;
   --line: #E1D6BC;
+
+  /* Palette École Vivante - valeurs concrètes, jamais transparentes */
+  --terre: #2F4B3C;
+  --terre-soft: #E6EEE9;
+  --terre-dark: #1B2A41;
+  --soleil: #B08D57;
+  --soleil-soft: #F1E4CC;
+  --jardin: #3E6350;
+  --ambre: #C9953B;
+  --rouge-terre: #B23B2E;
+  --creme: #EFE7D4;
+  --papier: #F7F2E6;
+  --encre: #1B2A41;
+  --pierre: #64748B;
+
+  /*
+   * Tokens sémantiques globaux.
+   * Ces variables alimentent bg-background, bg-card et bg-popover dans Tailwind v4.
+   * Elles doivent être définies dans le thème clair afin que les surfaces, notamment
+   * les modales, restent opaques.
+   */
+  --background: #F7F2E6;
+  --foreground: #1B2A41;
+  --card: #FFFFFF;
+  --card-foreground: #1B2A41;
+  --popover: #FFFFFF;
+  --popover-foreground: #1B2A41;
+  --primary: #2F4B3C;
+  --primary-foreground: #FFFFFF;
+  --secondary: #EFE7D4;
+  --secondary-foreground: #1B2A41;
+  --muted: #EFE7D4;
+  --muted-foreground: #64748B;
+  --accent: #F1E4CC;
+  --accent-foreground: #1B2A41;
+  --destructive: #B23B2E;
+  --destructive-foreground: #FFFFFF;
+  --border: #E1D6BC;
+  --input: #E1D6BC;
+  --ring: #B08D57;
+  --sidebar: #1B2A41;
+  --sidebar-foreground: #F7F2E6;
+  --sidebar-primary: #B08D57;
+  --sidebar-primary-foreground: #1B2A41;
+  --sidebar-accent: #2F4B3C;
+  --sidebar-accent-foreground: #F7F2E6;
+  --sidebar-border: #33455C;
+  --sidebar-ring: #B08D57;
 }
 
 .login-shell {

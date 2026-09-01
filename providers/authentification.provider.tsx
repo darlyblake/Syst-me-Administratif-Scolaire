@@ -21,6 +21,14 @@ interface ContexteAuthentification {
 
 const ContexteAuthentification = createContext<ContexteAuthentification | undefined>(undefined)
 
+function roleUtilisateurPourEtablissement(accountType: AuthContext["account_type"], establishmentRole?: string): Utilisateur["role"] {
+  if (accountType !== "school_member") return ({ platform_admin: "admin", parent: "parent", teacher: "enseignant", school_member: "ecole" } as const)[accountType!]
+  // Le rôle établissement est la source de vérité pour les permissions de navigation.
+  // `owner`/`school_admin`/`admin` doivent être reconnus comme administrateurs suprêmes.
+  if (establishmentRole === "owner" || establishmentRole === "school_admin" || establishmentRole === "admin") return "admin"
+  return "ecole"
+}
+
 function ProviderAuthentification({ children }: { children: React.ReactNode }) {
   const [utilisateur, setUtilisateur] = useState<Utilisateur | null>(null)
   const [contexte, setContexte] = useState<AuthContext | null>(null)
@@ -31,20 +39,15 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
     const candidate = establishments?.[0]
     setEtablissementActif(candidate ?? null)
     if (candidate) {
-      setUtilisateur((previous) => previous ? { ...previous, etablissementId: candidate.id } : previous)
+      setUtilisateur((previous) => previous ? { ...previous, etablissementId: candidate.id, role: roleUtilisateurPourEtablissement("school_member", candidate.role) } : previous)
     }
   }
 
   const actualiser = async () => {
     try {
-      // Vérifie d'abord la session locale. Pour un visiteur, on ne doit pas
-      // attendre un RPC Supabase qui n'est pas nécessaire.
       const { data: { session }, error: sessionError } = await supabaseBrowser.auth.getSession()
       if (sessionError || !session?.user) {
-        setUtilisateur(null)
-        setContexte(null)
-        setEtablissementActif(null)
-        return
+        setUtilisateur(null); setContexte(null); setEtablissementActif(null); return
       }
 
       const nextContext = await Promise.race([
@@ -53,82 +56,64 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
       ])
 
       if (!nextContext?.authenticated || !nextContext.account_type) {
-        setUtilisateur(null)
-        setContexte(null)
-        setEtablissementActif(null)
-        return
+        setUtilisateur(null); setContexte(null); setEtablissementActif(null); return
       }
 
+      const firstEstablishment = nextContext.establishments?.[0]
       const selectedUser: Utilisateur = {
         id: session.user.id,
         nomUtilisateur: nextContext.email ?? session.user.email ?? "",
-        role: ({ platform_admin: "admin", parent: "parent", teacher: "enseignant", school_member: "ecole" } as const)[nextContext.account_type],
+        role: roleUtilisateurPourEtablissement(nextContext.account_type, firstEstablishment?.role),
         dernierConnexion: session.user.last_sign_in_at ?? new Date().toISOString(),
-        etablissementId: nextContext.establishments?.[0]?.id,
+        etablissementId: firstEstablishment?.id,
       }
 
       setUtilisateur(selectedUser)
       setContexte(nextContext)
-      actualiserSelectionEtablissement(nextContext.establishments)
+      setEtablissementActif(firstEstablishment ?? null)
     } catch (error) {
       console.error("Erreur initialisation authentification:", error)
-      setUtilisateur(null)
-      setContexte(null)
-      setEtablissementActif(null)
+      setUtilisateur(null); setContexte(null); setEtablissementActif(null)
     }
   }
 
   useEffect(() => {
     let mounted = true
-
-    void actualiser().finally(() => {
-      if (mounted) setEstEnCoursDeChargement(false)
-    })
-
-    const { data } = supabaseBrowser.auth.onAuthStateChange(() => {
-      if (!mounted) return
-      void actualiser()
-    })
-
-    return () => {
-      mounted = false
-      data.subscription.unsubscribe()
-    }
+    void actualiser().finally(() => { if (mounted) setEstEnCoursDeChargement(false) })
+    const { data } = supabaseBrowser.auth.onAuthStateChange(() => { if (mounted) void actualiser() })
+    return () => { mounted = false; data.subscription.unsubscribe() }
   }, [])
 
   const connecter = async (email: string, motDePasse: string) => {
     const result = await serviceAuthentification.connecter(email, motDePasse)
     if (result.succes) {
+      const firstEstablishment = result.contexte?.establishments?.[0]
       const nextUser = result.utilisateur
-        ? { ...result.utilisateur, etablissementId: result.contexte?.establishments?.[0]?.id ?? result.utilisateur.etablissementId }
+        ? { ...result.utilisateur, etablissementId: firstEstablishment?.id ?? result.utilisateur.etablissementId, role: roleUtilisateurPourEtablissement(result.contexte?.account_type, firstEstablishment?.role) }
         : null
       setUtilisateur(nextUser)
       setContexte(result.contexte ?? null)
-      actualiserSelectionEtablissement(result.contexte?.establishments)
+      setEtablissementActif(firstEstablishment ?? null)
     }
     return { succes: result.succes, erreur: result.erreur }
   }
 
   const deconnecter = async () => {
     await serviceAuthentification.deconnecter()
-    setUtilisateur(null)
-    setContexte(null)
-    setEtablissementActif(null)
+    setUtilisateur(null); setContexte(null); setEtablissementActif(null)
   }
 
   const selectionnerEtablissement = (etablissementId: string) => {
     const found = contexte?.establishments?.find((etablissement) => etablissement.id === etablissementId)
     if (!found) return
     setEtablissementActif(found)
-    setUtilisateur((previous) => previous ? { ...previous, etablissementId: found.id } : previous)
+    setUtilisateur((previous) => previous ? { ...previous, etablissementId: found.id, role: roleUtilisateurPourEtablissement(contexte?.account_type, found.role) } : previous)
   }
 
   const obtenirCheminRedirection = () => serviceAuthentification.getRedirectionPath(contexte?.account_type)
 
   return (
-    <ContexteAuthentification.Provider
-      value={{ utilisateur, contexte, etablissementActif, estConnecte: !!utilisateur, estEnCoursDeChargement, connecter, deconnecter, actualiser, selectionnerEtablissement, obtenirCheminRedirection }}
-    >
+    <ContexteAuthentification.Provider value={{ utilisateur, contexte, etablissementActif, estConnecte: !!utilisateur, estEnCoursDeChargement, connecter, deconnecter, actualiser, selectionnerEtablissement, obtenirCheminRedirection }}>
       {children}
     </ContexteAuthentification.Provider>
   )

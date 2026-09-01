@@ -3,12 +3,11 @@ export interface RuntimeSchoolUser {
   permissions?: string[] | null
   revoked_permissions?: string[] | null
   status?: string | null
+  /** Rôle métier réel dans l'établissement, distinct du rôle global school_member. */
+  etablissementRole?: string | null
 }
 
 const ROLE_DEFAULTS: Record<string, string[]> = {
-  // `owner` est le rôle établissement attribué au propriétaire/
-  // administrateur principal de l'établissement. Il doit conserver
-  // l'ensemble des permissions prévues pour l'administration de son école.
   owner: ["*"],
   school_admin: ["*"],
   admin: ["*"],
@@ -21,7 +20,10 @@ const ROLE_DEFAULTS: Record<string, string[]> = {
 
 export function hasEffectiveSchoolPermission(user: RuntimeSchoolUser | null | undefined, permission: string): boolean {
   if (!user || user.status === "inactive" || user.status === "suspended") return false
-  const granted = new Set([...(ROLE_DEFAULTS[user.role ?? ""] ?? []), ...(user.permissions ?? [])])
+  // Pour un compte d'établissement, le rôle métier doit primer sur le rôle
+  // global `ecole`. Cela évite de présenter une navigation vide aux owners.
+  const effectiveRole = user.etablissementRole ?? user.role ?? ""
+  const granted = new Set([...(ROLE_DEFAULTS[effectiveRole] ?? []), ...(user.permissions ?? [])])
   for (const revoked of user.revoked_permissions ?? []) granted.delete(revoked)
   return granted.has("*") || granted.has(permission)
 }

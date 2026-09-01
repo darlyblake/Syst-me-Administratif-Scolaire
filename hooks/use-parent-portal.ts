@@ -53,6 +53,16 @@ export type ParentAttendance = {
   reason: string | null
 }
 
+export type ParentJustificationRequest = {
+  id: string
+  attendance_id: string
+  student_id: string
+  reason: string
+  status: "pending" | "approved" | "rejected" | "cancelled"
+  reviewer_note: string | null
+  created_at: string
+}
+
 export type ParentNotification = {
   id: string
   title: string
@@ -86,6 +96,7 @@ export function useParentPortal() {
   const [grades, setGrades] = useState<ParentGrade[]>([])
   const [payments, setPayments] = useState<ParentPayment[]>([])
   const [attendance, setAttendance] = useState<ParentAttendance[]>([])
+  const [justificationRequests, setJustificationRequests] = useState<ParentJustificationRequest[]>([])
   const [notifications, setNotifications] = useState<ParentNotification[]>([])
   const [events, setEvents] = useState<ParentEvent[]>([])
 
@@ -121,20 +132,22 @@ export function useParentPortal() {
         setGrades([])
         setPayments([])
         setAttendance([])
+        setJustificationRequests([])
         setEvents([])
         return
       }
 
-      const [studentsResult, enrollmentsResult, gradesResult, attendanceResult, eventsResult] = await Promise.all([
+      const [studentsResult, enrollmentsResult, gradesResult, attendanceResult, justificationRequestsResult, eventsResult] = await Promise.all([
         supabaseBrowser.from("students").select("id,establishment_id,student_number,first_name,last_name,birth_date,sex,phone,email,active").in("id", studentIds).order("last_name").limit(100),
         supabaseBrowser.from("enrollments").select("id,student_id,class_id,status").in("student_id", studentIds).eq("status", "active").limit(200),
         supabaseBrowser.from("grades").select("id,student_id,score,comment,assessment_id,created_at").in("student_id", studentIds).order("created_at", { ascending: false }).limit(500),
         supabaseBrowser.from("attendance_records").select("id,student_id,attendance_date,status,reason").in("student_id", studentIds).order("attendance_date", { ascending: false }).limit(500),
+        supabaseBrowser.from("attendance_justification_requests").select("id,attendance_id,student_id,reason,status,reviewer_note,created_at").order("created_at", { ascending: false }).limit(200),
         establishmentIds.length
           ? supabaseBrowser.from("school_events").select("id,establishment_id,title,description,event_type,starts_at,ends_at,location").in("establishment_id", establishmentIds).order("starts_at").limit(100)
           : Promise.resolve({ data: [], error: null }),
       ])
-      for (const result of [studentsResult, enrollmentsResult, gradesResult, attendanceResult, eventsResult]) {
+      for (const result of [studentsResult, enrollmentsResult, gradesResult, attendanceResult, justificationRequestsResult, eventsResult]) {
         if (result.error) throw result.error
       }
 
@@ -211,6 +224,7 @@ export function useParentPortal() {
 
       setAttendance((attendanceResult.data ?? [])
         .filter((record) => linkMap.get(record.student_id)?.can_view_academic === true))
+      setJustificationRequests((justificationRequestsResult.data ?? []) as ParentJustificationRequest[])
       setEvents(eventsResult.data ?? [])
     } catch (cause) {
       console.error("Parent portal error:", cause)
@@ -259,6 +273,39 @@ export function useParentPortal() {
     return true
   }, [])
 
+  const requestAttendanceJustification = useCallback(async (attendance: ParentAttendance, reason: string) => {
+    const normalizedReason = reason.trim()
+    if (normalizedReason.length < 3 || normalizedReason.length > 2000) throw new Error("Le motif doit contenir entre 3 et 2000 caractères.")
+    const child = children.find((item) => item.id === attendance.student_id)
+    if (!child || !child.can_view_academic) throw new Error("Vous n'êtes pas autorisé à justifier cette absence.")
+    const { data: authData, error: authError } = await supabaseBrowser.auth.getUser()
+    if (authError || !authData.user) throw new Error("Session parent introuvable.")
+    const { data, error } = await supabaseBrowser
+      .from("attendance_justification_requests")
+      .insert({
+        attendance_id: attendance.id,
+        student_id: attendance.student_id,
+        establishment_id: child.establishment_id,
+        parent_user_id: authData.user.id,
+        reason: normalizedReason,
+      })
+      .select("id,attendance_id,student_id,reason,status,reviewer_note,created_at")
+      .single()
+    if (error) throw error
+    setJustificationRequests((current) => [data as ParentJustificationRequest, ...current])
+    return data
+  }, [children])
+
+  const cancelAttendanceJustification = useCallback(async (requestId: string) => {
+    const { error } = await supabaseBrowser
+      .from("attendance_justification_requests")
+      .update({ status: "cancelled" })
+      .eq("id", requestId)
+      .eq("status", "pending")
+    if (error) throw error
+    setJustificationRequests((current) => current.map((item) => item.id === requestId ? { ...item, status: "cancelled" } : item))
+  }, [])
+
   const markNotificationRead = useCallback(async (notificationId: string) => {
     const { data: authData, error: authError } = await supabaseBrowser.auth.getUser()
     if (authError || !authData.user) throw new Error("Session parent introuvable.")
@@ -287,5 +334,5 @@ export function useParentPortal() {
 
   useEffect(() => { void refresh() }, [refresh])
 
-  return { loading, error, refresh, children, grades, payments, attendance, notifications, events, claimChild, unclaimChild, markNotificationRead, markAllNotificationsRead }
+  return { loading, error, refresh, children, grades, payments, attendance, justificationRequests, notifications, events, claimChild, unclaimChild, requestAttendanceJustification, cancelAttendanceJustification, markNotificationRead, markAllNotificationsRead }
 }

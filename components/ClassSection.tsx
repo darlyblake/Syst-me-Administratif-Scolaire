@@ -9,40 +9,19 @@ interface ClassSectionProps {
   onSelectStudent?: (id: string, selected: boolean) => void
 }
 
-/**
- * Section de liste utilisée lorsqu'un écran doit regrouper des élèves par classe.
- * Le composant reste volontairement sobre : la classe est un contexte de liste,
- * pas une carte décorative.
- */
-export default function ClassSection({
-  classe,
-  students,
-  onViewDetails,
-  selectedStudentIds = [],
-  onSelectStudent,
-}: ClassSectionProps) {
+/** Section de liste utilisée lorsqu'un écran doit regrouper des élèves par classe. */
+export default function ClassSection({ classe, students, onViewDetails, selectedStudentIds = [], onSelectStudent }: ClassSectionProps) {
   return (
-    <section aria-labelledby={`classe-${classe}`} className="border-y">
-      <header className="flex items-center justify-between gap-4 border-b px-1 py-3">
-        <div>
-          <h2 id={`classe-${classe}`} className="font-semibold tracking-tight">
-            {classe}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {students.length} élève{students.length > 1 ? "s" : ""}
-          </p>
+    <section aria-labelledby={`classe-${classe}`} className="w-full min-w-0 border-y overflow-hidden">
+      <header className="flex min-w-0 flex-col gap-1 border-b px-1 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="min-w-0">
+          <h2 id={`classe-${classe}`} className="truncate font-semibold tracking-tight">{classe}</h2>
+          <p className="text-sm text-muted-foreground">{students.length} élève{students.length > 1 ? "s" : ""}</p>
         </div>
       </header>
-
-      <div className="divide-y">
+      <div className="min-w-0 divide-y">
         {students.map((student) => (
-          <StudentListItem
-            key={student.id}
-            student={student}
-            onViewDetails={onViewDetails}
-            isSelected={selectedStudentIds.includes(student.id)}
-            onSelect={onSelectStudent}
-          />
+          <StudentListItem key={student.id} student={student} onViewDetails={onViewDetails} isSelected={selectedStudentIds.includes(student.id)} onSelect={onSelectStudent} />
         ))}
       </div>
     </section>

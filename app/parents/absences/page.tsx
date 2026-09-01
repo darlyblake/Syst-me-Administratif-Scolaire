@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { AlertCircle, CheckCircle2, Clock, RefreshCw, UserX } from "lucide-react"
+import { AlertCircle, CheckCircle2, Clock, FileText, RefreshCw, UserX, XCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { useParentPortal } from "@/hooks/use-parent-portal"
 
 const CONFIG: Record<string, { label: string; className: string; icon: typeof UserX }> = {
@@ -18,8 +19,12 @@ const CONFIG: Record<string, { label: string; className: string; icon: typeof Us
 
 export default function ParentsAbsencesPage() {
   const params = useSearchParams()
-  const { loading, error, refresh, children, attendance } = useParentPortal()
+  const { loading, error, refresh, children, attendance, justificationRequests, requestAttendanceJustification, cancelAttendanceJustification } = useParentPortal()
   const [id, setId] = useState(params.get("eleve") || "tous")
+  const [selectedAttendance, setSelectedAttendance] = useState<string | null>(null)
+  const [reason, setReason] = useState("")
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const list = useMemo(
     () => attendance.filter((item) => id === "tous" || item.student_id === id),
@@ -32,6 +37,24 @@ export default function ParentsAbsencesPage() {
     retards: list.filter((item) => item.status === "retard").length,
     non: list.filter((item) => item.status === "non_justifie" || item.status === "absent").length,
   }), [list])
+
+  const requestByAttendance = useMemo(() => new Map(justificationRequests.map((request) => [request.attendance_id, request])), [justificationRequests])
+
+  const submitJustification = async () => {
+    const record = attendance.find((item) => item.id === selectedAttendance)
+    if (!record) return
+    setActionError(null)
+    setSubmitting(true)
+    try {
+      await requestAttendanceJustification(record, reason)
+      setReason("")
+      setSelectedAttendance(null)
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : "Impossible d'envoyer la justification.")
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const childName = (studentId: string) => {
     const child = children.find((item) => item.id === studentId)
@@ -113,12 +136,39 @@ export default function ParentsAbsencesPage() {
                     {item.reason && <p className="text-sm text-pierre">Motif : {item.reason}</p>}
                   </div>
                 </div>
-                <Badge variant="outline" className={`w-fit ${cfg.className}`}>{cfg.label}</Badge>
+<div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className={`w-fit ${cfg.className}`}>{cfg.label}</Badge>
+                  {(() => {
+                    const request = requestByAttendance.get(item.id)
+                    if (request) {
+                      const labels = { pending: "Justification envoyée", approved: "Justification acceptée", rejected: "Justification refusée", cancelled: "Justification annulée" }
+                      return <Badge variant="outline" className={request.status === "approved" ? "border-emerald-200 text-emerald-700" : request.status === "rejected" ? "border-rose-200 text-rose-700" : "border-amber-200 text-amber-700"}>{labels[request.status]}</Badge>
+                    }
+                    if (item.status === "absent" || item.status === "non_justifie") return <Button size="sm" variant="outline" onClick={() => { setSelectedAttendance(item.id); setReason(item.reason ?? ""); setActionError(null) }}><FileText className="mr-2 h-4 w-4" />Justifier</Button>
+                    return null
+                  })()}
+                </div>
               </div>
             )
           })}
         </CardContent>
       </Card>
+
+      {selectedAttendance && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-4 sm:items-center">
+          <Card className="w-full max-w-lg border-terre/10 bg-papier shadow-xl">
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div><CardTitle>Justifier une absence</CardTitle><p className="mt-1 text-sm text-pierre">Votre demande sera transmise à l'établissement pour validation.</p></div>
+              <Button variant="ghost" size="icon" onClick={() => setSelectedAttendance(null)} aria-label="Fermer"><XCircle className="h-5 w-5" /></Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {actionError && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{actionError}</div>}
+              <div><label className="mb-2 block text-sm font-medium text-terre">Motif de la justification</label><Textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Expliquez brièvement le motif de l'absence..." maxLength={2000} rows={5} /></div>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button variant="outline" onClick={() => setSelectedAttendance(null)} disabled={submitting}>Annuler</Button><Button onClick={() => void submitJustification()} disabled={submitting || reason.trim().length < 3}>{submitting ? "Envoi..." : "Envoyer la demande"}</Button></div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

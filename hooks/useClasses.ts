@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { obtenirClassesSupabase, creerClasseSupabase, modifierClasseSupabase, archiverClasseSupabase } from "@/services/classes.supabase.service"
+import { getEnabledGradeLevels, type GradeLevel } from "@/services/establishment-levels.service"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import type { Classe, DonneesEleve, DonneesEnseignant } from "@/types/models"
 
@@ -15,6 +16,7 @@ async function getCurrentEstablishmentId(): Promise<string> {
 
 export function useClasses() {
   const [classes, setClasses] = useState<Classe[]>([])
+  const [niveaux, setNiveaux] = useState<GradeLevel[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,7 +24,12 @@ export function useClasses() {
     setLoading(true)
     try {
       const establishmentId = await getCurrentEstablishmentId()
-      setClasses(await obtenirClassesSupabase(establishmentId))
+      const [classesResult, levelsResult] = await Promise.all([
+        obtenirClassesSupabase(establishmentId),
+        getEnabledGradeLevels(establishmentId),
+      ])
+      setClasses(classesResult)
+      setNiveaux(levelsResult)
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible de charger les classes.")
@@ -36,6 +43,9 @@ export function useClasses() {
   const ajouter = useCallback(async (data: Omit<Classe, "id"> & { grade_level_id?: string; code?: string | null; academic_year_id?: string | null }) => {
     const establishmentId = await getCurrentEstablishmentId()
     if (!data.grade_level_id) throw new Error("Le niveau académique est obligatoire")
+    if (!niveaux.some((niveau) => niveau.id === data.grade_level_id)) {
+      throw new Error("Ce niveau n'est pas activé pour cet établissement")
+    }
     const result = await creerClasseSupabase(establishmentId, {
       grade_level_id: data.grade_level_id,
       name: data.nom,
@@ -45,9 +55,13 @@ export function useClasses() {
     })
     await refresh()
     return result
-  }, [refresh])
+  }, [niveaux, refresh])
 
   const modifier = useCallback(async (id: string, data: Partial<Classe> & { grade_level_id?: string }) => {
+    const targetLevel = data.grade_level_id ?? data.niveau
+    if (targetLevel !== undefined && !niveaux.some((niveau) => niveau.id === targetLevel)) {
+      throw new Error("Ce niveau n'est pas activé pour cet établissement")
+    }
     const changes: Record<string, unknown> = {}
     if (data.nom !== undefined) changes.name = data.nom
     if (data.niveau !== undefined) changes.grade_level_id = data.niveau
@@ -56,7 +70,7 @@ export function useClasses() {
     const result = await modifierClasseSupabase(id, changes)
     await refresh()
     return result
-  }, [refresh])
+  }, [niveaux, refresh])
 
   const supprimer = useCallback(async (id: string) => {
     await archiverClasseSupabase(id)
@@ -68,5 +82,5 @@ export function useClasses() {
   const getEnseignants = useCallback(async (_id: string): Promise<DonneesEnseignant[]> => [], [])
   const statistiques = useMemo(() => ({ total: classes.length, actives: classes.length }), [classes])
 
-  return { classes, loading, error, statistiques, refresh, ajouter, modifier, supprimer, getEleves, getEnseignants }
+  return { classes, niveaux, loading, error, statistiques, refresh, ajouter, modifier, supprimer, getEleves, getEnseignants }
 }

@@ -36,12 +36,12 @@ Cette checklist suit l'avancement réel du module Parent. Une tâche n'est coch�
 - [ ] Téléchargement des bulletins
 
 ## 4. Présence
-- [ ] Absences
-- [ ] Retards
-- [ ] Justifications
-- [ ] Historique
-- [ ] Notifications d'absence
-- [ ] Dépôt d'une justification
+- [x] Absences
+- [x] Retards
+- [x] Justifications
+- [x] Historique
+- [x] Notifications d'absence
+- [x] Dépôt d'une justification
 
 ## 5. Paiements / scolarité
 - [ ] Situation financière

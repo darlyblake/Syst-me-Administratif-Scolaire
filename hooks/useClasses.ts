@@ -78,9 +78,27 @@ export function useClasses() {
     return true
   }, [refresh])
 
-  const getEleves = useCallback(async (_id: string): Promise<DonneesEleve[]> => [], [])
-  const getEnseignants = useCallback(async (_id: string): Promise<DonneesEnseignant[]> => [], [])
-  const statistiques = useMemo(() => ({ total: classes.length, actives: classes.length }), [classes])
+  // These helpers are intentionally synchronous because the page uses their length during render.
+  // Awaiting their result remains valid for existing callers.
+  const getEleves = useCallback((_id: string): DonneesEleve[] => [], [])
+  const getEnseignants = useCallback((_id: string): DonneesEnseignant[] => [], [])
+
+  const statistiques = useMemo(() => {
+    const totalClasses = classes.length
+    const classesActives = classes.filter((classe) => classe.statut !== "inactive").length
+    const totalEleves = classes.reduce((sum, classe) => sum + (classe.effectif ?? 0), 0)
+    const moyenneElevesParClasse = totalClasses > 0 ? totalEleves / totalClasses : 0
+    const recettesTotales = classes.reduce((sum, classe) => sum + (classe.fraisScolarite ?? 0), 0)
+
+    return {
+      total: totalClasses,
+      actives: classesActives,
+      totalClasses,
+      classesActives,
+      moyenneElevesParClasse,
+      recettesTotales,
+    }
+  }, [classes])
 
   return { classes, niveaux, loading, error, statistiques, refresh, ajouter, modifier, supprimer, getEleves, getEnseignants }
 }

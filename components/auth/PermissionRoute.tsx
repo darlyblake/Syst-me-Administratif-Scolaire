@@ -41,16 +41,40 @@ function permissionForPath(pathname: string): string | null {
 export function PermissionRoute({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { utilisateur, estEnCoursDeChargement } = useAuthentification()
+  const { utilisateur, contexte, etablissementActif, estEnCoursDeChargement } = useAuthentification()
   const permission = permissionForPath(pathname)
-  const allowed = !permission || hasEffectiveSchoolPermission(utilisateur, permission)
+
+  // `Utilisateur.role` utilise les rôles applicatifs historiques ("ecole"),
+  // alors que le moteur de permissions utilise les rôles organisationnels
+  // ("school_admin", "director", "secretary", etc.).
+  // Il faut donc résoudre le rôle réel de l'utilisateur de l'établissement
+  // avant de vérifier une permission. Sinon un utilisateur connecté avec le
+  // rôle applicatif "ecole" est systématiquement refusé.
+  const organizationRole =
+    etablissementActif?.role ??
+    contexte?.establishments?.find((establishment) => establishment.id === utilisateur?.etablissementId)?.role
+
+  const runtimeUser = utilisateur
+    ? {
+        role: utilisateur.role === "ecole" ? (organizationRole ?? "school_admin") : utilisateur.role,
+        status: "active",
+      }
+    : null
+
+  const allowed = !permission || hasEffectiveSchoolPermission(runtimeUser, permission)
 
   useEffect(() => {
-    if (!estEnCoursDeChargement && !allowed) router.replace("/ecole/tableau-bord")
-  }, [allowed, estEnCoursDeChargement, router])
+    if (!estEnCoursDeChargement && utilisateur && !allowed) {
+      router.replace("/ecole/tableau-bord")
+    }
+  }, [allowed, estEnCoursDeChargement, router, utilisateur])
 
-  if (estEnCoursDeChargement || !allowed) {
-    return <div className="min-h-[40vh] flex items-center justify-center text-sm text-pierre">Vérification des autorisations…</div>
+  if (estEnCoursDeChargement || !utilisateur) {
+    return <div className="min-h-[40vh] flex items-center justify-center text-sm text-pierre">Vérification de la session…</div>
+  }
+
+  if (!allowed) {
+    return <div className="min-h-[40vh] flex items-center justify-center text-sm text-pierre">Accès non autorisé.</div>
   }
 
   return <>{children}</>

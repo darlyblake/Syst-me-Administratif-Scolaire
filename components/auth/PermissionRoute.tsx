@@ -44,19 +44,19 @@ export function PermissionRoute({ children }: { children: ReactNode }) {
   const { utilisateur, contexte, etablissementActif, estEnCoursDeChargement } = useAuthentification()
   const permission = permissionForPath(pathname)
 
-  // `Utilisateur.role` utilise les rôles applicatifs historiques ("ecole"),
-  // alors que le moteur de permissions utilise les rôles organisationnels
-  // ("school_admin", "director", "secretary", etc.).
-  // Il faut donc résoudre le rôle réel de l'utilisateur de l'établissement
-  // avant de vérifier une permission. Sinon un utilisateur connecté avec le
-  // rôle applicatif "ecole" est systématiquement refusé.
+  // Les comptes école utilisent les rôles applicatifs historiques ("ecole"),
+  // tandis que l'autorisation est déterminée par le rôle de l'utilisateur
+  // dans l'établissement retourné par Supabase. On respecte donc strictement
+  // ce rôle établissement et ses permissions effectives.
   const organizationRole =
     etablissementActif?.role ??
     contexte?.establishments?.find((establishment) => establishment.id === utilisateur?.etablissementId)?.role
 
   const runtimeUser = utilisateur
     ? {
-        role: utilisateur.role === "ecole" ? (organizationRole ?? "school_admin") : utilisateur.role,
+        role: utilisateur.role === "ecole" ? organizationRole : utilisateur.role,
+        permissions: [],
+        revoked_permissions: [],
         status: "active",
       }
     : null

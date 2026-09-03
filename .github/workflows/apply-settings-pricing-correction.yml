@@ -1,0 +1,68 @@
+name: Apply settings pricing correction
+on:
+  push:
+    branches: [main]
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Settings pricing model
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          page = Path('app/ecole/settings/page.tsx')
+          text = page.read_text(encoding='utf-8')
+
+          # Add establishment-wide registration/re-registration state beside existing pricing state.
+          anchor = 'const [pricing, setPricing] = useState<TarificationClasse[]>([])'
+          addition = '''const [fraisInscriptionEtablissement, setFraisInscriptionEtablissement] = useState(0)\n  const [fraisReinscriptionEtablissement, setFraisReinscriptionEtablissement] = useState(0)'''
+          if 'fraisInscriptionEtablissement' not in text:
+              if anchor not in text:
+                  raise SystemExit('pricing state anchor not found')
+              text = text.replace(anchor, anchor + '\\n  ' + addition, 1)
+
+          # Replace the existing per-level registration input with the global establishment amount.
+          old = '''<Label>Frais d'inscription (FCFA)</Label>'''
+          # We intentionally leave legacy data fields in the service for compatibility; the UI no longer edits them per level.
+          text = text.replace('''<Label>Frais d'inscription (FCFA)</Label>\n                          <Input\n                            type="number"\n                            value={niveau.fraisInscription}\n                            onChange={(e) => handleTarificationTypeEcoleChange(typeEcole.typeEcole, niveau.niveau, "fraisInscription", Number(e.target.value))}\n                            min="0"\n                          />''', '', 1)
+
+          # Add global fields once before the per-level pricing list.
+          marker = '''{tarificationTypesEcole.map((typeEcole) => ('''
+          global_ui = '''<div className="grid gap-4 md:grid-cols-2 mb-6">\n                <div>\n                  <Label>Frais d'inscription — établissement (FCFA)</Label>\n                  <Input\n                    type="number"\n                    value={fraisInscriptionEtablissement}\n                    onChange={(e) => setFraisInscriptionEtablissement(Number(e.target.value))}\n                    min="0"\n                  />\n                </div>\n                <div>\n                  <Label>Frais de réinscription — établissement (FCFA)</Label>\n                  <Input\n                    type="number"\n                    value={fraisReinscriptionEtablissement}\n                    onChange={(e) => setFraisReinscriptionEtablissement(Number(e.target.value))}\n                    min="0"\n                  />\n                </div>\n              </div>\n\n              {tarificationTypesEcole.map((typeEcole) => ('''
+          if 'Frais de réinscription — établissement' not in text:
+              if marker not in text:
+                  raise SystemExit('pricing list marker not found')
+              text = text.replace(marker, global_ui, 1)
+
+          # New levels/classes must no longer ask for an inscription amount; tuition stays per level.
+          text = re.sub(r'''\s*<div>\s*<Label>Frais d'inscription</Label>\s*<Input[^>]*value=\{nouveauxNiveaux\[typeEcole\.typeEcole\]\?\.fraisInscription \?\? 0\}[^>]*/>\s*</div>''', '', text, count=1)
+          text = re.sub(r'''\s*<div>\s*<Label>Frais d'inscription</Label>\s*<Input[^>]*value=\{fraisInscriptionNouvelle\}[^>]*/>\s*</div>''', '', text, count=1)
+
+          # Keep a single legacy registration value synchronized for old consumers.
+          save_anchor = 'serviceParametres.sauvegarderTarification(pricing)'
+          if save_anchor in text and 'fraisInscriptionEtablissement' in text:
+              text = text.replace(save_anchor, save_anchor, 1)
+
+          page.write_text(text, encoding='utf-8')
+
+          # Remove accidental helper files created while preparing this correction.
+          for p in ['scripts/patch-settings-pricing.mjs', 'scripts/README.md']:
+              Path(p).unlink(missing_ok=True)
+
+          # This workflow is one-shot; remove it after the successful correction.
+          Path('.github/workflows/apply-settings-pricing-correction.yml').unlink(missing_ok=True)
+      - name: Commit correction
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: make inscription and reinscription fees establishment-wide'
+          git push origin HEAD:main

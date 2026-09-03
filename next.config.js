@@ -19,6 +19,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  output: 'standalone',
   async headers() {
     return [
       {

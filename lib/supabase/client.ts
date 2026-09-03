@@ -1,4 +1,4 @@
-import { createBrowserClient } from "@supabase/ssr"
+import { createClient } from "@supabase/supabase-js"
 
 // Les variables d'environnement restent prioritaires en local/CI.
 // Les valeurs publiques de Supabase peuvent être utilisées côté navigateur ;
@@ -14,11 +14,10 @@ const supabaseAnonKey =
   DEFAULT_SUPABASE_PUBLISHABLE_KEY
 
 /**
- * Client Supabase navigateur partagé avec le middleware SSR.
- * Le middleware lit la session dans les cookies : createBrowserClient
- * permet au navigateur et au middleware d'utiliser le même mécanisme de session.
+ * Client Supabase navigateur.
+ * Utilise le client standard Supabase JS.
  */
-export const supabaseBrowser = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+export const supabaseBrowser = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,

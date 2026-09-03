@@ -19,7 +19,7 @@ const Dialog = ({ open, onOpenChange, children }: { open: boolean; onOpenChange:
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
-        className="fixed inset-0 bg-black/50"
+        className="fixed inset-0 bg-black/65 backdrop-blur-[3px]"
         onClick={() => onOpenChange(false)}
       />
       <div className="relative z-50">
@@ -30,7 +30,7 @@ const Dialog = ({ open, onOpenChange, children }: { open: boolean; onOpenChange:
 }
 
 const DialogContent = ({ className = "", children }: { className?: string; children: React.ReactNode }) => (
-  <div className={`bg-white rounded-lg shadow-lg p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto ${className}`}>
+  <div className={`bg-background rounded-lg shadow-2xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto ${className}`}>
     {children}
   </div>
 )

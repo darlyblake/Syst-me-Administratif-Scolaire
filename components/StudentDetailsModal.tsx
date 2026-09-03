@@ -35,8 +35,9 @@ export default function StudentDetailsModal({ student, onClose, onEdit, onDelete
   const paymentStatus = getPaymentStatus()
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-2 backdrop-blur-[2px] sm:p-4">
-      <Card className="my-2 flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl min-w-0 flex-col overflow-hidden border-0 bg-papier shadow-soft sm:my-4 sm:max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-2 backdrop-blur-[2px] sm:p-4">
+      <div className="fixed inset-0 bg-black/60" onClick={() => onClose?.()} />
+      <Card className="relative z-50 my-2 flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl min-w-0 flex-col overflow-hidden border-0 bg-papier shadow-2xl sm:my-4 sm:max-h-[90vh]">
         <CardHeader className="shrink-0 px-4 py-3 sm:px-6 sm:py-4">
           <div className="flex min-w-0 items-start justify-between gap-2">
             <div className="min-w-0">

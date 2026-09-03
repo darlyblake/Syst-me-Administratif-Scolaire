@@ -47,6 +47,8 @@ export default function SettingsPage() {
   })
 
   const [pricing, setPricing] = useState<TarificationClasse[]>([])
+  const [fraisInscriptionEtablissement, setFraisInscriptionEtablissement] = useState(0)
+  const [fraisReinscriptionEtablissement, setFraisReinscriptionEtablissement] = useState(0)
   const [tarificationTypesEcole, setTarificationTypesEcole] = useState<TarificationTypeEcole[]>([])
   const [typesEcoleActifs, setTypesEcoleActifs] = useState<string[]>(["Primaire", "Collège", "Lycée", "Université", "Centre Professionnel"])
   const [optionsSupplementaires, setOptionsSupplementaires] = useState<OptionsSupplementaires>({
@@ -87,6 +89,9 @@ export default function SettingsPage() {
     try {
       const parametresCharges = serviceParametres.obtenirParametres()
       const tarificationChargee = serviceParametres.obtenirTarification()
+      const fraisInscriptionGlobalCharge = Number(localStorage.getItem("fraisInscriptionEtablissement") || 0)
+      const fraisReinscriptionGlobalCharge = Number(localStorage.getItem("fraisReinscriptionEtablissement") || 0)
+
       const tarificationTypesEcoleChargee = serviceParametres.obtenirTarificationParTypeEcole()
       const optionsChargees = serviceParametres.obtenirOptionsSupplementaires()
 
@@ -104,6 +109,8 @@ export default function SettingsPage() {
       })
 
       setPricing(Array.isArray(tarificationChargee) ? tarificationChargee : [])
+      setFraisInscriptionEtablissement(fraisInscriptionGlobalCharge)
+      setFraisReinscriptionEtablissement(fraisReinscriptionGlobalCharge)
       setTarificationTypesEcole(Array.isArray(tarificationTypesEcoleChargee) ? tarificationTypesEcoleChargee : [])
 
       setOptionsSupplementaires({
@@ -194,7 +201,7 @@ export default function SettingsPage() {
 
   const ajouterNiveau = (typeEcole: string) => {
     const nouveauNiveau = nouveauxNiveaux[typeEcole]
-    if (!nouveauNiveau?.nom || nouveauNiveau.fraisInscription <= 0 || nouveauNiveau.fraisScolariteAnnuelle <= 0) return
+    if (!nouveauNiveau?.nom || nouveauNiveau.fraisScolariteAnnuelle <= 0) return
 
     setTarificationTypesEcole(tarificationTypesEcole.map((type) => {
       if (type.typeEcole === typeEcole) {
@@ -204,7 +211,7 @@ export default function SettingsPage() {
             ...type.niveaux,
             {
               niveau: nouveauNiveau.nom,
-              fraisInscription: nouveauNiveau.fraisInscription,
+              fraisInscription: fraisInscriptionEtablissement,
               fraisScolariteAnnuelle: nouveauNiveau.fraisScolariteAnnuelle
             }
           ]
@@ -275,10 +282,10 @@ export default function SettingsPage() {
   }
 
   const ajouterClasse = () => {
-    if (nouvelleClasse.trim() && fraisInscriptionNouvelle > 0 && fraisScolariteAnnuelleNouvelle > 0) {
+    if (nouvelleClasse.trim() && fraisScolariteAnnuelleNouvelle > 0) {
       const nouvelleClasseObj: TarificationClasse = {
         classe: nouvelleClasse.trim(),
-        fraisInscription: fraisInscriptionNouvelle,
+        fraisInscription: fraisInscriptionEtablissement,
         fraisScolariteAnnuelle: fraisScolariteAnnuelleNouvelle,
       }
       setPricing((prev) => [...prev, nouvelleClasseObj])
@@ -351,7 +358,9 @@ export default function SettingsPage() {
   const saveSettings = () => {
     try {
       serviceParametres.sauvegarderParametres(settings)
-      serviceParametres.sauvegarderTarification(pricing)
+      localStorage.setItem("fraisInscriptionEtablissement", String(fraisInscriptionEtablissement))
+    localStorage.setItem("fraisReinscriptionEtablissement", String(fraisReinscriptionEtablissement))
+    serviceParametres.sauvegarderTarification(pricing)
       serviceParametres.sauvegarderTarificationParTypeEcole(tarificationTypesEcole)
       serviceParametres.sauvegarderOptionsSupplementaires(optionsSupplementaires)
 
@@ -807,7 +816,28 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Tarification par type d'école */}
-                  {tarificationTypesEcole.filter(type => typesEcoleActifs.includes(type.typeEcole)).map((typeEcole) => (
+                  <div className="grid gap-4 md:grid-cols-2 mb-6">
+                                  <div>
+                                    <Label>Frais d'inscription — établissement (FCFA)</Label>
+                                    <Input
+                                      type="number"
+                                      value={fraisInscriptionEtablissement}
+                                      onChange={(e) => setFraisInscriptionEtablissement(Number(e.target.value))}
+                                      min="0"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Frais de réinscription — établissement (FCFA)</Label>
+                                    <Input
+                                      type="number"
+                                      value={fraisReinscriptionEtablissement}
+                                      onChange={(e) => setFraisReinscriptionEtablissement(Number(e.target.value))}
+                                      min="0"
+                                    />
+                                  </div>
+                                </div>
+                  
+                                {tarificationTypesEcole.filter(type => typesEcoleActifs.includes(type.typeEcole)).map((typeEcole) => (
                     <div key={typeEcole.typeEcole} className="border rounded-lg p-4">
                       <h3 className="text-lg font-medium mb-4">{typeEcole.typeEcole}</h3>
                       <div className="space-y-3">

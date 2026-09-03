@@ -22,8 +22,9 @@ import type { TarificationTypeEcole } from "@/services/parametres.service"
 type Tab = "liste" | "repartition" | "parametres"
 
 export default function ClassesPage() {
-  const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const { utilisateur, etablissementActif, estEnCoursDeChargement } = useAuthentification()
+  // Ne jamais utiliser un établissement fictif : attendre le contexte authentifié réel.
+  const establishmentId = etablissementActif?.id ?? (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? null
   const {
     classes,
     loading,
@@ -216,7 +217,7 @@ export default function ClassesPage() {
 
   const typesEcoleUniques = Array.from(new Set(displayClasses.map(c => c.typeEcole).filter(Boolean)))
   const niveauxUniques = Array.from(new Set(displayClasses.map(c => c.niveau)))
-  if (loading) {
+  if (estEnCoursDeChargement || loading) {
     return (
       <div className="space-y-6">
         <div className="animate-pulse space-y-4">
@@ -282,7 +283,7 @@ export default function ClassesPage() {
                 <CardTitle className="text-sm font-medium text-pierre">Total classes</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-terre">{statistiques.totalClasses}</div>
+                <div className="text-2xl font-bold text-terre">{Number(statistiques?.totalClasses ?? statistiques?.total ?? 0)}</div>
               </CardContent>
             </Card>
             <Card className="bg-papier shadow-soft border-0">
@@ -290,7 +291,7 @@ export default function ClassesPage() {
                 <CardTitle className="text-sm font-medium text-pierre">Classes actives</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-terre">{statistiques.classesActives}</div>
+                <div className="text-2xl font-bold text-terre">{Number(statistiques?.classesActives ?? statistiques?.actives ?? 0)}</div>
               </CardContent>
             </Card>
             <Card className="bg-papier shadow-soft border-0">
@@ -298,7 +299,7 @@ export default function ClassesPage() {
                 <CardTitle className="text-sm font-medium text-pierre">Moyenne élèves/classe</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-terre">{statistiques.moyenneElevesParClasse.toFixed(1)}</div>
+                <div className="text-2xl font-bold text-terre">{Number(statistiques?.moyenneElevesParClasse ?? 0).toFixed(1)}</div>
               </CardContent>
             </Card>
             <Card className="bg-papier shadow-soft border-0">
@@ -306,7 +307,7 @@ export default function ClassesPage() {
                 <CardTitle className="text-sm font-medium text-pierre">Recettes totales</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-terre">{statistiques.recettesTotales.toLocaleString()} FCFA</div>
+                <div className="text-2xl font-bold text-terre">{Number(statistiques?.recettesTotales ?? 0).toLocaleString()} FCFA</div>
               </CardContent>
             </Card>
           </div>

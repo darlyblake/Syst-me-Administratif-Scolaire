@@ -7,7 +7,6 @@ export interface SchoolClassRecord {
   grade_level_id: string
   name: string
   code: string | null
-  academic_year_id?: string | null
   capacity?: number | null
   active: boolean
 }
@@ -22,7 +21,7 @@ const toClasse = (row: SchoolClassRecord): Classe => ({
   statut: row.active ? "active" : "inactive",
 })
 
-const selectFields = "id,establishment_id,grade_level_id,name,code,academic_year_id,capacity,active"
+const selectFields = "id,establishment_id,grade_level_id,name,code,capacity,active"
 
 export async function obtenirClassesSupabase(etablissementId: string): Promise<Classe[]> {
   const { data, error } = await supabaseBrowser

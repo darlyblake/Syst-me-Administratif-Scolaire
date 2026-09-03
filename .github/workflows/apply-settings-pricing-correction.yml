@@ -19,43 +19,81 @@ jobs:
           page = Path('app/ecole/settings/page.tsx')
           text = page.read_text(encoding='utf-8')
 
-          # Add establishment-wide registration/re-registration state beside existing pricing state.
-          anchor = 'const [pricing, setPricing] = useState<TarificationClasse[]>([])'
-          addition = '''const [fraisInscriptionEtablissement, setFraisInscriptionEtablissement] = useState(0)\n  const [fraisReinscriptionEtablissement, setFraisReinscriptionEtablissement] = useState(0)'''
+          # Establishment-wide registration/re-registration state.
           if 'fraisInscriptionEtablissement' not in text:
+              anchor = 'const [pricing, setPricing] = useState<TarificationClasse[]>([])'
+              addition = '''const [fraisInscriptionEtablissement, setFraisInscriptionEtablissement] = useState(0)\n  const [fraisReinscriptionEtablissement, setFraisReinscriptionEtablissement] = useState(0)'''
               if anchor not in text:
                   raise SystemExit('pricing state anchor not found')
-              text = text.replace(anchor, anchor + '\\n  ' + addition, 1)
+              text = text.replace(anchor, anchor + '\n  ' + addition, 1)
 
-          # Replace the existing per-level registration input with the global establishment amount.
-          old = '''<Label>Frais d'inscription (FCFA)</Label>'''
-          # We intentionally leave legacy data fields in the service for compatibility; the UI no longer edits them per level.
-          text = text.replace('''<Label>Frais d'inscription (FCFA)</Label>\n                          <Input\n                            type="number"\n                            value={niveau.fraisInscription}\n                            onChange={(e) => handleTarificationTypeEcoleChange(typeEcole.typeEcole, niveau.niveau, "fraisInscription", Number(e.target.value))}\n                            min="0"\n                          />''', '', 1)
+          # Remove every per-level registration field from the Settings UI.
+          text = re.sub(
+              r'<div>\s*<Label>Frais d\'inscription[^<]*</Label>\s*<Input\s+type="number"\s+value=\{niveau\.fraisInscription\}.*?/>\s*</div>',
+              '', text, flags=re.S)
 
-          # Add global fields once before the per-level pricing list.
-          marker = '''{tarificationTypesEcole.map((typeEcole) => ('''
-          global_ui = '''<div className="grid gap-4 md:grid-cols-2 mb-6">\n                <div>\n                  <Label>Frais d'inscription — établissement (FCFA)</Label>\n                  <Input\n                    type="number"\n                    value={fraisInscriptionEtablissement}\n                    onChange={(e) => setFraisInscriptionEtablissement(Number(e.target.value))}\n                    min="0"\n                  />\n                </div>\n                <div>\n                  <Label>Frais de réinscription — établissement (FCFA)</Label>\n                  <Input\n                    type="number"\n                    value={fraisReinscriptionEtablissement}\n                    onChange={(e) => setFraisReinscriptionEtablissement(Number(e.target.value))}\n                    min="0"\n                  />\n                </div>\n              </div>\n\n              {tarificationTypesEcole.map((typeEcole) => ('''
+          # Add the two establishment-wide fields immediately before the pricing-level map.
           if 'Frais de réinscription — établissement' not in text:
-              if marker not in text:
-                  raise SystemExit('pricing list marker not found')
-              text = text.replace(marker, global_ui, 1)
+              global_ui = '''<div className="grid gap-4 md:grid-cols-2 mb-6">\n                <div>\n                  <Label>Frais d'inscription — établissement (FCFA)</Label>\n                  <Input\n                    type="number"\n                    value={fraisInscriptionEtablissement}\n                    onChange={(e) => setFraisInscriptionEtablissement(Number(e.target.value))}\n                    min="0"\n                  />\n                </div>\n                <div>\n                  <Label>Frais de réinscription — établissement (FCFA)</Label>\n                  <Input\n                    type="number"\n                    value={fraisReinscriptionEtablissement}\n                    onChange={(e) => setFraisReinscriptionEtablissement(Number(e.target.value))}\n                    min="0"\n                  />\n                </div>\n              </div>\n\n              '''
+              pattern = r'(?m)^(\s*)\{[^\n]*tarificationTypesEcole[^\n]*\.map\('
+              match = re.search(pattern, text)
+              if not match:
+                  raise SystemExit('tarification level map not found')
+              indent = match.group(1)
+              replacement = indent + global_ui.replace('\n', '\n' + indent) + match.group(0).lstrip()
+              text = text[:match.start()] + replacement + text[match.end():]
 
-          # New levels/classes must no longer ask for an inscription amount; tuition stays per level.
-          text = re.sub(r'''\s*<div>\s*<Label>Frais d'inscription</Label>\s*<Input[^>]*value=\{nouveauxNiveaux\[typeEcole\.typeEcole\]\?\.fraisInscription \?\? 0\}[^>]*/>\s*</div>''', '', text, count=1)
-          text = re.sub(r'''\s*<div>\s*<Label>Frais d'inscription</Label>\s*<Input[^>]*value=\{fraisInscriptionNouvelle\}[^>]*/>\s*</div>''', '', text, count=1)
+          # New level/class forms: only tuition remains per level.
+          text = re.sub(
+              r'<div>\s*<Label>Frais d\'inscription</Label>\s*<Input[^>]*value=\{nouveauxNiveaux\[[^\]]+\]\?\.fraisInscription \?\? 0\}[^>]*/>\s*</div>',
+              '', text, flags=re.S)
+          text = re.sub(
+              r'<div>\s*<Label>Frais d\'inscription</Label>\s*<Input[^>]*value=\{fraisInscriptionNouvelle\}[^>]*/>\s*</div>',
+              '', text, flags=re.S)
 
-          # Keep a single legacy registration value synchronized for old consumers.
-          save_anchor = 'serviceParametres.sauvegarderTarification(pricing)'
-          if save_anchor in text and 'fraisInscriptionEtablissement' in text:
-              text = text.replace(save_anchor, save_anchor, 1)
+          # No longer require registration fee when creating a level/class.
+          text = text.replace(
+              'nouveauNiveau.fraisInscription <= 0 || ',
+              '',
+              1,
+          )
+          text = text.replace(
+              'nouvelleClasse.trim() && fraisInscriptionNouvelle > 0 && fraisScolariteAnnuelleNouvelle > 0',
+              'nouvelleClasse.trim() && fraisScolariteAnnuelleNouvelle > 0',
+              1,
+          )
+          text = text.replace(
+              'fraisInscription: nouveauNiveau.fraisInscription,\n              fraisScolariteAnnuelle: nouveauNiveau.fraisScolariteAnnuelle',
+              'fraisInscription: fraisInscriptionEtablissement,\n              fraisScolariteAnnuelle: nouveauNiveau.fraisScolariteAnnuelle',
+              1,
+          )
+          text = text.replace(
+              'fraisInscription: fraisInscriptionNouvelle,\n        fraisScolariteAnnuelle: fraisScolariteAnnuelleNouvelle',
+              'fraisInscription: fraisInscriptionEtablissement,\n        fraisScolariteAnnuelle: fraisScolariteAnnuelleNouvelle',
+              1,
+          )
+
+          # Persist the global amounts alongside existing localStorage settings without breaking legacy fields.
+          save_marker = 'serviceParametres.sauvegarderTarification(pricing)'
+          if save_marker in text:
+              save_code = '''localStorage.setItem("fraisInscriptionEtablissement", String(fraisInscriptionEtablissement))\n    localStorage.setItem("fraisReinscriptionEtablissement", String(fraisReinscriptionEtablissement))\n    '''
+              if 'localStorage.setItem("fraisReinscriptionEtablissement"' not in text:
+                  text = text.replace(save_marker, save_code + save_marker, 1)
+
+          # Load persisted global amounts with a backward-compatible fallback.
+          load_marker = 'const tarificationChargee = serviceParametres.obtenirTarification()'
+          if load_marker in text and 'localStorage.getItem("fraisReinscriptionEtablissement")' not in text:
+              load_code = '''const fraisInscriptionGlobalCharge = Number(localStorage.getItem("fraisInscriptionEtablissement") || 0)\n      const fraisReinscriptionGlobalCharge = Number(localStorage.getItem("fraisReinscriptionEtablissement") || 0)\n'''
+              text = text.replace(load_marker, load_marker + '\n      ' + load_code, 1)
+              state_load = 'setPricing(Array.isArray(tarificationChargee) ? tarificationChargee : [])'
+              text = text.replace(state_load, state_load + '\n      setFraisInscriptionEtablissement(fraisInscriptionGlobalCharge)\n      setFraisReinscriptionEtablissement(fraisReinscriptionGlobalCharge)', 1)
 
           page.write_text(text, encoding='utf-8')
 
-          # Remove accidental helper files created while preparing this correction.
-          for p in ['scripts/patch-settings-pricing.mjs', 'scripts/README.md']:
+          # Remove temporary files created during this correction attempt.
+          for p in ['scripts/patch-settings-pricing.mjs', 'scripts/README.md', 'scripts/trigger.txt', 'scripts/trigger2.txt', 'scripts/trigger3.txt', 'scripts/trigger4.txt']:
               Path(p).unlink(missing_ok=True)
 
-          # This workflow is one-shot; remove it after the successful correction.
           Path('.github/workflows/apply-settings-pricing-correction.yml').unlink(missing_ok=True)
       - name: Commit correction
         shell: bash

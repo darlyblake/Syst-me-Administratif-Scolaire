@@ -645,13 +645,13 @@ export default function SettingsPage() {
         ) : null}
 
         <Tabs defaultValue="general" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="general">Général</TabsTrigger>
-            <TabsTrigger value="academic">Année académique</TabsTrigger>
-            <TabsTrigger value="payments">Paiements</TabsTrigger>
-            <TabsTrigger value="pricing">Tarification</TabsTrigger>
-            <TabsTrigger value="options">Options supplémentaires</TabsTrigger>
-            <TabsTrigger value="appearance">Apparence</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 lg:grid-cols-6 overflow-x-auto">
+            <TabsTrigger value="general" className="whitespace-nowrap">Général</TabsTrigger>
+            <TabsTrigger value="academic" className="whitespace-nowrap">Année académique</TabsTrigger>
+            <TabsTrigger value="payments" className="whitespace-nowrap">Paiements</TabsTrigger>
+            <TabsTrigger value="pricing" className="whitespace-nowrap">Tarification</TabsTrigger>
+            <TabsTrigger value="options" className="whitespace-nowrap">Options</TabsTrigger>
+            <TabsTrigger value="appearance" className="whitespace-nowrap">Apparence</TabsTrigger>
           </TabsList>
 
           <TabsContent value="general">

@@ -1,0 +1,63 @@
+name: Finalize settings pricing
+on:
+  push:
+    branches: [main]
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Finalize pricing UI
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          page = Path('app/ecole/settings/page.tsx')
+          text = page.read_text(encoding='utf-8')
+
+          def remove_parent_div_containing(pattern):
+              global text
+              rx = re.compile(r'<div[^>]*>(?:(?!</div>).)*' + pattern + r'.*?</div>', re.S)
+              text, count = rx.subn('', text, count=1)
+              return count
+
+          # Remove the legacy per-level registration input only. Keep annual tuition per level.
+          remove_parent_div_containing(r'value=\{niveau\.fraisInscription\}')
+
+          # Remove registration inputs from new-level and new-class forms.
+          remove_parent_div_containing(r'value=\{nouveauxNiveaux\[[^\]]+\]\?\.fraisInscription \?\? 0\}')
+          remove_parent_div_containing(r'value=\{fraisInscriptionNouvelle\}')
+
+          # The establishment-wide fields are the only registration/re-registration inputs.
+          # Keep the legacy object fields for compatibility, but synchronize them to the global amount.
+          text = text.replace(
+              'fraisInscription: nouveauNiveau.fraisInscription,',
+              'fraisInscription: fraisInscriptionEtablissement,',
+          )
+          text = text.replace(
+              'fraisInscription: fraisInscriptionNouvelle,',
+              'fraisInscription: fraisInscriptionEtablissement,',
+          )
+
+          # Update explanatory copy without touching other Settings sections.
+          text = text.replace(
+              "définissez les frais d'inscription et de scolarité pour chaque niveau",
+              "définissez les frais d'inscription et de réinscription pour l'établissement, et la scolarité par niveau",
+          )
+
+          page.write_text(text, encoding='utf-8')
+
+          Path('.github/workflows/finalize-settings-pricing.yml').unlink(missing_ok=True)
+      - name: Commit correction
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: finalize establishment-wide registration pricing'
+          git push origin HEAD:main

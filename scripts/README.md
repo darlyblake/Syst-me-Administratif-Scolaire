@@ -1,0 +1,1 @@
+Settings pricing correction: registration and re-registration are establishment-wide; annual tuition remains configured per level.

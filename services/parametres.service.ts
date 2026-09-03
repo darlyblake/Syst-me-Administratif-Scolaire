@@ -527,6 +527,46 @@ class ServiceParametres {
   }
 
   /**
+   * Récupère les frais d'inscription global de l'établissement
+   */
+  obtenirFraisInscriptionEtablissement(): number {
+    try {
+      const stored = safeLocalStorage.getItem("fraisInscriptionEtablissement")
+      return stored ? Number(stored) : 0
+    } catch (error) {
+      console.warn("Erreur lors de la récupération des frais d'inscription:", error)
+      return 0
+    }
+  }
+
+  /**
+   * Récupère les frais de réinscription global de l'établissement
+   */
+  obtenirFraisReinscriptionEtablissement(): number {
+    try {
+      const stored = safeLocalStorage.getItem("fraisReinscriptionEtablissement")
+      return stored ? Number(stored) : 0
+    } catch (error) {
+      console.warn("Erreur lors de la récupération des frais de réinscription:", error)
+      return 0
+    }
+  }
+
+  /**
+   * Sauvegarde les frais d'inscription global de l'établissement
+   */
+  sauvegarderFraisInscriptionEtablissement(montant: number): void {
+    safeLocalStorage.setItem("fraisInscriptionEtablissement", String(montant))
+  }
+
+  /**
+   * Sauvegarde les frais de réinscription global de l'établissement
+   */
+  sauvegarderFraisReinscriptionEtablissement(montant: number): void {
+    safeLocalStorage.setItem("fraisReinscriptionEtablissement", String(montant))
+  }
+
+  /**
    * Réinitialise les paramètres aux valeurs par défaut
    */
   reinitialiserParametres(): void {
@@ -535,6 +575,8 @@ class ServiceParametres {
     safeLocalStorage.removeItem("optionsSupplementaires")
     safeLocalStorage.removeItem("optionsSupplementairesPersonnalisees")
     safeLocalStorage.removeItem("parametresPaiement")
+    safeLocalStorage.removeItem("fraisInscriptionEtablissement")
+    safeLocalStorage.removeItem("fraisReinscriptionEtablissement")
   }
 }
 

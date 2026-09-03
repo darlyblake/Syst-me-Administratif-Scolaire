@@ -70,7 +70,7 @@ export default function SettingsPage() {
   const [fraisScolariteAnnuelleNouvelle, setFraisScolariteAnnuelleNouvelle] = useState(0)
 
   // État pour les nouveaux niveaux par type d'école
-  const [nouveauxNiveaux, setNouveauxNiveaux] = useState<Record<string, { nom: string; fraisInscription: number; fraisScolariteAnnuelle: number }>>({})
+  const [nouveauxNiveaux, setNouveauxNiveaux] = useState<Record<string, { nom: string; fraisScolariteAnnuelle: number }>>({})
 
   // État pour les options supplémentaires personnalisées
   const [optionsPersonnalisees, setOptionsPersonnalisees] = useState<OptionSupplementaire[]>([])
@@ -89,8 +89,8 @@ export default function SettingsPage() {
     try {
       const parametresCharges = serviceParametres.obtenirParametres()
       const tarificationChargee = serviceParametres.obtenirTarification()
-      const fraisInscriptionGlobalCharge = Number(localStorage.getItem("fraisInscriptionEtablissement") || 0)
-      const fraisReinscriptionGlobalCharge = Number(localStorage.getItem("fraisReinscriptionEtablissement") || 0)
+      const fraisInscriptionGlobalCharge = serviceParametres.obtenirFraisInscriptionEtablissement()
+      const fraisReinscriptionGlobalCharge = serviceParametres.obtenirFraisReinscriptionEtablissement()
 
       const tarificationTypesEcoleChargee = serviceParametres.obtenirTarificationParTypeEcole()
       const optionsChargees = serviceParametres.obtenirOptionsSupplementaires()
@@ -179,7 +179,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleTarificationTypeEcoleChange = (typeEcole: string, niveau: string, field: "fraisInscription" | "fraisScolariteAnnuelle", value: number) => {
+  const handleTarificationTypeEcoleChange = (typeEcole: string, niveau: string, field: "fraisScolariteAnnuelle", value: number) => {
     setTarificationTypesEcole(tarificationTypesEcole.map((type) => {
       if (type.typeEcole === typeEcole) {
         return {
@@ -222,7 +222,7 @@ export default function SettingsPage() {
 
     setNouveauxNiveaux(prev => ({
       ...prev,
-      [typeEcole]: { nom: "", fraisInscription: 0, fraisScolariteAnnuelle: 0 }
+      [typeEcole]: { nom: "", fraisScolariteAnnuelle: 0 }
     }))
   }
 
@@ -290,7 +290,6 @@ export default function SettingsPage() {
       }
       setPricing((prev) => [...prev, nouvelleClasseObj])
       setNouvelleClasse("")
-      setFraisInscriptionNouvelle(0)
       setFraisScolariteAnnuelleNouvelle(0)
     }
   }
@@ -358,9 +357,9 @@ export default function SettingsPage() {
   const saveSettings = () => {
     try {
       serviceParametres.sauvegarderParametres(settings)
-      localStorage.setItem("fraisInscriptionEtablissement", String(fraisInscriptionEtablissement))
-    localStorage.setItem("fraisReinscriptionEtablissement", String(fraisReinscriptionEtablissement))
-    serviceParametres.sauvegarderTarification(pricing)
+      serviceParametres.sauvegarderFraisInscriptionEtablissement(fraisInscriptionEtablissement)
+      serviceParametres.sauvegarderFraisReinscriptionEtablissement(fraisReinscriptionEtablissement)
+      serviceParametres.sauvegarderTarification(pricing)
       serviceParametres.sauvegarderTarificationParTypeEcole(tarificationTypesEcole)
       serviceParametres.sauvegarderOptionsSupplementaires(optionsSupplementaires)
 
@@ -791,12 +790,37 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <DollarSign className="h-5 w-5" />
-                  Tarification par type d'école
+                  Tarification
                 </CardTitle>
-                <CardDescription>Sélectionnez les types d'établissements et définissez les frais d'inscription et de réinscription pour l'établissement, et la scolarité par niveau</CardDescription>
+                <CardDescription>Définissez les frais d'inscription et de réinscription pour l'établissement, et la scolarité par niveau</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
+                  {/* Tarification globale de l'établissement */}
+                  <div className="border rounded-lg p-4 bg-blue-50">
+                    <h3 className="text-lg font-medium mb-4">Tarification générale de l'établissement</h3>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <Label>Frais d'inscription (FCFA)</Label>
+                        <Input
+                          type="number"
+                          value={fraisInscriptionEtablissement}
+                          onChange={(e) => setFraisInscriptionEtablissement(Number(e.target.value))}
+                          min="0"
+                        />
+                      </div>
+                      <div>
+                        <Label>Frais de réinscription (FCFA)</Label>
+                        <Input
+                          type="number"
+                          value={fraisReinscriptionEtablissement}
+                          onChange={(e) => setFraisReinscriptionEtablissement(Number(e.target.value))}
+                          min="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Sélection des types d'école */}
                   <div className="border rounded-lg p-4 bg-gray-50">
                     <h3 className="text-lg font-medium mb-4">Types d'établissements actifs</h3>
@@ -816,50 +840,14 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Tarification par type d'école */}
-                  <div className="grid gap-4 md:grid-cols-2 mb-6">
-                                  <div>
-                                    <Label>Frais d'inscription — établissement (FCFA)</Label>
-                                    <Input
-                                      type="number"
-                                      value={fraisInscriptionEtablissement}
-                                      onChange={(e) => setFraisInscriptionEtablissement(Number(e.target.value))}
-                                      min="0"
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label>Frais de réinscription — établissement (FCFA)</Label>
-                                    <Input
-                                      type="number"
-                                      value={fraisReinscriptionEtablissement}
-                                      onChange={(e) => setFraisReinscriptionEtablissement(Number(e.target.value))}
-                                      min="0"
-                                    />
-                                  </div>
-                                </div>
-                  
-                                {tarificationTypesEcole.filter(type => typesEcoleActifs.includes(type.typeEcole)).map((typeEcole) => (
+                  {tarificationTypesEcole.filter(type => typesEcoleActifs.includes(type.typeEcole)).map((typeEcole) => (
                     <div key={typeEcole.typeEcole} className="border rounded-lg p-4">
                       <h3 className="text-lg font-medium mb-4">{typeEcole.typeEcole}</h3>
                       <div className="space-y-3">
                         {typeEcole.niveaux.map((niveau) => (
-                          <div key={niveau.niveau} className="grid md:grid-cols-4 gap-4 p-3 border rounded-lg items-end bg-gray-50">
+                          <div key={niveau.niveau} className="grid md:grid-cols-3 gap-4 p-3 border rounded-lg items-end bg-gray-50">
                             <div className="flex items-center">
                               <Label className="font-medium">{niveau.niveau}</Label>
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-sm">Frais d'inscription (FCFA)</Label>
-                              <Input
-                                type="number"
-                                value={niveau.fraisInscription || ""}
-                                onChange={(e) =>
-                                  handleTarificationTypeEcoleChange(
-                                    typeEcole.typeEcole,
-                                    niveau.niveau,
-                                    "fraisInscription",
-                                    Number.parseInt(e.target.value) || 0,
-                                  )
-                                }
-                              />
                             </div>
                             <div className="space-y-2">
                               <Label className="text-sm">Frais de scolarité annuelle (FCFA)</Label>
@@ -889,10 +877,10 @@ export default function SettingsPage() {
                           </div>
                         ))}
                       </div>
-                      
+
                       {/* Ajouter un nouveau niveau pour ce type d'école */}
                       <div className="mt-4 pt-4 border-t">
-                        <div className="grid md:grid-cols-4 gap-4 items-end">
+                        <div className="grid md:grid-cols-3 gap-4 items-end">
                           <div className="space-y-2">
                             <Label className="text-sm font-medium">Nouveau niveau</Label>
                             <Input
@@ -902,18 +890,6 @@ export default function SettingsPage() {
                                 [typeEcole.typeEcole]: { ...prev[typeEcole.typeEcole], nom: e.target.value }
                               }))}
                               placeholder="Ex: 6ème"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium">Frais d'inscription</Label>
-                            <Input
-                              type="number"
-                              value={nouveauxNiveaux[typeEcole.typeEcole]?.fraisInscription || ""}
-                              onChange={(e) => setNouveauxNiveaux(prev => ({
-                                ...prev,
-                                [typeEcole.typeEcole]: { ...prev[typeEcole.typeEcole], fraisInscription: Number.parseInt(e.target.value) || 0 }
-                              }))}
-                              placeholder="0"
                             />
                           </div>
                           <div className="space-y-2">
@@ -931,7 +907,7 @@ export default function SettingsPage() {
                           <div className="space-y-2">
                             <Button
                               onClick={() => ajouterNiveau(typeEcole.typeEcole)}
-                              disabled={!nouveauxNiveaux[typeEcole.typeEcole]?.nom || nouveauxNiveaux[typeEcole.typeEcole]?.fraisInscription <= 0 || nouveauxNiveaux[typeEcole.typeEcole]?.fraisScolariteAnnuelle <= 0}
+                              disabled={!nouveauxNiveaux[typeEcole.typeEcole]?.nom || nouveauxNiveaux[typeEcole.typeEcole]?.fraisScolariteAnnuelle <= 0}
                               className="w-full"
                             >
                               Ajouter
@@ -946,7 +922,8 @@ export default function SettingsPage() {
                 <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                   <h3 className="font-medium text-gray-800 mb-2">Règles de tarification</h3>
                   <div className="text-sm text-gray-600 space-y-1">
-                    <div>• Réduction de 50% sur les frais d'inscription pour les réinscriptions</div>
+                    <div>• Les frais d'inscription et de réinscription sont uniques pour tout l'établissement</div>
+                    <div>• Les frais de scolarité annuelle sont configurés par niveau</div>
                     <div>• Remise de 5% pour paiement comptant de la scolarité</div>
                     <div>• Paiement échelonné possible selon le mode configuré</div>
                     <div>• Frais d'inscription obligatoires à l'inscription</div>

@@ -271,12 +271,17 @@ export default function SettingsPage() {
     }
   }
 
-  const handleTarificationTypeEcoleChange = (typeEcole: string, niveau: string, field: "fraisScolariteAnnuelle", value: number) => {
+  const handleTarificationTypeEcoleChange = (typeEcole: string, niveau: string, field: "fraisScolariteAnnuelle" | "planPaiementId", value: number | string) => {
     setTarificationTypesEcole(tarificationTypesEcole.map((type) => {
       if (type.typeEcole === typeEcole) {
         return {
           ...type,
-          niveaux: type.niveaux.map((n) => (n.niveau === niveau ? { ...n, [field]: value } : n))
+          niveaux: type.niveaux.map((n) => {
+            if (n.niveau === niveau) {
+              return { ...n, [field]: value }
+            }
+            return n
+          })
         }
       }
       return type
@@ -1163,114 +1168,80 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* Sélection des types d'école */}
-                  <div className="border rounded-lg p-4 bg-gray-50">
-                    <h3 className="text-lg font-medium mb-4">Types d'établissements actifs</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {["Primaire", "Collège", "Lycée", "Université", "Centre Professionnel"].map((typeEcole) => (
-                        <label key={typeEcole} className="flex items-center gap-2 cursor-pointer bg-white p-3 rounded border hover:border-blue-300 transition-colors">
-                          <input
-                            type="checkbox"
-                            checked={typesEcoleActifs.includes(typeEcole)}
-                            onChange={() => handleTypeEcoleToggle(typeEcole)}
-                            className="w-4 h-4"
-                          />
-                          <span className="font-medium">{typeEcole}</span>
-                        </label>
-                      ))}
+                  {/* Structure académique et tarification par niveau */}
+                  {isLoadingStructure ? (
+                    <div className="text-center py-8 text-gray-500">
+                      Chargement de la structure académique...
                     </div>
-                  </div>
-
-                  {/* Tarification par type d'école */}
-                  {tarificationTypesEcole.filter(type => typesEcoleActifs.includes(type.typeEcole)).map((typeEcole) => (
-                    <div key={typeEcole.typeEcole} className="border rounded-lg p-4">
-                      <h3 className="text-lg font-medium mb-4">{typeEcole.typeEcole}</h3>
-                      <div className="space-y-3">
-                        {typeEcole.niveaux.map((niveau) => (
-                          <div key={niveau.niveau} className="grid md:grid-cols-3 gap-4 p-3 border rounded-lg items-end bg-gray-50">
-                            <div className="flex items-center">
-                              <Label className="font-medium">{niveau.niveau}</Label>
+                  ) : academicStructure && academicStructure.length > 0 ? (
+                    academicStructure.map((cycle) => (
+                      <div key={cycle.id} className="border rounded-lg p-4">
+                        <h3 className="text-lg font-medium mb-4">{cycle.name}</h3>
+                        <div className="space-y-3">
+                          {cycle.grade_levels.map((level) => (
+                            <div key={level.id} className="grid md:grid-cols-3 gap-4 p-3 border rounded-lg items-end bg-gray-50">
+                              <div className="flex items-center">
+                                <Label className="font-medium">{level.name}</Label>
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-sm">Frais de scolarité annuelle (FCFA)</Label>
+                                <Input
+                                  type="number"
+                                  value={tarificationTypesEcole
+                                    .find(t => t.typeEcole === cycle.name)
+                                    ?.niveaux.find(n => n.niveau === level.name)
+                                    ?.fraisScolariteAnnuelle || ""
+                                  }
+                                  onChange={(e) =>
+                                    handleTarificationTypeEcoleChange(
+                                      cycle.name,
+                                      level.name,
+                                      "fraisScolariteAnnuelle",
+                                      Number.parseInt(e.target.value) || 0,
+                                    )
+                                  }
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-sm">Plan de paiement</Label>
+                                <Select
+                                  value={tarificationTypesEcole
+                                    .find(t => t.typeEcole === cycle.name)
+                                    ?.niveaux.find(n => n.niveau === level.name)
+                                    ?.planPaiementId || ""}
+                                  onValueChange={(value) =>
+                                    handleTarificationTypeEcoleChange(
+                                      cycle.name,
+                                      level.name,
+                                      "planPaiementId",
+                                      value,
+                                    )
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Sélectionner un plan" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="">Aucun plan</SelectItem>
+                                    {plansPaiement.map((plan) => (
+                                      <SelectItem key={plan.id} value={plan.id}>
+                                        {plan.nom} ({plan.type === "mensuel" ? "Mensuel" : "Tranches"})
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
                             </div>
-                            <div className="space-y-2">
-                              <Label className="text-sm">Frais de scolarité annuelle (FCFA)</Label>
-                              <Input
-                                type="number"
-                                value={niveau.fraisScolariteAnnuelle || ""}
-                                onChange={(e) =>
-                                  handleTarificationTypeEcoleChange(
-                                    typeEcole.typeEcole,
-                                    niveau.niveau,
-                                    "fraisScolariteAnnuelle",
-                                    Number.parseInt(e.target.value) || 0,
-                                  )
-                                }
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => supprimerNiveau(typeEcole.typeEcole, niveau.niveau)}
-                                className="w-full"
-                              >
-                                Supprimer
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Ajouter un nouveau niveau pour ce type d'école */}
-                      <div className="mt-4 pt-4 border-t">
-                        <div className="grid md:grid-cols-3 gap-4 items-end">
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium">Nouveau niveau</Label>
-                            <Input
-                              value={nouveauxNiveaux[typeEcole.typeEcole]?.nom || ""}
-                              onChange={(e) => setNouveauxNiveaux(prev => ({
-                                ...prev,
-                                [typeEcole.typeEcole]: { ...prev[typeEcole.typeEcole], nom: e.target.value }
-                              }))}
-                              placeholder="Ex: 6ème"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium">Frais de scolarité annuelle</Label>
-                            <Input
-                              type="number"
-                              value={nouveauxNiveaux[typeEcole.typeEcole]?.fraisScolariteAnnuelle || ""}
-                              onChange={(e) => setNouveauxNiveaux(prev => ({
-                                ...prev,
-                                [typeEcole.typeEcole]: { ...prev[typeEcole.typeEcole], fraisScolariteAnnuelle: Number.parseInt(e.target.value) || 0 }
-                              }))}
-                              placeholder="0"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Button
-                              onClick={() => ajouterNiveau(typeEcole.typeEcole)}
-                              disabled={!nouveauxNiveaux[typeEcole.typeEcole]?.nom || nouveauxNiveaux[typeEcole.typeEcole]?.fraisScolariteAnnuelle <= 0}
-                              className="w-full"
-                            >
-                              Ajouter
-                            </Button>
-                          </div>
+                          ))}
                         </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500 border rounded-lg p-4">
+                      <p>Aucune structure académique configurée.</p>
+                      <p className="text-sm mt-2">Veuillez configurer les cycles et niveaux dans la section Structure scolaire.</p>
                     </div>
-                  ))}
-                </div>
-
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                  <h3 className="font-medium text-gray-800 mb-2">Règles de tarification</h3>
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <div>• Les frais d'inscription et de réinscription sont uniques pour tout l'établissement</div>
-                    <div>• Les frais de scolarité annuelle sont configurés par niveau</div>
-                    <div>• Remise de 5% pour paiement comptant de la scolarité</div>
-                    <div>• Paiement échelonné possible selon le mode configuré</div>
-                    <div>• Frais d'inscription obligatoires à l'inscription</div>
-                    <div>• Les frais de scolarité annuelle seront divisés par le nombre de mois ou de tranches</div>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

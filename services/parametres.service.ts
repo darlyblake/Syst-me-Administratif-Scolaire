@@ -10,6 +10,7 @@ export interface TarificationNiveau {
   niveau: string
   fraisInscription: number
   fraisScolariteAnnuelle: number
+  planPaiementId?: string
 }
 
 export interface TarificationTypeEcole {

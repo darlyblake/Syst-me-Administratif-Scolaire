@@ -7,11 +7,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Save, Settings, Calendar, DollarSign, RotateCcw, CreditCard, Plus, Trash2, Edit, Check, X, HelpCircle } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { ArrowLeft, Save, Settings, Calendar, DollarSign, RotateCcw, CreditCard, Plus, Trash2, Edit, Check, X, HelpCircle, Copy } from "lucide-react"
 import Link from "next/link"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useEstablishment } from "@/hooks/useEstablishment"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
+import { useAcademicStructure } from "@/hooks/useAcademicStructure"
+import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import { serviceParametres } from "@/services/parametres.service"
 import type { ParametresEcole, TarificationClasse, OptionsSupplementaires, OptionSupplementaire, TarificationTypeEcole, TarificationNiveau } from "@/services/parametres.service"
 
@@ -26,6 +29,22 @@ interface TranchePaiement {
 interface ParametresPaiement {
   datePaiementMensuel: number
   tranchesPaiement: TranchePaiement[]
+}
+
+interface PlanTranche {
+  id: string
+  label: string
+  pourcentage: number
+  echeance?: string
+}
+
+interface PlanPaiement {
+  id: string
+  nom: string
+  type: "mensuel" | "tranches"
+  nombreMensualites?: number
+  jourPaiement?: number
+  tranches?: PlanTranche[]
 }
 
 export default function SettingsPage() {
@@ -50,6 +69,8 @@ export default function SettingsPage() {
 
   const { data: establishment, error: establishmentError } = useEstablishment(establishmentId)
   const { data: academicYears, activeYear } = useAcademicYears(establishmentId)
+  const { data: academicStructure, isLoading: isLoadingStructure } = useAcademicStructure(establishmentId)
+  const { data: tuitionPlans, isLoading: isLoadingPlans, refresh: refreshPlans } = useTuitionPlans(activeYear?.id || null)
 
   const [settings, setSettings] = useState<ParametresEcole>({
     anneeAcademique: "",
@@ -102,6 +123,18 @@ export default function SettingsPage() {
   const [optionEnEdition, setOptionEnEdition] = useState<string | null>(null)
   const [optionEditionNom, setOptionEditionNom] = useState("")
   const [optionEditionPrix, setOptionEditionPrix] = useState(0)
+
+  // États pour la gestion des plans de paiement
+  const [plansPaiement, setPlansPaiement] = useState<PlanPaiement[]>([])
+  const [planDialogOpen, setPlanDialogOpen] = useState(false)
+  const [planEnEdition, setPlanEnEdition] = useState<PlanPaiement | null>(null)
+  const [nouveauPlan, setNouveauPlan] = useState<Partial<PlanPaiement>>({
+    nom: "",
+    type: "mensuel",
+    nombreMensualites: 10,
+    jourPaiement: 5,
+    tranches: []
+  })
 
   useEffect(() => {
     try {
@@ -318,7 +351,7 @@ export default function SettingsPage() {
     }))
   }
 
-  const ajouterTranche = () => {
+  const ajouterTranchePaiement = () => {
     const nouveauNumero = parametresPaiement.tranchesPaiement.length + 1
     const nouvelleTranche: TranchePaiement = {
       numero: nouveauNumero,
@@ -333,7 +366,7 @@ export default function SettingsPage() {
     }))
   }
 
-  const supprimerTranche = (index: number) => {
+  const supprimerTranchePaiement = (index: number) => {
     setParametresPaiement((prev) => ({
       ...prev,
       tranchesPaiement: prev.tranchesPaiement.filter((_, i) => i !== index)
@@ -411,6 +444,115 @@ export default function SettingsPage() {
       setOptionEditionNom("")
       setOptionEditionPrix(0)
     }
+  }
+
+  // Fonctions pour la gestion des plans de paiement
+  const calculerTotalTranches = (tranches: PlanTranche[]) => {
+    return tranches.reduce((sum, t) => sum + t.pourcentage, 0)
+  }
+
+  const ajouterTranche = () => {
+    if (!nouveauPlan.tranches) return
+    const nouvelleTranche: PlanTranche = {
+      id: `tranche-${Date.now()}`,
+      label: `Tranche ${nouveauPlan.tranches.length + 1}`,
+      pourcentage: 0,
+      echeance: ""
+    }
+    setNouveauPlan(prev => ({
+      ...prev,
+      tranches: [...(prev.tranches || []), nouvelleTranche]
+    }))
+  }
+
+  const modifierTranche = (id: string, field: keyof PlanTranche, value: string | number) => {
+    setNouveauPlan(prev => ({
+      ...prev,
+      tranches: prev.tranches?.map(t => t.id === id ? { ...t, [field]: value } : t) || []
+    }))
+  }
+
+  const supprimerTranche = (id: string) => {
+    setNouveauPlan(prev => ({
+      ...prev,
+      tranches: prev.tranches?.filter(t => t.id !== id) || []
+    }))
+  }
+
+  const dupliquerPlan = (plan: PlanPaiement) => {
+    const planDuplique: PlanPaiement = {
+      ...plan,
+      id: `plan-${Date.now()}`,
+      nom: `${plan.nom} (copie)`
+    }
+    setPlansPaiement(prev => [...prev, planDuplique])
+  }
+
+  const supprimerPlan = (id: string) => {
+    setPlansPaiement(prev => prev.filter(p => p.id !== id))
+  }
+
+  const ouvrirDialogPlan = (plan?: PlanPaiement) => {
+    if (plan) {
+      setPlanEnEdition(plan)
+      setNouveauPlan({ ...plan })
+    } else {
+      setPlanEnEdition(null)
+      setNouveauPlan({
+        nom: "",
+        type: "mensuel",
+        nombreMensualites: 10,
+        jourPaiement: 5,
+        tranches: []
+      })
+    }
+    setPlanDialogOpen(true)
+  }
+
+  const fermerDialogPlan = () => {
+    setPlanDialogOpen(false)
+    setPlanEnEdition(null)
+    setNouveauPlan({
+      nom: "",
+      type: "mensuel",
+      nombreMensualites: 10,
+      jourPaiement: 5,
+      tranches: []
+    })
+  }
+
+  const sauvegarderPlan = () => {
+    if (!nouveauPlan.nom.trim()) {
+      setErreursValidation(prev => ({ ...prev, planNom: "Le nom du plan est requis" }))
+      return
+    }
+
+    if (nouveauPlan.type === "tranches" && nouveauPlan.tranches) {
+      const total = calculerTotalTranches(nouveauPlan.tranches)
+      if (total !== 100) {
+        setErreursValidation(prev => ({ ...prev, planTranches: `Le total doit être 100% (actuel: ${total}%)` }))
+        return
+      }
+    }
+
+    setErreursValidation(prev => ({ ...prev, planNom: "", planTranches: "" }))
+
+    const planFinal: PlanPaiement = {
+      id: planEnEdition?.id || `plan-${Date.now()}`,
+      nom: nouveauPlan.nom.trim(),
+      type: nouveauPlan.type,
+      nombreMensualites: nouveauPlan.nombreMensualites,
+      jourPaiement: nouveauPlan.jourPaiement,
+      tranches: nouveauPlan.tranches
+    }
+
+    if (planEnEdition) {
+      setPlansPaiement(prev => prev.map(p => p.id === planEnEdition.id ? planFinal : p))
+    } else {
+      setPlansPaiement(prev => [...prev, planFinal])
+    }
+
+    fermerDialogPlan()
   }
 
   const saveSettings = () => {
@@ -750,122 +892,229 @@ export default function SettingsPage() {
           <TabsContent value="payments">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Paramètres de paiement de la scolarité
-                </CardTitle>
-                <CardDescription>Configuration des dates et tranches de paiement</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Date de paiement mensuel */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Paiement mensuel</h3>
-                  <div className="grid md:grid-cols-2 gap-4 p-4 border rounded-lg">
-                    <div className="space-y-2">
-                      <Label htmlFor="datePaiementMensuel" className="flex items-center gap-1">
-                        Jour du mois pour le paiement <span className="text-red-500">*</span>
-                        <HelpCircle className="h-3 w-3 text-gray-400" />
-                      </Label>
-                      <Select
-                        value={parametresPaiement.datePaiementMensuel.toString()}
-                        onValueChange={(value) => setParametresPaiement(prev => ({ ...prev, datePaiementMensuel: parseInt(value) }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
-                            <SelectItem key={day} value={day.toString()}>
-                              Le {day} de chaque mois
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-sm text-gray-600">
-                        La scolarité mensuelle doit être payée le {parametresPaiement.datePaiementMensuel} de chaque mois
-                      </p>
-                    </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5" />
+                      Plans de paiement
+                    </CardTitle>
+                    <CardDescription>Créez et gérez les plans de paiement pour les niveaux scolaires</CardDescription>
                   </div>
-                </div>
+                  <Dialog open={planDialogOpen} onOpenChange={setPlanDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button onClick={() => ouvrirDialogPlan()}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Nouveau plan
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>{planEnEdition ? "Modifier le plan" : "Créer un nouveau plan"}</DialogTitle>
+                        <DialogDescription>
+                          Configurez les modalités de paiement pour ce plan.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-6 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="planNom">Nom du plan <span className="text-red-500">*</span></Label>
+                          <Input
+                            id="planNom"
+                            value={nouveauPlan.nom}
+                            onChange={(e) => setNouveauPlan(prev => ({ ...prev, nom: e.target.value }))}
+                            placeholder="Ex: Plan mensuel standard"
+                          />
+                          {erreursValidation.planNom && (
+                            <p className="text-xs text-red-500">{erreursValidation.planNom}</p>
+                          )}
+                        </div>
 
-                {/* Tranches de paiement */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium">Tranches de paiement</h3>
-                    <Button onClick={ajouterTranche} size="sm">
+                        <div className="space-y-2">
+                          <Label htmlFor="planType">Type de paiement</Label>
+                          <Select
+                            value={nouveauPlan.type}
+                            onValueChange={(value: "mensuel" | "tranches") => setNouveauPlan(prev => ({ ...prev, type: value }))}
+                          >
+                            <SelectTrigger id="planType">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="mensuel">Paiement mensuel</SelectItem>
+                              <SelectItem value="tranches">Par tranches personnalisées</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {nouveauPlan.type === "mensuel" && (
+                          <>
+                            <div className="space-y-2">
+                              <Label htmlFor="nombreMensualites">Nombre de mensualités</Label>
+                              <Input
+                                id="nombreMensualites"
+                                type="number"
+                                min="1"
+                                max="12"
+                                value={nouveauPlan.nombreMensualites}
+                                onChange={(e) => setNouveauPlan(prev => ({ ...prev, nombreMensualites: parseInt(e.target.value) || 10 }))}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="jourPaiement">Jour de paiement mensuel</Label>
+                              <Select
+                                value={nouveauPlan.jourPaiement?.toString()}
+                                onValueChange={(value) => setNouveauPlan(prev => ({ ...prev, jourPaiement: parseInt(value) }))}
+                              >
+                                <SelectTrigger id="jourPaiement">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                                    <SelectItem key={day} value={day.toString()}>
+                                      Le {day} de chaque mois
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </>
+                        )}
+
+                        {nouveauPlan.type === "tranches" && (
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <Label>Tranches de paiement</Label>
+                              <Button type="button" variant="outline" size="sm" onClick={ajouterTranche}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Ajouter une tranche
+                              </Button>
+                            </div>
+                            {nouveauPlan.tranches && nouveauPlan.tranches.length > 0 ? (
+                              <div className="space-y-3">
+                                {nouveauPlan.tranches.map((tranche, index) => (
+                                  <div key={tranche.id} className="grid grid-cols-12 gap-2 items-end p-3 border rounded-lg">
+                                    <div className="col-span-1 text-center font-medium text-gray-500">
+                                      {index + 1}
+                                    </div>
+                                    <div className="col-span-4 space-y-1">
+                                      <Label className="text-xs">Libellé</Label>
+                                      <Input
+                                        value={tranche.label}
+                                        onChange={(e) => modifierTranche(tranche.id, "label", e.target.value)}
+                                        placeholder="Ex: Première tranche"
+                                      />
+                                    </div>
+                                    <div className="col-span-3 space-y-1">
+                                      <Label className="text-xs">Pourcentage (%)</Label>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        value={tranche.pourcentage}
+                                        onChange={(e) => modifierTranche(tranche.id, "pourcentage", parseInt(e.target.value) || 0)}
+                                      />
+                                    </div>
+                                    <div className="col-span-3 space-y-1">
+                                      <Label className="text-xs">Échéance</Label>
+                                      <Input
+                                        type="date"
+                                        value={tranche.echeance}
+                                        onChange={(e) => modifierTranche(tranche.id, "echeance", e.target.value)}
+                                      />
+                                    </div>
+                                    <div className="col-span-1">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => supprimerTranche(tranche.id)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                                <div className="flex justify-between items-center text-sm">
+                                  <span className="font-medium">Total configuré:</span>
+                                  <span className={calculerTotalTranches(nouveauPlan.tranches || []) === 100 ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
+                                    {calculerTotalTranches(nouveauPlan.tranches || [])}%
+                                  </span>
+                                </div>
+                                {erreursValidation.planTranches && (
+                                  <p className="text-xs text-red-500">{erreursValidation.planTranches}</p>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500 text-center py-4">
+                                Aucune tranche configurée. Cliquez sur "Ajouter une tranche" pour commencer.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={fermerDialogPlan}>
+                          Annuler
+                        </Button>
+                        <Button onClick={sauvegarderPlan}>
+                          {planEnEdition ? "Modifier" : "Créer"} le plan
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {plansPaiement.length === 0 ? (
+                  <div className="text-center py-12">
+                    <CreditCard className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun plan de paiement</h3>
+                    <p className="text-gray-500 mb-4">Créez votre premier plan de paiement pour commencer.</p>
+                    <Button onClick={() => ouvrirDialogPlan()}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Ajouter une tranche
+                      Créer un plan
                     </Button>
                   </div>
-
-                  <div className="space-y-4">
-                    {parametresPaiement.tranchesPaiement.map((tranche, index) => (
-                      <div key={index} className="grid md:grid-cols-6 gap-4 p-4 border rounded-lg items-end animate-in slide-in-from-bottom-2 duration-300">
-                        <div className="space-y-2">
-                          <Label className="text-sm">Numéro</Label>
-                          <Input
-                            type="number"
-                            value={tranche.numero}
-                            onChange={(e) => handleTrancheChange(index, 'numero', parseInt(e.target.value))}
-                            min="1"
-                          />
+                ) : (
+                  <div className="space-y-3">
+                    {plansPaiement.map((plan) => (
+                      <div key={plan.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium">{plan.nom}</h4>
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              plan.type === "mensuel" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
+                            }`}>
+                              {plan.type === "mensuel" ? "Mensuel" : "Tranches"}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {plan.type === "mensuel" 
+                              ? `${plan.nombreMensualites} mensualités, le ${plan.jourPaiement} de chaque mois`
+                              : `${plan.tranches?.length || 0} tranches personnalisées`
+                            }
+                          </p>
                         </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm">Nom de la tranche</Label>
-                          <Input
-                            value={tranche.nom}
-                            onChange={(e) => handleTrancheChange(index, 'nom', e.target.value)}
-                            placeholder="Ex: 1ère tranche"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm">Date début</Label>
-                          <Input
-                            type="date"
-                            value={tranche.dateDebut}
-                            onChange={(e) => handleTrancheChange(index, 'dateDebut', e.target.value)}
-                            min={settings.dateDebut}
-                            max={settings.dateFin}
-                            className={!settings.dateDebut || !settings.dateFin ? "border-orange-300" : ""}
-                          />
-                          {(!settings.dateDebut || !settings.dateFin) && (
-                            <p className="text-xs text-orange-600">Définissez d'abord les dates de l'année académique</p>
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm">Date fin</Label>
-                          <Input
-                            type="date"
-                            value={tranche.dateFin}
-                            onChange={(e) => handleTrancheChange(index, 'dateFin', e.target.value)}
-                            min={settings.dateDebut}
-                            max={settings.dateFin}
-                            className={!settings.dateDebut || !settings.dateFin ? "border-orange-300" : ""}
-                          />
-                          {(!settings.dateDebut || !settings.dateFin) && (
-                            <p className="text-xs text-orange-600">Définissez d'abord les dates de l'année académique</p>
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm">Pourcentage (%)</Label>
-                          <Input
-                            type="number"
-                            value={tranche.pourcentage}
-                            onChange={(e) => handleTrancheChange(index, 'pourcentage', parseInt(e.target.value))}
-                            min="0"
-                            max="100"
-                            className={erreursValidation[`tranche-${index}-pourcentage`] ? "border-red-500" : ""}
-                          />
-                          {erreursValidation[`tranche-${index}-pourcentage`] && (
-                            <p className="text-xs text-red-500">{erreursValidation[`tranche-${index}-pourcentage`]}</p>
-                          )}
-                        </div>
-                        <div className="space-y-2">
+                        <div className="flex gap-2">
                           <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => supprimerTranche(index)}
-                            disabled={parametresPaiement.tranchesPaiement.length <= 1}
+                            variant="outline"
+                            size="icon"
+                            onClick={() => dupliquerPlan(plan)}
+                            title="Dupliquer"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => ouvrirDialogPlan(plan)}
+                            title="Modifier"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => supprimerPlan(plan.id)}
+                            title="Supprimer"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -873,54 +1122,7 @@ export default function SettingsPage() {
                       </div>
                     ))}
                   </div>
-
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <h3 className="font-medium text-green-800 mb-2">Récapitulatif des tranches</h3>
-                    <div className="space-y-2">
-                      {parametresPaiement.tranchesPaiement.map((tranche, index) => (
-                        <div key={index} className="text-sm text-green-700 flex justify-between">
-                          <span>{tranche.nom} (du {tranche.dateDebut} au {tranche.dateFin})</span>
-                          <span>{tranche.pourcentage}%</span>
-                        </div>
-                      ))}
-                      <div className="border-t pt-2 mt-2">
-                        <div className="text-sm font-medium text-green-800 flex justify-between">
-                          <span>Total des pourcentages</span>
-                          <span className={totalPourcentages === 100 ? "text-green-600" : totalPourcentages > 100 ? "text-red-600" : "text-orange-600"}>
-                            {totalPourcentages}%
-                          </span>
-                        </div>
-                        <div className="mt-2">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full transition-all duration-300 ${
-                                totalPourcentages === 100 ? "bg-green-500" :
-                                totalPourcentages > 100 ? "bg-red-500" : "bg-orange-500"
-                              }`}
-                              style={{ width: `${Math.min(totalPourcentages, 100)}%` }}
-                            ></div>
-                          </div>
-                          <p className="text-xs mt-1 text-gray-600">
-                            {totalPourcentages === 100 ? "Parfait ! Le total est de 100%" :
-                             totalPourcentages > 100 ? "Attention : Le total dépasse 100%" :
-                             `Il manque ${100 - totalPourcentages}% pour atteindre 100%`}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                  <h3 className="font-medium text-blue-800 mb-2">Informations sur les paiements</h3>
-                  <div className="text-sm text-blue-600 space-y-1">
-                    <div>• Le paiement mensuel doit être effectué le {parametresPaiement.datePaiementMensuel} de chaque mois</div>
-                    <div>• Les tranches permettent de diviser le paiement annuel en plusieurs périodes</div>
-                    <div>• Les dates de début et fin définissent la période de validité de chaque tranche</div>
-                    <div>• Le pourcentage indique quelle partie du montant total doit être payée dans cette tranche</div>
-                    <div>• Le total des pourcentages devrait idéalement être de 100%</div>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

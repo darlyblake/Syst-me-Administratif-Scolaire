@@ -20,7 +20,7 @@ export async function getActiveAcademicYear(establishmentId: string): Promise<Ac
     .from("academic_years")
     .select("*")
     .eq("establishment_id", establishmentId)
-    .eq("is_active", true)
+    .eq("status", "active")
     .limit(1)
     .maybeSingle()
 
@@ -54,7 +54,7 @@ export async function activateAcademicYear(yearId: string): Promise<AcademicYear
 
   const { data: updated, error: updateError } = await supabaseBrowser
     .from("academic_years")
-    .update({ is_active: true, status: "active" })
+    .update({ status: "active" })
     .eq("establishment_id", current.establishment_id)
     .neq("id", yearId)
     .select()
@@ -65,7 +65,7 @@ export async function activateAcademicYear(yearId: string): Promise<AcademicYear
 
   const { data: result, error } = await supabaseBrowser
     .from("academic_years")
-    .update({ is_active: true, status: "active" })
+    .update({ status: "active" })
     .eq("id", yearId)
     .select()
     .single()
@@ -81,7 +81,7 @@ export async function activateAcademicYear(yearId: string): Promise<AcademicYear
 export async function closeAcademicYear(yearId: string): Promise<AcademicYear> {
   const { data, error } = await supabaseBrowser
     .from("academic_years")
-    .update({ is_active: false, status: "closed" })
+    .update({ status: "closed" })
     .eq("id", yearId)
     .select()
     .single()

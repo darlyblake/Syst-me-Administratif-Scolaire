@@ -136,6 +136,30 @@ export default function SettingsPage() {
     tranches: []
   })
 
+  // État pour détecter les modifications non enregistrées
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [initialSettings, setInitialSettings] = useState<ParametresEcole | null>(null)
+  const [initialFraisInscription, setInitialFraisInscription] = useState(0)
+  const [initialFraisReinscription, setInitialFraisReinscription] = useState(0)
+  const [initialTarificationTypesEcole, setInitialTarificationTypesEcole] = useState<TarificationTypeEcole[]>([])
+  const [initialOptions, setInitialOptions] = useState<OptionsSupplementaires | null>(null)
+  const [initialPlansPaiement, setInitialPlansPaiement] = useState<PlanPaiement[]>([])
+
+  // Détecter les modifications non enregistrées
+  useEffect(() => {
+    if (!initialSettings) return
+
+    const settingsChanged = JSON.stringify(settings) !== JSON.stringify(initialSettings)
+    const fraisInscriptionChanged = fraisInscriptionEtablissement !== initialFraisInscription
+    const fraisReinscriptionChanged = fraisReinscriptionEtablissement !== initialFraisReinscription
+    const tarificationChanged = JSON.stringify(tarificationTypesEcole) !== JSON.stringify(initialTarificationTypesEcole)
+    const optionsChanged = initialOptions && JSON.stringify(optionsSupplementaires) !== JSON.stringify(initialOptions)
+    const plansChanged = JSON.stringify(plansPaiement) !== JSON.stringify(initialPlansPaiement)
+
+    const hasChanges = settingsChanged || fraisInscriptionChanged || fraisReinscriptionChanged || tarificationChanged || optionsChanged || plansChanged
+    setHasUnsavedChanges(hasChanges)
+  }, [settings, fraisInscriptionEtablissement, fraisReinscriptionEtablissement, tarificationTypesEcole, optionsSupplementaires, plansPaiement, initialSettings, initialFraisInscription, initialFraisReinscription, initialTarificationTypesEcole, initialOptions, initialPlansPaiement])
+
   useEffect(() => {
     try {
       const parametresCharges = serviceParametres.obtenirParametres()
@@ -147,7 +171,7 @@ export default function SettingsPage() {
       const optionsChargees = serviceParametres.obtenirOptionsSupplementaires()
 
       // S'assurer que tous les champs sont définis
-      setSettings({
+      const loadedSettings = {
         anneeAcademique: parametresCharges.anneeAcademique || activeYear?.name || academicYears[0]?.name || "",
         dateDebut: parametresCharges.dateDebut || activeYear?.start_date || "",
         dateFin: parametresCharges.dateFin || activeYear?.end_date || "",
@@ -158,20 +182,23 @@ export default function SettingsPage() {
         logoUrl: parametresCharges.logoUrl || "",
         cachetUrl: parametresCharges.cachetUrl || "",
         modePaiement: parametresCharges.modePaiement || "les_deux",
-      })
+      }
+
+      setSettings(loadedSettings)
 
       setPricing(Array.isArray(tarificationChargee) ? tarificationChargee : [])
       setFraisInscriptionEtablissement(fraisInscriptionGlobalCharge)
       setFraisReinscriptionEtablissement(fraisReinscriptionGlobalCharge)
       setTarificationTypesEcole(Array.isArray(tarificationTypesEcoleChargee) ? tarificationTypesEcoleChargee : [])
 
-      setOptionsSupplementaires({
+      const loadedOptions = {
         tenueScolaire: optionsChargees.tenueScolaire || 0,
         carteScolaire: optionsChargees.carteScolaire || 0,
         cooperative: optionsChargees.cooperative || 0,
         tenueEPS: optionsChargees.tenueEPS || 0,
         assurance: optionsChargees.assurance || 0,
-      })
+      }
+      setOptionsSupplementaires(loadedOptions)
 
       // Charger les paramètres de paiement depuis le service
       const paiementCharges = serviceParametres.obtenirParametresPaiement()
@@ -180,6 +207,14 @@ export default function SettingsPage() {
       // Charger les options supplémentaires personnalisées
       const optionsPersonnaliseesChargees = serviceParametres.obtenirOptionsSupplementairesPersonnalisees()
       setOptionsPersonnalisees(optionsPersonnaliseesChargees)
+
+      // Sauvegarder l'état initial pour détecter les modifications
+      setInitialSettings(loadedSettings)
+      setInitialFraisInscription(fraisInscriptionGlobalCharge)
+      setInitialFraisReinscription(fraisReinscriptionGlobalCharge)
+      setInitialTarificationTypesEcole(Array.isArray(tarificationTypesEcoleChargee) ? tarificationTypesEcoleChargee : [])
+      setInitialOptions(loadedOptions)
+      setInitialPlansPaiement([])
     } catch (error) {
       console.error("Erreur lors du chargement des paramètres:", error)
       // Garder les valeurs par défaut en cas d'erreur
@@ -575,6 +610,15 @@ export default function SettingsPage() {
       // Sauvegarder les options personnalisées
       serviceParametres.sauvegarderOptionsSupplementairesPersonnalisees(optionsPersonnalisees)
 
+      // Mettre à jour l'état initial après sauvegarde
+      setInitialSettings(settings)
+      setInitialFraisInscription(fraisInscriptionEtablissement)
+      setInitialFraisReinscription(fraisReinscriptionEtablissement)
+      setInitialTarificationTypesEcole(tarificationTypesEcole)
+      setInitialOptions(optionsSupplementaires)
+      setInitialPlansPaiement(plansPaiement)
+      setHasUnsavedChanges(false)
+
       alert("Paramètres sauvegardés avec succès !")
     } catch (error) {
       alert("Erreur lors de la sauvegarde: " + (error as Error).message)
@@ -594,8 +638,20 @@ export default function SettingsPage() {
         const paiementDefaut = serviceParametres.obtenirParametresPaiement()
         setParametresPaiement(paiementDefaut)
 
-        // Réinitialiser les options personnalisées
-        setOptionsPersonnalisees([])
+        // Réinitialiser l'état initial
+        setInitialSettings(parametresDefaut)
+        setInitialFraisInscription(0)
+        setInitialFraisReinscription(0)
+        setInitialTarificationTypesEcole([])
+        setInitialOptions({
+          tenueScolaire: 0,
+          carteScolaire: 0,
+          cooperative: 0,
+          tenueEPS: 0,
+          assurance: 0,
+        })
+        setInitialPlansPaiement([])
+        setHasUnsavedChanges(false)
 
         alert("Paramètres réinitialisés avec succès !")
       } catch (error) {
@@ -604,43 +660,46 @@ export default function SettingsPage() {
     }
   }
 
-  const totalPourcentages = calculerTotalPourcentages()
-
   return (
-    <div className="min-h-screen bg-creme p-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Retour
-                </Link>
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <Settings className="h-6 w-6" />
-                  Paramètres du Système
-                </h1>
-                <p className="text-gray-600">Configuration de l'établissement et des tarifs</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={resetSettings}>
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Réinitialiser
-              </Button>
-              <Button onClick={saveSettings}>
-                <Save className="h-4 w-4 mr-2" />
-                Sauvegarder
-              </Button>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Retour
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Settings className="h-6 w-6" />
+                Paramètres du Système
+              </h1>
+              <p className="text-gray-600">Configuration de l'établissement et des tarifs</p>
             </div>
           </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={resetSettings}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Réinitialiser
+            </Button>
+            <Button onClick={saveSettings} disabled={!hasUnsavedChanges}>
+              <Save className="h-4 w-4 mr-2" />
+              Sauvegarder
+            </Button>
+          </div>
+        </div>
+
+        {hasUnsavedChanges && (
+          <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Vous avez des modifications non enregistrées. N'oubliez pas de sauvegarder avant de quitter.
+          </div>
+        )}
 
         {establishmentError ? (
           <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Les paramètres d’établissement ne sont pas disponibles en temps réel, mais la configuration locale reste intacte.
+            Les paramètres d'établissement ne sont pas disponibles en temps réel, mais la configuration locale reste intacte.
           </div>
         ) : null}
 

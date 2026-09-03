@@ -793,7 +793,7 @@ export default function SettingsPage() {
                   <DollarSign className="h-5 w-5" />
                   Tarification par type d'école
                 </CardTitle>
-                <CardDescription>Sélectionnez les types d'établissements et définissez les frais d'inscription et de scolarité pour chaque niveau</CardDescription>
+                <CardDescription>Sélectionnez les types d'établissements et définissez les frais d'inscription et de réinscription pour l'établissement, et la scolarité par niveau</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">

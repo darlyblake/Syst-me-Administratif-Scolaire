@@ -18,26 +18,15 @@ import { HistoriqueAffectationsModal } from "@/components/HistoriqueAffectations
 import { DocumentsAdministratifsModal } from "@/components/DocumentsAdministratifsModal"
 import { AttribuerNotificationsModal } from "@/components/AttribuerNotificationsModal"
 import { GestionSalairesModal } from "@/components/GestionSalairesModal"
-import { serviceEnseignants } from "@/services/enseignants.service"
-import { useAuthentification } from "@/providers/authentification.provider"
 
 export default function EnseignantsPageRefactored() {
-  const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
-
-  const legacyTeachers = useMemo(() => serviceEnseignants.obtenirTousLesEnseignants(), [])
   const {
-    teachers: supabaseTeachers, loading, selectedTeacher, filters, currentPage, totalPages,
+    teachers, loading, selectedTeacher, filters, currentPage, totalPages,
     setSearchQuery, setSubjectFilter, setStatusFilter, setCurrentPage,
     selectTeacher, refreshTeachers, permissions, deactivateTeacher,
   } = useTeachers()
   const { can } = usePermissions()
   const { success, error, info } = useNotifications()
-
-  const teachers = useMemo(() => {
-    if (!supabaseTeachers || supabaseTeachers.length === 0) return legacyTeachers
-    return supabaseTeachers
-  }, [supabaseTeachers, legacyTeachers])
 
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
@@ -48,14 +37,14 @@ export default function EnseignantsPageRefactored() {
   const [showNotificationsModal, setShowNotificationsModal] = useState(false)
   const [showSalaryModal, setShowSalaryModal] = useState(false)
 
-  const stats = {
+  const stats = useMemo(() => ({
     total: teachers.length,
     active: teachers.filter((teacher) => teacher.statut === "actif").length,
     inactive: teachers.filter((teacher) => teacher.statut === "inactif").length,
     onLeave: teachers.filter((teacher) => teacher.statut === "conge").length,
     suspended: teachers.filter((teacher) => teacher.statut === "suspendu").length,
-  }
-  const uniqueSubjects = Array.from(new Set(teachers.flatMap((teacher) => teacher.matieres)))
+  }), [teachers])
+  const uniqueSubjects = useMemo(() => Array.from(new Set(teachers.flatMap((teacher) => teacher.matieres))).sort((a, b) => a.localeCompare(b)), [teachers])
 
   const handleCreateTeacher = () => {
     if (!permissions.canCreate) {
@@ -73,7 +62,6 @@ export default function EnseignantsPageRefactored() {
   const handleDeactivateTeacher = async (id: string) => {
     const teacher = teachers.find((item) => item.id === id)
     if (!teacher || !permissions.canEdit) return
-
     const ok = await deactivateTeacher(id)
     if (ok) success("Enseignant désactivé", { description: "Le dossier et son historique sont conservés." })
   }
@@ -95,19 +83,12 @@ export default function EnseignantsPageRefactored() {
             <p className="text-sm md:text-base text-muted-foreground mt-1">Consultez les dossiers, affectations et suivis dont vous avez besoin.</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/tableau-bord"><ArrowLeft className="h-4 w-4 mr-2" />Retour</Link>
-            </Button>
-            {permissions.canCreate && (
-              <Button onClick={handleCreateTeacher}>
-                <Plus className="h-4 w-4 mr-2" />Ajouter
-              </Button>
-            )}
+            <Button variant="outline" asChild><Link href="/tableau-bord"><ArrowLeft className="h-4 w-4 mr-2" />Retour</Link></Button>
+            {permissions.canCreate && <Button onClick={handleCreateTeacher}><Plus className="h-4 w-4 mr-2" />Ajouter</Button>}
           </div>
         </header>
 
         <DashboardSummary stats={stats} uniqueSubjects={uniqueSubjects} teachers={teachers} />
-
         <TeacherFilters
           searchQuery={filters.searchQuery}
           subjectFilter={filters.subjectFilter}
@@ -118,7 +99,6 @@ export default function EnseignantsPageRefactored() {
           onStatusChange={(status) => { setStatusFilter(status); setCurrentPage(1) }}
           onResetFilters={handleResetFilters}
         />
-
         <TeacherTable
           teachers={teachers}
           loading={loading}
@@ -147,20 +127,15 @@ export default function EnseignantsPageRefactored() {
           }}
         />
 
-        {permissions.canCreate && (
-          <CreerEnseignantModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} onSuccess={() => { setShowCreateModal(false); success("Enseignant créé avec succès"); void refreshTeachers() }} />
-        )}
-
-        {selectedTeacher && (
-          <>
-            {permissions.canAssign && <AssignerClassesModal isOpen={showAssignClassesModal} onClose={() => setShowAssignClassesModal(false)} enseignant={selectedTeacher} onSuccess={() => { success("Classes assignées avec succès"); void refreshTeachers() }} />}
-            {can("documents.view") && <ContacterProfesseurModal isOpen={showContactModal} onClose={() => setShowContactModal(false)} enseignant={selectedTeacher} onSuccess={() => success("Message envoyé avec succès")} />}
-            <HistoriqueAffectationsModal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} enseignant={selectedTeacher} />
-            {can("documents.view") && <DocumentsAdministratifsModal isOpen={showDocumentsModal} onClose={() => setShowDocumentsModal(false)} enseignant={selectedTeacher} onSuccess={() => success("Document ajouté avec succès")} />}
-            {permissions.canEdit && <AttribuerNotificationsModal isOpen={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} enseignant={selectedTeacher} onSuccess={() => success("Notification attribuée avec succès")} />}
-            {can("salaires.view") && <GestionSalairesModal isOpen={showSalaryModal} onClose={() => setShowSalaryModal(false)} enseignant={selectedTeacher} onSuccess={() => { success("Salaire mis à jour avec succès"); void refreshTeachers() }} />}
-          </>
-        )}
+        {permissions.canCreate && <CreerEnseignantModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} onSuccess={() => { setShowCreateModal(false); success("Enseignant créé avec succès"); void refreshTeachers() }} />}
+        {selectedTeacher && <>
+          {permissions.canAssign && <AssignerClassesModal isOpen={showAssignClassesModal} onClose={() => setShowAssignClassesModal(false)} enseignant={selectedTeacher} onSuccess={() => { success("Classes assignées avec succès"); void refreshTeachers() }} />}
+          {can("documents.view") && <ContacterProfesseurModal isOpen={showContactModal} onClose={() => setShowContactModal(false)} enseignant={selectedTeacher} onSuccess={() => success("Message envoyé avec succès")} />}
+          <HistoriqueAffectationsModal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} enseignant={selectedTeacher} />
+          {can("documents.view") && <DocumentsAdministratifsModal isOpen={showDocumentsModal} onClose={() => setShowDocumentsModal(false)} enseignant={selectedTeacher} onSuccess={() => success("Document ajouté avec succès")} />}
+          {permissions.canEdit && <AttribuerNotificationsModal isOpen={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} enseignant={selectedTeacher} onSuccess={() => success("Notification attribuée avec succès")} />}
+          {can("salaires.view") && <GestionSalairesModal isOpen={showSalaryModal} onClose={() => setShowSalaryModal(false)} enseignant={selectedTeacher} onSuccess={() => { success("Salaire mis à jour avec succès"); void refreshTeachers() }} />}
+        </>}
       </div>
     </main>
   )

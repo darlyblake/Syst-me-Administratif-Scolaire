@@ -30,7 +30,24 @@ interface ParametresPaiement {
 
 export default function SettingsPage() {
   const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId
+
+  if (!establishmentId) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>Erreur de chargement</CardTitle>
+            <CardDescription>Impossible de déterminer votre établissement.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-600">Veuillez vous reconnecter ou contacter l'administrateur.</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   const { data: establishment, error: establishmentError } = useEstablishment(establishmentId)
   const { data: academicYears, activeYear } = useAcademicYears(establishmentId)
 
@@ -43,6 +60,7 @@ export default function SettingsPage() {
     telephoneEcole: "",
     nomDirecteur: "",
     logoUrl: "",
+    cachetUrl: "",
     modePaiement: "les_deux",
   })
 
@@ -105,6 +123,7 @@ export default function SettingsPage() {
         telephoneEcole: parametresCharges.telephoneEcole || "",
         nomDirecteur: parametresCharges.nomDirecteur || "",
         logoUrl: parametresCharges.logoUrl || "",
+        cachetUrl: parametresCharges.cachetUrl || "",
         modePaiement: parametresCharges.modePaiement || "les_deux",
       })
 
@@ -163,14 +182,54 @@ export default function SettingsPage() {
 
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        setSettings((prev) => ({ ...prev, logoUrl: result }))
-      }
-      reader.readAsDataURL(file)
+    if (!file) return
+
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
+    if (!validTypes.includes(file.type)) {
+      setErreursValidation(prev => ({ ...prev, logo: "Le fichier sélectionné doit être une image (PNG, JPG, JPEG ou WEBP)." }))
+      return
     }
+
+    const maxSize = 5 * 1024 * 1024
+    if (file.size > maxSize) {
+      setErreursValidation(prev => ({ ...prev, logo: "L'image ne doit pas dépasser 5 Mo." }))
+      return
+    }
+
+    setErreursValidation(prev => ({ ...prev, logo: "" }))
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      setSettings((prev) => ({ ...prev, logoUrl: result }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleCachetUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
+    if (!validTypes.includes(file.type)) {
+      setErreursValidation(prev => ({ ...prev, cachet: "Le fichier sélectionné doit être une image (PNG, JPG, JPEG ou WEBP)." }))
+      return
+    }
+
+    const maxSize = 5 * 1024 * 1024
+    if (file.size > maxSize) {
+      setErreursValidation(prev => ({ ...prev, cachet: "L'image ne doit pas dépasser 5 Mo." }))
+      return
+    }
+
+    setErreursValidation(prev => ({ ...prev, cachet: "" }))
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      setSettings((prev) => ({ ...prev, cachetUrl: result }))
+    }
+    reader.readAsDataURL(file)
   }
 
   const handlePricingChange = (classe: string, field: "fraisInscription" | "fraisScolariteAnnuelle", value: number) => {
@@ -525,6 +584,87 @@ export default function SettingsPage() {
                       <SelectItem value="les_deux">Mensuel et trimestriel</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="border-t pt-6 mt-6">
+                  <h3 className="text-lg font-medium mb-4">Identité visuelle de l'établissement</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Le logo et le cachet seront utilisés sur les documents officiels (bulletins, certificats, attestations).
+                  </p>
+
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <Label className="font-medium">Logo officiel</Label>
+                      <div className="space-y-2">
+                        {settings.logoUrl && (
+                          <div className="relative w-32 h-32 border rounded-lg overflow-hidden bg-gray-50">
+                            <img
+                              src={settings.logoUrl}
+                              alt="Logo officiel de l'établissement"
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <Input
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                            onChange={handleLogoUpload}
+                            className="flex-1"
+                          />
+                          {settings.logoUrl && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setSettings(prev => ({ ...prev, logoUrl: "" }))}
+                              aria-label="Supprimer le logo"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        {erreursValidation.logo && (
+                          <p className="text-xs text-red-500">{erreursValidation.logo}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <Label className="font-medium">Cachet officiel</Label>
+                      <div className="space-y-2">
+                        {settings.cachetUrl && (
+                          <div className="relative w-32 h-32 border rounded-lg overflow-hidden bg-gray-50">
+                            <img
+                              src={settings.cachetUrl}
+                              alt="Cachet officiel de l'établissement"
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <Input
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                            onChange={handleCachetUpload}
+                            className="flex-1"
+                          />
+                          {settings.cachetUrl && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setSettings(prev => ({ ...prev, cachetUrl: "" }))}
+                              aria-label="Supprimer le cachet"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        {erreursValidation.cachet && (
+                          <p className="text-xs text-red-500">{erreursValidation.cachet}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

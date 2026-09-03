@@ -473,6 +473,8 @@ class ServiceParametres {
       adresseEcole: "",
       telephoneEcole: "",
       nomDirecteur: "",
+      logoUrl: "",
+      cachetUrl: "",
       modePaiement: "les_deux"
     }
   }

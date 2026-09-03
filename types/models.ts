@@ -93,7 +93,20 @@ export interface Absence { id: string; eleveId: string; date: string; statut: "a
 export interface Notification { id: string; titre: string; message: string; destinataireType: "eleve" | "tous_eleves" | "classe" | "enseignant" | "tous_enseignants"; destinataireIds: string[]; classeId?: string; creePar: string; priorite: "normale" | "importante" | "urgente"; typeNotification: "information" | "alerte" | "rappel"; dateEnvoi?: string; dateCreation: string; statut: "brouillon" | "envoye" | "archive" }
 export interface HistoriqueNotification { id: string; notificationId: string; destinataireId: string; destinataireType: "eleve" | "enseignant"; dateReception: string; statut: "lu" | "non_lu" }
 export interface HorairesGeneraux { id: string; jour: "lundi" | "mardi" | "mercredi" | "jeudi" | "vendredi" | "samedi"; heureOuverture: string; heureFermeture: string; pauseDebutMatin?: string; pauseFinMatin?: string; pauseDebutApresMidi?: string; pauseFinApresMidi?: string; actif: boolean }
-export interface ParametresEcole { anneeAcademique: string; dateDebut: string; dateFin: string; nomEcole: string; adresseEcole: string; telephoneEcole: string; nomDirecteur: string; modePaiement: "mensuel" | "trimestriel" | "les_deux" }
+export interface ParametresEcole {
+  anneeAcademique: string;
+  dateDebut: string;
+  dateFin: string;
+  nomEcole: string;
+  adresseEcole: string;
+  telephoneEcole: string;
+  nomDirecteur: string;
+  modePaiement: "mensuel" | "trimestriel" | "les_deux";
+  /** URL/data URL du logo officiel de l'établissement. */
+  logoUrl?: string;
+  /** URL/data URL du cachet officiel de l'établissement. */
+  cachetUrl?: string;
+}
 export interface CreneauEmploiDuTemps { id: string; classeId: string; classeNom: string; enseignantId: string; enseignantNom: string; jour: "lundi" | "mardi" | "mercredi" | "jeudi" | "vendredi" | "samedi"; heureDebut: string; heureFin: string; matiere: string; salle: string; dateCreation: string; dateModification: string }
 export interface Pointage { id: string; personnelId: string; date: string; heureArrivee?: string; heureDepart?: string; statut: "present" | "absent" | "retard" | "conge" | string; motifAbsence?: string; valide: boolean; conformeEmploiDuTemps?: boolean; creneauId?: string }
 export interface SessionPointageTelephone { id: string; enseignantId: string; codeVerification: string; dateExpiration: string; utilise: boolean; dateCreation: string }

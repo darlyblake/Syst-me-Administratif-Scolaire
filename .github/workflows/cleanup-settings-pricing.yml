@@ -1,0 +1,83 @@
+name: Cleanup settings pricing
+on:
+  push:
+    branches: [main]
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove per-level registration fields
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          p = Path('app/ecole/settings/page.tsx')
+          t = p.read_text(encoding='utf-8')
+
+          # Existing level rows: remove only the registration column.
+          block = '''                            <div className="space-y-2">
+                              <Label className="text-sm">Frais d'inscription (FCFA)</Label>
+                              <Input
+                                type="number"
+                                value={niveau.fraisInscription || ""}
+                                onChange={(e) =>
+                                  handleTarificationTypeEcoleChange(
+                                    typeEcole.typeEcole,
+                                    niveau.niveau,
+                                    "fraisInscription",
+                                    Number.parseInt(e.target.value) || 0,
+                                  )
+                                }
+                              />
+                            </div>
+'''
+          if block not in t:
+              raise SystemExit('existing-level registration block not found')
+          t = t.replace(block, '', 1)
+
+          # New level form: remove the registration input column.
+          block2 = '''                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Frais d'inscription</Label>
+                            <Input
+                              type="number"
+                              value={nouveauxNiveaux[typeEcole.typeEcole]?.fraisInscription || ""}
+                              onChange={(e) => setNouveauxNiveaux(prev => ({
+                                ...prev,
+                                [typeEcole.typeEcole]: { ...prev[typeEcole.typeEcole], fraisInscription: Number.parseInt(e.target.value) || 0 }
+                              }))}
+                              placeholder="0"
+                            />
+                          </div>
+'''
+          if block2 not in t:
+              raise SystemExit('new-level registration block not found')
+          t = t.replace(block2, '', 1)
+
+          # The new-level Add button depends only on name + annual tuition.
+          t = t.replace(
+              'disabled={!nouveauxNiveaux[typeEcole.typeEcole]?.nom || nouveauxNiveaux[typeEcole.typeEcole]?.fraisInscription <= 0 || nouveauxNiveaux[typeEcole.typeEcole]?.fraisScolariteAnnuelle <= 0}',
+              'disabled={!nouveauxNiveaux[typeEcole.typeEcole]?.nom || nouveauxNiveaux[typeEcole.typeEcole]?.fraisScolariteAnnuelle <= 0}',
+              1,
+          )
+
+          # Remove the obsolete class-registration input form if present, while keeping tuition per class.
+          t = re.sub(
+              r'''\s*<div className="space-y-2">\s*<Label[^>]*>Frais d'inscription[^<]*</Label>\s*<Input\s+type="number"\s+value=\{fraisInscriptionNouvelle\}.*?/>\s*</div>''',
+              '', t, count=1, flags=re.S)
+
+          p.write_text(t, encoding='utf-8')
+          Path('.github/workflows/cleanup-settings-pricing.yml').unlink(missing_ok=True)
+      - name: Commit correction
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: remove per-level registration fields'
+          git push origin HEAD:main

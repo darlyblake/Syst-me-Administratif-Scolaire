@@ -28,7 +28,17 @@ class SupabaseAuthentificationService {
     if (sessionError || !session?.user) return null
 
     try {
-      const { data, error } = await supabaseBrowser.rpc("get_my_auth_context")
+      let { data, error } = await supabaseBrowser.rpc("get_my_auth_context")
+      // Une session persistée peut contenir un JWT expiré après un retour d'arrière-plan.
+      // On tente un refresh une seule fois avant de considérer l'utilisateur déconnecté.
+      if (error && (error.code === "401" || error.message?.includes("401") || error.message?.toLowerCase().includes("jwt"))) {
+        const { data: refreshed, error: refreshError } = await supabaseBrowser.auth.refreshSession()
+        if (!refreshError && refreshed.session) {
+          const retry = await supabaseBrowser.rpc("get_my_auth_context")
+          data = retry.data
+          error = retry.error
+        }
+      }
       if (error) {
         console.error("Erreur contexte authentification:", error)
         return null

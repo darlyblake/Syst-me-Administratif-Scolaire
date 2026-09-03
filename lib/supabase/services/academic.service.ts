@@ -6,7 +6,7 @@ export async function getCycles(establishmentId: string) {
     .from("education_cycles")
     .select("*")
     .eq("establishment_id", establishmentId)
-    .order("sort_order", { ascending: true })
+    .order("display_order", { ascending: true })
 
   if (error) throw new Error("Impossible de charger les cycles.")
   return data as EducationCycle[]
@@ -25,7 +25,7 @@ export async function updateCycle(cycleId: string, data: Partial<EducationCycle>
 }
 
 export async function deactivateCycle(cycleId: string) {
-  const { error } = await supabaseBrowser.from("education_cycles").update({ is_active: false }).eq("id", cycleId)
+  const { error } = await supabaseBrowser.from("education_cycles").update({ active: false }).eq("id", cycleId)
   if (error) throw new Error("Impossible de désactiver le cycle.")
 }
 
@@ -53,7 +53,7 @@ export async function updateLevel(levelId: string, data: Partial<GradeLevel>) {
 }
 
 export async function deactivateLevel(levelId: string) {
-  const { error } = await supabaseBrowser.from("grade_levels").update({ is_active: false }).eq("id", levelId)
+  const { error } = await supabaseBrowser.from("grade_levels").update({ active: false }).eq("id", levelId)
   if (error) throw new Error("Impossible de désactiver le niveau.")
 }
 
@@ -100,8 +100,8 @@ export async function getAcademicStructure(establishmentId: string): Promise<Aca
       `
     )
     .eq("establishment_id", establishmentId)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true })
+    .eq("active", true)
+    .order("display_order", { ascending: true })
 
   if (error) throw new Error("Impossible de charger la structure académique.")
 

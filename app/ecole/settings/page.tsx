@@ -171,11 +171,11 @@ export default function SettingsPage() {
       const optionsChargees = serviceParametres.obtenirOptionsSupplementaires()
 
       // S'assurer que tous les champs sont définis
-      const loadedSettings = {
-        anneeAcademique: parametresCharges.anneeAcademique || activeYear?.name || academicYears[0]?.name || "",
-        dateDebut: parametresCharges.dateDebut || activeYear?.start_date || "",
-        dateFin: parametresCharges.dateFin || activeYear?.end_date || "",
-        nomEcole: parametresCharges.nomEcole || establishment?.name || "",
+      const loadedSettings: ParametresEcole = {
+        anneeAcademique: parametresCharges.anneeAcademique || "",
+        dateDebut: parametresCharges.dateDebut || "",
+        dateFin: parametresCharges.dateFin || "",
+        nomEcole: parametresCharges.nomEcole || "",
         adresseEcole: parametresCharges.adresseEcole || "",
         telephoneEcole: parametresCharges.telephoneEcole || "",
         nomDirecteur: parametresCharges.nomDirecteur || "",
@@ -217,9 +217,52 @@ export default function SettingsPage() {
       setInitialPlansPaiement([])
     } catch (error) {
       console.error("Erreur lors du chargement des paramètres:", error)
-      // Garder les valeurs par défaut en cas d'erreur
     }
-  }, [academicYears, activeYear, establishment])
+  }, [])
+
+  // Synchroniser tarificationTypesEcole avec academicStructure
+  useEffect(() => {
+    if (!academicStructure || academicStructure.length === 0) return
+
+    setTarificationTypesEcole(prev => {
+      const updated = [...prev]
+      
+      academicStructure.forEach(cycle => {
+        const existingType = updated.find(t => t.typeEcole === cycle.name)
+        
+        if (!existingType) {
+          // Créer un nouveau type d'école pour ce cycle
+          updated.push({
+            typeEcole: cycle.name,
+            niveaux: cycle.grade_levels?.map(level => ({
+              niveau: level.name,
+              fraisInscription: fraisInscriptionEtablissement,
+              fraisScolariteAnnuelle: 0,
+              planPaiementId: ""
+            })) || []
+          })
+        } else {
+          // Synchroniser les niveaux
+          const existingLevelNames = new Set(existingType.niveaux.map(n => n.niveau))
+          const newLevels = cycle.grade_levels?.filter(level => !existingLevelNames.has(level.name)) || []
+          
+          if (newLevels.length > 0) {
+            existingType.niveaux = [
+              ...existingType.niveaux,
+              ...newLevels.map(level => ({
+                niveau: level.name,
+                fraisInscription: fraisInscriptionEtablissement,
+                fraisScolariteAnnuelle: 0,
+                planPaiementId: ""
+              }))
+            ]
+          }
+        }
+      })
+      
+      return updated
+    })
+  }, [academicStructure, fraisInscriptionEtablissement])
 
   // Fonctions de validation
   const validerPrix = (prix: number, champ: string) => {
@@ -971,7 +1014,7 @@ export default function SettingsPage() {
                         Nouveau plan
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto z-50">
                       <DialogHeader>
                         <DialogTitle>{planEnEdition ? "Modifier le plan" : "Créer un nouveau plan"}</DialogTitle>
                         <DialogDescription>

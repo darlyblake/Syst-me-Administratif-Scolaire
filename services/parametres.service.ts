@@ -235,6 +235,7 @@ class ServiceParametres {
 
   /**
    * Récupère la tarification par type d'école depuis le localStorage
+   * NOTE: Les niveaux hardcodés ont été supprimés. Utilisez Supabase (useAcademicStructure) comme source de vérité.
    */
   obtenirTarificationParTypeEcole(): TarificationTypeEcole[] {
     try {
@@ -248,57 +249,8 @@ class ServiceParametres {
       console.warn("Erreur lors de la récupération de la tarification par type d'école:", error)
     }
 
-    // Retourner des données par défaut
-    return [
-      {
-        typeEcole: "Primaire",
-        niveaux: [
-          { niveau: "1ère année", fraisInscription: 50000, fraisScolariteAnnuelle: 200000 },
-          { niveau: "2ème année", fraisInscription: 50000, fraisScolariteAnnuelle: 200000 },
-          { niveau: "3ème année", fraisInscription: 50000, fraisScolariteAnnuelle: 250000 },
-          { niveau: "4ème année", fraisInscription: 50000, fraisScolariteAnnuelle: 300000 },
-          { niveau: "5ème année", fraisInscription: 50000, fraisScolariteAnnuelle: 350000 },
-        ]
-      },
-      {
-        typeEcole: "Collège",
-        niveaux: [
-          { niveau: "6ème", fraisInscription: 75000, fraisScolariteAnnuelle: 400000 },
-          { niveau: "5ème", fraisInscription: 75000, fraisScolariteAnnuelle: 400000 },
-          { niveau: "4ème", fraisInscription: 75000, fraisScolariteAnnuelle: 450000 },
-          { niveau: "3ème", fraisInscription: 75000, fraisScolariteAnnuelle: 450000 },
-        ]
-      },
-      {
-        typeEcole: "Lycée",
-        niveaux: [
-          { niveau: "2nde", fraisInscription: 100000, fraisScolariteAnnuelle: 500000 },
-          { niveau: "1ère", fraisInscription: 100000, fraisScolariteAnnuelle: 550000 },
-          { niveau: "Terminale", fraisInscription: 100000, fraisScolariteAnnuelle: 600000 },
-        ]
-      },
-      {
-        typeEcole: "Université",
-        niveaux: [
-          { niveau: "L1", fraisInscription: 150000, fraisScolariteAnnuelle: 800000 },
-          { niveau: "L2", fraisInscription: 150000, fraisScolariteAnnuelle: 800000 },
-          { niveau: "L3", fraisInscription: 150000, fraisScolariteAnnuelle: 800000 },
-          { niveau: "M1", fraisInscription: 200000, fraisScolariteAnnuelle: 1000000 },
-          { niveau: "M2", fraisInscription: 200000, fraisScolariteAnnuelle: 1000000 },
-        ]
-      },
-      {
-        typeEcole: "Centre Professionnel",
-        niveaux: [
-          { niveau: "CAP1", fraisInscription: 75000, fraisScolariteAnnuelle: 350000 },
-          { niveau: "CAP2", fraisInscription: 75000, fraisScolariteAnnuelle: 350000 },
-          { niveau: "BEP1", fraisInscription: 75000, fraisScolariteAnnuelle: 400000 },
-          { niveau: "BEP2", fraisInscription: 75000, fraisScolariteAnnuelle: 400000 },
-          { niveau: "BTS1", fraisInscription: 100000, fraisScolariteAnnuelle: 500000 },
-          { niveau: "BTS2", fraisInscription: 100000, fraisScolariteAnnuelle: 500000 },
-        ]
-      }
-    ]
+    // Retourner un tableau vide - les données doivent venir de Supabase
+    return []
   }
 
   /**
@@ -339,27 +291,6 @@ class ServiceParametres {
       fraisInscription: classeTrouvee.fraisInscription,
       fraisScolariteAnnuelle: classeTrouvee.fraisScolariteAnnuelle
     } : null
-  }
-
-  /**
-   * Calcule le montant mensuel de scolarité pour une classe
-   */
-  calculerMontantMensuel(classe: string): number {
-    const frais = this.obtenirFraisClasse(classe)
-    if (!frais) return 0
-
-    // Diviser par 10 mois (septembre à juin)
-    return Math.round(frais.fraisScolariteAnnuelle / 10)
-  }
-
-  /**
-   * Calcule le montant par tranche pour une classe
-   */
-  calculerMontantParTranche(classe: string, pourcentage: number): number {
-    const frais = this.obtenirFraisClasse(classe)
-    if (!frais) return 0
-
-    return Math.round((frais.fraisScolariteAnnuelle * pourcentage) / 100)
   }
 
   /**

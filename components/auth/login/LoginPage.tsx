@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Eye, EyeOff, Loader2, LogIn, UserPlus, KeyRound } from "lucide-react"
 import { useAuthentification } from "@/providers/authentification.provider"
+import { supabase } from "@/lib/supabase"
 import styles from "./LoginPage.module.css"
 
 const espaceLabels = { parent: "Espace Parent", ecole: "Mon établissement", enseignant: "Espace Enseignant" } as const
@@ -31,6 +32,8 @@ export function LoginPage() {
   const [loginError, setLoginError] = useState("")
   const [loading, setLoading] = useState(false)
   const [registerMessage, setRegisterMessage] = useState("")
+  const [registerError, setRegisterError] = useState("")
+  const [registerLoading, setRegisterLoading] = useState(false)
   const [registerData, setRegisterData] = useState({ firstName: "", lastName: "", email: "", password: "" })
 
   const bookOpen = view !== "closed"
@@ -54,6 +57,7 @@ export function LoginPage() {
     if (!introFinished || turning) return
     setLoginError("")
     setRegisterMessage("")
+    setRegisterError("")
     setTurning(true)
     window.setTimeout(() => { setView(nextView); setTurning(false) }, 520)
   }
@@ -61,7 +65,7 @@ export function LoginPage() {
   const closeBook = () => {
     if (turning) return
     setTurning(true)
-    window.setTimeout(() => { setLoginError(""); setRegisterMessage(""); setView("closed"); setTurning(false) }, 520)
+    window.setTimeout(() => { setLoginError(""); setRegisterMessage(""); setRegisterError(""); setView("closed"); setTurning(false) }, 520)
   }
 
   const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -86,9 +90,54 @@ export function LoginPage() {
     }
   }
 
-  const handleRegisterSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleRegisterSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setRegisterMessage("Le formulaire d’inscription est prêt. La création du compte sera reliée au service d’authentification lors de l’implémentation backend.")
+    setRegisterMessage("")
+    setRegisterError("")
+
+    const firstName = registerData.firstName.trim()
+    const lastName = registerData.lastName.trim()
+    const email = registerData.email.trim().toLowerCase()
+    const password = registerData.password
+
+    if (!firstName || !lastName) return setRegisterError("Veuillez renseigner votre prénom et votre nom.")
+    if (!email) return setRegisterError("L’adresse email est requise.")
+    if (!isValidEmail(email)) return setRegisterError("Format d’email invalide.")
+    if (password.length < 8) return setRegisterError("Le mot de passe doit contenir au moins 8 caractères.")
+
+    setRegisterLoading(true)
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { first_name: firstName, last_name: lastName },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) {
+        const message = error.message.toLowerCase()
+        if (message.includes("already registered") || message.includes("already exists") || message.includes("user already registered")) {
+          setRegisterError("Un compte existe déjà avec cette adresse email. Utilisez la connexion ou récupérez votre mot de passe.")
+        } else {
+          setRegisterError(error.message)
+        }
+        return
+      }
+
+      if (data.session) {
+        setRegisterMessage("Compte créé avec succès. Vous pouvez maintenant vous connecter.")
+        setLoginEmail(email)
+        setRegisterData({ firstName: "", lastName: "", email: "", password: "" })
+      } else {
+        setRegisterMessage("Compte créé. Consultez votre email pour confirmer votre adresse avant de vous connecter.")
+      }
+    } catch {
+      setRegisterError("Impossible de créer le compte pour le moment. Veuillez réessayer.")
+    } finally {
+      setRegisterLoading(false)
+    }
   }
 
   if (estEnCoursDeChargement) return <main className={styles.loading}><Loader2 className={styles.spinner} /><p>Chargement de votre espace…</p></main>
@@ -132,8 +181,9 @@ export function LoginPage() {
                   <div className={styles.twoColumns}><label>Prénom<input value={registerData.firstName} onChange={e => setRegisterData(v => ({ ...v, firstName: e.target.value }))} autoComplete="given-name" /></label><label>Nom<input value={registerData.lastName} onChange={e => setRegisterData(v => ({ ...v, lastName: e.target.value }))} autoComplete="family-name" /></label></div>
                   <label>Adresse email<input type="email" value={registerData.email} onChange={e => setRegisterData(v => ({ ...v, email: e.target.value }))} autoComplete="email" /></label>
                   <label>Mot de passe<span className={styles.password}><input type={showRegisterPassword ? "text" : "password"} value={registerData.password} onChange={e => setRegisterData(v => ({ ...v, password: e.target.value }))} autoComplete="new-password" /><button type="button" onClick={() => setShowRegisterPassword(v => !v)} aria-label="Afficher ou masquer le mot de passe">{showRegisterPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
+                  {registerError && <p className={styles.error} role="alert">{registerError}</p>}
                   {registerMessage && <p className={styles.notice} role="status">{registerMessage}</p>}
-                  <button type="submit" className={styles.primaryButton}><UserPlus size={17} /> Créer mon compte</button>
+                  <button type="submit" className={styles.primaryButton} disabled={registerLoading}>{registerLoading ? <><Loader2 className={styles.smallSpin} /> Création...</> : <><UserPlus size={17} /> Créer mon compte</>}</button>
                 </form>
               </>}
             </div>

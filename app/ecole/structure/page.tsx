@@ -6,12 +6,40 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { ArrowLeft, Plus, Trash2, Edit, ChevronDown, ChevronRight } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Edit, ChevronDown, ChevronRight, BookOpen, ChevronUp, ChevronDown as ChevronDownIcon } from "lucide-react"
 import Link from "next/link"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { createCycle, updateCycle, deactivateCycle, createLevel, updateLevel, deactivateLevel, createClass, updateClass, deactivateClass } from "@/lib/supabase/services/academic.service"
 import type { AcademicStructureCycle, AcademicStructureLevel } from "@/lib/supabase/types/academic"
+
+// Modèles prédéfinis pour les cycles et niveaux
+const PRESET_CYCLES: Record<string, { name: string; levels: string[] }> = {
+  maternelle: {
+    name: "Maternelle",
+    levels: ["Petite Section", "Moyenne Section", "Grande Section"]
+  },
+  primaire: {
+    name: "Primaire",
+    levels: ["1ère année", "2ème année", "3ème année", "4ème année", "5ème année"]
+  },
+  college: {
+    name: "Collège",
+    levels: ["6ème", "5ème", "4ème", "3ème"]
+  },
+  lycee: {
+    name: "Lycée",
+    levels: ["Seconde LE", "Seconde S", "Première A1", "Première A2", "Première B", "Première S", "Terminale A1", "Terminale A2", "Terminale B", "Terminale C", "Terminale D"]
+  },
+  universite: {
+    name: "Université",
+    levels: ["Licence 1", "Licence 2", "Licence 3", "Master 1", "Master 2"]
+  },
+  centre_professionnel: {
+    name: "Centre professionnel",
+    levels: ["Niveau 1", "Niveau 2", "Niveau 3", "Formation personnalisée"]
+  }
+}
 
 export default function StructurePage() {
   const { utilisateur } = useAuthentification()
@@ -21,6 +49,7 @@ export default function StructurePage() {
 
   // États pour les dialogs
   const [cycleDialogOpen, setCycleDialogOpen] = useState(false)
+  const [presetDialogOpen, setPresetDialogOpen] = useState(false)
   const [levelDialogOpen, setLevelDialogOpen] = useState(false)
   const [classDialogOpen, setClassDialogOpen] = useState(false)
 
@@ -91,6 +120,29 @@ export default function StructurePage() {
     }
   }
 
+  const handleCreatePresetCycle = async (presetKey: string) => {
+    if (!establishmentId) return
+
+    const preset = PRESET_CYCLES[presetKey]
+    if (!preset) return
+
+    try {
+      // Créer le cycle
+      const cycle = await createCycle(establishmentId, preset.name)
+      
+      // Créer tous les niveaux du preset
+      for (const levelName of preset.levels) {
+        await createLevel(cycle.id, levelName)
+      }
+      
+      setPresetDialogOpen(false)
+      refresh()
+    } catch (error) {
+      console.error("Erreur lors de la création du cycle prédéfini:", error)
+      alert("Erreur lors de la création du cycle prédéfini")
+    }
+  }
+
   const handleUpdateCycle = async () => {
     if (!editingCycle || !cycleForm.name.trim()) return
 
@@ -148,6 +200,15 @@ export default function StructurePage() {
   }
 
   const handleDeactivateLevel = async (levelId: string) => {
+    // Vérifier si le niveau a des classes
+    const cycle = academicStructure?.find(c => c.grade_levels?.some(l => l.id === levelId))
+    const level = cycle?.grade_levels?.find(l => l.id === levelId)
+    
+    if (level && level.school_classes && level.school_classes.length > 0) {
+      alert(`Impossible de supprimer ce niveau car il est utilisé par ${level.school_classes.length} classe(s).`)
+      return
+    }
+
     if (!confirm("Êtes-vous sûr de vouloir désactiver ce niveau ?")) return
 
     try {
@@ -197,6 +258,86 @@ export default function StructurePage() {
     } catch (error) {
       console.error("Erreur lors de la désactivation de la classe:", error)
       alert("Erreur lors de la désactivation de la classe")
+    }
+  }
+
+  const handleMoveCycleUp = async (cycleId: string, currentIndex: number) => {
+    if (currentIndex === 0) return
+
+    try {
+      const cycles = academicStructure || []
+      const prevCycle = cycles[currentIndex - 1]
+      
+      await Promise.all([
+        updateCycle(cycleId, { sort_order: prevCycle.sort_order || currentIndex - 1 }),
+        updateCycle(prevCycle.id, { sort_order: currentIndex })
+      ])
+      
+      refresh()
+    } catch (error) {
+      console.error("Erreur lors du réordonnancement du cycle:", error)
+      alert("Erreur lors du réordonnancement du cycle")
+    }
+  }
+
+  const handleMoveCycleDown = async (cycleId: string, currentIndex: number) => {
+    const cycles = academicStructure || []
+    if (currentIndex === cycles.length - 1) return
+
+    try {
+      const nextCycle = cycles[currentIndex + 1]
+      
+      await Promise.all([
+        updateCycle(cycleId, { sort_order: nextCycle.sort_order || currentIndex + 1 }),
+        updateCycle(nextCycle.id, { sort_order: currentIndex })
+      ])
+      
+      refresh()
+    } catch (error) {
+      console.error("Erreur lors du réordonnancement du cycle:", error)
+      alert("Erreur lors du réordonnancement du cycle")
+    }
+  }
+
+  const handleMoveLevelUp = async (levelId: string, cycleId: string, currentIndex: number) => {
+    if (currentIndex === 0) return
+
+    try {
+      const cycle = academicStructure?.find(c => c.id === cycleId)
+      if (!cycle || !cycle.grade_levels) return
+
+      const prevLevel = cycle.grade_levels[currentIndex - 1]
+      
+      await Promise.all([
+        updateLevel(levelId, { sort_order: prevLevel.sort_order || currentIndex - 1 }),
+        updateLevel(prevLevel.id, { sort_order: currentIndex })
+      ])
+      
+      refresh()
+    } catch (error) {
+      console.error("Erreur lors du réordonnancement du niveau:", error)
+      alert("Erreur lors du réordonnancement du niveau")
+    }
+  }
+
+  const handleMoveLevelDown = async (levelId: string, cycleId: string, currentIndex: number) => {
+    const cycle = academicStructure?.find(c => c.id === cycleId)
+    if (!cycle || !cycle.grade_levels) return
+
+    if (currentIndex === cycle.grade_levels.length - 1) return
+
+    try {
+      const nextLevel = cycle.grade_levels[currentIndex + 1]
+      
+      await Promise.all([
+        updateLevel(levelId, { sort_order: nextLevel.sort_order || currentIndex + 1 }),
+        updateLevel(nextLevel.id, { sort_order: currentIndex })
+      ])
+      
+      refresh()
+    } catch (error) {
+      console.error("Erreur lors du réordonnancement du niveau:", error)
+      alert("Erreur lors du réordonnancement du niveau")
     }
   }
 
@@ -268,39 +409,73 @@ export default function StructurePage() {
                 <CardTitle>Cycles d'enseignement</CardTitle>
                 <CardDescription>Organisation hiérarchique : Cycle → Niveau → Classe</CardDescription>
               </div>
-              <Dialog open={cycleDialogOpen} onOpenChange={setCycleDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button onClick={() => openCycleDialog()}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nouveau cycle
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>{editingCycle ? "Modifier le cycle" : "Créer un nouveau cycle"}</DialogTitle>
-                    <DialogDescription>
-                      {editingCycle ? "Modifiez le nom du cycle d'enseignement." : "Créez un nouveau cycle d'enseignement (ex: Primaire, Collège, Lycée)."}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="cycleName">Nom du cycle <span className="text-red-500">*</span></Label>
-                      <Input
-                        id="cycleName"
-                        value={cycleForm.name}
-                        onChange={(e) => setCycleForm({ name: e.target.value })}
-                        placeholder="Ex: Collège"
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={closeAllDialogs}>Annuler</Button>
-                    <Button onClick={editingCycle ? handleUpdateCycle : handleCreateCycle}>
-                      {editingCycle ? "Modifier" : "Créer"}
+              <div className="flex gap-2">
+                <Dialog open={presetDialogOpen} onOpenChange={setPresetDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <BookOpen className="h-4 w-4 mr-2" />
+                      Modèles
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Créer un cycle prédéfini</DialogTitle>
+                      <DialogDescription>
+                        Sélectionnez un modèle pour créer automatiquement un cycle avec ses niveaux.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 py-4">
+                      {Object.entries(PRESET_CYCLES).map(([key, preset]) => (
+                        <Button
+                          key={key}
+                          variant="outline"
+                          className="h-auto py-4 flex flex-col items-start gap-1"
+                          onClick={() => handleCreatePresetCycle(key)}
+                        >
+                          <span className="font-semibold">{preset.name}</span>
+                          <span className="text-xs text-muted-foreground">{preset.levels.length} niveaux</span>
+                        </Button>
+                      ))}
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setPresetDialogOpen(false)}>Annuler</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={cycleDialogOpen} onOpenChange={setCycleDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={() => openCycleDialog()}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nouveau cycle
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{editingCycle ? "Modifier le cycle" : "Créer un nouveau cycle"}</DialogTitle>
+                      <DialogDescription>
+                        {editingCycle ? "Modifiez le nom du cycle d'enseignement." : "Créez un nouveau cycle d'enseignement (ex: Primaire, Collège, Lycée)."}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="cycleName">Nom du cycle <span className="text-red-500">*</span></Label>
+                        <Input
+                          id="cycleName"
+                          value={cycleForm.name}
+                          onChange={(e) => setCycleForm({ name: e.target.value })}
+                          placeholder="Ex: Collège"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={closeAllDialogs}>Annuler</Button>
+                      <Button onClick={editingCycle ? handleUpdateCycle : handleCreateCycle}>
+                        {editingCycle ? "Modifier" : "Créer"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -316,7 +491,7 @@ export default function StructurePage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {academicStructure.map((cycle) => (
+                {academicStructure.map((cycle, cycleIndex) => (
                   <div key={cycle.id} className="border rounded-lg overflow-hidden">
                     <div 
                       className="flex items-center justify-between p-4 bg-gray-50 cursor-pointer hover:bg-gray-100"
@@ -334,6 +509,24 @@ export default function StructurePage() {
                         </span>
                       </div>
                       <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleMoveCycleUp(cycle.id, cycleIndex)}
+                          disabled={cycleIndex === 0}
+                          title="Monter"
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleMoveCycleDown(cycle.id, cycleIndex)}
+                          disabled={cycleIndex === (academicStructure?.length || 0) - 1}
+                          title="Descendre"
+                        >
+                          <ChevronDownIcon className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -361,7 +554,7 @@ export default function StructurePage() {
 
                     {expandedCycles.has(cycle.id) && cycle.grade_levels && cycle.grade_levels.length > 0 && (
                       <div className="p-4 space-y-3 border-t">
-                        {cycle.grade_levels.map((level) => (
+                        {cycle.grade_levels.map((level, levelIndex) => (
                           <div key={level.id} className="border rounded-lg overflow-hidden">
                             <div 
                               className="flex items-center justify-between p-3 bg-white cursor-pointer hover:bg-gray-50"
@@ -379,6 +572,24 @@ export default function StructurePage() {
                                 </span>
                               </div>
                               <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => handleMoveLevelUp(level.id, cycle.id, levelIndex)}
+                                  disabled={levelIndex === 0}
+                                  title="Monter"
+                                >
+                                  <ChevronUp className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => handleMoveLevelDown(level.id, cycle.id, levelIndex)}
+                                  disabled={levelIndex === cycle.grade_levels.length - 1}
+                                  title="Descendre"
+                                >
+                                  <ChevronDownIcon className="h-4 w-4" />
+                                </Button>
                                 <Button
                                   variant="outline"
                                   size="sm"

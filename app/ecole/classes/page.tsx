@@ -104,16 +104,13 @@ export default function ClassesPage() {
   }
 
   const handleTypeEcoleChange = (typeEcole: string) => {
-    setNouvelleClasse({ ...nouvelleClasse, typeEcole, niveau: "", fraisScolarite: 0 })
+    setNouvelleClasse({ ...nouvelleClasse, typeEcole, niveau: "" })
   }
 
   const handleNiveauChange = (niveau: string) => {
-    const typeEcoleData = tarificationTypesEcole.find(t => t.typeEcole === nouvelleClasse.typeEcole)
-    const niveauData = typeEcoleData?.niveaux.find(n => n.niveau === niveau)
     setNouvelleClasse({ 
       ...nouvelleClasse, 
-      niveau, 
-      fraisScolarite: niveauData?.fraisScolariteAnnuelle || 0 
+      niveau
     })
   }
 
@@ -623,16 +620,16 @@ export default function ClassesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="typeEcole">Type d'établissement *</Label>
+                <Label htmlFor="typeEcole">Cycle *</Label>
                 <select
                   id="typeEcole"
                   value={nouvelleClasse.typeEcole}
                   onChange={(e) => handleTypeEcoleChange(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50"
                 >
-                  <option value="">Sélectionner un type</option>
-                  {tarificationTypesEcole.map((type) => (
-                    <option key={type.typeEcole} value={type.typeEcole}>{type.typeEcole}</option>
+                  <option value="">Sélectionner un cycle</option>
+                  {academicStructure.map((cycle) => (
+                    <option key={cycle.id} value={cycle.name}>{cycle.name}</option>
                   ))}
                 </select>
               </div>
@@ -645,12 +642,12 @@ export default function ClassesPage() {
                   className="w-full px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50"
                   disabled={!nouvelleClasse.typeEcole}
                 >
-                  <option value="">Sélectionner d'abord le type d'établissement</option>
-                  {nouvelleClasse.typeEcole && tarificationTypesEcole
-                    .find(t => t.typeEcole === nouvelleClasse.typeEcole)
-                    ?.niveaux.map((niveau) => (
-                      <option key={niveau.niveau} value={niveau.niveau}>
-                        {niveau.niveau} ({niveau.fraisScolariteAnnuelle.toLocaleString()} FCFA)
+                  <option value="">Sélectionner d'abord le cycle</option>
+                  {nouvelleClasse.typeEcole && academicStructure
+                    .find(c => c.name === nouvelleClasse.typeEcole)
+                    ?.grade_levels?.map((niveau) => (
+                      <option key={niveau.id} value={niveau.name}>
+                        {niveau.name}
                       </option>
                     ))}
                 </select>
@@ -662,20 +659,8 @@ export default function ClassesPage() {
                   type="number"
                   value={nouvelleClasse.capacite}
                   onChange={(e) => setNouvelleClasse({ ...nouvelleClasse, capacite: parseInt(e.target.value) || 30 })}
-                  className="rounded-2xl border-terre/15 bg-creme/50"
+                  className="rounded-2xl border border-terre/15 bg-creme/50"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="fraisScolarite">Frais de scolarité (FCFA) *</Label>
-                <Input
-                  id="fraisScolarite"
-                  type="number"
-                  value={nouvelleClasse.fraisScolarite}
-                  onChange={(e) => setNouvelleClasse({ ...nouvelleClasse, fraisScolarite: parseInt(e.target.value) || 0 })}
-                  placeholder="Pré-rempli depuis les paramètres"
-                  className="rounded-2xl border-terre/15 bg-creme/50"
-                />
-                <p className="text-xs text-pierre">Pré-rempli automatiquement selon le niveau sélectionné</p>
               </div>
             </div>
             <div className="flex gap-2 mt-6">
@@ -706,19 +691,19 @@ export default function ClassesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-typeEcole">Type d'établissement *</Label>
+                <Label htmlFor="edit-typeEcole">Cycle *</Label>
                 <select
                   id="edit-typeEcole"
                   value={editingClasse.typeEcole || ""}
                   onChange={(e) => {
                     const typeEcole = e.target.value
-                    setEditingClasse({ ...editingClasse, typeEcole, niveau: "", fraisScolarite: 0 })
+                    setEditingClasse({ ...editingClasse, typeEcole, niveau: "" })
                   }}
                   className="w-full px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50"
                 >
-                  <option value="">Sélectionner un type</option>
-                  {tarificationTypesEcole.map((type) => (
-                    <option key={type.typeEcole} value={type.typeEcole}>{type.typeEcole}</option>
+                  <option value="">Sélectionner un cycle</option>
+                  {academicStructure.map((cycle) => (
+                    <option key={cycle.id} value={cycle.name}>{cycle.name}</option>
                   ))}
                 </select>
               </div>
@@ -729,23 +714,20 @@ export default function ClassesPage() {
                   value={editingClasse.niveau}
                   onChange={(e) => {
                     const niveau = e.target.value
-                    const typeEcoleData = tarificationTypesEcole.find(t => t.typeEcole === editingClasse.typeEcole)
-                    const niveauData = typeEcoleData?.niveaux.find(n => n.niveau === niveau)
                     setEditingClasse({ 
                       ...editingClasse, 
-                      niveau, 
-                      fraisScolarite: niveauData?.fraisScolariteAnnuelle || editingClasse.fraisScolarite
+                      niveau
                     })
                   }}
                   className="w-full px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50"
                   disabled={!editingClasse.typeEcole}
                 >
-                  <option value="">Sélectionner d'abord le type d'établissement</option>
-                  {editingClasse.typeEcole && tarificationTypesEcole
-                    .find(t => t.typeEcole === editingClasse.typeEcole)
-                    ?.niveaux.map((niveau) => (
-                      <option key={niveau.niveau} value={niveau.niveau}>
-                        {niveau.niveau} ({niveau.fraisScolariteAnnuelle.toLocaleString()} FCFA)
+                  <option value="">Sélectionner d'abord le cycle</option>
+                  {editingClasse.typeEcole && academicStructure
+                    .find(c => c.name === editingClasse.typeEcole)
+                    ?.grade_levels?.map((niveau) => (
+                      <option key={niveau.id} value={niveau.name}>
+                        {niveau.name}
                       </option>
                     ))}
                 </select>
@@ -757,16 +739,6 @@ export default function ClassesPage() {
                   type="number"
                   value={editingClasse.capacite}
                   onChange={(e) => setEditingClasse({ ...editingClasse, capacite: parseInt(e.target.value) || 30 })}
-                  className="rounded-2xl border-terre/15 bg-creme/50"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-fraisScolarite">Frais de scolarité (FCFA) *</Label>
-                <Input
-                  id="edit-fraisScolarite"
-                  type="number"
-                  value={editingClasse.fraisScolarite}
-                  onChange={(e) => setEditingClasse({ ...editingClasse, fraisScolarite: parseInt(e.target.value) || 0 })}
                   className="rounded-2xl border-terre/15 bg-creme/50"
                 />
               </div>

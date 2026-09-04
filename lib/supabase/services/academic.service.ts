@@ -6,7 +6,7 @@ export async function getCycles(establishmentId: string) {
     .from("education_cycles")
     .select("*")
     .eq("establishment_id", establishmentId)
-    .order("sort_order", { ascending: true })
+    .order("display_order", { ascending: true })
 
   if (error) throw new Error("Impossible de charger les cycles.")
   return data as EducationCycle[]
@@ -34,7 +34,7 @@ export async function getLevelsByCycle(cycleId: string) {
     .from("grade_levels")
     .select("*")
     .eq("cycle_id", cycleId)
-    .order("sort_order", { ascending: true })
+    .order("display_order", { ascending: true })
 
   if (error) throw new Error("Impossible de charger les niveaux.")
   return data as GradeLevel[]
@@ -92,18 +92,18 @@ export async function getAcademicStructure(establishmentId: string): Promise<Aca
       `
         id,
         name,
-        sort_order,
+        display_order,
         grade_levels (
           id,
           name,
-          sort_order,
+          display_order,
           school_classes (id, name)
         )
       `
     )
     .eq("establishment_id", establishmentId)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true })
+    .eq("active", true)
+    .order("display_order", { ascending: true })
 
   if (error) throw new Error("Impossible de charger la structure académique.")
 
@@ -113,7 +113,7 @@ export async function getAcademicStructure(establishmentId: string): Promise<Aca
   return cycles.map(cycle => ({
     ...cycle,
     grade_levels: cycle.grade_levels
-      ?.filter(level => level.is_active !== false)
-      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)) || []
+      ?.filter(level => level.active !== false)
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0)) || []
   }))
 }

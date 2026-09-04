@@ -22,8 +22,9 @@ export interface EducationCycle {
   id: string
   establishment_id: string
   name: string
-  sort_order?: number
-  is_active?: boolean
+  code?: string
+  display_order?: number
+  active?: boolean
   created_at?: string
 }
 
@@ -31,17 +32,20 @@ export interface GradeLevel {
   id: string
   cycle_id: string
   name: string
-  sort_order?: number
-  is_active?: boolean
+  code?: string
+  display_order?: number
+  active?: boolean
   created_at?: string
 }
 
 export interface SchoolClass {
   id: string
+  establishment_id: string
   grade_level_id: string
   name: string
-  student_count?: number
-  is_active?: boolean
+  code?: string
+  capacity?: number
+  active?: boolean
   created_at?: string
 }
 

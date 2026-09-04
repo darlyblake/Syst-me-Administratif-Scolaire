@@ -127,6 +127,14 @@ export default function StructurePage() {
     if (!preset) return
 
     try {
+      // Vérifier si le cycle existe déjà
+      const existingCycle = academicStructure?.find(c => c.name === preset.name)
+      
+      if (existingCycle) {
+        alert(`Le cycle "${preset.name}" existe déjà. Vous pouvez le modifier dans la liste.`)
+        return
+      }
+
       // Créer le cycle
       const cycle = await createCycle({ establishment_id: establishmentId, name: preset.name })
       
@@ -269,8 +277,8 @@ export default function StructurePage() {
       const prevCycle = cycles[currentIndex - 1]
       
       await Promise.all([
-        updateCycle(cycleId, { sort_order: prevCycle.sort_order || currentIndex - 1 }),
-        updateCycle(prevCycle.id, { sort_order: currentIndex })
+        updateCycle(cycleId, { display_order: prevCycle.display_order || currentIndex - 1 }),
+        updateCycle(prevCycle.id, { display_order: currentIndex })
       ])
       
       refresh()
@@ -288,8 +296,8 @@ export default function StructurePage() {
       const nextCycle = cycles[currentIndex + 1]
       
       await Promise.all([
-        updateCycle(cycleId, { sort_order: nextCycle.sort_order || currentIndex + 1 }),
-        updateCycle(nextCycle.id, { sort_order: currentIndex })
+        updateCycle(cycleId, { display_order: nextCycle.display_order || currentIndex + 1 }),
+        updateCycle(nextCycle.id, { display_order: currentIndex })
       ])
       
       refresh()
@@ -309,8 +317,8 @@ export default function StructurePage() {
       const prevLevel = cycle.grade_levels[currentIndex - 1]
       
       await Promise.all([
-        updateLevel(levelId, { sort_order: prevLevel.sort_order || currentIndex - 1 }),
-        updateLevel(prevLevel.id, { sort_order: currentIndex })
+        updateLevel(levelId, { display_order: prevLevel.display_order || currentIndex - 1 }),
+        updateLevel(prevLevel.id, { display_order: currentIndex })
       ])
       
       refresh()
@@ -330,8 +338,8 @@ export default function StructurePage() {
       const nextLevel = cycle.grade_levels[currentIndex + 1]
       
       await Promise.all([
-        updateLevel(levelId, { sort_order: nextLevel.sort_order || currentIndex + 1 }),
-        updateLevel(nextLevel.id, { sort_order: currentIndex })
+        updateLevel(levelId, { display_order: nextLevel.display_order || currentIndex + 1 }),
+        updateLevel(nextLevel.id, { display_order: currentIndex })
       ])
       
       refresh()

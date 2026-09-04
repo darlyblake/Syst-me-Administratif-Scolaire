@@ -3,9 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2"
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-const admin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-})
+const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } })
 
 const allowedOrigins = new Set([
   "https://syst-me-administratif-scolaire.vercel.app",
@@ -48,48 +46,51 @@ Deno.serve(async (req) => {
       .select("account_type")
       .eq("id", user.id)
       .maybeSingle()
-
     if (profileError) throw profileError
-    if (profile?.account_type !== "parent") {
-      return json({ error: "Cette opération est réservée aux comptes parents." }, req, 403)
-    }
+    if (profile?.account_type !== "parent") return json({ error: "Cette opération est réservée aux comptes parents." }, req, 403)
 
     const body = await req.json().catch(() => ({}))
     const studentId = typeof body.student_id === "string" ? body.student_id.trim() : ""
     const studentNumber = typeof body.student_number === "string" ? body.student_number.trim() : ""
     const birthDate = typeof body.birth_date === "string" ? body.birth_date.trim() : ""
+    if ((!studentId && !studentNumber) || !birthDate) return json({ error: "L'identifiant de l'élève et la date de naissance sont obligatoires." }, req, 400)
 
-    if ((!studentId && !studentNumber) || !birthDate) {
-      return json({ error: "L'identifiant de l'élève et la date de naissance sont obligatoires." }, req, 400)
-    }
-
-    // The identifier + birth date pair is the ownership proof for the claim flow.
-    // The resulting relationship is still protected by RLS everywhere else.
     let query = admin
       .from("students")
       .select("id,establishment_id,student_number,first_name,last_name,birth_date,sex,active")
       .eq("birth_date", birthDate)
       .eq("active", true)
       .limit(1)
-
     query = studentId ? query.eq("id", studentId) : query.eq("student_number", studentNumber)
     const { data: student, error: studentError } = await query.maybeSingle()
     if (studentError) throw studentError
-
-    if (!student) {
-      return json({ error: "Aucun élève actif ne correspond à ces informations." }, req, 404)
-    }
+    if (!student) return json({ error: "Aucun élève actif ne correspond à ces informations." }, req, 404)
 
     const { data: existing, error: existingError } = await admin
       .from("student_guardians")
-      .select("id,relationship,can_view_academic,can_view_finance")
+      .select("id,relationship,can_view_academic,can_view_finance,active,establishment_id")
       .eq("student_id", student.id)
       .eq("guardian_user_id", user.id)
       .maybeSingle()
-
     if (existingError) throw existingError
 
-    if (!existing) {
+    if (existing?.active) {
+      return json({
+        linked: true,
+        already_linked: true,
+        student: { id: student.id, establishment_id: student.establishment_id, student_number: student.student_number, first_name: student.first_name, last_name: student.last_name },
+      }, req)
+    }
+
+    if (existing && !existing.active) {
+      const { error: reactivateError } = await admin
+        .from("student_guardians")
+        .update({ active: true })
+        .eq("id", existing.id)
+        .eq("guardian_user_id", user.id)
+        .eq("student_id", student.id)
+      if (reactivateError) throw reactivateError
+    } else {
       const { error: linkError } = await admin.from("student_guardians").insert({
         establishment_id: student.establishment_id,
         student_id: student.id,
@@ -104,18 +105,12 @@ Deno.serve(async (req) => {
 
     return json({
       linked: true,
-      already_linked: Boolean(existing),
-      student: {
-        id: student.id,
-        establishment_id: student.establishment_id,
-        student_number: student.student_number,
-        first_name: student.first_name,
-        last_name: student.last_name,
-      },
+      already_linked: false,
+      reactivated: Boolean(existing),
+      student: { id: student.id, establishment_id: student.establishment_id, student_number: student.student_number, first_name: student.first_name, last_name: student.last_name },
     }, req)
   } catch (error) {
     console.error("claim-student error", error)
-    // Never expose database/service internals to the client.
     return json({ error: "Impossible de rattacher l'élève pour le moment." }, req, 500)
   }
 })

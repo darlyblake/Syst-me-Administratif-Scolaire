@@ -89,7 +89,6 @@ export default function SettingsPage() {
   const [fraisInscriptionEtablissement, setFraisInscriptionEtablissement] = useState(0)
   const [fraisReinscriptionEtablissement, setFraisReinscriptionEtablissement] = useState(0)
   const [tarificationTypesEcole, setTarificationTypesEcole] = useState<TarificationTypeEcole[]>([])
-  const [typesEcoleActifs, setTypesEcoleActifs] = useState<string[]>(["Primaire", "Collège", "Lycée", "Université", "Centre Professionnel"])
   const [optionsSupplementaires, setOptionsSupplementaires] = useState<OptionsSupplementaires>({
     tenueScolaire: 0,
     carteScolaire: 0,
@@ -124,18 +123,6 @@ export default function SettingsPage() {
   const [optionEditionNom, setOptionEditionNom] = useState("")
   const [optionEditionPrix, setOptionEditionPrix] = useState(0)
 
-  // États pour la gestion des plans de paiement
-  const [plansPaiement, setPlansPaiement] = useState<PlanPaiement[]>([])
-  const [planDialogOpen, setPlanDialogOpen] = useState(false)
-  const [planEnEdition, setPlanEnEdition] = useState<PlanPaiement | null>(null)
-  const [nouveauPlan, setNouveauPlan] = useState<Partial<PlanPaiement>>({
-    nom: "",
-    type: "mensuel",
-    nombreMensualites: 10,
-    jourPaiement: 5,
-    tranches: []
-  })
-
   // État pour détecter les modifications non enregistrées
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [initialSettings, setInitialSettings] = useState<ParametresEcole | null>(null)
@@ -143,7 +130,6 @@ export default function SettingsPage() {
   const [initialFraisReinscription, setInitialFraisReinscription] = useState(0)
   const [initialTarificationTypesEcole, setInitialTarificationTypesEcole] = useState<TarificationTypeEcole[]>([])
   const [initialOptions, setInitialOptions] = useState<OptionsSupplementaires | null>(null)
-  const [initialPlansPaiement, setInitialPlansPaiement] = useState<PlanPaiement[]>([])
 
   // Détecter les modifications non enregistrées
   useEffect(() => {
@@ -154,11 +140,10 @@ export default function SettingsPage() {
     const fraisReinscriptionChanged = fraisReinscriptionEtablissement !== initialFraisReinscription
     const tarificationChanged = JSON.stringify(tarificationTypesEcole) !== JSON.stringify(initialTarificationTypesEcole)
     const optionsChanged = initialOptions && JSON.stringify(optionsSupplementaires) !== JSON.stringify(initialOptions)
-    const plansChanged = JSON.stringify(plansPaiement) !== JSON.stringify(initialPlansPaiement)
 
-    const hasChanges = settingsChanged || fraisInscriptionChanged || fraisReinscriptionChanged || tarificationChanged || optionsChanged || plansChanged
+    const hasChanges = settingsChanged || fraisInscriptionChanged || fraisReinscriptionChanged || tarificationChanged || optionsChanged
     setHasUnsavedChanges(hasChanges)
-  }, [settings, fraisInscriptionEtablissement, fraisReinscriptionEtablissement, tarificationTypesEcole, optionsSupplementaires, plansPaiement, initialSettings, initialFraisInscription, initialFraisReinscription, initialTarificationTypesEcole, initialOptions, initialPlansPaiement])
+  }, [settings, fraisInscriptionEtablissement, fraisReinscriptionEtablissement, tarificationTypesEcole, optionsSupplementaires, initialSettings, initialFraisInscription, initialFraisReinscription, initialTarificationTypesEcole, initialOptions])
 
   useEffect(() => {
     try {
@@ -214,7 +199,6 @@ export default function SettingsPage() {
       setInitialFraisReinscription(fraisReinscriptionGlobalCharge)
       setInitialTarificationTypesEcole(Array.isArray(tarificationTypesEcoleChargee) ? tarificationTypesEcoleChargee : [])
       setInitialOptions(loadedOptions)
-      setInitialPlansPaiement([])
     } catch (error) {
       console.error("Erreur lors du chargement des paramètres:", error)
     }
@@ -366,14 +350,6 @@ export default function SettingsPage() {
     }))
   }
 
-  const handleTypeEcoleToggle = (typeEcole: string) => {
-    setTypesEcoleActifs(prev => 
-      prev.includes(typeEcole) 
-        ? prev.filter(t => t !== typeEcole)
-        : [...prev, typeEcole]
-    )
-  }
-
   const ajouterNiveau = (typeEcole: string) => {
     const nouveauNiveau = nouveauxNiveaux[typeEcole]
     if (!nouveauNiveau?.nom || nouveauNiveau.fraisScolariteAnnuelle <= 0) return
@@ -508,136 +484,6 @@ export default function SettingsPage() {
     }
   }
 
-  const commencerEditionOption = (option: OptionSupplementaire) => {
-    setOptionEnEdition(option.id)
-    setOptionEditionNom(option.nom)
-    setOptionEditionPrix(option.prix)
-  }
-
-  const annulerEditionOption = () => {
-    setOptionEnEdition(null)
-    setOptionEditionNom("")
-    setOptionEditionPrix(0)
-  }
-
-  const sauvegarderEditionOption = () => {
-    if (optionEnEdition && optionEditionNom.trim() && optionEditionPrix >= 0) {
-      mettreAJourOptionPersonnalisee(optionEnEdition, optionEditionNom, optionEditionPrix)
-      setOptionEnEdition(null)
-      setOptionEditionNom("")
-      setOptionEditionPrix(0)
-    }
-  }
-
-  // Fonctions pour la gestion des plans de paiement
-  const calculerTotalTranches = (tranches: PlanTranche[]) => {
-    return tranches.reduce((sum, t) => sum + t.pourcentage, 0)
-  }
-
-  const ajouterTranche = () => {
-    if (!nouveauPlan.tranches) return
-    const nouvelleTranche: PlanTranche = {
-      id: `tranche-${Date.now()}`,
-      label: `Tranche ${nouveauPlan.tranches.length + 1}`,
-      pourcentage: 0,
-      echeance: ""
-    }
-    setNouveauPlan(prev => ({
-      ...prev,
-      tranches: [...(prev.tranches || []), nouvelleTranche]
-    }))
-  }
-
-  const modifierTranche = (id: string, field: keyof PlanTranche, value: string | number) => {
-    setNouveauPlan(prev => ({
-      ...prev,
-      tranches: prev.tranches?.map(t => t.id === id ? { ...t, [field]: value } : t) || []
-    }))
-  }
-
-  const supprimerTranche = (id: string) => {
-    setNouveauPlan(prev => ({
-      ...prev,
-      tranches: prev.tranches?.filter(t => t.id !== id) || []
-    }))
-  }
-
-  const dupliquerPlan = (plan: PlanPaiement) => {
-    const planDuplique: PlanPaiement = {
-      ...plan,
-      id: `plan-${Date.now()}`,
-      nom: `${plan.nom} (copie)`
-    }
-    setPlansPaiement(prev => [...prev, planDuplique])
-  }
-
-  const supprimerPlan = (id: string) => {
-    setPlansPaiement(prev => prev.filter(p => p.id !== id))
-  }
-
-  const ouvrirDialogPlan = (plan?: PlanPaiement) => {
-    if (plan) {
-      setPlanEnEdition(plan)
-      setNouveauPlan({ ...plan })
-    } else {
-      setPlanEnEdition(null)
-      setNouveauPlan({
-        nom: "",
-        type: "mensuel",
-        nombreMensualites: 10,
-        jourPaiement: 5,
-        tranches: []
-      })
-    }
-    setPlanDialogOpen(true)
-  }
-
-  const fermerDialogPlan = () => {
-    setPlanDialogOpen(false)
-    setPlanEnEdition(null)
-    setNouveauPlan({
-      nom: "",
-      type: "mensuel",
-      nombreMensualites: 10,
-      jourPaiement: 5,
-      tranches: []
-    })
-  }
-
-  const sauvegarderPlan = () => {
-    if (!nouveauPlan.nom.trim()) {
-      setErreursValidation(prev => ({ ...prev, planNom: "Le nom du plan est requis" }))
-      return
-    }
-
-    if (nouveauPlan.type === "tranches" && nouveauPlan.tranches) {
-      const total = calculerTotalTranches(nouveauPlan.tranches)
-      if (total !== 100) {
-        setErreursValidation(prev => ({ ...prev, planTranches: `Le total doit être 100% (actuel: ${total}%)` }))
-        return
-      }
-    }
-
-    setErreursValidation(prev => ({ ...prev, planNom: "", planTranches: "" }))
-
-    const planFinal: PlanPaiement = {
-      id: planEnEdition?.id || `plan-${Date.now()}`,
-      nom: nouveauPlan.nom.trim(),
-      type: nouveauPlan.type,
-      nombreMensualites: nouveauPlan.nombreMensualites,
-      jourPaiement: nouveauPlan.jourPaiement,
-      tranches: nouveauPlan.tranches
-    }
-
-    if (planEnEdition) {
-      setPlansPaiement(prev => prev.map(p => p.id === planEnEdition.id ? planFinal : p))
-    } else {
-      setPlansPaiement(prev => [...prev, planFinal])
-    }
-
-    fermerDialogPlan()
-  }
-
   const saveSettings = () => {
     try {
       serviceParametres.sauvegarderParametres(settings)
@@ -659,7 +505,6 @@ export default function SettingsPage() {
       setInitialFraisReinscription(fraisReinscriptionEtablissement)
       setInitialTarificationTypesEcole(tarificationTypesEcole)
       setInitialOptions(optionsSupplementaires)
-      setInitialPlansPaiement(plansPaiement)
       setHasUnsavedChanges(false)
 
       alert("Paramètres sauvegardés avec succès !")
@@ -693,7 +538,6 @@ export default function SettingsPage() {
           tenueEPS: 0,
           assurance: 0,
         })
-        setInitialPlansPaiement([])
         setHasUnsavedChanges(false)
 
         alert("Paramètres réinitialisés avec succès !")

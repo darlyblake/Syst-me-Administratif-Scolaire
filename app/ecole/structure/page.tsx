@@ -110,7 +110,7 @@ export default function StructurePage() {
     if (!cycleForm.name.trim() || !establishmentId) return
 
     try {
-      await createCycle(establishmentId, cycleForm.name.trim())
+      await createCycle({ establishment_id: establishmentId, name: cycleForm.name.trim() })
       setCycleForm({ name: "" })
       setCycleDialogOpen(false)
       refresh()
@@ -128,11 +128,11 @@ export default function StructurePage() {
 
     try {
       // Créer le cycle
-      const cycle = await createCycle(establishmentId, preset.name)
+      const cycle = await createCycle({ establishment_id: establishmentId, name: preset.name })
       
       // Créer tous les niveaux du preset
       for (const levelName of preset.levels) {
-        await createLevel(cycle.id, levelName)
+        await createLevel({ cycle_id: cycle.id, name: levelName })
       }
       
       setPresetDialogOpen(false)
@@ -174,7 +174,7 @@ export default function StructurePage() {
     if (!levelForm.name.trim() || !levelForm.cycleId) return
 
     try {
-      await createLevel(levelForm.cycleId, levelForm.name.trim())
+      await createLevel({ cycle_id: levelForm.cycleId, name: levelForm.name.trim() })
       setLevelForm({ name: "", cycleId: "" })
       setLevelDialogOpen(false)
       refresh()
@@ -355,7 +355,7 @@ export default function StructurePage() {
   const openLevelDialog = (level?: AcademicStructureLevel, cycleId?: string) => {
     if (level) {
       setEditingLevel(level)
-      setLevelForm({ name: level.name, cycleId: level.education_cycle_id })
+      setLevelForm({ name: level.name, cycleId: level.cycle_id || "" })
     } else {
       setEditingLevel(null)
       setLevelForm({ name: "", cycleId: cycleId || "" })
@@ -585,7 +585,7 @@ export default function StructurePage() {
                                   variant="outline"
                                   size="icon"
                                   onClick={() => handleMoveLevelDown(level.id, cycle.id, levelIndex)}
-                                  disabled={levelIndex === cycle.grade_levels.length - 1}
+                                  disabled={levelIndex === (cycle.grade_levels?.length || 0) - 1}
                                   title="Descendre"
                                 >
                                   <ChevronDownIcon className="h-4 w-4" />

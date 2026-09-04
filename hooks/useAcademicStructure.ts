@@ -9,6 +9,26 @@ export function useAcademicStructure(establishmentId: string | null) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const refresh = async () => {
+    if (!establishmentId) {
+      setData([])
+      setIsLoading(false)
+      setError(null)
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      setError(null)
+      const result = await getAcademicStructure(establishmentId)
+      setData(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur de chargement.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (!establishmentId) {
       setData([])
@@ -41,5 +61,5 @@ export function useAcademicStructure(establishmentId: string | null) {
     }
   }, [establishmentId])
 
-  return { data, isLoading, error }
+  return { data, isLoading, error, refresh }
 }

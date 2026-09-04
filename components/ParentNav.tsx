@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Users, FileText, UserX, CreditCard, Bell, MessageSquare, Calendar, LogOut, Menu, X, LifeBuoy, History } from "lucide-react"
+import { LayoutDashboard, Users, FileText, UserX, CreditCard, Bell, MessageSquare, Calendar, LogOut, Menu, X, LifeBuoy, History, ClipboardList } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -17,6 +17,7 @@ const liens = [
   { href: "/parents/notes", label: "Notes & bulletins", icon: FileText },
   { href: "/parents/absences", label: "Absences", icon: UserX },
   { href: "/parents/paiements", label: "Paiements", icon: CreditCard },
+  { href: "/parents/demandes", label: "Mes demandes", icon: ClipboardList },
   { href: "/parents/notifications", label: "Notifications", icon: Bell, badge: "notifs" },
   { href: "/parents/messages", label: "Messages", icon: MessageSquare, badge: "msgs" },
   { href: "/parents/evenements", label: "Événements", icon: Calendar },

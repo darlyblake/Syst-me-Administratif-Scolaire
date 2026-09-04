@@ -126,10 +126,18 @@ export function LoginPage() {
         return
       }
 
+      // Ne jamais attribuer ici un rôle ou un établissement : cette décision reste
+      // entièrement contrôlée par le système d'autorisation existant.
       if (data.session) {
-        setRegisterMessage("Compte créé avec succès. Vous pouvez maintenant vous connecter.")
+        // Lorsque Supabase autorise la session immédiatement, on la ferme afin que
+        // l'utilisateur ne soit pas redirigé automatiquement vers un espace protégé
+        // avant que son rôle/établissement soit correctement défini.
+        await supabase.auth.signOut()
         setLoginEmail(email)
+        setLoginPassword("")
         setRegisterData({ firstName: "", lastName: "", email: "", password: "" })
+        setRegisterMessage("Compte créé avec succès. Vous pouvez maintenant vous connecter.")
+        setView("login")
       } else {
         setRegisterMessage("Compte créé. Consultez votre email pour confirmer votre adresse avant de vous connecter.")
       }

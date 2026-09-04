@@ -1298,7 +1298,13 @@ export default function SettingsPage() {
                   ) : (
                     <div className="text-center py-8 text-gray-500 border rounded-lg p-4">
                       <p>Aucune structure académique configurée.</p>
-                      <p className="text-sm mt-2">Veuillez configurer les cycles et niveaux dans la section Structure scolaire.</p>
+                      <p className="text-sm mt-2 mb-4">Veuillez configurer les cycles et niveaux pour définir la tarification.</p>
+                      <Button asChild>
+                        <Link href="/ecole/structure">
+                          <Settings className="h-4 w-4 mr-2" />
+                          Configurer la structure scolaire
+                        </Link>
+                      </Button>
                     </div>
                   )}
                 </div>

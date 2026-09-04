@@ -43,7 +43,7 @@ const PRESET_CYCLES: Record<string, { name: string; levels: string[] }> = {
 
 export default function StructurePage() {
   const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? null
 
   const { data: academicStructure, isLoading, refresh } = useAcademicStructure(establishmentId)
 
@@ -224,7 +224,7 @@ export default function StructurePage() {
     if (!classForm.name.trim() || !classForm.levelId) return
 
     try {
-      await createClass(classForm.levelId, classForm.name.trim())
+      await createClass({ grade_level_id: classForm.levelId, name: classForm.name.trim() })
       setClassForm({ name: "", levelId: "" })
       setClassDialogOpen(false)
       refresh()

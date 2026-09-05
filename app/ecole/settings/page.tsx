@@ -15,8 +15,8 @@ import { useEstablishment } from "@/hooks/useEstablishment"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { useTuitionPlans } from "@/hooks/useTuitionPlans"
-import { serviceParametres } from "@/services/parametres.service"
-import type { ParametresEcole, TarificationClasse, OptionsSupplementaires, OptionSupplementaire, TarificationTypeEcole, TarificationNiveau } from "@/services/parametres.service"
+import { serviceParametres, type TarificationClasse, type OptionsSupplementaires, type OptionSupplementaire, type TarificationTypeEcole, type TarificationNiveau } from "@/services/parametres.service"
+import type { ParametresEcole } from "@/types/models"
 
 export default function SettingsPage() {
   const { utilisateur } = useAuthentification()

@@ -235,62 +235,38 @@ class ServiceParametres {
 
   /**
    * Récupère la tarification par type d'école depuis le localStorage
-   * NOTE: Les niveaux hardcodés ont été supprimés. Utilisez Supabase (useAcademicStructure) comme source de vérité.
+   * NOTE: Cette fonction est obsolète. Utilisez Supabase (useTuitionPlans) comme source de vérité.
+   * Conservée pour compatibilité uniquement.
    */
   obtenirTarificationParTypeEcole(): TarificationTypeEcole[] {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const stored = safeLocalStorage.getItem("tarificationTypesEcole")
-        if (stored) {
-          return JSON.parse(stored)
-        }
-      }
-    } catch (error) {
-      console.warn("Erreur lors de la récupération de la tarification par type d'école:", error)
-    }
-
-    // Retourner un tableau vide - les données doivent venir de Supabase
     return []
   }
 
   /**
    * Sauvegarde la tarification par type d'école
+   * NOTE: Cette fonction est obsolète. Utilisez Supabase (useTuitionPlans) comme source de vérité.
+   * Conservée pour compatibilité uniquement.
    */
-  sauvegarderTarificationParTypeEcole(tarification: TarificationTypeEcole[]): void {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        safeLocalStorage.setItem("tarificationTypesEcole", JSON.stringify(tarification))
-      }
-    } catch (error) {
-      console.error("Erreur lors de la sauvegarde de la tarification par type d'école:", error)
-    }
+  sauvegarderTarificationParTypeEcole(_tarification: TarificationTypeEcole[]): void {
+    // Ne fait rien - les données doivent être gérées via Supabase
   }
 
   /**
    * Récupère la tarification par niveau (nom historique conservé pour compatibilité).
-   * Les consommateurs existants utilisent encore la propriété `classe`, mais elle
-   * contient désormais le nom du niveau sélectionné à l'inscription.
+   * NOTE: Cette fonction est obsolète. Utilisez Supabase (useTuitionPlans) comme source de vérité.
+   * Conservée pour compatibilité uniquement.
    */
   obtenirTarification(): Array<{ classe: string; fraisInscription: number; fraisScolariteAnnuelle: number }> {
-    return this.obtenirTarificationParTypeEcole().flatMap((typeEcole) =>
-      typeEcole.niveaux.map((niveau) => ({
-        classe: niveau.niveau,
-        fraisInscription: niveau.fraisInscription,
-        fraisScolariteAnnuelle: niveau.fraisScolariteAnnuelle,
-      })),
-    )
+    return []
   }
 
   /**
    * Récupère les frais pour une classe spécifique
+   * NOTE: Cette fonction est obsolète. Utilisez Supabase (useTuitionPlans) comme source de vérité.
+   * Conservée pour compatibilité uniquement.
    */
-  obtenirFraisClasse(classe: string): { fraisInscription: number; fraisScolariteAnnuelle: number } | null {
-    const tarification = this.obtenirTarification()
-    const classeTrouvee = tarification.find(t => t.classe === classe)
-    return classeTrouvee ? {
-      fraisInscription: classeTrouvee.fraisInscription,
-      fraisScolariteAnnuelle: classeTrouvee.fraisScolariteAnnuelle
-    } : null
+  obtenirFraisClasse(_classe: string): { fraisInscription: number; fraisScolariteAnnuelle: number } | null {
+    return null
   }
 
   /**
@@ -384,19 +360,10 @@ class ServiceParametres {
 
   /**
    * Récupère les paramètres de l'année académique depuis le localStorage
+   * NOTE: Cette fonction est obsolète. Utilisez Supabase (useAcademicYears) comme source de vérité.
+   * Conservée pour compatibilité uniquement.
    */
   obtenirParametres(): ParametresEcole {
-    // Essayer de récupérer depuis le localStorage d'abord
-    try {
-      const stored = safeLocalStorage.getItem("parametresEcole")
-      if (stored) {
-        return JSON.parse(stored)
-      }
-    } catch (error) {
-      console.warn("Erreur lors de la récupération des paramètres:", error)
-    }
-
-    // Retourner les valeurs par défaut vides
     return {
       anneeAcademique: "",
       dateDebut: "",
@@ -413,16 +380,20 @@ class ServiceParametres {
 
   /**
    * Sauvegarde les paramètres de l'école dans le localStorage
+   * NOTE: Cette fonction est obsolète. Utilisez Supabase (useEstablishment) comme source de vérité.
+   * Conservée pour compatibilité uniquement.
    */
-  sauvegarderParametres(parametres: ParametresEcole): void {
-    safeLocalStorage.setItem("parametresEcole", JSON.stringify(parametres))
+  sauvegarderParametres(_parametres: ParametresEcole): void {
+    // Ne fait rien - les données doivent être gérées via Supabase
   }
 
   /**
    * Sauvegarde la tarification dans le localStorage
+   * NOTE: Cette fonction est obsolète. Utilisez Supabase (useTuitionPlans) comme source de vérité.
+   * Conservée pour compatibilité uniquement.
    */
-  sauvegarderTarification(tarification: TarificationClasse[]): void {
-    safeLocalStorage.setItem("tarificationClasses", JSON.stringify(tarification))
+  sauvegarderTarification(_tarification: TarificationClasse[]): void {
+    // Ne fait rien - les données doivent être gérées via Supabase
   }
 
   /**
@@ -434,18 +405,10 @@ class ServiceParametres {
 
   /**
    * Récupère les paramètres de paiement depuis le localStorage
+   * NOTE: Cette fonction est obsolète. Utilisez Supabase (useTuitionPlans) comme source de vérité.
+   * Conservée pour compatibilité uniquement.
    */
   obtenirParametresPaiement(): { datePaiementMensuel: number; tranchesPaiement: any[]; tauxHoraireParDefaut: number } {
-    try {
-      const stored = safeLocalStorage.getItem("parametresPaiement")
-      if (stored) {
-        return JSON.parse(stored)
-      }
-    } catch (error) {
-      console.warn("Erreur lors de la récupération des paramètres de paiement:", error)
-    }
-
-    // Retourner les valeurs par défaut vides
     return {
       datePaiementMensuel: 5,
       tranchesPaiement: [],
@@ -455,49 +418,47 @@ class ServiceParametres {
 
   /**
    * Sauvegarde les paramètres de paiement dans le localStorage
+   * NOTE: Cette fonction est obsolète. Utilisez Supabase (useTuitionPlans) comme source de vérité.
+   * Conservée pour compatibilité uniquement.
    */
-  sauvegarderParametresPaiement(parametres: { datePaiementMensuel: number; tranchesPaiement: any[]; tauxHoraireParDefaut: number }): void {
-    safeLocalStorage.setItem("parametresPaiement", JSON.stringify(parametres))
+  sauvegarderParametresPaiement(_parametres: { datePaiementMensuel: number; tranchesPaiement: any[]; tauxHoraireParDefaut: number }): void {
+    // Ne fait rien - les données doivent être gérées via Supabase
   }
 
   /**
    * Récupère les frais d'inscription global de l'établissement
+   * NOTE: Cette fonction est obsolète. Utilisez Supabase (useTuitionPlans) comme source de vérité.
+   * Conservée pour compatibilité uniquement.
    */
   obtenirFraisInscriptionEtablissement(): number {
-    try {
-      const stored = safeLocalStorage.getItem("fraisInscriptionEtablissement")
-      return stored ? Number(stored) : 0
-    } catch (error) {
-      console.warn("Erreur lors de la récupération des frais d'inscription:", error)
-      return 0
-    }
+    return 0
   }
 
   /**
    * Récupère les frais de réinscription global de l'établissement
+   * NOTE: Cette fonction est obsolète. Utilisez Supabase (useTuitionPlans) comme source de vérité.
+   * Conservée pour compatibilité uniquement.
    */
   obtenirFraisReinscriptionEtablissement(): number {
-    try {
-      const stored = safeLocalStorage.getItem("fraisReinscriptionEtablissement")
-      return stored ? Number(stored) : 0
-    } catch (error) {
-      console.warn("Erreur lors de la récupération des frais de réinscription:", error)
-      return 0
-    }
+    return 0
   }
 
   /**
    * Sauvegarde les frais d'inscription global de l'établissement
+   * NOTE: Cette fonction est obsolète. Utilisez Supabase (useTuitionPlans) comme source de vérité.
+   * Conservée pour compatibilité uniquement.
    */
-  sauvegarderFraisInscriptionEtablissement(montant: number): void {
-    safeLocalStorage.setItem("fraisInscriptionEtablissement", String(montant))
+  sauvegarderFraisInscriptionEtablissement(_montant: number): void {
+    // Ne fait rien - les données doivent être gérées via Supabase
   }
 
   /**
    * Sauvegarde les frais de réinscription global de l'établissement
+   * NOTE: Cette fonction est obsolète. Utilisez Supabase (useTuitionPlans) comme source de vérité.
+   * Conservée pour compatibilité uniquement.
    */
-  sauvegarderFraisReinscriptionEtablissement(montant: number): void {
-    safeLocalStorage.setItem("fraisReinscriptionEtablissement", String(montant))
+  sauvegarderFraisReinscriptionEtablissement(_montant: number): void {
+    // Ne fait rien - les données doivent être gérées via Supabase
   }
 
   /**

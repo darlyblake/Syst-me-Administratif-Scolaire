@@ -808,116 +808,57 @@ export default function SettingsPage() {
                   <DollarSign className="h-5 w-5" />
                   Tarification
                 </CardTitle>
-                <CardDescription>Définissez les frais d'inscription et de réinscription pour l'établissement, et la scolarité par niveau</CardDescription>
+                <CardDescription>Gérez les frais de scolarité par niveau (stockés dans Supabase)</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
-                  {/* Tarification globale de l'établissement */}
-                  <div className="border rounded-lg p-4 bg-blue-50">
-                    <h3 className="text-lg font-medium mb-4">Tarification générale de l'établissement</h3>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <Label>Frais d'inscription (FCFA)</Label>
-                        <Input
-                          type="number"
-                          value={fraisInscriptionEtablissement}
-                          onChange={(e) => setFraisInscriptionEtablissement(Number(e.target.value))}
-                          min="0"
-                        />
-                      </div>
-                      <div>
-                        <Label>Frais de réinscription (FCFA)</Label>
-                        <Input
-                          type="number"
-                          value={fraisReinscriptionEtablissement}
-                          onChange={(e) => setFraisReinscriptionEtablissement(Number(e.target.value))}
-                          min="0"
-                        />
-                      </div>
-                    </div>
+                {isLoadingPlans ? (
+                  <div className="text-center py-12">
+                    <div className="text-gray-500">Chargement des plans de tarification...</div>
                   </div>
-
-                  {/* Structure académique et tarification par niveau */}
-                  {isLoadingStructure ? (
-                    <div className="text-center py-8 text-gray-500">
-                      Chargement de la structure académique...
-                    </div>
-                  ) : academicStructure && academicStructure.length > 0 ? (
-                    academicStructure.map((cycle) => (
-                      <div key={cycle.id} className="border rounded-lg p-4">
-                        <h3 className="text-lg font-medium mb-4">{cycle.name}</h3>
-                        <div className="space-y-3">
-                          {cycle.grade_levels.map((level) => (
-                            <div key={level.id} className="grid md:grid-cols-3 gap-4 p-3 border rounded-lg items-end bg-gray-50">
-                              <div className="flex items-center">
-                                <Label className="font-medium">{level.name}</Label>
-                              </div>
-                              <div className="space-y-2">
-                                <Label className="text-sm">Frais de scolarité annuelle (FCFA)</Label>
-                                <Input
-                                  type="number"
-                                  value={tarificationTypesEcole
-                                    .find(t => t.typeEcole === cycle.name)
-                                    ?.niveaux.find(n => n.niveau === level.name)
-                                    ?.fraisScolariteAnnuelle || ""
-                                  }
-                                  onChange={(e) =>
-                                    handleTarificationTypeEcoleChange(
-                                      cycle.name,
-                                      level.name,
-                                      "fraisScolariteAnnuelle",
-                                      Number.parseInt(e.target.value) || 0,
-                                    )
-                                  }
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label className="text-sm">Plan de paiement</Label>
-                                <Select
-                                  value={tarificationTypesEcole
-                                    .find(t => t.typeEcole === cycle.name)
-                                    ?.niveaux.find(n => n.niveau === level.name)
-                                    ?.planPaiementId || ""}
-                                  onValueChange={(value) =>
-                                    handleTarificationTypeEcoleChange(
-                                      cycle.name,
-                                      level.name,
-                                      "planPaiementId",
-                                      value,
-                                    )
-                                  }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Sélectionner un plan" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="">Aucun plan</SelectItem>
-                                    {plansPaiement.map((plan) => (
-                                      <SelectItem key={plan.id} value={plan.id}>
-                                        {plan.nom} ({plan.type === "mensuel" ? "Mensuel" : "Tranches"})
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          ))}
+                ) : tuitionPlans.length === 0 ? (
+                  <div className="text-center py-12">
+                    <DollarSign className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun plan de tarification</h3>
+                    <p className="text-gray-500 mb-4">Créez votre premier plan de tarification pour commencer.</p>
+                    <Button asChild>
+                      <Link href="/ecole/settings/scolarite">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Créer un plan
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {tuitionPlans.map((plan) => (
+                      <div key={plan.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium">Plan pour niveau</h4>
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              plan.payment_mode === "monthly" ? "bg-blue-100 text-blue-800" : 
+                              plan.payment_mode === "installments" ? "bg-purple-100 text-purple-800" : 
+                              "bg-green-100 text-green-800"
+                            }`}>
+                              {plan.payment_mode === "monthly" ? "Mensuel" : 
+                               plan.payment_mode === "installments" ? "Tranches" : 
+                               "Unique"}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Inscription: {plan.registration_fee?.toLocaleString() || 0} FCFA • 
+                            Scolarité: {plan.annual_amount.toLocaleString()} FCFA / an
+                          </p>
                         </div>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href="/ecole/settings/scolarite">
+                            <Edit className="h-4 w-4 mr-2" />
+                            Modifier
+                          </Link>
+                        </Button>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-gray-500 border rounded-lg p-4">
-                      <p>Aucune structure académique configurée.</p>
-                      <p className="text-sm mt-2 mb-4">Veuillez configurer les cycles et niveaux pour définir la tarification.</p>
-                      <Button asChild>
-                        <Link href="/ecole/structure">
-                          <Settings className="h-4 w-4 mr-2" />
-                          Configurer la structure scolaire
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

@@ -503,6 +503,24 @@ export default function SettingsPage() {
           </div>
         ) : null}
 
+        {academicYearsError && (
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            Erreur de chargement des années académiques : {academicYearsError}
+          </div>
+        )}
+
+        {structureError && (
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            Erreur de chargement de la structure académique : {structureError}
+          </div>
+        )}
+
+        {tuitionError && (
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            Erreur de chargement des plans de tarification : {tuitionError}
+          </div>
+        )}
+
         <Tabs defaultValue="general" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 md:grid-cols-5 lg:grid-cols-5 overflow-x-auto">
             <TabsTrigger value="general" className="whitespace-nowrap">Général</TabsTrigger>

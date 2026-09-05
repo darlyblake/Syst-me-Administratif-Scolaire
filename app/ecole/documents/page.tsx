@@ -26,8 +26,8 @@ const TYPES_DOCUMENTS = [
 
 export default function DocumentsPage() {
   const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
-  const { data: supabaseStudents } = useStudents(establishmentId)
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId
+  const { data: supabaseStudents } = useStudents(establishmentId ?? null)
 
   const mappedSupabaseStudents = useMemo(() => {
     return (supabaseStudents ?? []).map((student) => ({

@@ -25,9 +25,9 @@ const modeLabels: Record<PaymentMode, string> = {
 
 export default function ScolariteSettingsPage() {
   const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
-  const { data: academicYears, activeYear, selectedYear, selectYear } = useAcademicYears(establishmentId)
-  const { data: academicStructure, isLoading: isStructureLoading, error: structureError } = useAcademicStructure(establishmentId)
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId
+  const { data: academicYears, activeYear, selectedYear, selectYear } = useAcademicYears(establishmentId ?? null)
+  const { data: academicStructure, isLoading: isStructureLoading, error: structureError } = useAcademicStructure(establishmentId ?? null)
   const academicYearId = selectedYear?.id ?? activeYear?.id ?? academicYears[0]?.id ?? ""
   const { data: tuitionPlans, isLoading: isTuitionLoading, error: tuitionError, refresh } = useTuitionPlans(academicYearId)
 
@@ -114,7 +114,13 @@ export default function ScolariteSettingsPage() {
 
       {structureError || tuitionError ? <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{structureError ?? tuitionError}</div> : null}
 
-      {establishmentId !== "demo-establishment" ? <StateFundingSettingsCard establishmentId={establishmentId} /> : null}
+      {establishmentId ? <StateFundingSettingsCard establishmentId={establishmentId} /> : null}
+
+      {!establishmentId ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          Impossible de charger les données : établissement non identifié
+        </div>
+      ) : (
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <Card>
@@ -139,6 +145,7 @@ export default function ScolariteSettingsPage() {
           </CardContent>
         </Card>
       </div>
+      )}
     </div>
   )
 }

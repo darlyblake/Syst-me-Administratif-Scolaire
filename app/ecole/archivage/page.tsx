@@ -16,8 +16,8 @@ import type { EleveArchive } from "@/services/archivage.service"
 
 export default function ArchivagePage() {
   const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? "demo-establishment"
-  const { data: supabaseStudents } = useStudents(establishmentId)
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId
+  const { data: supabaseStudents } = useStudents(establishmentId ?? null)
 
   const mappedSupabaseStudents = useMemo(() => {
     return (supabaseStudents ?? []).map((student) => ({

@@ -682,72 +682,48 @@ export default function SettingsPage() {
                   <Calendar className="h-5 w-5" />
                   Année académique
                 </CardTitle>
-                <CardDescription>Configuration de l'année scolaire</CardDescription>
+                <CardDescription>Configuration de l'année scolaire (gérée via Supabase)</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="anneeAcademique" className="flex items-center gap-1">
-                    Année académique <span className="text-red-500">*</span>
-                    <HelpCircle className="h-3 w-3 text-gray-400" />
-                  </Label>
-                  <Input
-                    id="anneeAcademique"
-                    value={settings.anneeAcademique}
-                    onChange={(e) => handleSettingsChange("anneeAcademique", e.target.value)}
-                    placeholder="2024-2025"
-                    className={settings.anneeAcademique ? "" : "border-red-300"}
-                  />
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="dateDebut" className="flex items-center gap-1">
-                      Date de début <span className="text-red-500">*</span>
-                      <HelpCircle className="h-3 w-3 text-gray-400" />
-                    </Label>
-                    <Input
-                      id="dateDebut"
-                      type="date"
-                      value={settings.dateDebut}
-                      onChange={(e) => handleSettingsChange("dateDebut", e.target.value)}
-                      className={settings.dateDebut ? "" : "border-red-300"}
-                    />
+                {academicYears.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune année académique</h3>
+                    <p className="text-gray-500 mb-4">Créez votre première année académique pour commencer.</p>
+                    <Button asChild>
+                      <Link href="/ecole/settings/annees">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Créer une année
+                      </Link>
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="dateFin" className="flex items-center gap-1">
-                      Date de fin <span className="text-red-500">*</span>
-                      <HelpCircle className="h-3 w-3 text-gray-400" />
-                    </Label>
-                    <Input
-                      id="dateFin"
-                      type="date"
-                      value={settings.dateFin}
-                      onChange={(e) => handleSettingsChange("dateFin", e.target.value)}
-                      className={settings.dateFin ? "" : "border-red-300"}
-                    />
+                ) : (
+                  <div className="space-y-3">
+                    {academicYears.map((year) => (
+                      <div key={year.id} className={`flex items-center justify-between p-4 border rounded-lg ${year.is_active ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'}`}>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium">{year.name}</h4>
+                            {year.is_active && (
+                              <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">
+                                Active
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {new Date(year.start_date).toLocaleDateString('fr-FR')} - {new Date(year.end_date).toLocaleDateString('fr-FR')}
+                          </p>
+                        </div>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href="/ecole/settings/annees">
+                            <Edit className="h-4 w-4 mr-2" />
+                            Gérer
+                          </Link>
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                </div>
-
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="font-medium text-blue-800 mb-2">Informations calculées</h3>
-                  <div className="text-sm text-blue-700 space-y-1">
-                    <div>
-                      Durée de l'année:{" "}
-                      {settings.dateDebut && settings.dateFin ? Math.ceil(
-                        (new Date(settings.dateFin).getTime() - new Date(settings.dateDebut).getTime()) /
-                          (1000 * 60 * 60 * 24),
-                      ) : 0}{" "}
-                      jours
-                    </div>
-                    <div>
-                      Nombre de mois:{" "}
-                      {settings.dateDebut && settings.dateFin ? Math.ceil(
-                        (new Date(settings.dateFin).getTime() - new Date(settings.dateDebut).getTime()) /
-                          (1000 * 60 * 60 * 24 * 30),
-                      ) : 0}
-                    </div>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

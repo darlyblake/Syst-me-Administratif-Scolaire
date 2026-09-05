@@ -104,7 +104,7 @@ export default function SettingsPage() {
     const fraisInscriptionChanged = fraisInscriptionEtablissement !== initialFraisInscription
     const fraisReinscriptionChanged = fraisReinscriptionEtablissement !== initialFraisReinscription
     const tarificationChanged = JSON.stringify(tarificationTypesEcole) !== JSON.stringify(initialTarificationTypesEcole)
-    const optionsChanged = initialOptions && JSON.stringify(optionsSupplementaires) !== JSON.stringify(initialOptions)
+    const optionsChanged = initialOptions ? JSON.stringify(optionsSupplementaires) !== JSON.stringify(initialOptions) : false
 
     const hasChanges = settingsChanged || fraisInscriptionChanged || fraisReinscriptionChanged || tarificationChanged || optionsChanged
     setHasUnsavedChanges(hasChanges)
@@ -729,7 +729,7 @@ export default function SettingsPage() {
                             )}
                           </div>
                           <p className="text-sm text-gray-600 mt-1">
-                            {new Date(year.start_date).toLocaleDateString('fr-FR')} - {new Date(year.end_date).toLocaleDateString('fr-FR')}
+                            {year.start_date ? new Date(year.start_date).toLocaleDateString('fr-FR') : '—'} - {year.end_date ? new Date(year.end_date).toLocaleDateString('fr-FR') : '—'}
                           </p>
                         </div>
                         <Button variant="outline" size="sm" asChild>

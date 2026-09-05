@@ -39,9 +39,9 @@ export default function SettingsPage() {
   }
 
   const { data: establishment, error: establishmentError } = useEstablishment(establishmentId)
-  const { data: academicYears, activeYear } = useAcademicYears(establishmentId)
-  const { data: academicStructure, isLoading: isLoadingStructure } = useAcademicStructure(establishmentId)
-  const { data: tuitionPlans, isLoading: isLoadingPlans, refresh: refreshPlans } = useTuitionPlans(activeYear?.id || null)
+  const { data: academicYears, activeYear, error: academicYearsError } = useAcademicYears(establishmentId)
+  const { data: academicStructure, isLoading: isLoadingStructure, error: structureError } = useAcademicStructure(establishmentId)
+  const { data: tuitionPlans, isLoading: isLoadingPlans, refresh: refreshPlans, error: tuitionError } = useTuitionPlans(activeYear?.id || null)
 
   const [settings, setSettings] = useState<ParametresEcole>({
     anneeAcademique: "",

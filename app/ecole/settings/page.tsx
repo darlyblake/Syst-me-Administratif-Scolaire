@@ -18,35 +18,6 @@ import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import { serviceParametres } from "@/services/parametres.service"
 import type { ParametresEcole, TarificationClasse, OptionsSupplementaires, OptionSupplementaire, TarificationTypeEcole, TarificationNiveau } from "@/services/parametres.service"
 
-interface TranchePaiement {
-  numero: number
-  nom: string
-  dateDebut: string
-  dateFin: string
-  pourcentage: number
-}
-
-interface ParametresPaiement {
-  datePaiementMensuel: number
-  tranchesPaiement: TranchePaiement[]
-}
-
-interface PlanTranche {
-  id: string
-  label: string
-  pourcentage: number
-  echeance?: string
-}
-
-interface PlanPaiement {
-  id: string
-  nom: string
-  type: "mensuel" | "tranches"
-  nombreMensualites?: number
-  jourPaiement?: number
-  tranches?: PlanTranche[]
-}
-
 export default function SettingsPage() {
   const { utilisateur } = useAuthentification()
   const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId
@@ -95,12 +66,6 @@ export default function SettingsPage() {
     cooperative: 0,
     tenueEPS: 0,
     assurance: 0,
-  })
-
-  // État pour les paramètres de paiement
-  const [parametresPaiement, setParametresPaiement] = useState<ParametresPaiement>({
-    datePaiementMensuel: 5,
-    tranchesPaiement: [],
   })
 
   const [nouvelleClasse, setNouvelleClasse] = useState("")
@@ -185,10 +150,6 @@ export default function SettingsPage() {
       }
       setOptionsSupplementaires(loadedOptions)
 
-      // Charger les paramètres de paiement depuis le service
-      const paiementCharges = serviceParametres.obtenirParametresPaiement()
-      setParametresPaiement(paiementCharges)
-
       // Charger les options supplémentaires personnalisées
       const optionsPersonnaliseesChargees = serviceParametres.obtenirOptionsSupplementairesPersonnalisees()
       setOptionsPersonnalisees(optionsPersonnaliseesChargees)
@@ -265,10 +226,6 @@ export default function SettingsPage() {
     }
     setErreursValidation(prev => ({ ...prev, [champ]: "" }))
     return true
-  }
-
-  const calculerTotalPourcentages = () => {
-    return parametresPaiement.tranchesPaiement.reduce((sum, tranche) => sum + tranche.pourcentage, 0)
   }
 
   const handleSettingsChange = (field: keyof ParametresEcole, value: string) => {
@@ -395,43 +352,6 @@ export default function SettingsPage() {
     }
   }
 
-  const handleTrancheChange = (index: number, field: keyof TranchePaiement, value: string | number) => {
-    if (field === 'pourcentage' && typeof value === 'number') {
-      if (!validerPourcentage(value, `tranche-${index}-pourcentage`)) {
-        return
-      }
-    }
-
-    setParametresPaiement((prev) => ({
-      ...prev,
-      tranchesPaiement: prev.tranchesPaiement.map((tranche, i) =>
-        i === index ? { ...tranche, [field]: value } : tranche
-      )
-    }))
-  }
-
-  const ajouterTranchePaiement = () => {
-    const nouveauNumero = parametresPaiement.tranchesPaiement.length + 1
-    const nouvelleTranche: TranchePaiement = {
-      numero: nouveauNumero,
-      nom: `${nouveauNumero}ème tranche`,
-      dateDebut: "",
-      dateFin: "",
-      pourcentage: 0
-    }
-    setParametresPaiement((prev) => ({
-      ...prev,
-      tranchesPaiement: [...prev.tranchesPaiement, nouvelleTranche]
-    }))
-  }
-
-  const supprimerTranchePaiement = (index: number) => {
-    setParametresPaiement((prev) => ({
-      ...prev,
-      tranchesPaiement: prev.tranchesPaiement.filter((_, i) => i !== index)
-    }))
-  }
-
   const ajouterClasse = () => {
     if (nouvelleClasse.trim() && fraisScolariteAnnuelleNouvelle > 0) {
       const nouvelleClasseObj: TarificationClasse = {
@@ -493,9 +413,6 @@ export default function SettingsPage() {
       serviceParametres.sauvegarderTarificationParTypeEcole(tarificationTypesEcole)
       serviceParametres.sauvegarderOptionsSupplementaires(optionsSupplementaires)
 
-      // Sauvegarder les paramètres de paiement via le service
-      serviceParametres.sauvegarderParametresPaiement(parametresPaiement)
-
       // Sauvegarder les options personnalisées
       serviceParametres.sauvegarderOptionsSupplementairesPersonnalisees(optionsPersonnalisees)
 
@@ -521,10 +438,6 @@ export default function SettingsPage() {
         const tarificationDefaut = serviceParametres.obtenirTarification()
         setSettings(parametresDefaut)
         setPricing(tarificationDefaut)
-
-        // Réinitialiser les paramètres de paiement via le service
-        const paiementDefaut = serviceParametres.obtenirParametresPaiement()
-        setParametresPaiement(paiementDefaut)
 
         // Réinitialiser l'état initial
         setInitialSettings(parametresDefaut)

@@ -461,9 +461,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-6">
+    <div className="min-h-screen min-w-0 max-w-full overflow-x-hidden bg-gray-50">
+      <div className="mx-auto max-w-7xl min-w-0 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <Button variant="outline" size="sm" asChild>
               <Link href="/">
@@ -479,7 +479,7 @@ export default function SettingsPage() {
               <p className="text-gray-600">Configuration de l'établissement et des tarifs</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Button variant="outline" onClick={resetSettings}>
               <RotateCcw className="h-4 w-4 mr-2" />
               Réinitialiser
@@ -522,7 +522,7 @@ export default function SettingsPage() {
         )}
 
         <Tabs defaultValue="general" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-5 lg:grid-cols-5 overflow-x-auto">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-5 lg:grid-cols-5 overflow-x-auto" className="flex h-auto w-full max-w-full flex-wrap justify-start gap-1 overflow-x-auto p-1">
             <TabsTrigger value="general" className="whitespace-nowrap">Général</TabsTrigger>
             <TabsTrigger value="academic" className="whitespace-nowrap">Année académique</TabsTrigger>
             <TabsTrigger value="payments" className="whitespace-nowrap">Paiements</TabsTrigger>
@@ -615,7 +615,7 @@ export default function SettingsPage() {
                     Le logo et le cachet seront utilisés sur les documents officiels (bulletins, certificats, attestations).
                   </p>
 
-                  <div className="grid md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                     <div className="space-y-4">
                       <Label className="font-medium">Logo officiel</Label>
                       <div className="space-y-2">
@@ -749,7 +749,7 @@ export default function SettingsPage() {
           <TabsContent value="payments">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <CreditCard className="h-5 w-5" />

@@ -472,19 +472,19 @@ export default function SettingsPage() {
               </Link>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Settings className="h-6 w-6" />
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Settings className="h-5 w-5 sm:h-6 sm:w-6" />
                 Paramètres du Système
               </h1>
-              <p className="text-gray-600">Configuration de l'établissement et des tarifs</p>
+              <p className="text-sm sm:text-base text-gray-600">Configuration de l'établissement et des tarifs</p>
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button variant="outline" onClick={resetSettings}>
+            <Button variant="outline" onClick={resetSettings} className="flex-1 sm:flex-none">
               <RotateCcw className="h-4 w-4 mr-2" />
               Réinitialiser
             </Button>
-            <Button onClick={saveSettings} disabled={!hasUnsavedChanges}>
+            <Button onClick={saveSettings} disabled={!hasUnsavedChanges} className="flex-1 sm:flex-none">
               <Save className="h-4 w-4 mr-2" />
               Sauvegarder
             </Button>
@@ -718,7 +718,7 @@ export default function SettingsPage() {
                 ) : (
                   <div className="space-y-3">
                     {academicYears.map((year) => (
-                      <div key={year.id} className={`flex items-center justify-between p-4 border rounded-lg ${year.is_active ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'}`}>
+                      <div key={year.id} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg ${year.is_active ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'}`}>
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <h4 className="font-medium">{year.name}</h4>
@@ -732,7 +732,7 @@ export default function SettingsPage() {
                             {year.start_date ? new Date(year.start_date).toLocaleDateString('fr-FR') : '—'} - {year.end_date ? new Date(year.end_date).toLocaleDateString('fr-FR') : '—'}
                           </p>
                         </div>
-                        <Button variant="outline" size="sm" asChild>
+                        <Button variant="outline" size="sm" asChild className="mt-3 sm:mt-0">
                           <Link href="/ecole/settings/annees">
                             <Edit className="h-4 w-4 mr-2" />
                             Gérer
@@ -757,7 +757,7 @@ export default function SettingsPage() {
                     </CardTitle>
                     <CardDescription>Créez et gérez les plans de paiement pour les niveaux scolaires (stockés dans Supabase)</CardDescription>
                   </div>
-                  <Button asChild>
+                  <Button asChild className="w-full sm:w-auto">
                     <Link href="/ecole/settings/scolarite">
                       <Plus className="h-4 w-4 mr-2" />
                       Gérer les plans
@@ -785,9 +785,9 @@ export default function SettingsPage() {
                 ) : (
                   <div className="space-y-3">
                     {tuitionPlans.map((plan) => (
-                      <div key={plan.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                      <div key={plan.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-medium">Plan pour niveau</h4>
                             <span className={`text-xs px-2 py-1 rounded-full ${
                               plan.payment_mode === "monthly" ? "bg-blue-100 text-blue-800" : 
@@ -805,7 +805,7 @@ export default function SettingsPage() {
                              plan.payment_mode === "monthly" ? " Mensuel" : " Paiement unique"}
                           </p>
                         </div>
-                        <Button variant="outline" size="sm" asChild>
+                        <Button variant="outline" size="sm" asChild className="mt-3 sm:mt-0">
                           <Link href="/ecole/settings/scolarite">
                             <Edit className="h-4 w-4 mr-2" />
                             Modifier
@@ -848,9 +848,9 @@ export default function SettingsPage() {
                 ) : (
                   <div className="space-y-3">
                     {tuitionPlans.map((plan) => (
-                      <div key={plan.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                      <div key={plan.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-medium">Plan pour niveau</h4>
                             <span className={`text-xs px-2 py-1 rounded-full ${
                               plan.payment_mode === "monthly" ? "bg-blue-100 text-blue-800" : 
@@ -867,7 +867,7 @@ export default function SettingsPage() {
                             Scolarité: {plan.annual_amount.toLocaleString()} FCFA / an
                           </p>
                         </div>
-                        <Button variant="outline" size="sm" asChild>
+                        <Button variant="outline" size="sm" asChild className="mt-3 sm:mt-0">
                           <Link href="/ecole/settings/scolarite">
                             <Edit className="h-4 w-4 mr-2" />
                             Modifier

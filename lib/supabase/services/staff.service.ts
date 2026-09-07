@@ -41,7 +41,7 @@ export async function listStaffPaginated(
 
 export async function createStaff(data: {
   establishmentId: string
-  profileId: string
+  profileId?: string | null
   firstName: string
   lastName: string
   position: string
@@ -51,6 +51,17 @@ export async function createStaff(data: {
   hireDate: string
   active?: boolean
 }): Promise<string> {
+  // Un personnel n'est pas automatiquement un utilisateur.
+  // Si l'ancien frontend transmet le profil de l'administrateur créateur,
+  // ne jamais l'associer au nouveau personnel par erreur.
+  let profileId = data.profileId ?? null
+  if (profileId) {
+    const { data: authData } = await supabaseBrowser.auth.getUser()
+    if (authData.user?.id === profileId) {
+      profileId = null
+    }
+  }
+
   const { data: result, error } = await supabaseBrowser.rpc("create_staff", {
     p_establishment_id: data.establishmentId,
     p_first_name: data.firstName,
@@ -60,7 +71,7 @@ export async function createStaff(data: {
     p_phone: data.phone || null,
     p_email: data.email || null,
     p_hire_date: data.hireDate,
-    p_profile_id: data.profileId,
+    p_profile_id: profileId,
     p_active: data.active ?? true,
   })
 

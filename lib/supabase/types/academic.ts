@@ -13,7 +13,6 @@ export interface AcademicYear {
   name: string
   start_date?: string | null
   end_date?: string | null
-  is_active?: boolean
   status?: "draft" | "active" | "closed"
   created_at?: string
 }

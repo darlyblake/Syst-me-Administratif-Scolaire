@@ -223,13 +223,13 @@ export default function AcademicYearsPage() {
         ) : (
           <div className="space-y-4">
             {academicYears.map((year) => (
-              <Card key={year.id} className={year.is_active ? "border-blue-200 bg-blue-50" : ""}>
+              <Card key={year.id} className={year.status === "active" ? "border-blue-200 bg-blue-50" : ""}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="text-lg font-medium">{year.name}</h3>
-                        {year.is_active && (
+                        {year.status === "active" && (
                           <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">
                             <CheckCircle2 className="h-3 w-3" />
                             Active
@@ -241,7 +241,7 @@ export default function AcademicYearsPage() {
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      {!year.is_active && (
+                      {year.status !== "active" && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -250,7 +250,7 @@ export default function AcademicYearsPage() {
                           Activer
                         </Button>
                       )}
-                      {year.is_active && (
+                      {year.status === "active" && (
                         <Button
                           variant="outline"
                           size="sm"

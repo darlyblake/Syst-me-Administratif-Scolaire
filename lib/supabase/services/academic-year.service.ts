@@ -54,8 +54,9 @@ export async function activateAcademicYear(yearId: string): Promise<AcademicYear
 
   const { data: updated, error: updateError } = await supabaseBrowser
     .from("academic_years")
-    .update({ status: "active" })
+    .update({ status: "draft" })
     .eq("establishment_id", current.establishment_id)
+    .eq("status", "active")
     .neq("id", yearId)
     .select()
 

@@ -74,7 +74,7 @@ export default function AcademicYearsPage() {
         name: formData.name,
         start_date: formData.start_date,
         end_date: formData.end_date,
-        is_active: false
+        status: "draft"
       })
       await refresh()
       handleCloseDialog()

@@ -18,6 +18,7 @@ import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import { useEnrollment } from "@/hooks/useEnrollment"
+import { createStudent } from "@/lib/supabase/services/student.service"
 
 interface NouvelleInscriptionModalProps {
   isOpen: boolean
@@ -241,9 +242,37 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
       return
     }
 
+    let studentIdToUse = studentId
+
+    // Pour nouvelle inscription, créer d'abord l'étudiant
+    if (typeInscription === "inscription") {
+      try {
+        const generatedStudentNumber = studentIdentifiant || genererCodeUnique()
+        const newStudentId = await createStudent({
+          establishmentId,
+          firstName: formData.prenom,
+          lastName: formData.nom,
+          studentNumber: generatedStudentNumber,
+          birthDate: formData.dateNaissance,
+          sex: formData.sexe,
+          phone: formData.telephoneParent,
+          email: formData.emailParent,
+          active: true,
+        })
+        studentIdToUse = newStudentId
+        setStudentIdentifiant(generatedStudentNumber)
+      } catch (err) {
+        toast.error("Erreur lors de la création de l'élève", {
+          description: err instanceof Error ? err.message : "Impossible de créer l'élève"
+        })
+        return
+      }
+    }
+
+    // Créer l'inscription
     const result = await createStudentEnrollment({
       establishmentId,
-      studentId: typeInscription === "reinscription" ? studentId : null,
+      studentId: studentIdToUse,
       academicYearId: selectedYear.id,
       classId: selectedClass.id,
       tuitionPlanId: selectedPlan.id,

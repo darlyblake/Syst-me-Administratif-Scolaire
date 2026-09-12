@@ -28,7 +28,11 @@ export function useClasses() {
         obtenirClassesSupabase(establishmentId),
         getEnabledGradeLevels(establishmentId),
       ])
-      setClasses(classesResult)
+      const classesWithLevelNames = classesResult.map((classe) => ({
+        ...classe,
+        niveau: levelsResult.find((niveau) => niveau.id === classe.niveau)?.name ?? classe.niveau,
+      }))
+      setClasses(classesWithLevelNames)
       setNiveaux(levelsResult)
       setError(null)
     } catch (e) {
@@ -47,12 +51,15 @@ export function useClasses() {
     if (!niveaux.some((niveau) => niveau.id === gradeLevelId)) {
       throw new Error("Ce niveau n'est pas activé pour cet établissement")
     }
+    const capacity = Number(data.capacite)
+    if (!Number.isFinite(capacity) || capacity <= 0) {
+      throw new Error("La capacité doit être supérieure à 0")
+    }
     const result = await creerClasseSupabase(establishmentId, {
       grade_level_id: gradeLevelId,
       name: data.nom.trim(),
       code: data.code ?? null,
-      academic_year_id: data.academic_year_id ?? null,
-      capacity: data.capacite == null ? 30 : Math.max(0, Number(data.capacite)),
+      capacity,
     })
     await refresh()
     return result
@@ -66,7 +73,13 @@ export function useClasses() {
     const changes: Record<string, unknown> = {}
     if (data.nom !== undefined) changes.name = data.nom.trim()
     if (targetLevel !== undefined) changes.grade_level_id = targetLevel
-    if (data.capacite !== undefined) changes.capacity = Math.max(0, Number(data.capacite))
+    if (data.capacite !== undefined) {
+      const capacity = Number(data.capacite)
+      if (!Number.isFinite(capacity) || capacity <= 0) {
+        throw new Error("La capacité doit être supérieure à 0")
+      }
+      changes.capacity = capacity
+    }
     const result = await modifierClasseSupabase(id, changes)
     await refresh()
     return result

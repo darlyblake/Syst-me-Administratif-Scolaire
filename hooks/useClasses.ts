@@ -42,31 +42,31 @@ export function useClasses() {
 
   const ajouter = useCallback(async (data: Omit<Classe, "id"> & { grade_level_id?: string; code?: string | null; academic_year_id?: string | null }) => {
     const establishmentId = await getCurrentEstablishmentId()
-    if (!data.grade_level_id) throw new Error("Le niveau académique est obligatoire")
-    if (!niveaux.some((niveau) => niveau.id === data.grade_level_id)) {
+    const gradeLevelId = data.grade_level_id ?? niveaux.find((niveau) => niveau.name === data.niveau)?.id
+    if (!gradeLevelId) throw new Error("Le niveau académique est obligatoire")
+    if (!niveaux.some((niveau) => niveau.id === gradeLevelId)) {
       throw new Error("Ce niveau n'est pas activé pour cet établissement")
     }
     const result = await creerClasseSupabase(establishmentId, {
-      grade_level_id: data.grade_level_id,
-      name: data.nom,
+      grade_level_id: gradeLevelId,
+      name: data.nom.trim(),
       code: data.code ?? null,
       academic_year_id: data.academic_year_id ?? null,
-      capacity: data.capacite ?? null,
+      capacity: data.capacite == null ? 30 : Math.max(0, Number(data.capacite)),
     })
     await refresh()
     return result
   }, [niveaux, refresh])
 
   const modifier = useCallback(async (id: string, data: Partial<Classe> & { grade_level_id?: string }) => {
-    const targetLevel = data.grade_level_id ?? data.niveau
+    const targetLevel = data.grade_level_id ?? (data.niveau ? niveaux.find((niveau) => niveau.name === data.niveau)?.id : undefined)
     if (targetLevel !== undefined && !niveaux.some((niveau) => niveau.id === targetLevel)) {
       throw new Error("Ce niveau n'est pas activé pour cet établissement")
     }
     const changes: Record<string, unknown> = {}
-    if (data.nom !== undefined) changes.name = data.nom
-    if (data.niveau !== undefined) changes.grade_level_id = data.niveau
-    if (data.grade_level_id !== undefined) changes.grade_level_id = data.grade_level_id
-    if (data.capacite !== undefined) changes.capacity = data.capacite
+    if (data.nom !== undefined) changes.name = data.nom.trim()
+    if (targetLevel !== undefined) changes.grade_level_id = targetLevel
+    if (data.capacite !== undefined) changes.capacity = Math.max(0, Number(data.capacite))
     const result = await modifierClasseSupabase(id, changes)
     await refresh()
     return result
@@ -78,8 +78,6 @@ export function useClasses() {
     return true
   }, [refresh])
 
-  // These helpers are intentionally synchronous because the page uses their length during render.
-  // Awaiting their result remains valid for existing callers.
   const getEleves = useCallback((_id: string): DonneesEleve[] => [], [])
   const getEnseignants = useCallback((_id: string): DonneesEnseignant[] => [], [])
 
@@ -89,15 +87,7 @@ export function useClasses() {
     const totalEleves = classes.reduce((sum, classe) => sum + (classe.effectif ?? 0), 0)
     const moyenneElevesParClasse = totalClasses > 0 ? totalEleves / totalClasses : 0
     const recettesTotales = classes.reduce((sum, classe) => sum + (classe.fraisScolarite ?? 0), 0)
-
-    return {
-      total: totalClasses,
-      actives: classesActives,
-      totalClasses,
-      classesActives,
-      moyenneElevesParClasse,
-      recettesTotales,
-    }
+    return { total: totalClasses, actives: classesActives, totalClasses, classesActives, moyenneElevesParClasse, recettesTotales }
   }, [classes])
 
   return { classes, niveaux, loading, error, statistiques, refresh, ajouter, modifier, supprimer, getEleves, getEnseignants }

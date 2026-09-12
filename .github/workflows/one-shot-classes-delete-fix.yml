@@ -1,0 +1,45 @@
+name: One-shot classes delete fix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch delete handler
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/ecole/classes/page.tsx')
+          s = p.read_text()
+          old = '''const handleSupprimerClasse = (id: string) => {
+            if (confirm("Êtes-vous sûr de vouloir supprimer cette classe ?")) {
+              supprimer(id)
+              toast.success("Classe supprimée")
+            }
+          }'''
+          new = '''const handleSupprimerClasse = async (id: string) => {
+            if (!confirm("Êtes-vous sûr de vouloir supprimer cette classe ?")) return
+            try {
+              await supprimer(id)
+              toast.success("Classe supprimée")
+            } catch (erreur) {
+              toast.error(erreur instanceof Error ? erreur.message : "Erreur lors de la suppression")
+            }
+          }'''
+          if old not in s:
+              raise SystemExit('Delete handler pattern not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/ecole/classes/page.tsx .github/workflows/one-shot-classes-delete-fix.yml
+          git commit -m 'fix(classes): await deletion and handle errors [classes-fix-bot]'
+          git push

@@ -37,7 +37,14 @@ export async function obtenirClassesSupabase(etablissementId: string): Promise<C
 export async function creerClasseSupabase(etablissementId: string, input: Omit<SchoolClassRecord, "id" | "establishment_id" | "active">) {
   const { data, error } = await supabaseBrowser
     .from("school_classes")
-    .insert({ ...input, establishment_id: etablissementId, active: true })
+    .insert({
+      establishment_id: etablissementId,
+      grade_level_id: input.grade_level_id,
+      name: input.name,
+      code: input.code ?? null,
+      capacity: input.capacity ?? null,
+      active: true,
+    })
     .select(selectFields)
     .single()
   if (error) throw new Error(`Impossible de créer la classe: ${error.message}`)

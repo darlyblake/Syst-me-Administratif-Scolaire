@@ -55,7 +55,7 @@ export default function ClassesPage() {
     )
   }, [academicStructure])
 
-  const displayClasses = academicClasses.length ? academicClasses : classes
+  const displayClasses = classes.length ? classes : academicClasses
   const [activeTab, setActiveTab] = useState<Tab>("liste")
   const [tarificationTypesEcole, setTarificationTypesEcole] = useState<TarificationTypeEcole[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
@@ -114,9 +114,9 @@ export default function ClassesPage() {
     })
   }
 
-  const handleAjouterClasse = () => {
+  const handleAjouterClasse = async () => {
     try {
-      ajouter(nouvelleClasse)
+      await ajouter(nouvelleClasse)
       setShowAddModal(false)
       setNouvelleClasse({
         nom: "",
@@ -131,10 +131,10 @@ export default function ClassesPage() {
     }
   }
 
-  const handleModifierClasse = () => {
+  const handleModifierClasse = async () => {
     if (!editingClasse) return
     try {
-      modifier(editingClasse.id, editingClasse)
+      await modifier(editingClasse.id, editingClasse)
       setShowEditModal(false)
       setEditingClasse(null)
       toast.success("Classe modifiée")
@@ -657,8 +657,8 @@ export default function ClassesPage() {
                 <Input
                   id="capacite"
                   type="number"
-                  value={nouvelleClasse.capacite}
-                  onChange={(e) => setNouvelleClasse({ ...nouvelleClasse, capacite: parseInt(e.target.value) || 30 })}
+                  value={Number.isNaN(nouvelleClasse.capacite) ? "" : nouvelleClasse.capacite}
+                  onChange={(e) => setNouvelleClasse({ ...nouvelleClasse, capacite: e.target.value === "" ? Number.NaN : Number(e.target.value) })}
                   className="rounded-2xl border border-terre/15 bg-creme/50"
                 />
               </div>
@@ -737,8 +737,8 @@ export default function ClassesPage() {
                 <Input
                   id="edit-capacite"
                   type="number"
-                  value={editingClasse.capacite}
-                  onChange={(e) => setEditingClasse({ ...editingClasse, capacite: parseInt(e.target.value) || 30 })}
+                  value={Number.isNaN(editingClasse.capacite) ? "" : editingClasse.capacite}
+                  onChange={(e) => setEditingClasse({ ...editingClasse, capacite: e.target.value === "" ? Number.NaN : Number(e.target.value) })}
                   className="rounded-2xl border-terre/15 bg-creme/50"
                 />
               </div>

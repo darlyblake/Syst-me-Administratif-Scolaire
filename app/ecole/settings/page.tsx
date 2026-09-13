@@ -18,6 +18,33 @@ import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import { serviceParametres, type TarificationClasse, type OptionsSupplementaires, type OptionSupplementaire, type TarificationTypeEcole, type TarificationNiveau } from "@/services/parametres.service"
 import { updateEstablishment } from "@/lib/supabase/services/establishment.service"
 import type { ParametresEcole } from "@/types/models"
+import type { Establishment } from "@/lib/supabase/types"
+
+interface EstablishmentFormData {
+  nomEtablissement: string
+  nomLegal: string
+  nomCourt: string
+  typeEcole: string
+  codeEtablissement: string
+  slogan: string
+  emailEtablissement: string
+  telephoneEtablissement: string
+  telephoneSecondaire: string
+  siteWeb: string
+  adresse: string
+  adresse2: string
+  codePostal: string
+  ville: string
+  province: string
+  pays: string
+  codePays: string
+  deviseCode: string
+  deviseNom: string
+  deviseSymbole: string
+  fuseauHoraire: string
+  logoUrl: string
+  cachetUrl: string
+}
 
 export default function SettingsPage() {
   const { utilisateur } = useAuthentification()
@@ -55,6 +82,32 @@ export default function SettingsPage() {
     logoUrl: "",
     cachetUrl: "",
     modePaiement: "les_deux",
+  })
+
+  const [establishmentFormData, setEstablishmentFormData] = useState<EstablishmentFormData>({
+    nomEtablissement: "",
+    nomLegal: "",
+    nomCourt: "",
+    typeEcole: "",
+    codeEtablissement: "",
+    slogan: "",
+    emailEtablissement: "",
+    telephoneEtablissement: "",
+    telephoneSecondaire: "",
+    siteWeb: "",
+    adresse: "",
+    adresse2: "",
+    codePostal: "",
+    ville: "",
+    province: "",
+    pays: "",
+    codePays: "",
+    deviseCode: "",
+    deviseNom: "",
+    deviseSymbole: "",
+    fuseauHoraire: "",
+    logoUrl: "",
+    cachetUrl: "",
   })
 
   const [pricing, setPricing] = useState<TarificationClasse[]>([])
@@ -414,29 +467,29 @@ export default function SettingsPage() {
     try {
       // Sauvegarder les informations de l'établissement dans Supabase
       await updateEstablishment(establishmentId, {
-        name: settings.nomEtablissement,
-        legal_name: settings.nomLegal,
-        short_name: settings.nomCourt,
-        establishment_type: settings.typeEcole,
-        code: settings.codeEtablissement,
-        slogan: settings.slogan,
-        email: settings.emailEtablissement,
-        phone: settings.telephoneEtablissement,
-        alternate_phone: settings.telephoneSecondaire,
-        website: settings.siteWeb,
-        address_line1: settings.adresse,
-        address_line2: settings.adresse2,
-        postal_code: settings.codePostal,
-        city: settings.ville,
-        province: settings.province,
-        country: settings.pays,
-        country_code: settings.codePays,
-        currency_code: settings.deviseCode,
-        currency_name: settings.deviseNom,
-        currency_symbol: settings.deviseSymbole,
-        timezone: settings.fuseauHoraire,
-        logo_url: settings.logoUrl,
-        seal_url: settings.cachetUrl,
+        name: establishmentFormData.nomEtablissement,
+        legal_name: establishmentFormData.nomLegal,
+        short_name: establishmentFormData.nomCourt,
+        establishment_type: establishmentFormData.typeEcole,
+        code: establishmentFormData.codeEtablissement,
+        slogan: establishmentFormData.slogan,
+        email: establishmentFormData.emailEtablissement,
+        phone: establishmentFormData.telephoneEtablissement,
+        alternate_phone: establishmentFormData.telephoneSecondaire,
+        website: establishmentFormData.siteWeb,
+        address_line1: establishmentFormData.adresse,
+        address_line2: establishmentFormData.adresse2,
+        postal_code: establishmentFormData.codePostal,
+        city: establishmentFormData.ville,
+        province: establishmentFormData.province,
+        country: establishmentFormData.pays,
+        country_code: establishmentFormData.codePays,
+        currency_code: establishmentFormData.deviseCode,
+        currency_name: establishmentFormData.deviseNom,
+        currency_symbol: establishmentFormData.deviseSymbole,
+        timezone: establishmentFormData.fuseauHoraire,
+        logo_url: establishmentFormData.logoUrl,
+        seal_url: establishmentFormData.cachetUrl,
       })
 
       // Sauvegarder les autres paramètres dans localStorage (temporaire)
@@ -553,7 +606,7 @@ export default function SettingsPage() {
         )}
 
         <Tabs defaultValue="general" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-5 lg:grid-cols-5 overflow-x-auto" className="flex h-auto w-full max-w-full flex-wrap justify-start gap-1 overflow-x-auto p-1">
+          <TabsList className="flex h-auto w-full max-w-full flex-wrap justify-start gap-1 overflow-x-auto p-1">
             <TabsTrigger value="general" className="whitespace-nowrap">Général</TabsTrigger>
             <TabsTrigger value="academic" className="whitespace-nowrap">Année académique</TabsTrigger>
             <TabsTrigger value="payments" className="whitespace-nowrap">Paiements</TabsTrigger>

@@ -10,6 +10,10 @@ interface TuitionPlanPayload extends Partial<TuitionPlan> {
 }
 
 export async function getTuitionPlans(academicYearId: string): Promise<TuitionPlan[]> {
+  if (!academicYearId) {
+    return []
+  }
+
   const { data, error } = await supabaseBrowser
     .from("tuition_plans")
     .select("*")

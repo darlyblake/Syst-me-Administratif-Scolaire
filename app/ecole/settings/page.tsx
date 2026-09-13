@@ -465,32 +465,37 @@ export default function SettingsPage() {
     }
 
     try {
+      // Construire le payload avec conversion des chaînes vides en null
+      // Note: name est NOT NULL dans le schéma, donc on ne le convertit pas en null
+      // Note: currency_code, currency_name, currency_symbol, timezone ont des valeurs par défaut
+      const establishmentPayload = {
+        name: establishmentFormData.nomEtablissement?.trim() || "",
+        legal_name: establishmentFormData.nomLegal?.trim() || null,
+        short_name: establishmentFormData.nomCourt?.trim() || null,
+        establishment_type: establishmentFormData.typeEcole?.trim() || null,
+        code: establishmentFormData.codeEtablissement?.trim() || null,
+        slogan: establishmentFormData.slogan?.trim() || null,
+        email: establishmentFormData.emailEtablissement?.trim() || null,
+        phone: establishmentFormData.telephoneEtablissement?.trim() || null,
+        alternate_phone: establishmentFormData.telephoneSecondaire?.trim() || null,
+        website: establishmentFormData.siteWeb?.trim() || null,
+        address_line1: establishmentFormData.adresse?.trim() || null,
+        address_line2: establishmentFormData.adresse2?.trim() || null,
+        postal_code: establishmentFormData.codePostal?.trim() || null,
+        city: establishmentFormData.ville?.trim() || null,
+        province: establishmentFormData.province?.trim() || null,
+        country: establishmentFormData.pays?.trim() || null,
+        country_code: establishmentFormData.codePays?.trim() || null,
+        currency_code: establishmentFormData.deviseCode?.trim() || "XAF",
+        currency_name: establishmentFormData.deviseNom?.trim() || "Franc CFA",
+        currency_symbol: establishmentFormData.deviseSymbole?.trim() || "FCFA",
+        timezone: establishmentFormData.fuseauHoraire?.trim() || "Africa/Libreville",
+        logo_url: establishmentFormData.logoUrl?.trim() || null,
+        seal_url: establishmentFormData.cachetUrl?.trim() || null,
+      }
+
       // Sauvegarder les informations de l'établissement dans Supabase
-      await updateEstablishment(establishmentId, {
-        name: establishmentFormData.nomEtablissement,
-        legal_name: establishmentFormData.nomLegal,
-        short_name: establishmentFormData.nomCourt,
-        establishment_type: establishmentFormData.typeEcole,
-        code: establishmentFormData.codeEtablissement,
-        slogan: establishmentFormData.slogan,
-        email: establishmentFormData.emailEtablissement,
-        phone: establishmentFormData.telephoneEtablissement,
-        alternate_phone: establishmentFormData.telephoneSecondaire,
-        website: establishmentFormData.siteWeb,
-        address_line1: establishmentFormData.adresse,
-        address_line2: establishmentFormData.adresse2,
-        postal_code: establishmentFormData.codePostal,
-        city: establishmentFormData.ville,
-        province: establishmentFormData.province,
-        country: establishmentFormData.pays,
-        country_code: establishmentFormData.codePays,
-        currency_code: establishmentFormData.deviseCode,
-        currency_name: establishmentFormData.deviseNom,
-        currency_symbol: establishmentFormData.deviseSymbole,
-        timezone: establishmentFormData.fuseauHoraire,
-        logo_url: establishmentFormData.logoUrl,
-        seal_url: establishmentFormData.cachetUrl,
-      })
+      await updateEstablishment(establishmentId, establishmentPayload)
 
       // Sauvegarder les autres paramètres dans localStorage (temporaire)
       serviceParametres.sauvegarderFraisInscriptionEtablissement(fraisInscriptionEtablissement)

@@ -164,6 +164,37 @@ export default function SettingsPage() {
     setHasUnsavedChanges(hasChanges)
   }, [settings, fraisInscriptionEtablissement, fraisReinscriptionEtablissement, tarificationTypesEcole, optionsSupplementaires, initialSettings, initialFraisInscription, initialFraisReinscription, initialTarificationTypesEcole, initialOptions])
 
+  // Charger les données de l'établissement depuis Supabase
+  useEffect(() => {
+    if (establishment) {
+      setEstablishmentFormData({
+        nomEtablissement: establishment.name || "",
+        nomLegal: establishment.legal_name || "",
+        nomCourt: establishment.short_name || "",
+        typeEcole: establishment.establishment_type || "",
+        codeEtablissement: establishment.code || "",
+        slogan: establishment.slogan || "",
+        emailEtablissement: establishment.email || "",
+        telephoneEtablissement: establishment.phone || "",
+        telephoneSecondaire: establishment.alternate_phone || "",
+        siteWeb: establishment.website || "",
+        adresse: establishment.address_line1 || "",
+        adresse2: establishment.address_line2 || "",
+        codePostal: establishment.postal_code || "",
+        ville: establishment.city || "",
+        province: establishment.province || "",
+        pays: establishment.country || "",
+        codePays: establishment.country_code || "",
+        deviseCode: establishment.currency_code || "",
+        deviseNom: establishment.currency_name || "",
+        deviseSymbole: establishment.currency_symbol || "",
+        fuseauHoraire: establishment.timezone || "",
+        logoUrl: establishment.logo_url || "",
+        cachetUrl: establishment.seal_url || "",
+      })
+    }
+  }, [establishment])
+
   useEffect(() => {
     try {
       const parametresCharges = serviceParametres.obtenirParametres()
@@ -495,7 +526,34 @@ export default function SettingsPage() {
       }
 
       // Sauvegarder les informations de l'établissement dans Supabase
-      await updateEstablishment(establishmentId, establishmentPayload)
+      const updatedEstablishment = await updateEstablishment(establishmentId, establishmentPayload)
+
+      // Recharger les données depuis Supabase pour confirmer la persistance
+      setEstablishmentFormData({
+        nomEtablissement: updatedEstablishment.name || "",
+        nomLegal: updatedEstablishment.legal_name || "",
+        nomCourt: updatedEstablishment.short_name || "",
+        typeEcole: updatedEstablishment.establishment_type || "",
+        codeEtablissement: updatedEstablishment.code || "",
+        slogan: updatedEstablishment.slogan || "",
+        emailEtablissement: updatedEstablishment.email || "",
+        telephoneEtablissement: updatedEstablishment.phone || "",
+        telephoneSecondaire: updatedEstablishment.alternate_phone || "",
+        siteWeb: updatedEstablishment.website || "",
+        adresse: updatedEstablishment.address_line1 || "",
+        adresse2: updatedEstablishment.address_line2 || "",
+        codePostal: updatedEstablishment.postal_code || "",
+        ville: updatedEstablishment.city || "",
+        province: updatedEstablishment.province || "",
+        pays: updatedEstablishment.country || "",
+        codePays: updatedEstablishment.country_code || "",
+        deviseCode: updatedEstablishment.currency_code || "",
+        deviseNom: updatedEstablishment.currency_name || "",
+        deviseSymbole: updatedEstablishment.currency_symbol || "",
+        fuseauHoraire: updatedEstablishment.timezone || "",
+        logoUrl: updatedEstablishment.logo_url || "",
+        cachetUrl: updatedEstablishment.seal_url || "",
+      })
 
       // Sauvegarder les autres paramètres dans localStorage (temporaire)
       serviceParametres.sauvegarderFraisInscriptionEtablissement(fraisInscriptionEtablissement)

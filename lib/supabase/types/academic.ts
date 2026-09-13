@@ -3,6 +3,28 @@ export type PaymentMode = "monthly" | "installments" | "single"
 export interface Establishment {
   id: string
   name: string
+  legal_name?: string | null
+  short_name?: string | null
+  establishment_type?: string | null
+  code?: string | null
+  slogan?: string | null
+  email?: string | null
+  phone?: string | null
+  alternate_phone?: string | null
+  website?: string | null
+  address_line1?: string | null
+  address_line2?: string | null
+  postal_code?: string | null
+  city?: string | null
+  province?: string | null
+  country?: string | null
+  country_code?: string | null
+  currency_code?: string | null
+  currency_name?: string | null
+  currency_symbol?: string | null
+  timezone?: string | null
+  logo_url?: string | null
+  seal_url?: string | null
   created_at?: string
   updated_at?: string
 }

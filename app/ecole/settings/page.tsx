@@ -16,6 +16,7 @@ import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import { serviceParametres, type TarificationClasse, type OptionsSupplementaires, type OptionSupplementaire, type TarificationTypeEcole, type TarificationNiveau } from "@/services/parametres.service"
+import { updateEstablishment } from "@/lib/supabase/services/establishment.service"
 import type { ParametresEcole } from "@/types/models"
 
 export default function SettingsPage() {
@@ -404,16 +405,46 @@ export default function SettingsPage() {
     }
   }
 
-  const saveSettings = () => {
+  const saveSettings = async () => {
+    if (!establishmentId) {
+      alert("Impossible de sauvegarder : ID d'établissement manquant")
+      return
+    }
+
     try {
-      serviceParametres.sauvegarderParametres(settings)
+      // Sauvegarder les informations de l'établissement dans Supabase
+      await updateEstablishment(establishmentId, {
+        name: settings.nomEtablissement,
+        legal_name: settings.nomLegal,
+        short_name: settings.nomCourt,
+        establishment_type: settings.typeEcole,
+        code: settings.codeEtablissement,
+        slogan: settings.slogan,
+        email: settings.emailEtablissement,
+        phone: settings.telephoneEtablissement,
+        alternate_phone: settings.telephoneSecondaire,
+        website: settings.siteWeb,
+        address_line1: settings.adresse,
+        address_line2: settings.adresse2,
+        postal_code: settings.codePostal,
+        city: settings.ville,
+        province: settings.province,
+        country: settings.pays,
+        country_code: settings.codePays,
+        currency_code: settings.deviseCode,
+        currency_name: settings.deviseNom,
+        currency_symbol: settings.deviseSymbole,
+        timezone: settings.fuseauHoraire,
+        logo_url: settings.logoUrl,
+        seal_url: settings.cachetUrl,
+      })
+
+      // Sauvegarder les autres paramètres dans localStorage (temporaire)
       serviceParametres.sauvegarderFraisInscriptionEtablissement(fraisInscriptionEtablissement)
       serviceParametres.sauvegarderFraisReinscriptionEtablissement(fraisReinscriptionEtablissement)
       serviceParametres.sauvegarderTarification(pricing)
       serviceParametres.sauvegarderTarificationParTypeEcole(tarificationTypesEcole)
       serviceParametres.sauvegarderOptionsSupplementaires(optionsSupplementaires)
-
-      // Sauvegarder les options personnalisées
       serviceParametres.sauvegarderOptionsSupplementairesPersonnalisees(optionsPersonnalisees)
 
       // Mettre à jour l'état initial après sauvegarde

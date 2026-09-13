@@ -14,7 +14,6 @@ export async function getTuitionPlans(academicYearId: string): Promise<TuitionPl
     .from("tuition_plans")
     .select("*")
     .eq("academic_year_id", academicYearId)
-    .eq("is_active", true)
     .order("created_at", { ascending: false })
 
   if (error) throw new Error("Impossible de charger les tarifs.")

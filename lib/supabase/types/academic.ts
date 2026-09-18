@@ -25,6 +25,7 @@ export interface Establishment {
   timezone?: string | null
   logo_url?: string | null
   seal_url?: string | null
+  director_name?: string | null
   created_at?: string
   updated_at?: string
 }

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { ArrowLeft, Save, Settings, Calendar, DollarSign, RotateCcw, CreditCard, Plus, Trash2, Edit, Check, X, HelpCircle, Copy } from "lucide-react"
+import { ArrowLeft, Save, Settings, Calendar, DollarSign, RotateCcw, CreditCard, Plus, Trash2, Edit, Check, X, HelpCircle, Copy, Users } from "lucide-react"
 import Link from "next/link"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useEstablishment } from "@/hooks/useEstablishment"
@@ -22,6 +22,7 @@ import type { Establishment } from "@/lib/supabase/types"
 
 interface EstablishmentFormData {
   nomEtablissement: string
+  nomDirecteur: string
   nomLegal: string
   nomCourt: string
   typeEcole: string
@@ -48,28 +49,16 @@ interface EstablishmentFormData {
 
 export default function SettingsPage() {
   const { utilisateur } = useAuthentification()
-  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? null
 
-  if (!establishmentId) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <Card className="max-w-md">
-          <CardHeader>
-            <CardTitle>Erreur de chargement</CardTitle>
-            <CardDescription>Impossible de déterminer votre établissement.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600">Veuillez vous reconnecter ou contacter l'administrateur.</p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
+  // Tous les hooks AVANT tout early return (règles des hooks React)
   const { data: establishment, error: establishmentError } = useEstablishment(establishmentId)
   const { data: academicYears, activeYear, error: academicYearsError } = useAcademicYears(establishmentId)
   const { data: academicStructure, isLoading: isLoadingStructure, error: structureError } = useAcademicStructure(establishmentId)
   const { data: tuitionPlans, isLoading: isLoadingPlans, refresh: refreshPlans, error: tuitionError } = useTuitionPlans(activeYear?.id || null)
+
+  // Early return si pas d'etablissementId (après tous les hooks)
+  const noEstablishment = !establishmentId
 
   const [settings, setSettings] = useState<ParametresEcole>({
     anneeAcademique: "",
@@ -86,6 +75,7 @@ export default function SettingsPage() {
 
   const [establishmentFormData, setEstablishmentFormData] = useState<EstablishmentFormData>({
     nomEtablissement: "",
+    nomDirecteur: "",
     nomLegal: "",
     nomCourt: "",
     typeEcole: "",
@@ -109,6 +99,9 @@ export default function SettingsPage() {
     logoUrl: "",
     cachetUrl: "",
   })
+
+  // État initial pour détecter les modifications de l'établissement
+  const [initialEstablishmentFormData, setInitialEstablishmentFormData] = useState<EstablishmentFormData | null>(null)
 
   const [pricing, setPricing] = useState<TarificationClasse[]>([])
   const [fraisInscriptionEtablissement, setFraisInscriptionEtablissement] = useState(0)
@@ -152,23 +145,27 @@ export default function SettingsPage() {
 
   // Détecter les modifications non enregistrées
   useEffect(() => {
-    if (!initialSettings) return
-
-    const settingsChanged = JSON.stringify(settings) !== JSON.stringify(initialSettings)
+    const establishmentChanged = initialEstablishmentFormData
+      ? JSON.stringify(establishmentFormData) !== JSON.stringify(initialEstablishmentFormData)
+      : false
+    const settingsChanged = initialSettings
+      ? JSON.stringify(settings) !== JSON.stringify(initialSettings)
+      : false
     const fraisInscriptionChanged = fraisInscriptionEtablissement !== initialFraisInscription
     const fraisReinscriptionChanged = fraisReinscriptionEtablissement !== initialFraisReinscription
     const tarificationChanged = JSON.stringify(tarificationTypesEcole) !== JSON.stringify(initialTarificationTypesEcole)
     const optionsChanged = initialOptions ? JSON.stringify(optionsSupplementaires) !== JSON.stringify(initialOptions) : false
 
-    const hasChanges = settingsChanged || fraisInscriptionChanged || fraisReinscriptionChanged || tarificationChanged || optionsChanged
+    const hasChanges = establishmentChanged || settingsChanged || fraisInscriptionChanged || fraisReinscriptionChanged || tarificationChanged || optionsChanged
     setHasUnsavedChanges(hasChanges)
-  }, [settings, fraisInscriptionEtablissement, fraisReinscriptionEtablissement, tarificationTypesEcole, optionsSupplementaires, initialSettings, initialFraisInscription, initialFraisReinscription, initialTarificationTypesEcole, initialOptions])
+  }, [establishmentFormData, initialEstablishmentFormData, settings, fraisInscriptionEtablissement, fraisReinscriptionEtablissement, tarificationTypesEcole, optionsSupplementaires, initialSettings, initialFraisInscription, initialFraisReinscription, initialTarificationTypesEcole, initialOptions])
 
   // Charger les données de l'établissement depuis Supabase
   useEffect(() => {
     if (establishment) {
-      setEstablishmentFormData({
+      const formData: EstablishmentFormData = {
         nomEtablissement: establishment.name || "",
+        nomDirecteur: establishment.director_name || "",
         nomLegal: establishment.legal_name || "",
         nomCourt: establishment.short_name || "",
         typeEcole: establishment.establishment_type || "",
@@ -191,7 +188,10 @@ export default function SettingsPage() {
         fuseauHoraire: establishment.timezone || "",
         logoUrl: establishment.logo_url || "",
         cachetUrl: establishment.seal_url || "",
-      })
+      }
+      setEstablishmentFormData(formData)
+      // Initialiser l'état de référence pour détecter les changements
+      setInitialEstablishmentFormData(formData)
     }
   }, [establishment])
 
@@ -496,21 +496,20 @@ export default function SettingsPage() {
     }
 
     try {
-      // Construire le payload avec conversion des chaînes vides en null
-      // Note: name est NOT NULL dans le schéma, donc on ne le convertit pas en null
-      // Note: currency_code, currency_name, currency_symbol, timezone ont des valeurs par défaut
+      // Payload vers Supabase — source unique : establishmentFormData
       const establishmentPayload = {
-        name: settings.nomEcole?.trim() || establishmentFormData.nomEtablissement?.trim() || "",
+        name: establishmentFormData.nomEtablissement?.trim() || "",
+        director_name: establishmentFormData.nomDirecteur?.trim() || null,
         legal_name: establishmentFormData.nomLegal?.trim() || null,
         short_name: establishmentFormData.nomCourt?.trim() || null,
         establishment_type: establishmentFormData.typeEcole?.trim() || null,
         code: establishmentFormData.codeEtablissement?.trim() || null,
         slogan: establishmentFormData.slogan?.trim() || null,
         email: establishmentFormData.emailEtablissement?.trim() || null,
-        phone: settings.telephoneEcole?.trim() || establishmentFormData.telephoneEtablissement?.trim() || null,
+        phone: establishmentFormData.telephoneEtablissement?.trim() || null,
         alternate_phone: establishmentFormData.telephoneSecondaire?.trim() || null,
         website: establishmentFormData.siteWeb?.trim() || null,
-        address_line1: settings.adresseEcole?.trim() || establishmentFormData.adresse?.trim() || null,
+        address_line1: establishmentFormData.adresse?.trim() || null,
         address_line2: establishmentFormData.adresse2?.trim() || null,
         postal_code: establishmentFormData.codePostal?.trim() || null,
         city: establishmentFormData.ville?.trim() || null,
@@ -521,16 +520,17 @@ export default function SettingsPage() {
         currency_name: establishmentFormData.deviseNom?.trim() || "Franc CFA",
         currency_symbol: establishmentFormData.deviseSymbole?.trim() || "FCFA",
         timezone: establishmentFormData.fuseauHoraire?.trim() || "Africa/Libreville",
-        logo_url: settings.logoUrl?.trim() || establishmentFormData.logoUrl?.trim() || null,
-        seal_url: settings.cachetUrl?.trim() || establishmentFormData.cachetUrl?.trim() || null,
+        logo_url: establishmentFormData.logoUrl?.trim() || null,
+        seal_url: establishmentFormData.cachetUrl?.trim() || null,
       }
 
-      // Sauvegarder les informations de l'établissement dans Supabase
+      // Sauvegarder dans Supabase
       const updatedEstablishment = await updateEstablishment(establishmentId, establishmentPayload)
 
-      // Recharger les données depuis Supabase pour confirmer la persistance
-      setEstablishmentFormData({
+      // Mettre à jour le formulaire avec les données confirmées par Supabase
+      const confirmedFormData: EstablishmentFormData = {
         nomEtablissement: updatedEstablishment.name || "",
+        nomDirecteur: updatedEstablishment.director_name || "",
         nomLegal: updatedEstablishment.legal_name || "",
         nomCourt: updatedEstablishment.short_name || "",
         typeEcole: updatedEstablishment.establishment_type || "",
@@ -553,7 +553,9 @@ export default function SettingsPage() {
         fuseauHoraire: updatedEstablishment.timezone || "",
         logoUrl: updatedEstablishment.logo_url || "",
         cachetUrl: updatedEstablishment.seal_url || "",
-      })
+      }
+      setEstablishmentFormData(confirmedFormData)
+      setInitialEstablishmentFormData(confirmedFormData)
 
       // Sauvegarder les autres paramètres dans localStorage (temporaire)
       serviceParametres.sauvegarderParametres(settings)
@@ -606,6 +608,22 @@ export default function SettingsPage() {
         alert("Erreur lors de la réinitialisation: " + (error as Error).message)
       }
     }
+  }
+
+  if (noEstablishment) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>Erreur de chargement</CardTitle>
+            <CardDescription>Impossible de déterminer votre établissement.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-600">Veuillez vous reconnecter ou contacter l'administrateur.</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -694,35 +712,35 @@ export default function SettingsPage() {
                     </Label>
                     <Input
                       id="nomEcole"
-                      value={settings.nomEcole}
-                      onChange={(e) => handleSettingsChange("nomEcole", e.target.value)}
-                      className={settings.nomEcole ? "" : "border-red-300"}
+                      value={establishmentFormData.nomEtablissement}
+                      onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, nomEtablissement: e.target.value }))}
+                      className={establishmentFormData.nomEtablissement ? "" : "border-red-300"}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="nomDirecteur" className="flex items-center gap-1">
-                      Nom du directeur <span className="text-red-500">*</span>
+                      Nom du directeur
                       <HelpCircle className="h-3 w-3 text-gray-400" />
                     </Label>
                     <Input
                       id="nomDirecteur"
-                      value={settings.nomDirecteur}
-                      onChange={(e) => handleSettingsChange("nomDirecteur", e.target.value)}
-                      className={settings.nomDirecteur ? "" : "border-red-300"}
+                      value={establishmentFormData.nomDirecteur}
+                      onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, nomDirecteur: e.target.value }))}
+                      placeholder="Ex : M. Jean Dupont"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="adresseEcole" className="flex items-center gap-1">
-                    Adresse complète <span className="text-red-500">*</span>
+                    Adresse complète
                     <HelpCircle className="h-3 w-3 text-gray-400" />
                   </Label>
                   <Input
                     id="adresseEcole"
-                    value={settings.adresseEcole}
-                    onChange={(e) => handleSettingsChange("adresseEcole", e.target.value)}
-                    className={settings.adresseEcole ? "" : "border-red-300"}
+                    value={establishmentFormData.adresse}
+                    onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, adresse: e.target.value }))}
+                    placeholder="Ex : Quartier Batterie IV, Libreville"
                   />
                 </div>
 
@@ -733,8 +751,9 @@ export default function SettingsPage() {
                   </Label>
                   <Input
                     id="telephoneEcole"
-                    value={settings.telephoneEcole}
-                    onChange={(e) => handleSettingsChange("telephoneEcole", e.target.value)}
+                    value={establishmentFormData.telephoneEtablissement}
+                    onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, telephoneEtablissement: e.target.value }))}
+                    placeholder="Ex : +241 01 23 45 67"
                   />
                 </div>
 

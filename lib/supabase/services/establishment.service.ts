@@ -72,6 +72,7 @@ export async function updateEstablishment(establishmentId: string, data: Partial
   if (data.timezone !== undefined) payload.timezone = data.timezone
   if (data.logo_url !== undefined) payload.logo_url = data.logo_url
   if (data.seal_url !== undefined) payload.seal_url = data.seal_url
+  if (data.director_name !== undefined) payload.director_name = data.director_name
 
   const { data: result, error } = await supabaseBrowser
     .from("establishments")

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { FolderTree, GraduationCap, Building2 } from "lucide-react"
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import type { AcademicStructureCycle } from "@/lib/supabase/types"
 
 interface AcademicStructureTreeProps {
@@ -12,95 +13,80 @@ interface AcademicStructureTreeProps {
 export function AcademicStructureTree({ data, isLoading = false, error = null }: AcademicStructureTreeProps) {
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <FolderTree className="h-4 w-4" />
-            Chargement de la structure...
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Récupération des cycles, niveaux et classes en cours.
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground bg-muted/20 rounded-xl">
+        <FolderTree className="h-4 w-4 animate-pulse" />
+        Chargement de la structure...
+      </div>
     )
   }
 
   if (error) {
     return (
-      <Card className="border-destructive/40">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base text-destructive">
-            <Building2 className="h-4 w-4" />
-            Impossible de charger la structure
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">{error}</CardContent>
-      </Card>
+      <div className="flex items-center gap-2 p-4 text-sm text-destructive bg-destructive/10 rounded-xl border border-destructive/20">
+        <Building2 className="h-4 w-4" />
+        {error}
+      </div>
     )
   }
 
   if (!data.length) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <FolderTree className="h-4 w-4" />
-            Aucune structure académique
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>Aucun cycle n’a encore été créé pour cet établissement.</p>
-          <p>Ajoutez un cycle, puis des niveaux et des classes pour organiser la scolarité.</p>
-        </CardContent>
-      </Card>
+      <div className="p-4 text-sm text-muted-foreground bg-muted/20 rounded-xl">
+        <div className="flex items-center gap-2 font-medium mb-2">
+          <FolderTree className="h-4 w-4" />
+          Aucune structure académique
+        </div>
+        <p>Aucun cycle n’a encore été créé pour cet établissement.</p>
+        <p>Ajoutez un cycle, puis des niveaux et des classes pour organiser la scolarité.</p>
+      </div>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <Accordion type="single" collapsible className="w-full space-y-2">
       {data.map((cycle) => (
-        <Card key={cycle.id}>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <FolderTree className="h-4 w-4" />
+        <AccordionItem key={cycle.id} value={cycle.id} className="border bg-card rounded-xl px-4 shadow-sm">
+          <AccordionTrigger className="hover:no-underline py-3">
+            <div className="flex items-center justify-between w-full pr-4">
+              <div className="flex items-center gap-2 font-medium text-base">
+                <FolderTree className="h-4 w-4 text-muted-foreground" />
                 {cycle.name}
-              </CardTitle>
-              <Badge variant="secondary">Cycle</Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {(!cycle.grade_levels || cycle.grade_levels.length === 0) && (
-              <p className="text-sm text-muted-foreground">Aucun niveau associé à ce cycle.</p>
-            )}
-
-            {cycle.grade_levels?.map((level) => (
-              <div key={level.id} className="rounded-md border bg-muted/30 p-3">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 font-medium">
-                    <GraduationCap className="h-4 w-4" />
-                    {level.name}
-                  </div>
-                  <Badge variant="outline">Niveau</Badge>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {(!level.school_classes || level.school_classes.length === 0) && (
-                    <span className="text-sm text-muted-foreground">Aucune classe pour ce niveau.</span>
-                  )}
-
-                  {level.school_classes?.map((schoolClass) => (
-                    <Badge key={schoolClass.id} variant="secondary" className="rounded-full px-3 py-1">
-                      {schoolClass.name}
-                    </Badge>
-                  ))}
-                </div>
               </div>
-            ))}
-          </CardContent>
-        </Card>
+              <Badge variant="secondary" className="font-normal text-xs">Cycle</Badge>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="pt-1 pb-4">
+            <div className="space-y-3 mt-2">
+              {(!cycle.grade_levels || cycle.grade_levels.length === 0) && (
+                <p className="text-sm text-muted-foreground italic px-2">Aucun niveau associé à ce cycle.</p>
+              )}
+
+              {cycle.grade_levels?.map((level) => (
+                <div key={level.id} className="rounded-lg border bg-muted/30 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 font-medium text-sm">
+                      <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                      {level.name}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {(!level.school_classes || level.school_classes.length === 0) && (
+                      <span className="text-xs text-muted-foreground px-1">Aucune classe pour ce niveau.</span>
+                    )}
+
+                    {level.school_classes?.map((schoolClass) => (
+                      <Badge key={schoolClass.id} variant="secondary" className="rounded-md px-2 py-0.5 text-xs font-medium bg-background border">
+                        {schoolClass.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
       ))}
-    </div>
+    </Accordion>
   )
 }

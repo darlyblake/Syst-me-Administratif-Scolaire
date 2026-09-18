@@ -500,17 +500,17 @@ export default function SettingsPage() {
       // Note: name est NOT NULL dans le schéma, donc on ne le convertit pas en null
       // Note: currency_code, currency_name, currency_symbol, timezone ont des valeurs par défaut
       const establishmentPayload = {
-        name: establishmentFormData.nomEtablissement?.trim() || "",
+        name: settings.nomEcole?.trim() || establishmentFormData.nomEtablissement?.trim() || "",
         legal_name: establishmentFormData.nomLegal?.trim() || null,
         short_name: establishmentFormData.nomCourt?.trim() || null,
         establishment_type: establishmentFormData.typeEcole?.trim() || null,
         code: establishmentFormData.codeEtablissement?.trim() || null,
         slogan: establishmentFormData.slogan?.trim() || null,
         email: establishmentFormData.emailEtablissement?.trim() || null,
-        phone: establishmentFormData.telephoneEtablissement?.trim() || null,
+        phone: settings.telephoneEcole?.trim() || establishmentFormData.telephoneEtablissement?.trim() || null,
         alternate_phone: establishmentFormData.telephoneSecondaire?.trim() || null,
         website: establishmentFormData.siteWeb?.trim() || null,
-        address_line1: establishmentFormData.adresse?.trim() || null,
+        address_line1: settings.adresseEcole?.trim() || establishmentFormData.adresse?.trim() || null,
         address_line2: establishmentFormData.adresse2?.trim() || null,
         postal_code: establishmentFormData.codePostal?.trim() || null,
         city: establishmentFormData.ville?.trim() || null,
@@ -521,8 +521,8 @@ export default function SettingsPage() {
         currency_name: establishmentFormData.deviseNom?.trim() || "Franc CFA",
         currency_symbol: establishmentFormData.deviseSymbole?.trim() || "FCFA",
         timezone: establishmentFormData.fuseauHoraire?.trim() || "Africa/Libreville",
-        logo_url: establishmentFormData.logoUrl?.trim() || null,
-        seal_url: establishmentFormData.cachetUrl?.trim() || null,
+        logo_url: settings.logoUrl?.trim() || establishmentFormData.logoUrl?.trim() || null,
+        seal_url: settings.cachetUrl?.trim() || establishmentFormData.cachetUrl?.trim() || null,
       }
 
       // Sauvegarder les informations de l'établissement dans Supabase
@@ -556,6 +556,7 @@ export default function SettingsPage() {
       })
 
       // Sauvegarder les autres paramètres dans localStorage (temporaire)
+      serviceParametres.sauvegarderParametres(settings)
       serviceParametres.sauvegarderFraisInscriptionEtablissement(fraisInscriptionEtablissement)
       serviceParametres.sauvegarderFraisReinscriptionEtablissement(fraisReinscriptionEtablissement)
       serviceParametres.sauvegarderTarification(pricing)
@@ -671,9 +672,10 @@ export default function SettingsPage() {
         <Tabs defaultValue="general" className="space-y-6">
           <TabsList className="flex h-auto w-full max-w-full flex-wrap justify-start gap-1 overflow-x-auto p-1">
             <TabsTrigger value="general" className="whitespace-nowrap">Général</TabsTrigger>
-            <TabsTrigger value="academic" className="whitespace-nowrap">Année académique</TabsTrigger>
-            <TabsTrigger value="payments" className="whitespace-nowrap">Paiements</TabsTrigger>
-            <TabsTrigger value="pricing" className="whitespace-nowrap">Tarification</TabsTrigger>
+            <TabsTrigger value="academic" className="whitespace-nowrap">Année scolaire</TabsTrigger>
+            <TabsTrigger value="structure" className="whitespace-nowrap">Structure académique</TabsTrigger>
+            <TabsTrigger value="scolarite" className="whitespace-nowrap">Scolarité</TabsTrigger>
+            <TabsTrigger value="users" className="whitespace-nowrap">Utilisateurs</TabsTrigger>
             <TabsTrigger value="appearance" className="whitespace-nowrap">Apparence</TabsTrigger>
           </TabsList>
 
@@ -893,21 +895,54 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="payments">
+          <TabsContent value="structure">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Settings className="h-5 w-5" />
+                      Structure académique
+                    </CardTitle>
+                    <CardDescription>Gérez les cycles, niveaux et classes de votre établissement</CardDescription>
+                  </div>
+                  <Button asChild className="w-full sm:w-auto">
+                    <Link href="/ecole/classes">
+                      <Edit className="h-4 w-4 mr-2" />
+                      Gérer la structure
+                    </Link>
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-12">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Structure académique</h3>
+                  <p className="text-gray-500 mb-4">La gestion des cycles, niveaux et classes se fait sur une page dédiée.</p>
+                  <Button asChild>
+                    <Link href="/ecole/classes">
+                      Aller à la gestion des classes
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="scolarite">
             <Card>
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <CreditCard className="h-5 w-5" />
-                      Plans de paiement
+                      Scolarité (Tarifs et Modes de paiement)
                     </CardTitle>
-                    <CardDescription>Créez et gérez les plans de paiement pour les niveaux scolaires (stockés dans Supabase)</CardDescription>
+                    <CardDescription>Gérez les frais de scolarité, les tranches et les modes de paiement par niveau</CardDescription>
                   </div>
                   <Button asChild className="w-full sm:w-auto">
                     <Link href="/ecole/settings/scolarite">
                       <Plus className="h-4 w-4 mr-2" />
-                      Gérer les plans
+                      Gérer les tarifs
                     </Link>
                   </Button>
                 </div>
@@ -915,13 +950,13 @@ export default function SettingsPage() {
               <CardContent>
                 {isLoadingPlans ? (
                   <div className="text-center py-12">
-                    <div className="text-gray-500">Chargement des plans de paiement...</div>
+                    <div className="text-gray-500">Chargement des plans de tarification...</div>
                   </div>
                 ) : tuitionPlans.length === 0 ? (
                   <div className="text-center py-12">
-                    <CreditCard className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun plan de paiement</h3>
-                    <p className="text-gray-500 mb-4">Créez votre premier plan de paiement pour commencer.</p>
+                    <DollarSign className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun plan de tarification</h3>
+                    <p className="text-gray-500 mb-4">Créez votre premier plan de scolarité pour commencer.</p>
                     <Button asChild>
                       <Link href="/ecole/settings/scolarite">
                         <Plus className="h-4 w-4 mr-2" />
@@ -935,7 +970,7 @@ export default function SettingsPage() {
                       <div key={plan.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-medium">Plan pour niveau</h4>
+                            <h4 className="font-medium">Plan de niveau</h4>
                             <span className={`text-xs px-2 py-1 rounded-full ${
                               plan.payment_mode === "monthly" ? "bg-blue-100 text-blue-800" : 
                               plan.payment_mode === "installments" ? "bg-purple-100 text-purple-800" : 
@@ -947,9 +982,9 @@ export default function SettingsPage() {
                             </span>
                           </div>
                           <p className="text-sm text-gray-600 mt-1">
-                            {plan.annual_amount.toLocaleString()} FCFA / an • 
-                            {plan.installment_count ? ` ${plan.installment_count} tranches` : 
-                             plan.payment_mode === "monthly" ? " Mensuel" : " Paiement unique"}
+                            Inscription: {plan.registration_fee?.toLocaleString() || 0} FCFA • 
+                            Scolarité: {plan.annual_amount.toLocaleString()} FCFA / an
+                            {plan.installment_count ? ` • ${plan.installment_count} tranches` : ""}
                           </p>
                         </div>
                         <Button variant="outline" size="sm" asChild className="mt-3 sm:mt-0">
@@ -966,64 +1001,35 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="pricing">
+          <TabsContent value="users">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
-                  Tarification
-                </CardTitle>
-                <CardDescription>Gérez les frais de scolarité par niveau (stockés dans Supabase)</CardDescription>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Utilisateurs et permissions
+                    </CardTitle>
+                    <CardDescription>Gérez les accès, rôles et permissions du personnel de l'établissement</CardDescription>
+                  </div>
+                  <Button asChild className="w-full sm:w-auto">
+                    <Link href="/ecole/personnel">
+                      <Edit className="h-4 w-4 mr-2" />
+                      Gérer les utilisateurs
+                    </Link>
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
-                {isLoadingPlans ? (
-                  <div className="text-center py-12">
-                    <div className="text-gray-500">Chargement des plans de tarification...</div>
-                  </div>
-                ) : tuitionPlans.length === 0 ? (
-                  <div className="text-center py-12">
-                    <DollarSign className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun plan de tarification</h3>
-                    <p className="text-gray-500 mb-4">Créez votre premier plan de tarification pour commencer.</p>
-                    <Button asChild>
-                      <Link href="/ecole/settings/scolarite">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Créer un plan
-                      </Link>
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {tuitionPlans.map((plan) => (
-                      <div key={plan.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-medium">Plan pour niveau</h4>
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                              plan.payment_mode === "monthly" ? "bg-blue-100 text-blue-800" : 
-                              plan.payment_mode === "installments" ? "bg-purple-100 text-purple-800" : 
-                              "bg-green-100 text-green-800"
-                            }`}>
-                              {plan.payment_mode === "monthly" ? "Mensuel" : 
-                               plan.payment_mode === "installments" ? "Tranches" : 
-                               "Unique"}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Inscription: {plan.registration_fee?.toLocaleString() || 0} FCFA • 
-                            Scolarité: {plan.annual_amount.toLocaleString()} FCFA / an
-                          </p>
-                        </div>
-                        <Button variant="outline" size="sm" asChild className="mt-3 sm:mt-0">
-                          <Link href="/ecole/settings/scolarite">
-                            <Edit className="h-4 w-4 mr-2" />
-                            Modifier
-                          </Link>
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="text-center py-12">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Gestion des Utilisateurs</h3>
+                  <p className="text-gray-500 mb-4">La gestion du personnel, de leurs rôles et des accès se trouve dans le module Personnel.</p>
+                  <Button asChild>
+                    <Link href="/ecole/personnel">
+                      Aller au module Personnel
+                    </Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

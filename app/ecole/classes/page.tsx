@@ -116,7 +116,17 @@ export default function ClassesPage() {
 
   const handleAjouterClasse = async () => {
     try {
-      await ajouter(nouvelleClasse)
+      const cycle = academicStructure.find(c => c.name === nouvelleClasse.typeEcole)
+      const gradeLevel = cycle?.grade_levels?.find(l => l.name === nouvelleClasse.niveau)
+      
+      if (!gradeLevel) {
+        throw new Error("Veuillez sélectionner un niveau académique valide.")
+      }
+
+      await ajouter({
+        ...nouvelleClasse,
+        grade_level_id: gradeLevel.id
+      })
       setShowAddModal(false)
       setNouvelleClasse({
         nom: "",
@@ -134,7 +144,13 @@ export default function ClassesPage() {
   const handleModifierClasse = async () => {
     if (!editingClasse) return
     try {
-      await modifier(editingClasse.id, editingClasse)
+      const cycle = academicStructure.find(c => c.name === editingClasse.typeEcole)
+      const gradeLevel = cycle?.grade_levels?.find(l => l.name === editingClasse.niveau)
+
+      await modifier(editingClasse.id, {
+        ...editingClasse,
+        grade_level_id: gradeLevel?.id
+      })
       setShowEditModal(false)
       setEditingClasse(null)
       toast.success("Classe modifiée")

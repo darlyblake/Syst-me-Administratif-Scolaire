@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { obtenirClassesSupabase, creerClasseSupabase, modifierClasseSupabase, archiverClasseSupabase } from "@/services/classes.supabase.service"
-import { getEnabledGradeLevels, type GradeLevel } from "@/services/establishment-levels.service"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import type { Classe, DonneesEleve, DonneesEnseignant } from "@/types/models"
 
@@ -16,7 +15,6 @@ async function getCurrentEstablishmentId(): Promise<string> {
 
 export function useClasses() {
   const [classes, setClasses] = useState<Classe[]>([])
-  const [niveaux, setNiveaux] = useState<GradeLevel[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -24,16 +22,10 @@ export function useClasses() {
     setLoading(true)
     try {
       const establishmentId = await getCurrentEstablishmentId()
-      const [classesResult, levelsResult] = await Promise.all([
-        obtenirClassesSupabase(establishmentId),
-        getEnabledGradeLevels(establishmentId),
+      const [classesResult] = await Promise.all([
+        obtenirClassesSupabase(establishmentId)
       ])
-      const classesWithLevelNames = classesResult.map((classe) => ({
-        ...classe,
-        niveau: levelsResult.find((niveau) => niveau.id === classe.niveau)?.name ?? classe.niveau,
-      }))
-      setClasses(classesWithLevelNames)
-      setNiveaux(levelsResult)
+      setClasses(classesResult)
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible de charger les classes.")
@@ -46,11 +38,8 @@ export function useClasses() {
 
   const ajouter = useCallback(async (data: Omit<Classe, "id"> & { grade_level_id?: string; code?: string | null; academic_year_id?: string | null }) => {
     const establishmentId = await getCurrentEstablishmentId()
-    const gradeLevelId = data.grade_level_id ?? niveaux.find((niveau) => niveau.name === data.niveau)?.id
+    const gradeLevelId = data.grade_level_id
     if (!gradeLevelId) throw new Error("Le niveau académique est obligatoire")
-    if (!niveaux.some((niveau) => niveau.id === gradeLevelId)) {
-      throw new Error("Ce niveau n'est pas activé pour cet établissement")
-    }
     const capacity = Number(data.capacite)
     if (!Number.isFinite(capacity) || capacity <= 0) {
       throw new Error("La capacité doit être supérieure à 0")
@@ -63,13 +52,10 @@ export function useClasses() {
     })
     await refresh()
     return result
-  }, [niveaux, refresh])
+  }, [refresh])
 
   const modifier = useCallback(async (id: string, data: Partial<Classe> & { grade_level_id?: string }) => {
-    const targetLevel = data.grade_level_id ?? (data.niveau ? niveaux.find((niveau) => niveau.name === data.niveau)?.id : undefined)
-    if (targetLevel !== undefined && !niveaux.some((niveau) => niveau.id === targetLevel)) {
-      throw new Error("Ce niveau n'est pas activé pour cet établissement")
-    }
+    const targetLevel = data.grade_level_id
     const changes: Record<string, unknown> = {}
     if (data.nom !== undefined) changes.name = data.nom.trim()
     if (targetLevel !== undefined) changes.grade_level_id = targetLevel
@@ -83,7 +69,7 @@ export function useClasses() {
     const result = await modifierClasseSupabase(id, changes)
     await refresh()
     return result
-  }, [niveaux, refresh])
+  }, [refresh])
 
   const supprimer = useCallback(async (id: string) => {
     await archiverClasseSupabase(id)
@@ -103,5 +89,5 @@ export function useClasses() {
     return { total: totalClasses, actives: classesActives, totalClasses, classesActives, moyenneElevesParClasse, recettesTotales }
   }, [classes])
 
-  return { classes, niveaux, loading, error, statistiques, refresh, ajouter, modifier, supprimer, getEleves, getEnseignants }
+  return { classes, loading, error, statistiques, refresh, ajouter, modifier, supprimer, getEleves, getEnseignants }
 }

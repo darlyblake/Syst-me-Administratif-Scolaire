@@ -245,27 +245,27 @@ export default function ClassesPage() {
   return (
     <div className="space-y-6">
       {/* Onglets */}
-      <div className="flex gap-2 border-b border-terre/10 pb-4">
+      <div className="flex gap-2 border-b pb-4">
         <button
           onClick={() => setActiveTab("liste")}
-          className={`px-5 py-2.5 rounded-2xl text-sm font-medium transition ${
-            activeTab === "liste" ? "bg-terre text-white" : "bg-creme text-pierre hover:bg-terre-soft"
+          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+            activeTab === "liste" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
           }`}
         >
           Liste des classes
         </button>
         <button
           onClick={() => setActiveTab("repartition")}
-          className={`px-5 py-2.5 rounded-2xl text-sm font-medium transition ${
-            activeTab === "repartition" ? "bg-terre text-white" : "bg-creme text-pierre hover:bg-terre-soft"
+          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+            activeTab === "repartition" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
           }`}
         >
           Répartition
         </button>
         <button
           onClick={() => setActiveTab("parametres")}
-          className={`px-5 py-2.5 rounded-2xl text-sm font-medium transition ${
-            activeTab === "parametres" ? "bg-terre text-white" : "bg-creme text-pierre hover:bg-terre-soft"
+          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+            activeTab === "parametres" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
           }`}
         >
           Paramètres
@@ -273,15 +273,14 @@ export default function ClassesPage() {
       </div>
 
       {error && (
-        <div role="alert" className="rounded-2xl border border-rouge-terre/30 bg-rouge-terre/5 px-4 py-3 text-sm text-rouge-terre">
+        <div role="alert" className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-xl border bg-card p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-slate-900">Structure académique</h2>
-          <Badge variant="outline">Supabase</Badge>
+          <h2 className="text-base font-semibold">Structure académique</h2>
         </div>
         <AcademicStructureTree data={academicStructure} isLoading={isAcademicLoading} error={academicError} />
       </div>
@@ -290,60 +289,44 @@ export default function ClassesPage() {
       {activeTab === "liste" && (
         <>
           {/* Statistiques */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="bg-papier shadow-soft border-0">
+          <div className="grid grid-cols-2 gap-4 max-w-2xl">
+            <Card className="shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-pierre">Total classes</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total classes</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-terre">{Number(statistiques?.totalClasses ?? statistiques?.total ?? 0)}</div>
+                <div className="text-2xl font-bold">{Number(statistiques?.totalClasses ?? statistiques?.total ?? 0)}</div>
               </CardContent>
             </Card>
-            <Card className="bg-papier shadow-soft border-0">
+            <Card className="shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-pierre">Classes actives</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Classes actives</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-terre">{Number(statistiques?.classesActives ?? statistiques?.actives ?? 0)}</div>
-              </CardContent>
-            </Card>
-            <Card className="bg-papier shadow-soft border-0">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-pierre">Moyenne élèves/classe</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-terre">{Number(statistiques?.moyenneElevesParClasse ?? 0).toFixed(1)}</div>
-              </CardContent>
-            </Card>
-            <Card className="bg-papier shadow-soft border-0">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-pierre">Recettes totales</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-terre">{Number(statistiques?.recettesTotales ?? 0).toLocaleString()} FCFA</div>
+                <div className="text-2xl font-bold">{Number(statistiques?.classesActives ?? statistiques?.actives ?? 0)}</div>
               </CardContent>
             </Card>
           </div>
 
           {/* Filtres et recherche */}
-          <Card className="bg-papier shadow-soft border-0">
+          <Card className="shadow-sm">
             <CardContent className="pt-6">
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-pierre h-4 w-4" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
                     placeholder="Rechercher une classe..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 rounded-2xl border-terre/15 bg-creme/50"
+                    className="pl-10"
                   />
                 </div>
                 <select
                   value={filterTypeEcole}
                   onChange={(e) => setFilterTypeEcole(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-terre/15 bg-creme/50"
+                  className="px-3 py-2 rounded-md border bg-background"
                 >
-                  <option value="">Tous les types</option>
+                  <option value="">Tous les cycles</option>
                   {typesEcoleUniques.map((type) => (
                     <option key={type} value={type}>{type}</option>
                   ))}
@@ -351,14 +334,14 @@ export default function ClassesPage() {
                 <select
                   value={filterNiveau}
                   onChange={(e) => setFilterNiveau(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-terre/15 bg-creme/50"
+                  className="px-3 py-2 rounded-md border bg-background"
                 >
                   <option value="">Tous les niveaux</option>
                   {niveauxUniques.map((niveau) => (
                     <option key={niveau} value={niveau}>{niveau}</option>
                   ))}
                 </select>
-                <Button onClick={() => setShowAddModal(true)} className="bg-terre hover:bg-terre-dark rounded-2xl">
+                <Button onClick={() => setShowAddModal(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Nouvelle classe
                 </Button>
@@ -412,11 +395,11 @@ export default function ClassesPage() {
           </div>
 
           {filteredClasses.length === 0 && (
-            <Card className="bg-papier shadow-soft border-0">
+            <Card className="shadow-sm">
               <CardContent className="py-12 text-center">
-                <Users className="h-12 w-12 mx-auto text-pierre mb-4" />
-                <p className="text-pierre">Aucune classe n’a encore été créée pour ce niveau.</p>
-                <Button onClick={() => setShowAddModal(true)} className="mt-4 bg-terre hover:bg-terre-dark rounded-2xl">
+                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">Aucune classe trouvée.</p>
+                <Button onClick={() => setShowAddModal(true)} className="mt-4">
                   <Plus className="h-4 w-4 mr-2" />
                   Ajouter une classe
                 </Button>
@@ -429,9 +412,9 @@ export default function ClassesPage() {
       {/* Onglet Répartition */}
       {activeTab === "repartition" && (
         <div className="space-y-6">
-          <Card className="bg-papier shadow-soft border-0">
+          <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle className="text-terre">Répartition des élèves</CardTitle>
+              <CardTitle>Répartition des élèves</CardTitle>
               <CardDescription>Choisissez un niveau et un mode de répartition</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -441,7 +424,7 @@ export default function ClassesPage() {
                   <select
                     value={selectedNiveau}
                     onChange={(e) => setSelectedNiveau(e.target.value)}
-                    className="w-full mt-1.5 px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50"
+                    className="w-full mt-1.5 px-3 py-2 rounded-md border bg-background"
                   >
                     <option value="">Sélectionner un niveau</option>
                     {niveauxUniques.map((niveau) => (
@@ -468,13 +451,13 @@ export default function ClassesPage() {
                       type="checkbox"
                       checked={repartitionDepuisZero}
                       onChange={(e) => setRepartitionDepuisZero(e.target.checked)}
-                      className="rounded border-terre/15"
+                      className="rounded border-input"
                     />
-                    <span className="text-sm text-pierre">Repartir depuis zéro</span>
+                    <span className="text-sm text-muted-foreground">Repartir depuis zéro</span>
                   </label>
                 </div>
               </div>
-              <Button onClick={handlePrevisualiserRepartition} className="bg-terre hover:bg-terre-dark rounded-2xl">
+              <Button onClick={handlePrevisualiserRepartition}>
                 <Shuffle className="h-4 w-4 mr-2" />
                 Prévisualiser
               </Button>
@@ -482,33 +465,33 @@ export default function ClassesPage() {
           </Card>
 
           {repartitionPreview && (
-            <Card className="bg-papier shadow-soft border-0">
+            <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle className="text-terre">Aperçu de la répartition</CardTitle>
+                <CardTitle>Aperçu de la répartition</CardTitle>
                 <CardDescription>Revoyez les affectations avant d'appliquer</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {repartitionPreview.resume.map((r: any) => (
-                    <Card key={r.classeId} className="bg-creme border-0">
+                    <Card key={r.classeId} className="shadow-none border bg-muted/30">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm">{r.classeNom}</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2">
                         <div className="flex justify-between text-sm">
-                          <span className="text-pierre">Total:</span>
+                          <span className="text-muted-foreground">Total:</span>
                           <span className="font-medium">{r.total} / {r.capacite}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-pierre">Garçons:</span>
+                          <span className="text-muted-foreground">Garçons:</span>
                           <span className="font-medium">{r.M}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-pierre">Filles:</span>
+                          <span className="text-muted-foreground">Filles:</span>
                           <span className="font-medium">{r.F}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-pierre">Autre:</span>
+                          <span className="text-muted-foreground">Autre:</span>
                           <span className="font-medium">{r.autre}</span>
                         </div>
                       </CardContent>
@@ -516,18 +499,18 @@ export default function ClassesPage() {
                   ))}
                 </div>
                 {repartitionPreview.nonAffectes.length > 0 && (
-                  <div className="bg-soleil-soft rounded-2xl p-4">
-                    <p className="text-sm font-medium text-soleil">
+                  <div className="bg-destructive/10 rounded-md p-4 border border-destructive/20">
+                    <p className="text-sm font-medium text-destructive">
                       {repartitionPreview.nonAffectes.length} élèves non affectés (capacité insuffisante)
                     </p>
                   </div>
                 )}
                 <div className="flex gap-3">
-                  <Button onClick={handleAppliquerRepartition} className="bg-jardin hover:bg-jardin/90 text-white rounded-2xl">
+                  <Button onClick={handleAppliquerRepartition}>
                     <Check className="h-4 w-4 mr-2" />
                     Appliquer la répartition
                   </Button>
-                  <Button variant="outline" onClick={() => setRepartitionPreview(null)} className="rounded-2xl">
+                  <Button variant="outline" onClick={() => setRepartitionPreview(null)}>
                     <X className="h-4 w-4 mr-2" />
                     Annuler
                   </Button>
@@ -540,9 +523,9 @@ export default function ClassesPage() {
 
       {/* Onglet Paramètres */}
       {activeTab === "parametres" && (
-        <Card className="bg-papier shadow-soft border-0">
+        <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle className="text-terre">Paramètres de répartition</CardTitle>
+            <CardTitle>Paramètres de répartition</CardTitle>
             <CardDescription>Configurez le comportement par défaut et les exceptions par niveau</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -551,7 +534,7 @@ export default function ClassesPage() {
               <select
                 value={params.modeGlobal}
                 onChange={(e) => setParams({ ...params, modeGlobal: e.target.value as ModeRepartition })}
-                className="w-full mt-1.5 px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50"
+                className="w-full mt-1.5 px-3 py-2 rounded-md border bg-background"
               >
                 <option value="aleatoire">Aléatoire</option>
                 <option value="equilibre_genre">Équilibre genre</option>
@@ -565,20 +548,20 @@ export default function ClassesPage() {
                   type="checkbox"
                   checked={params.bloquerSiComplet}
                   onChange={(e) => setParams({ ...params, bloquerSiComplet: e.target.checked })}
-                  className="rounded border-terre/15"
+                  className="rounded border-input"
                 />
-                <span className="text-sm text-pierre">Bloquer l'inscription si le niveau est complet</span>
+                <span className="text-sm text-muted-foreground">Bloquer l'inscription si le niveau est complet</span>
               </label>
             </div>
             <div>
               <Label>Exceptions par niveau</Label>
               <div className="mt-2 space-y-2">
                 {Object.entries(params.modeParNiveau).map(([niveau, mode]) => (
-                  <div key={niveau} className="flex items-center justify-between bg-creme rounded-xl px-3 py-2">
+                  <div key={niveau} className="flex items-center justify-between bg-muted rounded-md px-3 py-2 border">
                     <span className="text-sm font-medium">{niveau}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-pierre">{mode}</span>
-                      <Button variant="ghost" size="sm" onClick={() => handleSupprimerOverride(niveau)} className="rounded-lg">
+                      <span className="text-xs text-muted-foreground">{mode}</span>
+                      <Button variant="ghost" size="sm" onClick={() => handleSupprimerOverride(niveau)}>
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
@@ -589,7 +572,7 @@ export default function ClassesPage() {
                 <select
                   value={newNiveauOverride}
                   onChange={(e) => setNewNiveauOverride(e.target.value)}
-                  className="flex-1 px-3 py-2 rounded-xl border border-terre/15 bg-creme/50"
+                  className="flex-1 px-3 py-2 rounded-md border bg-background"
                 >
                   <option value="">Niveau</option>
                   {niveauxUniques.map((niveau) => (
@@ -599,19 +582,19 @@ export default function ClassesPage() {
                 <select
                   value={newModeOverride}
                   onChange={(e) => setNewModeOverride(e.target.value as ModeRepartition)}
-                  className="flex-1 px-3 py-2 rounded-xl border border-terre/15 bg-creme/50"
+                  className="flex-1 px-3 py-2 rounded-md border bg-background"
                 >
                   <option value="aleatoire">Aléatoire</option>
                   <option value="equilibre_genre">Équilibre genre</option>
                   <option value="par_age">Par âge</option>
                   <option value="manuel">Manuel</option>
                 </select>
-                <Button onClick={handleAjouterOverride} className="bg-terre hover:bg-terre-dark rounded-xl">
+                <Button onClick={handleAjouterOverride}>
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-            <Button onClick={handleSauvegarderParametres} className="bg-terre hover:bg-terre-dark rounded-2xl">
+            <Button onClick={handleSauvegarderParametres}>
               <Settings className="h-4 w-4 mr-2" />
               Sauvegarder les paramètres
             </Button>
@@ -621,9 +604,9 @@ export default function ClassesPage() {
 
       {/* Modal d'ajout */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-encre/30 flex items-center justify-center z-50">
-          <div className="bg-papier rounded-3xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-soft">
-            <h3 className="text-lg font-bold text-terre mb-4">Nouvelle classe</h3>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-background border rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-lg">
+            <h3 className="text-lg font-semibold mb-4">Nouvelle classe</h3>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="nom">Nom de la classe *</Label>
@@ -632,7 +615,6 @@ export default function ClassesPage() {
                   value={nouvelleClasse.nom}
                   onChange={(e) => setNouvelleClasse({ ...nouvelleClasse, nom: e.target.value })}
                   placeholder="Ex: CM1-A"
-                  className="rounded-2xl border-terre/15 bg-creme/50"
                 />
               </div>
               <div className="space-y-2">
@@ -641,7 +623,7 @@ export default function ClassesPage() {
                   id="typeEcole"
                   value={nouvelleClasse.typeEcole}
                   onChange={(e) => handleTypeEcoleChange(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50"
+                  className="w-full px-3 py-2 rounded-md border bg-background"
                 >
                   <option value="">Sélectionner un cycle</option>
                   {academicStructure.map((cycle) => (
@@ -655,7 +637,7 @@ export default function ClassesPage() {
                   id="niveau"
                   value={nouvelleClasse.niveau}
                   onChange={(e) => handleNiveauChange(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50"
+                  className="w-full px-3 py-2 rounded-md border bg-background"
                   disabled={!nouvelleClasse.typeEcole}
                 >
                   <option value="">Sélectionner d'abord le cycle</option>
@@ -675,15 +657,14 @@ export default function ClassesPage() {
                   type="number"
                   value={Number.isNaN(nouvelleClasse.capacite) ? "" : nouvelleClasse.capacite}
                   onChange={(e) => setNouvelleClasse({ ...nouvelleClasse, capacite: e.target.value === "" ? Number.NaN : Number(e.target.value) })}
-                  className="rounded-2xl border border-terre/15 bg-creme/50"
                 />
               </div>
             </div>
             <div className="flex gap-2 mt-6">
-              <Button onClick={handleAjouterClasse} className="flex-1 bg-terre hover:bg-terre-dark rounded-2xl">
+              <Button onClick={handleAjouterClasse} className="flex-1">
                 Ajouter
               </Button>
-              <Button variant="outline" onClick={() => setShowAddModal(false)} className="flex-1 rounded-2xl">
+              <Button variant="outline" onClick={() => setShowAddModal(false)} className="flex-1">
                 Annuler
               </Button>
             </div>
@@ -693,9 +674,9 @@ export default function ClassesPage() {
 
       {/* Modal de modification */}
       {showEditModal && editingClasse && (
-        <div className="fixed inset-0 bg-encre/30 flex items-center justify-center z-50">
-          <div className="bg-papier rounded-3xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-soft">
-            <h3 className="text-lg font-bold text-terre mb-4">Modifier la classe</h3>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-background border rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-lg">
+            <h3 className="text-lg font-semibold mb-4">Modifier la classe</h3>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-nom">Nom de la classe *</Label>
@@ -703,7 +684,6 @@ export default function ClassesPage() {
                   id="edit-nom"
                   value={editingClasse.nom}
                   onChange={(e) => setEditingClasse({ ...editingClasse, nom: e.target.value })}
-                  className="rounded-2xl border-terre/15 bg-creme/50"
                 />
               </div>
               <div className="space-y-2">
@@ -715,7 +695,7 @@ export default function ClassesPage() {
                     const typeEcole = e.target.value
                     setEditingClasse({ ...editingClasse, typeEcole, niveau: "" })
                   }}
-                  className="w-full px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50"
+                  className="w-full px-3 py-2 rounded-md border bg-background"
                 >
                   <option value="">Sélectionner un cycle</option>
                   {academicStructure.map((cycle) => (
@@ -735,7 +715,7 @@ export default function ClassesPage() {
                       niveau
                     })
                   }}
-                  className="w-full px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50"
+                  className="w-full px-3 py-2 rounded-md border bg-background"
                   disabled={!editingClasse.typeEcole}
                 >
                   <option value="">Sélectionner d'abord le cycle</option>
@@ -755,15 +735,14 @@ export default function ClassesPage() {
                   type="number"
                   value={Number.isNaN(editingClasse.capacite) ? "" : editingClasse.capacite}
                   onChange={(e) => setEditingClasse({ ...editingClasse, capacite: e.target.value === "" ? Number.NaN : Number(e.target.value) })}
-                  className="rounded-2xl border-terre/15 bg-creme/50"
                 />
               </div>
             </div>
             <div className="flex gap-2 mt-6">
-              <Button onClick={handleModifierClasse} className="flex-1 bg-terre hover:bg-terre-dark rounded-2xl">
+              <Button onClick={handleModifierClasse} className="flex-1">
                 Modifier
               </Button>
-              <Button variant="outline" onClick={() => setShowEditModal(false)} className="flex-1 rounded-2xl">
+              <Button variant="outline" onClick={() => setShowEditModal(false)} className="flex-1">
                 Annuler
               </Button>
             </div>

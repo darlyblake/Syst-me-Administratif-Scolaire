@@ -46,9 +46,9 @@ export async function createEstablishment(data: Partial<Establishment>): Promise
 
 export async function updateEstablishment(establishmentId: string, data: Partial<Establishment>): Promise<Establishment> {
   // Construire le payload uniquement avec les champs définis et valides
-  const payload: Record<string, any> = {}
+  const payload: Record<string, unknown> = {}
 
-  // N'envoyer que les champs qui sont définis et non null
+  // N'envoyer que les champs qui sont définis (même si null, pour permettre l'effacement)
   if (data.name !== undefined) payload.name = data.name
   if (data.legal_name !== undefined) payload.legal_name = data.legal_name
   if (data.short_name !== undefined) payload.short_name = data.short_name
@@ -74,12 +74,14 @@ export async function updateEstablishment(establishmentId: string, data: Partial
   if (data.seal_url !== undefined) payload.seal_url = data.seal_url
   if (data.director_name !== undefined) payload.director_name = data.director_name
 
-  const { data: result, error } = await supabaseBrowser
+  console.log("[establishment.service] UPDATE payload:", payload)
+
+  // Utiliser .select() sans .single() pour détecter si la RLS bloque silencieusement
+  const { data: results, error } = await supabaseBrowser
     .from("establishments")
     .update(payload)
     .eq("id", establishmentId)
     .select()
-    .single()
 
   if (error) {
     console.error("Erreur modification établissement:", {
@@ -92,5 +94,12 @@ export async function updateEstablishment(establishmentId: string, data: Partial
     throw new Error(error.message || "Impossible de modifier l'établissement.")
   }
 
-  return result as Establishment
+  // Si aucune ligne retournée, la RLS a bloqué silencieusement l'UPDATE
+  if (!results || results.length === 0) {
+    console.error("[establishment.service] UPDATE bloqué par RLS — aucune ligne modifiée. establishment_id:", establishmentId)
+    throw new Error("Permission refusée : impossible de modifier cet établissement. Vérifiez que vous êtes connecté avec les droits suffisants.")
+  }
+
+  console.log("[establishment.service] UPDATE réussi:", results[0])
+  return results[0] as Establishment
 }

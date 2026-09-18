@@ -524,8 +524,11 @@ export default function SettingsPage() {
         seal_url: establishmentFormData.cachetUrl?.trim() || null,
       }
 
+      console.log("[Settings] Payload envoyé à Supabase:", JSON.stringify(establishmentPayload, null, 2))
+
       // Sauvegarder dans Supabase
       const updatedEstablishment = await updateEstablishment(establishmentId, establishmentPayload)
+      console.log("[Settings] Réponse Supabase:", JSON.stringify(updatedEstablishment, null, 2))
 
       // Mettre à jour le formulaire avec les données confirmées par Supabase
       const confirmedFormData: EstablishmentFormData = {

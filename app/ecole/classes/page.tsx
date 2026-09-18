@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { toast } from "sonner"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -116,11 +117,15 @@ export default function ClassesPage() {
 
   const handleAjouterClasse = async () => {
     try {
-      const cycle = academicStructure.find(c => c.name === nouvelleClasse.typeEcole)
-      const gradeLevel = cycle?.grade_levels?.find(l => l.name === nouvelleClasse.niveau)
+      const cycle = academicStructure.find(c => c.name.trim() === nouvelleClasse.typeEcole.trim())
+      const gradeLevel = cycle?.grade_levels?.find(l => l.name.trim() === nouvelleClasse.niveau.trim())
       
       if (!gradeLevel) {
         throw new Error("Veuillez sélectionner un niveau académique valide.")
+      }
+      
+      if (!gradeLevel.id) {
+        throw new Error("Erreur système: L'identifiant du niveau académique est manquant. Veuillez recharger la page.")
       }
 
       await ajouter({
@@ -144,8 +149,12 @@ export default function ClassesPage() {
   const handleModifierClasse = async () => {
     if (!editingClasse) return
     try {
-      const cycle = academicStructure.find(c => c.name === editingClasse.typeEcole)
-      const gradeLevel = cycle?.grade_levels?.find(l => l.name === editingClasse.niveau)
+      const cycle = academicStructure.find(c => c.name.trim() === editingClasse.typeEcole?.trim())
+      const gradeLevel = cycle?.grade_levels?.find(l => l.name.trim() === editingClasse.niveau.trim())
+
+      if (editingClasse.niveau && (!gradeLevel || !gradeLevel.id)) {
+        throw new Error("Le niveau sélectionné est invalide ou n'a pas d'identifiant.")
+      }
 
       await modifier(editingClasse.id, {
         ...editingClasse,
@@ -234,9 +243,9 @@ export default function ClassesPage() {
     return (
       <div className="space-y-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-terre/10 rounded w-1/4"></div>
-          <div className="h-32 bg-papier rounded-3xl"></div>
-          <div className="h-32 bg-papier rounded-3xl"></div>
+          <div className="h-8 bg-muted rounded w-1/4"></div>
+          <div className="h-32 bg-muted rounded-xl"></div>
+          <div className="h-32 bg-muted rounded-xl"></div>
         </div>
       </div>
     )
@@ -278,35 +287,23 @@ export default function ClassesPage() {
         </div>
       )}
 
-      <div className="rounded-xl border bg-card p-4 shadow-sm">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold">Structure académique</h2>
-        </div>
-        <AcademicStructureTree data={academicStructure} isLoading={isAcademicLoading} error={academicError} />
+      <div className="rounded-xl border bg-card shadow-sm">
+        <Accordion type="single" collapsible>
+          <AccordionItem value="structure" className="border-b-0">
+            <AccordionTrigger className="px-4 py-3 hover:no-underline">
+              <h2 className="text-base font-semibold">Structure académique (Référence)</h2>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4 pt-0">
+              <AcademicStructureTree data={academicStructure} isLoading={isAcademicLoading} error={academicError} />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </div>
 
       {/* Onglet Liste */}
       {activeTab === "liste" && (
         <>
-          {/* Statistiques */}
-          <div className="grid grid-cols-2 gap-4 max-w-2xl">
-            <Card className="shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total classes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{Number(statistiques?.totalClasses ?? statistiques?.total ?? 0)}</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Classes actives</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{Number(statistiques?.classesActives ?? statistiques?.actives ?? 0)}</div>
-              </CardContent>
-            </Card>
-          </div>
+
 
           {/* Filtres et recherche */}
           <Card className="shadow-sm">

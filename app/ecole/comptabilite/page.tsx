@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, type FormEvent } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Wallet, Users, Receipt, FileText, TrendingUp, DollarSign, Plus, Edit, Trash2, ArrowDown, ArrowUp, Calendar, Filter, Download } from "lucide-react"
+import { ArrowLeft, Wallet, Users, Receipt, FileText, TrendingUp, DollarSign, Plus, Edit, Trash2, ArrowDown, ArrowUp, Calendar, Filter, Download, CreditCard, Landmark, RefreshCw, WalletCards, Search } from "lucide-react"
 import Link from "next/link"
 import { serviceComptabilite } from "@/services/comptabilite.service"
 import { servicePaie } from "@/services/paie.service"
@@ -18,9 +19,102 @@ import type { CompteComptable } from "@/services/comptabilite.service"
 import type { Employe, FichePaie } from "@/services/paie.service"
 import type { CategorieDepense, Depense } from "@/services/depenses.service"
 import type { MouvementFinancier } from "@/services/mouvements.service"
+import { useUserContext } from "@/hooks/useUserContext"
+import { useAcademicYears } from "@/hooks/useAcademicYears"
+import { useEnrollments } from "@/hooks/useEnrollments"
+import { useEstablishmentPaymentSummary, usePaymentList, usePayments } from "@/hooks/usePayments"
+import { getPaymentSummaryByEstablishment, type EstablishmentPaymentSummary } from "@/lib/supabase/services/payment.service"
+import type { EnrollmentWithRelations } from "@/lib/supabase/types"
 
 export default function ComptabilitePage() {
-  const [activeSection, setActiveSection] = useState<string>("dashboard")
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const initialSection = searchParams.get("section") ?? "dashboard"
+  const [activeSection, setActiveSection] = useState<string>(initialSection)
+
+  // Sync URL when section changes
+  const changeSection = useCallback((id: string) => {
+    setActiveSection(id)
+    router.replace(`/ecole/comptabilite?section=${id}`, { scroll: false })
+  }, [router])
+
+  // Payment context (for paiements + financement-etat sections)
+  const { primaryEstablishment } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? null
+  const { activeYear, selectedYear } = useAcademicYears(establishmentId)
+  const yearForPayments = selectedYear ?? activeYear
+
+  // Paiements élèves state
+  const [payPage, setPayPage] = useState(1)
+  const [payFrom, setPayFrom] = useState("")
+  const [payTo, setPayTo] = useState("")
+  const [payRefreshKey, setPayRefreshKey] = useState(0)
+  const [selectedEnrollmentId, setSelectedEnrollmentId] = useState("")
+  const [payAmount, setPayAmount] = useState("")
+  const [payReference, setPayReference] = useState("")
+  const [payMethod, setPayMethod] = useState("cash")
+  const [payNotes, setPayNotes] = useState("")
+  const [payAllocations, setPayAllocations] = useState<Record<string, string>>({})
+  const [showPayForm, setShowPayForm] = useState(false)
+
+  const { enrollments, isLoading: loadingEnrollments } = useEnrollments({ establishmentId, academicYearId: yearForPayments?.id ?? null, pageSize: 100 })
+  const { payments, total: payTotal, totalPages: payTotalPages, isLoading: loadingPayments, error: payError } = usePaymentList({ establishmentId, page: payPage, pageSize: 25, studentId: null, from: payFrom || null, to: payTo || null, refreshKey: payRefreshKey })
+  const { summary: paySummary, isLoading: loadingPaySummary } = useEstablishmentPaymentSummary(establishmentId, yearForPayments?.id ?? null, payRefreshKey)
+  const { schedule: paySchedule, isLoading: loadingPaySchedule, error: payScheduleError, create: createPayment, isCreating: isCreatingPayment } = usePayments(selectedEnrollmentId)
+
+  const openPayForm = (enrollment?: EnrollmentWithRelations) => {
+    setSelectedEnrollmentId(enrollment?.id || "")
+    setPayAllocations({})
+    setPayAmount("")
+    setPayReference("")
+    setPayNotes("")
+    setShowPayForm(true)
+  }
+
+  const submitPayment = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!selectedEnrollmentId || !payAmount) return
+    const paymentId = await createPayment({
+      enrollmentId: selectedEnrollmentId,
+      amount: Number(payAmount),
+      reference: payReference,
+      method: payMethod,
+      notes: payNotes,
+      allocations: Object.entries(payAllocations).filter(([, v]) => v !== "").map(([scheduleId, v]) => ({ schedule_id: scheduleId, amount: Number(v) })),
+    })
+    if (paymentId) {
+      setShowPayForm(false)
+      setPayRefreshKey(k => k + 1)
+    }
+  }
+
+  // Financement État state
+  const [stateSummary, setStateSummary] = useState<EstablishmentPaymentSummary | null>(null)
+  const [loadingState, setLoadingState] = useState(false)
+  const [stateError, setStateError] = useState<string | null>(null)
+
+  const loadStateSummary = useCallback(async () => {
+    if (!establishmentId || !yearForPayments?.id) return
+    setLoadingState(true)
+    setStateError(null)
+    try {
+      setStateSummary(await getPaymentSummaryByEstablishment(establishmentId, yearForPayments.id))
+    } catch (e) {
+      setStateError(e instanceof Error ? e.message : "Impossible de charger le financement de l'État.")
+    } finally {
+      setLoadingState(false)
+    }
+  }, [establishmentId, yearForPayments?.id])
+
+  useEffect(() => {
+    if (activeSection === "financement-etat") void loadStateSummary()
+  }, [activeSection, loadStateSummary])
+
+  const stateProgress = stateSummary && stateSummary.state_expected > 0
+    ? Math.min(100, (stateSummary.state_paid / stateSummary.state_expected) * 100)
+    : 0
+  const money = (v: number) => `${Number(v || 0).toLocaleString("fr-FR")} FCFA`
+
   const [comptes, setComptes] = useState<CompteComptable[]>([])
   const [employes, setEmployes] = useState<Employe[]>([])
   const [fichesPaie, setFichesPaie] = useState<FichePaie[]>([])
@@ -73,6 +167,8 @@ export default function ComptabilitePage() {
 
   const sections = [
     { id: "dashboard", title: "Tableau de Bord", icon: TrendingUp, description: "Vue d'ensemble financière" },
+    { id: "paiements", title: "Paiements Élèves", icon: CreditCard, description: "Suivi des paiements de scolarité" },
+    { id: "financement-etat", title: "Financement État", icon: Landmark, description: "Suivi des prises en charge publiques" },
     { id: "mouvements", title: "Mouvements", icon: ArrowUp, description: "Entrées et sorties d'argent" },
     { id: "comptes", title: "Comptes Généraux", icon: Wallet, description: "Plan comptable et comptes" },
     { id: "paie", title: "Gestion de la Paie", icon: Users, description: "Salaires du personnel" },
@@ -317,7 +413,7 @@ export default function ComptabilitePage() {
                           ? "border-slate-900 bg-slate-900 text-white hover:border-slate-800 hover:bg-slate-800"
                           : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
                       }`}
-                      onClick={() => setActiveSection(section.id)}
+                      onClick={() => changeSection(section.id)}
                     >
                       <Icon className="h-4 w-4 mr-2" />
                       {section.title}
@@ -396,6 +492,228 @@ export default function ComptabilitePage() {
                   </div>
                 </CardContent>
               </Card>
+            )}
+
+            {activeSection === "paiements" && (
+              <div className="space-y-6">
+                <Card className="rounded-2xl border-slate-200 shadow-sm overflow-hidden">
+                  <CardHeader className="border-b border-slate-100 bg-slate-50/80">
+                    <div className="flex justify-between items-center gap-3 flex-wrap">
+                      <div>
+                        <CardTitle>Paiements de Scolarité</CardTitle>
+                        <CardDescription>Suivi et encaissement des frais de scolarité des élèves</CardDescription>
+                      </div>
+                      <Button onClick={() => openPayForm()} className="rounded-xl">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Nouveau Paiement
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-5">
+                    {loadingPaySummary ? <p className="text-sm text-slate-600">Chargement des données...</p> : 
+                    <div className="grid gap-4 md:grid-cols-4">
+                      {[["Attendu", paySummary?.expected], ["Payé", paySummary?.paid], ["Reste", paySummary?.remaining], ["Retards", paySummary?.overdue]].map(([label, value]) => (
+                        <div key={label as string} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                          <p className="text-sm text-slate-500">{label}</p>
+                          <p className="text-xl font-bold mt-1 text-slate-900">{typeof value === "number" ? `${value.toLocaleString()} FCFA` : "-"}</p>
+                        </div>
+                      ))}
+                    </div>}
+
+                    <div className="mt-6 flex flex-wrap gap-3 p-4 border rounded-2xl bg-white shadow-sm">
+                      <div className="relative min-w-64 flex-1">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <Input disabled placeholder="Recherche (bientôt disponible)" className="pl-9" />
+                      </div>
+                      <select value={selectedEnrollmentId} onChange={(event) => setSelectedEnrollmentId(event.target.value)} className="rounded-md border px-3 py-2 text-sm bg-white">
+                        <option value="">Toutes les inscriptions</option>
+                        {enrollments.map((item) => <option key={item.id} value={item.id}>{item.student?.first_name} {item.student?.last_name}</option>)}
+                      </select>
+                      <Input type="date" value={payFrom} onChange={(event) => setPayFrom(event.target.value)} className="w-auto" />
+                      <Input type="date" value={payTo} onChange={(event) => setPayTo(event.target.value)} className="w-auto" />
+                    </div>
+
+                    <div className="mt-6">
+                      <h3 className="font-semibold mb-3 text-slate-800">Historique des Paiements ({payTotal})</h3>
+                      {loadingPayments ? <p className="text-sm text-slate-500">Chargement...</p> : payments.length === 0 ? <p className="py-8 text-center text-slate-500 border rounded-2xl bg-slate-50">Aucun paiement trouvé.</p> : 
+                      <div className="overflow-hidden border border-slate-200 rounded-2xl bg-white">
+                        <table className="w-full text-sm">
+                          <thead className="bg-slate-50 border-b">
+                            <tr className="text-left">
+                              <th className="p-3 font-medium text-slate-500">Date</th>
+                              <th className="p-3 font-medium text-slate-500">Inscription</th>
+                              <th className="p-3 font-medium text-slate-500">Montant</th>
+                              <th className="p-3 font-medium text-slate-500">Méthode</th>
+                              <th className="p-3 font-medium text-slate-500">Référence</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {payments.map((payment) => (
+                              <tr key={payment.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors">
+                                <td className="p-3">{new Date(payment.payment_date).toLocaleDateString("fr-FR")}</td>
+                                <td className="p-3 font-mono text-xs text-slate-500">{payment.enrollment_id.substring(0,8)}...</td>
+                                <td className="p-3 font-semibold text-slate-900">{payment.amount.toLocaleString()} FCFA</td>
+                                <td className="p-3 capitalize">{payment.payment_method || "-"}</td>
+                                <td className="p-3">{payment.reference || "-"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>}
+                      {payTotalPages > 1 && (
+                        <div className="mt-4 flex justify-between items-center text-sm text-slate-500">
+                          <span>Page {payPage} sur {payTotalPages}</span>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setPayPage((value) => Math.max(1, value - 1))} disabled={payPage === 1}>Précédent</Button>
+                            <Button variant="outline" size="sm" onClick={() => setPayPage((value) => Math.min(payTotalPages, value + 1))} disabled={payPage === payTotalPages}>Suivant</Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {showPayForm && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <Card className="max-h-[90vh] w-full max-w-2xl overflow-y-auto shadow-2xl border-0">
+                      <CardHeader className="bg-slate-50 border-b">
+                        <CardTitle>Nouveau paiement</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        <form onSubmit={submitPayment} className="space-y-5">
+                          <div>
+                            <Label className="text-xs text-slate-500 mb-1 block">Sélectionner l'élève</Label>
+                            <select value={selectedEnrollmentId} onChange={(event) => setSelectedEnrollmentId(event.target.value)} required className="w-full rounded-md border px-3 py-2 h-10 bg-white">
+                              <option value="">Sélectionner une inscription</option>
+                              {enrollments.map((item) => <option key={item.id} value={item.id}>{item.student?.first_name} {item.student?.last_name}</option>)}
+                            </select>
+                          </div>
+                          
+                          {loadingPaySchedule ? <p className="text-sm text-slate-500">Chargement de l’échéancier...</p> : paySchedule.length > 0 && (
+                            <div className="border rounded-xl p-4 bg-slate-50 space-y-2">
+                              <p className="text-sm font-semibold text-slate-700 mb-2">Échéancier de scolarité</p>
+                              {paySchedule.map((item) => (
+                                <div key={item.id} className="flex items-center justify-between gap-3 border-b border-slate-200 last:border-0 pb-2 last:pb-0 pt-2 first:pt-0 text-sm">
+                                  <span className="font-medium text-slate-700">{item.label} · <span className="text-slate-500 font-normal">{item.amount.toLocaleString()} FCFA</span></span>
+                                  <Input type="number" min="0" placeholder="Allocation" value={payAllocations[item.id] || ""} onChange={(event) => setPayAllocations((current) => ({ ...current, [item.id]: event.target.value }))} className="w-32 bg-white" />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {payScheduleError && <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-100">{payScheduleError}</p>}
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label className="text-xs text-slate-500 mb-1 block">Montant du paiement *</Label>
+                              <Input type="number" min="1" placeholder="Montant" value={payAmount} onChange={(event) => setPayAmount(event.target.value)} required />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-slate-500 mb-1 block">Méthode de paiement</Label>
+                              <select value={payMethod} onChange={(event) => setPayMethod(event.target.value)} className="w-full rounded-md border px-3 py-2 h-10 bg-white">
+                                <option value="cash">Espèces</option>
+                                <option value="transfer">Virement</option>
+                                <option value="mobile_money">Mobile Money</option>
+                                <option value="check">Chèque</option>
+                              </select>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label className="text-xs text-slate-500 mb-1 block">Référence</Label>
+                              <Input placeholder="Ex: Chèque N°..." value={payReference} onChange={(event) => setPayReference(event.target.value)} />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-slate-500 mb-1 block">Notes / Remarques</Label>
+                              <Input placeholder="Notes optionnelles" value={payNotes} onChange={(event) => setPayNotes(event.target.value)} />
+                            </div>
+                          </div>
+                          
+                          <div className="flex justify-end gap-3 pt-4 mt-6 border-t">
+                            <Button type="button" variant="outline" onClick={() => setShowPayForm(false)}>Annuler</Button>
+                            <Button type="submit" disabled={isCreatingPayment || loadingEnrollments} className="bg-slate-900 text-white">
+                              {isCreatingPayment ? "Enregistrement..." : "Enregistrer le paiement"}
+                            </Button>
+                          </div>
+                        </form>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeSection === "financement-etat" && (
+              <div className="space-y-6">
+                <Card className="rounded-2xl border-slate-200 shadow-sm overflow-hidden">
+                  <CardHeader className="border-b border-slate-100 bg-slate-50/80">
+                    <CardTitle>Suivi du Financement de l'État</CardTitle>
+                    <CardDescription>Gestion des élèves subventionnés et paiements de l'état</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-5">
+                    {loadingState && !stateSummary ? (
+                      <p className="text-sm text-slate-500 py-8 text-center">Chargement des données de l'État...</p>
+                    ) : stateError ? (
+                      <p className="text-sm text-red-600 bg-red-50 p-4 rounded-xl border border-red-100 text-center">{stateError}</p>
+                    ) : stateSummary ? (
+                      <div className="space-y-8">
+                        <div className="grid gap-4 md:grid-cols-3">
+                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                            <p className="text-sm text-slate-500 font-medium">Financement attendu</p>
+                            <p className="text-2xl font-bold mt-2 text-slate-900">{money(stateSummary.state_expected)}</p>
+                            <div className="flex items-center gap-2 text-sm text-slate-500 mt-3 pt-3 border-t">
+                              <Landmark className="h-4 w-4" /> {stateSummary.state_schedules} échéance(s) État
+                            </div>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                            <p className="text-sm text-slate-500 font-medium">Financement encaissé</p>
+                            <p className="text-2xl font-bold mt-2 text-emerald-700">{money(stateSummary.state_paid)}</p>
+                            <div className="flex items-center gap-2 text-sm text-emerald-600 mt-3 pt-3 border-t">
+                              <WalletCards className="h-4 w-4" /> {stateProgress.toFixed(0)} % encaissé
+                            </div>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                            <p className="text-sm text-slate-500 font-medium">Financement restant</p>
+                            <p className="text-2xl font-bold mt-2 text-rose-700">{money(stateSummary.state_remaining)}</p>
+                            <div className="h-2 overflow-hidden rounded-full bg-slate-100 mt-4">
+                              <div className="h-full rounded-full bg-slate-700 transition-all" style={{ width: `${stateProgress}%` }} />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="border border-slate-200 rounded-2xl bg-slate-50 p-6">
+                          <div className="mb-5 flex items-center justify-between flex-wrap gap-4">
+                            <div>
+                              <h3 className="font-semibold text-lg text-slate-900">Familles : situation indépendante</h3>
+                              <p className="text-sm text-slate-500 mt-1">Les sommes dues par les parents restent séparées du financement public.</p>
+                            </div>
+                            <div className="rounded-full bg-white border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm">
+                              {yearForPayments?.name || "Année en cours"}
+                            </div>
+                          </div>
+                          <div className="grid gap-4 sm:grid-cols-3">
+                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                              <div className="text-sm text-slate-500 mb-1">À payer par les familles</div>
+                              <div className="font-bold text-lg text-slate-900">{money(stateSummary.family_expected)}</div>
+                            </div>
+                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                              <div className="text-sm text-slate-500 mb-1">Encaissé des familles</div>
+                              <div className="font-bold text-lg text-emerald-700">{money(stateSummary.family_paid)}</div>
+                            </div>
+                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                              <div className="text-sm text-slate-500 mb-1">Impayé familial</div>
+                              <div className="font-bold text-lg text-rose-700">{money(stateSummary.family_remaining)}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500 py-8 text-center">Aucune donnée disponible pour cette année.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {activeSection === "mouvements" && (

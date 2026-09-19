@@ -926,10 +926,10 @@ export default function SettingsPage() {
                       <Settings className="h-5 w-5" />
                       Structure académique
                     </CardTitle>
-                    <CardDescription>Gérez les cycles, niveaux et classes de votre établissement</CardDescription>
+                    <CardDescription>Configurez les cycles et les niveaux de votre établissement avant de créer les classes.</CardDescription>
                   </div>
                   <Button asChild className="w-full sm:w-auto">
-                    <Link href="/ecole/classes">
+                    <Link href="/ecole/settings/structure">
                       <Edit className="h-4 w-4 mr-2" />
                       Gérer la structure
                     </Link>
@@ -939,10 +939,10 @@ export default function SettingsPage() {
               <CardContent>
                 <div className="text-center py-12">
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Structure académique</h3>
-                  <p className="text-gray-500 mb-4">La gestion des cycles, niveaux et classes se fait sur une page dédiée.</p>
+                  <p className="text-gray-500 mb-4">La configuration des cycles et niveaux se fait sur une page dédiée.</p>
                   <Button asChild>
-                    <Link href="/ecole/classes">
-                      Aller à la gestion des classes
+                    <Link href="/ecole/settings/structure">
+                      Gérer les cycles et niveaux
                     </Link>
                   </Button>
                 </div>

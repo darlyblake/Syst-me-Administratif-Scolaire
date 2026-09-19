@@ -2,33 +2,45 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Plus, Pencil, ChevronRight, GraduationCap } from "lucide-react"
+import { Plus, Pencil, ChevronRight, GraduationCap, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Separator } from "@/components/ui/separator"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Separator } from "@/components/ui/separator"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import {
   createCycle,
   updateCycle,
+  deleteCycle,
   createLevel,
   updateLevel,
+  deleteLevel,
 } from "@/lib/supabase/services/academic.service"
-import type { AcademicStructureCycle, AcademicStructureLevel, EducationCycle, GradeLevel } from "@/lib/supabase/types"
+import type { AcademicStructureCycle, AcademicStructureLevel } from "@/lib/supabase/types"
 
 import { CycleForm } from "@/components/academic/CycleForm"
 import { GradeLevelForm } from "@/components/academic/GradeLevelForm"
 
-// ─── Types pour les modales ───────────────────────────────────────────────────
+// ─── Types modales ────────────────────────────────────────────────────────────
 
 type ModalState =
   | { type: "none" }
@@ -37,7 +49,12 @@ type ModalState =
   | { type: "add-level"; cycle: AcademicStructureCycle }
   | { type: "edit-level"; cycle: AcademicStructureCycle; level: AcademicStructureLevel }
 
-// ─── Composant principal ──────────────────────────────────────────────────────
+type ConfirmState =
+  | { type: "none" }
+  | { type: "delete-cycle"; cycle: AcademicStructureCycle }
+  | { type: "delete-level"; level: AcademicStructureLevel }
+
+// ─── Page principale ──────────────────────────────────────────────────────────
 
 export default function StructureAcademiquePage() {
   const { utilisateur } = useAuthentification()
@@ -47,10 +64,13 @@ export default function StructureAcademiquePage() {
   const { data: structure, isLoading, error, refresh } = useAcademicStructure(establishmentId)
 
   const [modal, setModal] = useState<ModalState>({ type: "none" })
+  const [confirm, setConfirm] = useState<ConfirmState>({ type: "none" })
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const closeModal = () => setModal({ type: "none" })
+  const closeConfirm = () => setConfirm({ type: "none" })
 
-  // ── Handlers Cycle ──────────────────────────────────────────────────────────
+  // ── Cycles ──────────────────────────────────────────────────────────────────
 
   const handleCreateCycle = async (data: { name: string; code?: string; display_order?: number }) => {
     if (!establishmentId) return
@@ -60,51 +80,100 @@ export default function StructureAcademiquePage() {
     closeModal()
   }
 
-  const handleUpdateCycle = async (
-    cycleId: string,
-    data: { name: string; code?: string; display_order?: number }
-  ) => {
+  const handleUpdateCycle = async (cycleId: string, data: { name: string; code?: string; display_order?: number }) => {
     await updateCycle(cycleId, data)
     toast.success("Cycle mis à jour")
     await refresh()
     closeModal()
   }
 
-  // ── Handlers Niveau ─────────────────────────────────────────────────────────
+  const handleDeleteCycle = async () => {
+    if (confirm.type !== "delete-cycle") return
+    try {
+      setIsDeleting(true)
+      await deleteCycle(confirm.cycle.id)
+      toast.success("Cycle supprimé")
+      await refresh()
+      closeConfirm()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Impossible de supprimer le cycle.")
+      closeConfirm()
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
-  const handleCreateLevel = async (
-    cycleId: string,
-    data: { name: string; code?: string; display_order?: number }
-  ) => {
+  // ── Niveaux ─────────────────────────────────────────────────────────────────
+
+  const handleCreateLevel = async (cycleId: string, data: { name: string; code?: string; display_order?: number }) => {
     await createLevel({ ...data, cycle_id: cycleId, active: true })
     toast.success("Niveau créé")
     await refresh()
     closeModal()
   }
 
-  const handleUpdateLevel = async (
-    levelId: string,
-    data: { name: string; code?: string; display_order?: number }
-  ) => {
+  const handleUpdateLevel = async (levelId: string, data: { name: string; code?: string; display_order?: number }) => {
     await updateLevel(levelId, data)
     toast.success("Niveau mis à jour")
     await refresh()
     closeModal()
   }
 
-  // ── Titre de la modale ──────────────────────────────────────────────────────
+  const handleDeleteLevel = async () => {
+    if (confirm.type !== "delete-level") return
+    try {
+      setIsDeleting(true)
+      await deleteLevel(confirm.level.id)
+      toast.success("Niveau supprimé")
+      await refresh()
+      closeConfirm()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Impossible de supprimer le niveau.")
+      closeConfirm()
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // ── Titre modale ─────────────────────────────────────────────────────────────
 
   const modalTitle = () => {
     switch (modal.type) {
-      case "add-cycle":   return "Ajouter un cycle"
-      case "edit-cycle":  return "Modifier le cycle"
-      case "add-level":   return "Ajouter un niveau"
-      case "edit-level":  return "Modifier le niveau"
+      case "add-cycle":  return "Ajouter un cycle"
+      case "edit-cycle": return "Modifier le cycle"
+      case "add-level":  return "Ajouter un niveau"
+      case "edit-level": return "Modifier le niveau"
       default: return ""
     }
   }
 
-  // ── Rendu ──────────────────────────────────────────────────────────────────
+  // ── Texte confirmation suppression ────────────────────────────────────────────
+
+  const confirmText = () => {
+    if (confirm.type === "delete-cycle") {
+      const levelCount = confirm.cycle.grade_levels?.length ?? 0
+      return {
+        title: `Supprimer le cycle « ${confirm.cycle.name} » ?`,
+        description: levelCount > 0
+          ? `Ce cycle contient ${levelCount} niveau(x). Vous devez d'abord supprimer tous ses niveaux.`
+          : "Cette action est irréversible. Le cycle sera définitivement supprimé.",
+        canDelete: levelCount === 0,
+      }
+    }
+    if (confirm.type === "delete-level") {
+      const classCount = confirm.level.school_classes?.length ?? 0
+      return {
+        title: `Supprimer le niveau « ${confirm.level.name} » ?`,
+        description: classCount > 0
+          ? `Ce niveau contient ${classCount} classe(s). Vous devez d'abord supprimer toutes ses classes.`
+          : "Cette action est irréversible. Le niveau sera définitivement supprimé.",
+        canDelete: classCount === 0,
+      }
+    }
+    return { title: "", description: "", canDelete: false }
+  }
+
+  // ── Rendu ────────────────────────────────────────────────────────────────────
 
   if (!establishmentId) {
     return (
@@ -114,10 +183,12 @@ export default function StructureAcademiquePage() {
     )
   }
 
+  const { title, description, canDelete } = confirmText()
+
   return (
     <div className="p-4 sm:p-6 max-w-3xl mx-auto">
 
-      {/* En-tête page */}
+      {/* En-tête */}
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-gray-900">Structure académique</h1>
         <p className="mt-1 text-sm text-gray-500">
@@ -125,18 +196,15 @@ export default function StructureAcademiquePage() {
         </p>
       </div>
 
-      {/* Bouton principal */}
+      {/* Action principale */}
       <div className="mb-6">
-        <Button
-          size="sm"
-          onClick={() => setModal({ type: "add-cycle" })}
-        >
+        <Button size="sm" onClick={() => setModal({ type: "add-cycle" })}>
           <Plus className="h-4 w-4 mr-1.5" />
           Ajouter un cycle
         </Button>
       </div>
 
-      {/* Zone de contenu */}
+      {/* Contenu */}
       {isLoading ? (
         <LoadingSkeleton />
       ) : error ? (
@@ -148,18 +216,20 @@ export default function StructureAcademiquePage() {
       ) : (
         <div className="space-y-4">
           {structure.map((cycle) => (
-        <CycleSection
+            <CycleSection
               key={cycle.id}
               cycle={cycle}
               onEditCycle={() => setModal({ type: "edit-cycle", cycle })}
-              onAddLevelForCycle={() => setModal({ type: "add-level", cycle })}
+              onDeleteCycle={() => setConfirm({ type: "delete-cycle", cycle })}
+              onAddLevel={() => setModal({ type: "add-level", cycle })}
               onEditLevel={(level) => setModal({ type: "edit-level", cycle, level })}
+              onDeleteLevel={(level) => setConfirm({ type: "delete-level", level })}
             />
           ))}
         </div>
       )}
 
-      {/* Modale unique */}
+      {/* Modale formulaire */}
       <Dialog open={modal.type !== "none"} onOpenChange={(open) => !open && closeModal()}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -167,12 +237,8 @@ export default function StructureAcademiquePage() {
           </DialogHeader>
 
           {modal.type === "add-cycle" && (
-            <CycleForm
-              onSubmit={handleCreateCycle}
-              onCancel={closeModal}
-            />
+            <CycleForm onSubmit={handleCreateCycle} onCancel={closeModal} />
           )}
-
           {modal.type === "edit-cycle" && (
             <CycleForm
               initialData={modal.cycle}
@@ -180,7 +246,6 @@ export default function StructureAcademiquePage() {
               onCancel={closeModal}
             />
           )}
-
           {modal.type === "add-level" && (
             <GradeLevelForm
               cycleId={modal.cycle.id}
@@ -189,7 +254,6 @@ export default function StructureAcademiquePage() {
               onCancel={closeModal}
             />
           )}
-
           {modal.type === "edit-level" && (
             <GradeLevelForm
               cycleId={modal.cycle.id}
@@ -201,43 +265,79 @@ export default function StructureAcademiquePage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modale confirmation suppression */}
+      <AlertDialog open={confirm.type !== "none"} onOpenChange={(open) => !open && closeConfirm()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{title}</AlertDialogTitle>
+            <AlertDialogDescription>{description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+            {canDelete ? (
+              <AlertDialogAction
+                onClick={confirm.type === "delete-cycle" ? handleDeleteCycle : handleDeleteLevel}
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {isDeleting ? "Suppression..." : "Supprimer"}
+              </AlertDialogAction>
+            ) : (
+              <AlertDialogCancel className="bg-gray-100">Compris</AlertDialogCancel>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
 
-// ─── Section d'un cycle ───────────────────────────────────────────────────────
+// ─── Section cycle ────────────────────────────────────────────────────────────
 
 interface CycleSectionProps {
   cycle: AcademicStructureCycle
   onEditCycle: () => void
-  onAddLevelForCycle: () => void
+  onDeleteCycle: () => void
+  onAddLevel: () => void
   onEditLevel: (level: AcademicStructureLevel) => void
+  onDeleteLevel: (level: AcademicStructureLevel) => void
 }
 
-function CycleSection({ cycle, onEditCycle, onAddLevelForCycle, onEditLevel }: CycleSectionProps) {
+function CycleSection({ cycle, onEditCycle, onDeleteCycle, onAddLevel, onEditLevel, onDeleteLevel }: CycleSectionProps) {
   const levels = cycle.grade_levels || []
 
   return (
     <div className="border rounded-md">
-      {/* En-tête du cycle */}
+      {/* En-tête cycle */}
       <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b rounded-t-md">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           <GraduationCap className="h-4 w-4 text-gray-500 shrink-0" />
-          <span className="font-semibold text-sm uppercase tracking-wide text-gray-700">
+          <span className="font-semibold text-sm uppercase tracking-wide text-gray-700 truncate">
             {cycle.name}
           </span>
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-gray-400 shrink-0">
             {levels.length} {levels.length === 1 ? "niveau" : "niveaux"}
           </span>
         </div>
-        <Button variant="ghost" size="sm" onClick={onEditCycle} className="text-gray-500 hover:text-gray-700">
-          <Pencil className="h-3.5 w-3.5 mr-1" />
-          Modifier
-        </Button>
+        <div className="flex items-center gap-1 shrink-0 ml-2">
+          <Button variant="ghost" size="sm" onClick={onEditCycle} className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700">
+            <Pencil className="h-3.5 w-3.5 mr-1" />
+            Modifier
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDeleteCycle}
+            className="h-7 px-2 text-xs text-gray-400 hover:text-red-600 hover:bg-red-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
 
       {/* Niveaux */}
-      <div className="px-4 py-3 space-y-1">
+      <div className="px-4 py-3 space-y-0.5">
         {levels.length === 0 ? (
           <p className="text-xs text-gray-400 py-2">
             Aucun niveau. Commencez par en ajouter un.
@@ -248,18 +348,19 @@ function CycleSection({ cycle, onEditCycle, onAddLevelForCycle, onEditLevel }: C
               <LevelRow
                 level={level}
                 onEdit={() => onEditLevel(level)}
+                onDelete={() => onDeleteLevel(level)}
               />
-              {index < levels.length - 1 && <Separator className="my-1" />}
+              {index < levels.length - 1 && <Separator className="my-0.5" />}
             </div>
           ))
         )}
       </div>
 
-      {/* Bouton ajouter niveau */}
+      {/* Ajouter niveau */}
       <div className="px-4 pb-3">
         <button
-          onClick={onAddLevelForCycle}
-          className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 mt-1"
+          onClick={onAddLevel}
+          className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
         >
           <Plus className="h-3 w-3" />
           Ajouter un niveau
@@ -269,14 +370,15 @@ function CycleSection({ cycle, onEditCycle, onAddLevelForCycle, onEditLevel }: C
   )
 }
 
-// ─── Ligne d'un niveau ────────────────────────────────────────────────────────
+// ─── Ligne niveau ─────────────────────────────────────────────────────────────
 
 interface LevelRowProps {
   level: AcademicStructureLevel
   onEdit: () => void
+  onDelete: () => void
 }
 
-function LevelRow({ level, onEdit }: LevelRowProps) {
+function LevelRow({ level, onEdit, onDelete }: LevelRowProps) {
   const classCount = level.school_classes?.length ?? 0
 
   return (
@@ -303,6 +405,14 @@ function LevelRow({ level, onEdit }: LevelRowProps) {
             </Link>
           </Button>
         )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDelete}
+          className="h-7 px-2 text-xs text-gray-400 hover:text-red-600 hover:bg-red-50"
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
       </div>
     </div>
   )

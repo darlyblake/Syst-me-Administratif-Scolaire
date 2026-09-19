@@ -1,11 +1,11 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import type { AcademicStructureCycle, TuitionPlan } from "@/lib/supabase/types"
+import type { AcademicStructureCycle, TuitionPlanWithInstallments } from "@/lib/supabase/types"
 
 interface TuitionPlanListProps {
   data: AcademicStructureCycle[]
-  plans: Map<string, TuitionPlan>
+  plans: Map<string, TuitionPlanWithInstallments>
   isLoading?: boolean
   error?: string | null
   onEdit: (levelId: string, levelName: string) => void

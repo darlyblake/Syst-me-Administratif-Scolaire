@@ -16,18 +16,27 @@ export async function getTuitionPlans(academicYearId: string): Promise<TuitionPl
 
   const { data, error } = await supabaseBrowser
     .from("tuition_plans")
-    .select("*")
+    .select("*, installments:tuition_plan_installments(*)")
     .eq("academic_year_id", academicYearId)
     .order("created_at", { ascending: false })
 
   if (error) throw new Error("Impossible de charger les tarifs.")
-  return (data ?? []) as TuitionPlan[]
+  
+  // Tri des échéances par numéro (côté client pour éviter les soucis de syntaxe PostgREST)
+  const plans = (data ?? []) as any[]
+  plans.forEach(plan => {
+    if (plan.installments) {
+      plan.installments.sort((a: any, b: any) => (a.installment_number ?? 0) - (b.installment_number ?? 0))
+    }
+  })
+
+  return plans as TuitionPlan[]
 }
 
 export async function getTuitionPlan(academicYearId: string, gradeLevelId: string): Promise<TuitionPlan | null> {
   const { data, error } = await supabaseBrowser
     .from("tuition_plans")
-    .select("*")
+    .select("*, installments:tuition_plan_installments(*)")
     .eq("academic_year_id", academicYearId)
     .eq("grade_level_id", gradeLevelId)
     .eq("is_active", true)
@@ -35,6 +44,10 @@ export async function getTuitionPlan(academicYearId: string, gradeLevelId: strin
 
   if (error && error.code !== "PGRST116") {
     throw new Error("Impossible de charger le tarif.")
+  }
+
+  if (data && data.installments) {
+    data.installments.sort((a: any, b: any) => (a.installment_number ?? 0) - (b.installment_number ?? 0))
   }
 
   return (data as TuitionPlan | null) ?? null
@@ -81,6 +94,12 @@ export async function updateTuitionPlan(planId: string, data: TuitionPlanPayload
   if (planError) throw new Error("Impossible de modifier le tarif.")
 
   if (installments) {
+    // Récupérer les tranches existantes pour identifier celles à supprimer
+    const { data: existingInstallments } = await supabaseBrowser
+      .from("tuition_plan_installments")
+      .select("id")
+      .eq("tuition_plan_id", planId)
+
     const rows = installments.map((installment) => ({
       ...installment,
       tuition_plan_id: planId,
@@ -96,6 +115,19 @@ export async function updateTuitionPlan(planId: string, data: TuitionPlanPayload
         throw new Error("Impossible de synchroniser les échéances.")
       }
     }
+
+    // Supprimer les échéances qui ne sont plus dans le payload
+    if (existingInstallments) {
+      const incomingIds = rows.map((r) => r.id).filter(Boolean)
+      const toDelete = existingInstallments.map((i) => i.id).filter((id) => !incomingIds.includes(id as string))
+      
+      if (toDelete.length > 0) {
+        await supabaseBrowser.from("tuition_plan_installments").delete().in("id", toDelete)
+      }
+    }
+  } else if (planData.payment_mode !== "installments") {
+     // Si on passe en mode mensuel ou unique, on supprime toutes les tranches existantes
+     await supabaseBrowser.from("tuition_plan_installments").delete().eq("tuition_plan_id", planId)
   }
 
   return plan as TuitionPlan

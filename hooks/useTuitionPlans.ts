@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { getTuitionPlan, getTuitionPlans } from "@/lib/supabase/services/tuition.service"
-import type { TuitionPlan } from "@/lib/supabase/types"
+import type { TuitionPlanWithInstallments } from "@/lib/supabase/types"
 
 export function useTuitionPlans(academicYearId: string | null, gradeLevelId?: string | null) {
-  const [data, setData] = useState<TuitionPlan[]>([])
-  const [selectedPlan, setSelectedPlan] = useState<TuitionPlan | null>(null)
+  const [data, setData] = useState<TuitionPlanWithInstallments[]>([])
+  const [selectedPlan, setSelectedPlan] = useState<TuitionPlanWithInstallments | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 

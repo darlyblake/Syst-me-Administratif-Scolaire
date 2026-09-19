@@ -57,6 +57,38 @@ export async function deactivateLevel(levelId: string) {
   if (error) throw new Error("Impossible de désactiver le niveau.")
 }
 
+export async function deleteLevel(levelId: string) {
+  // Vérifier si des classes existent pour ce niveau
+  const { count, error: countError } = await supabaseBrowser
+    .from("school_classes")
+    .select("id", { count: "exact", head: true })
+    .eq("grade_level_id", levelId)
+
+  if (countError) throw new Error("Impossible de vérifier les classes associées.")
+  if (count && count > 0) {
+    throw new Error(`Ce niveau possède ${count} classe(s). Supprimez les classes avant de supprimer le niveau.`)
+  }
+
+  const { error } = await supabaseBrowser.from("grade_levels").delete().eq("id", levelId)
+  if (error) throw new Error("Impossible de supprimer le niveau.")
+}
+
+export async function deleteCycle(cycleId: string) {
+  // Vérifier si des niveaux existent pour ce cycle
+  const { count, error: countError } = await supabaseBrowser
+    .from("grade_levels")
+    .select("id", { count: "exact", head: true })
+    .eq("cycle_id", cycleId)
+
+  if (countError) throw new Error("Impossible de vérifier les niveaux associés.")
+  if (count && count > 0) {
+    throw new Error(`Ce cycle possède ${count} niveau(x). Supprimez les niveaux avant de supprimer le cycle.`)
+  }
+
+  const { error } = await supabaseBrowser.from("education_cycles").delete().eq("id", cycleId)
+  if (error) throw new Error("Impossible de supprimer le cycle.")
+}
+
 export async function getClassesByLevel(levelId: string) {
   const { data, error } = await supabaseBrowser
     .from("school_classes")

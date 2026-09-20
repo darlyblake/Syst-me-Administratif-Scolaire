@@ -20,6 +20,9 @@ import { updateEstablishment } from "@/lib/supabase/services/establishment.servi
 import type { ParametresEcole } from "@/types/models"
 import type { Establishment } from "@/lib/supabase/types"
 
+import StructureAcademiquePage from "./structure/page"
+import ScolariteSettingsPage from "./scolarite/page"
+
 interface EstablishmentFormData {
   nomEtablissement: string
   nomDirecteur: string
@@ -918,109 +921,11 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="structure">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Settings className="h-5 w-5" />
-                      Structure académique
-                    </CardTitle>
-                    <CardDescription>Configurez les cycles et les niveaux de votre établissement avant de créer les classes.</CardDescription>
-                  </div>
-                  <Button asChild className="w-full sm:w-auto">
-                    <Link href="/ecole/settings/structure">
-                      <Edit className="h-4 w-4 mr-2" />
-                      Gérer la structure
-                    </Link>
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Structure académique</h3>
-                  <p className="text-gray-500 mb-4">La configuration des cycles et niveaux se fait sur une page dédiée.</p>
-                  <Button asChild>
-                    <Link href="/ecole/settings/structure">
-                      Gérer les cycles et niveaux
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <StructureAcademiquePage />
           </TabsContent>
 
           <TabsContent value="scolarite">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <CreditCard className="h-5 w-5" />
-                      Scolarité (Tarifs et Modes de paiement)
-                    </CardTitle>
-                    <CardDescription>Gérez les frais de scolarité, les tranches et les modes de paiement par niveau</CardDescription>
-                  </div>
-                  <Button asChild className="w-full sm:w-auto">
-                    <Link href="/ecole/settings/scolarite">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Gérer les tarifs
-                    </Link>
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {isLoadingPlans ? (
-                  <div className="text-center py-12">
-                    <div className="text-gray-500">Chargement des plans de tarification...</div>
-                  </div>
-                ) : tuitionPlans.length === 0 ? (
-                  <div className="text-center py-12">
-                    <DollarSign className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun plan de tarification</h3>
-                    <p className="text-gray-500 mb-4">Créez votre premier plan de scolarité pour commencer.</p>
-                    <Button asChild>
-                      <Link href="/ecole/settings/scolarite">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Créer un plan
-                      </Link>
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {tuitionPlans.map((plan) => (
-                      <div key={plan.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-medium">Plan de niveau</h4>
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                              plan.payment_mode === "monthly" ? "bg-blue-100 text-blue-800" : 
-                              plan.payment_mode === "installments" ? "bg-purple-100 text-purple-800" : 
-                              "bg-green-100 text-green-800"
-                            }`}>
-                              {plan.payment_mode === "monthly" ? "Mensuel" : 
-                               plan.payment_mode === "installments" ? "Tranches" : 
-                               "Unique"}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Inscription: {plan.registration_fee?.toLocaleString() || 0} FCFA • 
-                            Scolarité: {plan.annual_amount.toLocaleString()} FCFA / an
-                            {plan.installment_count ? ` • ${plan.installment_count} tranches` : ""}
-                          </p>
-                        </div>
-                        <Button variant="outline" size="sm" asChild className="mt-3 sm:mt-0">
-                          <Link href="/ecole/settings/scolarite">
-                            <Edit className="h-4 w-4 mr-2" />
-                            Modifier
-                          </Link>
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <ScolariteSettingsPage />
           </TabsContent>
 
           <TabsContent value="users">

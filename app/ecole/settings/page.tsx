@@ -7,21 +7,18 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { ArrowLeft, Save, Settings, Calendar, DollarSign, RotateCcw, CreditCard, Plus, Trash2, Edit, Check, X, HelpCircle, Copy, Users } from "lucide-react"
+import { ArrowLeft, Save, Settings, Calendar, DollarSign, RotateCcw, Plus, Trash2, Edit, HelpCircle, Users } from "lucide-react"
 import Link from "next/link"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useEstablishment } from "@/hooks/useEstablishment"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
-import { useTuitionPlans } from "@/hooks/useTuitionPlans"
-import { serviceParametres, type TarificationClasse, type OptionsSupplementaires, type OptionSupplementaire, type TarificationTypeEcole, type TarificationNiveau } from "@/services/parametres.service"
+import { serviceParametres } from "@/services/parametres.service"
 import { updateEstablishment } from "@/lib/supabase/services/establishment.service"
 import type { ParametresEcole } from "@/types/models"
 import type { Establishment } from "@/lib/supabase/types"
 
 import StructureAcademiquePage from "./structure/page"
-import ScolariteSettingsPage from "./scolarite/page"
 
 interface EstablishmentFormData {
   nomEtablissement: string
@@ -56,9 +53,8 @@ export default function SettingsPage() {
 
   // Tous les hooks AVANT tout early return (règles des hooks React)
   const { data: establishment, error: establishmentError } = useEstablishment(establishmentId)
-  const { data: academicYears, activeYear, error: academicYearsError } = useAcademicYears(establishmentId)
-  const { data: academicStructure, isLoading: isLoadingStructure, error: structureError } = useAcademicStructure(establishmentId)
-  const { data: tuitionPlans, isLoading: isLoadingPlans, refresh: refreshPlans, error: tuitionError } = useTuitionPlans(activeYear?.id || null)
+  const { data: academicYears, error: academicYearsError } = useAcademicYears(establishmentId)
+  const { error: structureError } = useAcademicStructure(establishmentId)
 
   // Early return si pas d'etablissementId (après tous les hooks)
   const noEstablishment = !establishmentId
@@ -106,45 +102,12 @@ export default function SettingsPage() {
   // État initial pour détecter les modifications de l'établissement
   const [initialEstablishmentFormData, setInitialEstablishmentFormData] = useState<EstablishmentFormData | null>(null)
 
-  const [pricing, setPricing] = useState<TarificationClasse[]>([])
-  const [fraisInscriptionEtablissement, setFraisInscriptionEtablissement] = useState(0)
-  const [fraisReinscriptionEtablissement, setFraisReinscriptionEtablissement] = useState(0)
-  const [tarificationTypesEcole, setTarificationTypesEcole] = useState<TarificationTypeEcole[]>([])
-  const [optionsSupplementaires, setOptionsSupplementaires] = useState<OptionsSupplementaires>({
-    tenueScolaire: 0,
-    carteScolaire: 0,
-    cooperative: 0,
-    tenueEPS: 0,
-    assurance: 0,
-  })
-
-  const [nouvelleClasse, setNouvelleClasse] = useState("")
-  const [fraisInscriptionNouvelle, setFraisInscriptionNouvelle] = useState(0)
-  const [fraisScolariteAnnuelleNouvelle, setFraisScolariteAnnuelleNouvelle] = useState(0)
-
-  // État pour les nouveaux niveaux par type d'école
-  const [nouveauxNiveaux, setNouveauxNiveaux] = useState<Record<string, { nom: string; fraisScolariteAnnuelle: number }>>({})
-
-  // État pour les options supplémentaires personnalisées
-  const [optionsPersonnalisees, setOptionsPersonnalisees] = useState<OptionSupplementaire[]>([])
-  const [nouvelleOptionNom, setNouvelleOptionNom] = useState("")
-  const [nouvelleOptionPrix, setNouvelleOptionPrix] = useState(0)
-
   // États pour les erreurs de validation
   const [erreursValidation, setErreursValidation] = useState<Record<string, string>>({})
-
-  // États pour l'édition inline des options personnalisées
-  const [optionEnEdition, setOptionEnEdition] = useState<string | null>(null)
-  const [optionEditionNom, setOptionEditionNom] = useState("")
-  const [optionEditionPrix, setOptionEditionPrix] = useState(0)
 
   // État pour détecter les modifications non enregistrées
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [initialSettings, setInitialSettings] = useState<ParametresEcole | null>(null)
-  const [initialFraisInscription, setInitialFraisInscription] = useState(0)
-  const [initialFraisReinscription, setInitialFraisReinscription] = useState(0)
-  const [initialTarificationTypesEcole, setInitialTarificationTypesEcole] = useState<TarificationTypeEcole[]>([])
-  const [initialOptions, setInitialOptions] = useState<OptionsSupplementaires | null>(null)
 
   // Détecter les modifications non enregistrées
   useEffect(() => {
@@ -154,14 +117,9 @@ export default function SettingsPage() {
     const settingsChanged = initialSettings
       ? JSON.stringify(settings) !== JSON.stringify(initialSettings)
       : false
-    const fraisInscriptionChanged = fraisInscriptionEtablissement !== initialFraisInscription
-    const fraisReinscriptionChanged = fraisReinscriptionEtablissement !== initialFraisReinscription
-    const tarificationChanged = JSON.stringify(tarificationTypesEcole) !== JSON.stringify(initialTarificationTypesEcole)
-    const optionsChanged = initialOptions ? JSON.stringify(optionsSupplementaires) !== JSON.stringify(initialOptions) : false
 
-    const hasChanges = establishmentChanged || settingsChanged || fraisInscriptionChanged || fraisReinscriptionChanged || tarificationChanged || optionsChanged
-    setHasUnsavedChanges(hasChanges)
-  }, [establishmentFormData, initialEstablishmentFormData, settings, fraisInscriptionEtablissement, fraisReinscriptionEtablissement, tarificationTypesEcole, optionsSupplementaires, initialSettings, initialFraisInscription, initialFraisReinscription, initialTarificationTypesEcole, initialOptions])
+    setHasUnsavedChanges(establishmentChanged || settingsChanged)
+  }, [establishmentFormData, initialEstablishmentFormData, settings, initialSettings])
 
   // Charger les données de l'établissement depuis Supabase
   useEffect(() => {
@@ -201,12 +159,6 @@ export default function SettingsPage() {
   useEffect(() => {
     try {
       const parametresCharges = serviceParametres.obtenirParametres()
-      const tarificationChargee = serviceParametres.obtenirTarification()
-      const fraisInscriptionGlobalCharge = serviceParametres.obtenirFraisInscriptionEtablissement()
-      const fraisReinscriptionGlobalCharge = serviceParametres.obtenirFraisReinscriptionEtablissement()
-
-      const tarificationTypesEcoleChargee = serviceParametres.obtenirTarificationParTypeEcole()
-      const optionsChargees = serviceParametres.obtenirOptionsSupplementaires()
 
       // S'assurer que tous les champs sont définis
       const loadedSettings: ParametresEcole = {
@@ -224,78 +176,15 @@ export default function SettingsPage() {
 
       setSettings(loadedSettings)
 
-      setPricing(Array.isArray(tarificationChargee) ? tarificationChargee : [])
-      setFraisInscriptionEtablissement(fraisInscriptionGlobalCharge)
-      setFraisReinscriptionEtablissement(fraisReinscriptionGlobalCharge)
-      setTarificationTypesEcole(Array.isArray(tarificationTypesEcoleChargee) ? tarificationTypesEcoleChargee : [])
-
-      const loadedOptions = {
-        tenueScolaire: optionsChargees.tenueScolaire || 0,
-        carteScolaire: optionsChargees.carteScolaire || 0,
-        cooperative: optionsChargees.cooperative || 0,
-        tenueEPS: optionsChargees.tenueEPS || 0,
-        assurance: optionsChargees.assurance || 0,
-      }
-      setOptionsSupplementaires(loadedOptions)
-
-      // Charger les options supplémentaires personnalisées
-      const optionsPersonnaliseesChargees = serviceParametres.obtenirOptionsSupplementairesPersonnalisees()
-      setOptionsPersonnalisees(optionsPersonnaliseesChargees)
-
       // Sauvegarder l'état initial pour détecter les modifications
       setInitialSettings(loadedSettings)
-      setInitialFraisInscription(fraisInscriptionGlobalCharge)
-      setInitialFraisReinscription(fraisReinscriptionGlobalCharge)
-      setInitialTarificationTypesEcole(Array.isArray(tarificationTypesEcoleChargee) ? tarificationTypesEcoleChargee : [])
-      setInitialOptions(loadedOptions)
     } catch (error) {
       console.error("Erreur lors du chargement des paramètres:", error)
     }
   }, [])
 
   // Synchroniser tarificationTypesEcole avec academicStructure
-  useEffect(() => {
-    if (!academicStructure || academicStructure.length === 0) return
 
-    setTarificationTypesEcole(prev => {
-      const updated = [...prev]
-      
-      academicStructure.forEach(cycle => {
-        const existingType = updated.find(t => t.typeEcole === cycle.name)
-        
-        if (!existingType) {
-          // Créer un nouveau type d'école pour ce cycle
-          updated.push({
-            typeEcole: cycle.name,
-            niveaux: cycle.grade_levels?.map(level => ({
-              niveau: level.name,
-              fraisInscription: fraisInscriptionEtablissement,
-              fraisScolariteAnnuelle: 0,
-              planPaiementId: ""
-            })) || []
-          })
-        } else {
-          // Synchroniser les niveaux
-          const existingLevelNames = new Set(existingType.niveaux.map(n => n.niveau))
-          const newLevels = cycle.grade_levels?.filter(level => !existingLevelNames.has(level.name)) || []
-          
-          if (newLevels.length > 0) {
-            existingType.niveaux = [
-              ...existingType.niveaux,
-              ...newLevels.map(level => ({
-                niveau: level.name,
-                fraisInscription: fraisInscriptionEtablissement,
-                fraisScolariteAnnuelle: 0,
-                planPaiementId: ""
-              }))
-            ]
-          }
-        }
-      })
-      
-      return updated
-    })
-  }, [academicStructure, fraisInscriptionEtablissement])
 
   // Fonctions de validation
   const validerPrix = (prix: number, champ: string) => {
@@ -372,125 +261,7 @@ export default function SettingsPage() {
     reader.readAsDataURL(file)
   }
 
-  const handlePricingChange = (classe: string, field: "fraisInscription" | "fraisScolariteAnnuelle", value: number) => {
-    if (validerPrix(value, `pricing-${classe}-${field}`)) {
-      setPricing((prev) => prev.map((p) => (p.classe === classe ? { ...p, [field]: value } : p)))
-    }
-  }
 
-  const handleTarificationTypeEcoleChange = (typeEcole: string, niveau: string, field: "fraisScolariteAnnuelle" | "planPaiementId", value: number | string) => {
-    setTarificationTypesEcole(tarificationTypesEcole.map((type) => {
-      if (type.typeEcole === typeEcole) {
-        return {
-          ...type,
-          niveaux: type.niveaux.map((n) => {
-            if (n.niveau === niveau) {
-              return { ...n, [field]: value }
-            }
-            return n
-          })
-        }
-      }
-      return type
-    }))
-  }
-
-  const ajouterNiveau = (typeEcole: string) => {
-    const nouveauNiveau = nouveauxNiveaux[typeEcole]
-    if (!nouveauNiveau?.nom || nouveauNiveau.fraisScolariteAnnuelle <= 0) return
-
-    setTarificationTypesEcole(tarificationTypesEcole.map((type) => {
-      if (type.typeEcole === typeEcole) {
-        return {
-          ...type,
-          niveaux: [
-            ...type.niveaux,
-            {
-              niveau: nouveauNiveau.nom,
-              fraisInscription: fraisInscriptionEtablissement,
-              fraisScolariteAnnuelle: nouveauNiveau.fraisScolariteAnnuelle
-            }
-          ]
-        }
-      }
-      return type
-    }))
-
-    setNouveauxNiveaux(prev => ({
-      ...prev,
-      [typeEcole]: { nom: "", fraisScolariteAnnuelle: 0 }
-    }))
-  }
-
-  const supprimerNiveau = (typeEcole: string, niveau: string) => {
-    setTarificationTypesEcole(tarificationTypesEcole.map((type) => {
-      if (type.typeEcole === typeEcole) {
-        return {
-          ...type,
-          niveaux: type.niveaux.filter((n) => n.niveau !== niveau)
-        }
-      }
-      return type
-    }))
-  }
-
-  const handleOptionsChange = (option: keyof OptionsSupplementaires, value: number) => {
-    if (validerPrix(value, `options-${option}`)) {
-      setOptionsSupplementaires((prev) => ({ ...prev, [option]: value }))
-    }
-  }
-
-  const ajouterClasse = () => {
-    if (nouvelleClasse.trim() && fraisScolariteAnnuelleNouvelle > 0) {
-      const nouvelleClasseObj: TarificationClasse = {
-        classe: nouvelleClasse.trim(),
-        fraisInscription: fraisInscriptionEtablissement,
-        fraisScolariteAnnuelle: fraisScolariteAnnuelleNouvelle,
-      }
-      setPricing((prev) => [...prev, nouvelleClasseObj])
-      setNouvelleClasse("")
-      setFraisScolariteAnnuelleNouvelle(0)
-    }
-  }
-
-  const supprimerClasse = (classe: string) => {
-    setPricing((prev) => prev.filter((p) => p.classe !== classe))
-  }
-
-  const ajouterOptionPersonnalisee = () => {
-    if (nouvelleOptionNom.trim() && nouvelleOptionPrix > 0) {
-      try {
-        const nouvelleOption = serviceParametres.ajouterOptionSupplementaire(nouvelleOptionNom, nouvelleOptionPrix)
-        setOptionsPersonnalisees((prev) => [...prev, nouvelleOption])
-        setNouvelleOptionNom("")
-        setNouvelleOptionPrix(0)
-      } catch (error) {
-        alert("Erreur lors de l'ajout de l'option: " + (error as Error).message)
-      }
-    }
-  }
-
-  const supprimerOptionPersonnalisee = (id: string) => {
-    try {
-      serviceParametres.supprimerOptionSupplementaire(id)
-      setOptionsPersonnalisees((prev) => prev.filter((option) => option.id !== id))
-    } catch (error) {
-      alert("Erreur lors de la suppression de l'option: " + (error as Error).message)
-    }
-  }
-
-  const mettreAJourOptionPersonnalisee = (id: string, nom: string, prix: number) => {
-    try {
-      serviceParametres.mettreAJourOptionSupplementaire(id, nom, prix)
-      setOptionsPersonnalisees((prev) =>
-        prev.map((option) =>
-          option.id === id ? { ...option, nom: nom.trim(), prix } : option
-        )
-      )
-    } catch (error) {
-      alert("Erreur lors de la mise à jour de l'option: " + (error as Error).message)
-    }
-  }
 
   const saveSettings = async () => {
     if (!establishmentId) {
@@ -563,21 +334,11 @@ export default function SettingsPage() {
       setEstablishmentFormData(confirmedFormData)
       setInitialEstablishmentFormData(confirmedFormData)
 
-      // Sauvegarder les autres paramètres dans localStorage (temporaire)
+      // Sauvegarder les paramètres généraux dans localStorage
       serviceParametres.sauvegarderParametres(settings)
-      serviceParametres.sauvegarderFraisInscriptionEtablissement(fraisInscriptionEtablissement)
-      serviceParametres.sauvegarderFraisReinscriptionEtablissement(fraisReinscriptionEtablissement)
-      serviceParametres.sauvegarderTarification(pricing)
-      serviceParametres.sauvegarderTarificationParTypeEcole(tarificationTypesEcole)
-      serviceParametres.sauvegarderOptionsSupplementaires(optionsSupplementaires)
-      serviceParametres.sauvegarderOptionsSupplementairesPersonnalisees(optionsPersonnalisees)
 
       // Mettre à jour l'état initial après sauvegarde
       setInitialSettings(settings)
-      setInitialFraisInscription(fraisInscriptionEtablissement)
-      setInitialFraisReinscription(fraisReinscriptionEtablissement)
-      setInitialTarificationTypesEcole(tarificationTypesEcole)
-      setInitialOptions(optionsSupplementaires)
       setHasUnsavedChanges(false)
 
       alert("Paramètres sauvegardés avec succès !")
@@ -587,28 +348,13 @@ export default function SettingsPage() {
   }
 
   const resetSettings = () => {
-    if (confirm("Êtes-vous sûr de vouloir réinitialiser tous les paramètres aux valeurs par défaut ?")) {
+    if (confirm("Voulez-vous réinitialiser les paramètres généraux ?")) {
       try {
         serviceParametres.reinitialiserParametres()
         const parametresDefaut = serviceParametres.obtenirParametres()
-        const tarificationDefaut = serviceParametres.obtenirTarification()
         setSettings(parametresDefaut)
-        setPricing(tarificationDefaut)
-
-        // Réinitialiser l'état initial
         setInitialSettings(parametresDefaut)
-        setInitialFraisInscription(0)
-        setInitialFraisReinscription(0)
-        setInitialTarificationTypesEcole([])
-        setInitialOptions({
-          tenueScolaire: 0,
-          carteScolaire: 0,
-          cooperative: 0,
-          tenueEPS: 0,
-          assurance: 0,
-        })
         setHasUnsavedChanges(false)
-
         alert("Paramètres réinitialisés avec succès !")
       } catch (error) {
         alert("Erreur lors de la réinitialisation: " + (error as Error).message)
@@ -687,11 +433,7 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {tuitionError && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-            Erreur de chargement des plans de tarification : {tuitionError}
-          </div>
-        )}
+
 
         <Tabs defaultValue="general" className="space-y-6">
           <TabsList className="flex h-auto w-full max-w-full flex-wrap justify-start gap-1 overflow-x-auto p-1">
@@ -925,7 +667,27 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="scolarite">
-            <ScolariteSettingsPage />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Tarification
+                </CardTitle>
+                <CardDescription>La configuration des tarifs et frais est gérée dans le module Comptabilité.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-12">
+                  <DollarSign className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Gestion Financière</h3>
+                  <p className="text-gray-500 mb-4">Les tarifs de scolarité, frais d&apos;inscription et modes de paiement sont configurés dans le module Comptabilité.</p>
+                  <Button asChild>
+                    <Link href="/ecole/comptabilite">
+                      Aller à la Comptabilité
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="users">

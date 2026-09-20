@@ -672,7 +672,7 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
                       <div className="rounded-2xl bg-creme p-4 border border-terre/10">
                         <p className="text-sm text-pierre">Scolarité</p>
                         <p className="text-2xl font-bold text-terre tabular">
-                          {selectedPlan ? `${selectedPlan.annual_amount.toLocaleString("fr-FR")} FCFA` : "Sélectionnez une classe"}
+                          {selectedPlan ? `${selectedPlan.annual_tuition.toLocaleString("fr-FR")} FCFA` : "Sélectionnez une classe"}
                         </p>
                       </div>
                       <p className="text-sm text-pierre">Les échéances seront générées par le backend.</p>
@@ -735,7 +735,7 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
                     <div className="border-t pt-4 space-y-3">
                       <div className="border-t pt-3 flex justify-between text-lg font-bold">
                         <span>Plan tarifaire sélectionné</span>
-                        <span className="text-blue-600">{selectedPlan ? `${selectedPlan.annual_amount.toLocaleString()} FCFA` : "-"}</span>
+                        <span className="text-blue-600">{selectedPlan ? `${selectedPlan.annual_tuition.toLocaleString()} FCFA` : "-"}</span>
                       </div>
                     </div>
                   </CardContent>

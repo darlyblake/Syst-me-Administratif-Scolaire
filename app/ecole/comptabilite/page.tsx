@@ -25,6 +25,7 @@ import { useEnrollments } from "@/hooks/useEnrollments"
 import { useEstablishmentPaymentSummary, usePaymentList, usePayments } from "@/hooks/usePayments"
 import { getPaymentSummaryByEstablishment, type EstablishmentPaymentSummary } from "@/lib/supabase/services/payment.service"
 import type { EnrollmentWithRelations } from "@/lib/supabase/types"
+import ScolariteSettingsPage from "@/app/ecole/settings/scolarite/page"
 
 export default function ComptabilitePage() {
   const searchParams = useSearchParams()
@@ -168,6 +169,7 @@ export default function ComptabilitePage() {
   const sections = [
     { id: "dashboard", title: "Tableau de Bord", icon: TrendingUp, description: "Vue d'ensemble financière" },
     { id: "paiements", title: "Paiements Élèves", icon: CreditCard, description: "Suivi des paiements de scolarité" },
+    { id: "tarification", title: "Tarification", icon: DollarSign, description: "Plans de scolarité et frais" },
     { id: "financement-etat", title: "Financement État", icon: Landmark, description: "Suivi des prises en charge publiques" },
     { id: "mouvements", title: "Mouvements", icon: ArrowUp, description: "Entrées et sorties d'argent" },
     { id: "comptes", title: "Comptes Généraux", icon: Wallet, description: "Plan comptable et comptes" },
@@ -307,7 +309,7 @@ export default function ComptabilitePage() {
       montant: mouvementAjoute.montant,
       date: mouvementAjoute.date,
       reference: mouvementAjoute.reference || mouvementAjoute.id,
-      statut: mouvementAjoute.statut,
+      statut: mouvementAjoute.statut as any,
       source: "mouvement",
       contexte: {
         compteId: mouvementAjoute.compteId,
@@ -641,6 +643,12 @@ export default function ComptabilitePage() {
                     </Card>
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeSection === "tarification" && (
+              <div className="space-y-4">
+                <ScolariteSettingsPage />
               </div>
             )}
 

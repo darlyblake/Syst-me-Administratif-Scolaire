@@ -86,8 +86,8 @@ export function TuitionPlanList({ data, plans, isLoading = false, error = null, 
                     return (
                       <tr key={level.id} className="border-b last:border-b-0 align-top">
                         <td className="py-3 pr-4 font-medium">{level.name}</td>
-                        <td className="py-3 pr-4">{plan ? `${plan.registration_fee.toLocaleString("fr-FR")} FCFA` : "-"}</td>
-                        <td className="py-3 pr-4">{plan ? `${plan.annual_amount.toLocaleString("fr-FR")} FCFA` : "-"}</td>
+                        <td className="py-3 pr-4">{plan ? `${(plan.registration_fee ?? 0).toLocaleString("fr-FR")} FCFA` : "-"}</td>
+                        <td className="py-3 pr-4">{plan ? `${plan.annual_tuition.toLocaleString("fr-FR")} FCFA` : "-"}</td>
                         <td className="py-3 pr-4">{plan ? modeLabels[plan.payment_mode] ?? plan.payment_mode : "Non défini"}</td>
                         <td className="py-3 pr-4">{plan?.installment_count ? `${plan.installment_count} tranches` : "-"}</td>
                         <td className="py-3 text-right">

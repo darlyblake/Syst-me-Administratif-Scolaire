@@ -1,3 +1,5 @@
+import { StateFundingSettingsCard } from "@/components/tuition/StateFundingSettingsCard"
+import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 "use client"
 
 import { useMemo, useState } from "react"
@@ -20,9 +22,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
-import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import { createTuitionPlan, updateTuitionPlan } from "@/lib/supabase/services/tuition.service"
+import { useEstablishmentFees } from "@/hooks/useEstablishmentFees"
 import { AcademicYearSelector } from "@/components/academic/AcademicYearSelector"
+import { GeneralFeesSection } from "@/components/tuition/GeneralFeesSection"
 import type { PaymentMode, TuitionPlanWithInstallments } from "@/lib/supabase/types"
 import { AlertCircle, CheckCircle2, Plus, Trash2, Save, Pencil } from "lucide-react"
 
@@ -66,7 +69,7 @@ interface TuitionModalProps {
 
 function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYearId, establishmentId, existingPlan, defaultRegistrationFee }: TuitionModalProps) {
   const [registrationFee, setRegistrationFee] = useState(existingPlan?.registration_fee ?? defaultRegistrationFee)
-  const [annualAmount, setAnnualAmount] = useState(existingPlan?.annual_amount ?? 0)
+  const [annualAmount, setAnnualAmount] = useState(existingPlan?.annual_tuition ?? 0)
   const [paymentMode, setPaymentMode] = useState<PaymentMode>(existingPlan?.payment_mode ?? "monthly")
   const [installments, setInstallments] = useState<InstallmentState[]>(
     existingPlan?.installments?.map((i) => ({ id: i.id, label: i.label, amount: i.amount, due_date: i.due_date ? i.due_date.split("T")[0] : null })) ?? []
@@ -96,7 +99,7 @@ function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYea
         academic_year_id: academicYearId,
         grade_level_id: levelId,
         payment_mode: paymentMode,
-        annual_amount: annualAmount,
+        annual_tuition: annualAmount,
         registration_fee: registrationFee,
         installment_count: paymentMode === "installments" ? installments.length : null,
         installments: paymentMode === "installments" ? installments.map((inst, idx) => ({ ...inst, installment_number: idx + 1 })) : [],
@@ -189,84 +192,7 @@ function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYea
   )
 }
 
-// ─── Modal frais ciblés ───────────────────────────────────────────────────────
 
-interface FeeOverrideModalProps {
-  open: boolean
-  onClose: () => void
-  overrides: RegistrationFeeOverride[]
-  onSave: (o: RegistrationFeeOverride[]) => void
-  academicStructure: Array<{ id: string; name: string; grade_levels?: Array<{ id: string; name: string }> }>
-}
-
-function FeeOverrideModal({ open, onClose, overrides, onSave, academicStructure }: FeeOverrideModalProps) {
-  const [local, setLocal] = useState<RegistrationFeeOverride[]>(overrides)
-  const [selectedId, setSelectedId] = useState("")
-  const [selectedFee, setSelectedFee] = useState(0)
-
-  const allItems = useMemo(() => {
-    const items: { type: "cycle" | "level"; id: string; name: string }[] = []
-    academicStructure.forEach((c) => {
-      items.push({ type: "cycle", id: c.id, name: `Cycle : ${c.name}` })
-      c.grade_levels?.forEach((l) => items.push({ type: "level", id: l.id, name: `Niveau : ${l.name} (${c.name})` }))
-    })
-    return items
-  }, [academicStructure])
-
-  const addOverride = () => {
-    if (!selectedId || selectedFee < 0) return
-    const item = allItems.find((i) => i.id === selectedId)
-    if (!item || local.find((o) => o.id === selectedId)) return
-    setLocal([...local, { type: item.type, id: item.id, name: item.name, fee: selectedFee }])
-    setSelectedId(""); setSelectedFee(0)
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-base font-semibold">Frais d'inscription ciblés</DialogTitle>
-        </DialogHeader>
-        <p className="text-xs text-gray-500 -mt-2">Un frais ciblé remplace le montant général pour un cycle ou un niveau donné.</p>
-        <div className="space-y-4 py-1">
-          <div className="flex items-end gap-2">
-            <div className="flex-1 space-y-1.5">
-              <Label className="text-xs">Cycle / Niveau</Label>
-              <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
-                <option value="">Sélectionner…</option>
-                {allItems.filter((i)=>!local.find((o)=>o.id===i.id)).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Montant (FCFA)</Label>
-              <Input type="number" min={0} value={selectedFee} onChange={(e)=>setSelectedFee(Number(e.target.value)||0)} className="h-9 w-28 text-sm" />
-            </div>
-            <Button size="sm" variant="outline" onClick={addOverride} className="h-9"><Plus className="h-3.5 w-3.5" /></Button>
-          </div>
-          {local.length === 0 ? (
-            <p className="text-xs text-gray-400 text-center py-3">Aucun frais ciblé configuré.</p>
-          ) : (
-            <div className="divide-y border rounded-md">
-              {local.map((o) => (
-                <div key={o.id} className="flex items-center justify-between px-3 py-2.5">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{o.name}</p>
-                    <p className="text-xs text-gray-500">{formatFCFA(o.fee)}</p>
-                  </div>
-                  <button onClick={() => setLocal(local.filter((x)=>x.id!==o.id))} className="text-gray-400 hover:text-red-500 ml-3 shrink-0"><Trash2 className="h-4 w-4" /></button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <DialogFooter className="gap-2">
-          <Button variant="outline" size="sm" onClick={onClose}>Annuler</Button>
-          <Button size="sm" onClick={() => { onSave(local); onClose() }}>Appliquer</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
 
 // ─── Page principale ──────────────────────────────────────────────────────────
 
@@ -278,19 +204,14 @@ export default function ScolariteSettingsPage() {
   const { data: academicStructure, isLoading: isStructureLoading } = useAcademicStructure(establishmentId ?? null)
   const academicYearId = selectedYear?.id ?? activeYear?.id ?? academicYears[0]?.id ?? ""
   const { data: tuitionPlans, isLoading: isTuitionLoading, refresh } = useTuitionPlans(academicYearId)
+  const { settings } = useEstablishmentFees(establishmentId ?? null)
 
-  const [generalRegFee, setGeneralRegFee] = useState(0)
-  const [generalRenewFee, setGeneralRenewFee] = useState(0)
-  const [editingGeneralFees, setEditingGeneralFees] = useState(false)
-  const [generalRegInput, setGeneralRegInput] = useState(0)
-  const [generalRenewInput, setGeneralRenewInput] = useState(0)
-  const [feeOverrides, setFeeOverrides] = useState<RegistrationFeeOverride[]>([])
-  const [overrideModalOpen, setOverrideModalOpen] = useState(false)
+
   const [modalState, setModalState] = useState<{ open: boolean; levelId: string; levelLabel: string; existingPlan: TuitionPlanWithInstallments | null }>({ open: false, levelId: "", levelLabel: "", existingPlan: null })
 
   const tuitionMap = useMemo(() => {
     const m = new Map<string, TuitionPlanWithInstallments>()
-    tuitionPlans.forEach((p) => m.set(p.grade_level_id, p as TuitionPlanWithInstallments))
+    ;(tuitionPlans || []).forEach((p: any) => m.set(p.grade_level_id, p as TuitionPlanWithInstallments))
     return m
   }, [tuitionPlans])
 
@@ -298,10 +219,7 @@ export default function ScolariteSettingsPage() {
     setModalState({ open: true, levelId, levelLabel, existingPlan: tuitionMap.get(levelId) ?? null })
   }
 
-  const saveGeneralFees = () => {
-    setGeneralRegFee(generalRegInput); setGeneralRenewFee(generalRenewInput)
-    setEditingGeneralFees(false); toast.success("Frais généraux mis à jour.")
-  }
+
 
   if (!establishmentId) {
     return <div className="p-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md">Impossible de charger les données : établissement non identifié.</div>
@@ -320,74 +238,10 @@ export default function ScolariteSettingsPage() {
         </div>
       </div>
 
+      {establishmentId !== "demo-establishment" ? <StateFundingSettingsCard establishmentId={establishmentId} /> : null}
+
       {/* Frais généraux */}
-      <div className="border rounded-md overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
-          <h2 className="text-sm font-semibold text-gray-700">Frais généraux</h2>
-          {!editingGeneralFees ? (
-            <div className="flex items-center gap-3">
-              <button onClick={() => setOverrideModalOpen(true)} className="text-xs text-blue-600 hover:underline">
-                Frais ciblés{feeOverrides.length > 0 ? ` (${feeOverrides.length})` : ""}
-              </button>
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
-                onClick={() => { setGeneralRegInput(generalRegFee); setGeneralRenewInput(generalRenewFee); setEditingGeneralFees(true) }}>
-                <Pencil className="h-3.5 w-3.5 mr-1" />Modifier
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditingGeneralFees(false)}>Annuler</Button>
-              <Button size="sm" className="h-7 text-xs" onClick={saveGeneralFees}><Save className="h-3.5 w-3.5 mr-1" />Enregistrer</Button>
-            </div>
-          )}
-        </div>
-        <div className="px-4 py-4">
-          {!editingGeneralFees ? (
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <p className="text-xs text-gray-500">Frais d'inscription</p>
-                <p className="text-sm font-medium text-gray-900 mt-0.5">{formatFCFA(generalRegFee)}</p>
-                <p className="text-xs text-gray-400 mt-0.5">Appliqués à tous les niveaux par défaut</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Frais de réinscription</p>
-                <p className="text-sm font-medium text-gray-900 mt-0.5">{formatFCFA(generalRenewFee)}</p>
-                <p className="text-xs text-gray-400 mt-0.5">Pour les élèves déjà inscrits</p>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="gen-reg" className="text-sm">Frais d'inscription</Label>
-                <div className="relative">
-                  <Input id="gen-reg" type="number" min={0} value={generalRegInput} onChange={(e) => setGeneralRegInput(Number(e.target.value)||0)} className="pr-14 text-sm" />
-                  <span className="absolute inset-y-0 right-3 flex items-center text-xs text-gray-400 pointer-events-none">FCFA</span>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="gen-renew" className="text-sm">Frais de réinscription</Label>
-                <div className="relative">
-                  <Input id="gen-renew" type="number" min={0} value={generalRenewInput} onChange={(e) => setGeneralRenewInput(Number(e.target.value)||0)} className="pr-14 text-sm" />
-                  <span className="absolute inset-y-0 right-3 flex items-center text-xs text-gray-400 pointer-events-none">FCFA</span>
-                </div>
-              </div>
-            </div>
-          )}
-          {feeOverrides.length > 0 && !editingGeneralFees && (
-            <>
-              <Separator className="my-3" />
-              <div className="space-y-1">
-                <p className="text-xs text-gray-500 font-medium mb-1.5">Frais d'inscription spécifiques</p>
-                {feeOverrides.map((o) => (
-                  <div key={o.id} className="flex items-center justify-between text-xs text-gray-700">
-                    <span>{o.name}</span><span className="font-medium">{formatFCFA(o.fee)}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+      <GeneralFeesSection establishmentId={establishmentId} academicStructure={academicStructure} />
 
       {/* Tarifs par niveau */}
       <div className="border rounded-md overflow-hidden">
@@ -416,7 +270,7 @@ export default function ScolariteSettingsPage() {
                         <p className="text-sm font-medium text-gray-800">{level.name}</p>
                         {plan ? (
                           <p className="text-xs text-gray-500 mt-0.5">
-                            {formatFCFA(plan.annual_amount)} / an · {MODE_LABELS[plan.payment_mode]}
+                            {formatFCFA(plan.annual_tuition)} / an · {MODE_LABELS[plan.payment_mode]}
                             {plan.payment_mode === "installments" && plan.installment_count ? ` (${plan.installment_count} tranches)` : ""}
                           </p>
                         ) : (
@@ -445,17 +299,9 @@ export default function ScolariteSettingsPage() {
           academicYearId={academicYearId}
           establishmentId={establishmentId}
           existingPlan={modalState.existingPlan}
-          defaultRegistrationFee={generalRegFee}
+          defaultRegistrationFee={settings?.registration_fee || 0}
         />
       )}
-
-      <FeeOverrideModal
-        open={overrideModalOpen}
-        onClose={() => setOverrideModalOpen(false)}
-        overrides={feeOverrides}
-        onSave={setFeeOverrides}
-        academicStructure={academicStructure}
-      />
     </div>
   )
 }

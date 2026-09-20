@@ -116,7 +116,7 @@ export default function StudentsPage() {
     const classChoice = prompt(`Classe cible (1-${assignmentClasses.length}) :\n${assignmentClasses.map((item, index) => `${index + 1}. ${item.name}`).join("\n")}`)
     const classIndex = Number(classChoice) - 1; const targetClass = assignmentClasses[classIndex]; if (!targetClass) return
     const classPlans = tuitionPlans.filter((plan) => plan.grade_level_id === targetClass.gradeLevelId)
-    const targetPlan = classPlans.length === 1 ? classPlans[0] : classPlans[Number(prompt(`Forfait (1-${classPlans.length}) :\n${classPlans.map((plan, index) => `${index + 1}. ${plan.annual_amount.toLocaleString()} FCFA`).join("\n")}`)) - 1]
+    const targetPlan = classPlans.length === 1 ? classPlans[0] : classPlans[Number(prompt(`Forfait (1-${classPlans.length}) :\n${classPlans.map((plan, index) => `${index + 1}. ${plan.annual_tuition.toLocaleString()} FCFA`).join("\n")}`)) - 1]
     if (!targetPlan) return toast.error("Aucun forfait valide sélectionné")
     const result = await assignToClass({ establishmentId, studentIds: Array.from(selectedIds), academicYearId: selectedYear.id, classId: targetClass.id, tuitionPlanId: targetPlan.id, enrollmentDate: new Date().toISOString().slice(0, 10) })
     if (result) { toast.success(`${result.total} élève(s) affecté(s) : ${result.created} inscription(s) créée(s), ${result.updated} mise(s) à jour`); setSelectedIds(new Set()) } else toast.error("Impossible d'affecter les élèves")

@@ -6,10 +6,11 @@ export interface TuitionPlan {
   academic_year_id: string
   grade_level_id: string
   payment_mode: PaymentMode
-  annual_amount: number
-  registration_fee: number
+  annual_tuition: number
+  registration_fee?: number | null
+  re_registration_fee?: number | null
   installment_count?: number | null
-  is_active?: boolean
+  active?: boolean
   created_at?: string
   updated_at?: string
 }
@@ -26,4 +27,19 @@ export interface TuitionPlanInstallment {
 
 export interface TuitionPlanWithInstallments extends TuitionPlan {
   installments?: TuitionPlanInstallment[]
+}
+
+export interface EstablishmentFeeSettings {
+  establishment_id: string
+  registration_fee: number
+  re_registration_fee: number
+}
+
+export interface EstablishmentFeeOverride {
+  id: string
+  establishment_id: string
+  scope_type: 'cycle' | 'level'
+  scope_id: string
+  registration_fee?: number | null
+  re_registration_fee?: number | null
 }

@@ -39,7 +39,7 @@ export async function getTuitionPlan(academicYearId: string, gradeLevelId: strin
     .select("*, installments:tuition_plan_installments(*)")
     .eq("academic_year_id", academicYearId)
     .eq("grade_level_id", gradeLevelId)
-    .eq("is_active", true)
+    .eq("active", true)
     .maybeSingle()
 
   if (error && error.code !== "PGRST116") {
@@ -134,7 +134,7 @@ export async function updateTuitionPlan(planId: string, data: TuitionPlanPayload
 }
 
 export async function deactivateTuitionPlan(planId: string): Promise<void> {
-  const { error } = await supabaseBrowser.from("tuition_plans").update({ is_active: false }).eq("id", planId)
+  const { error } = await supabaseBrowser.from("tuition_plans").update({ active: false }).eq("id", planId)
 
   if (error) throw new Error("Impossible de désactiver le tarif.")
 }

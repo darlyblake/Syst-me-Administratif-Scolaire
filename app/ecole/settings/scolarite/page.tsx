@@ -1,7 +1,7 @@
-import { StateFundingSettingsCard } from "@/components/tuition/StateFundingSettingsCard"
-import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 "use client"
 
+import { StateFundingSettingsCard } from "@/components/tuition/StateFundingSettingsCard"
+import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 

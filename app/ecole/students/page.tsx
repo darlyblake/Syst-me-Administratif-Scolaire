@@ -22,6 +22,7 @@ import ImportExportTools from "@/components/ImportExportTools"
 import ClassSection from "@/components/ClassSection"
 import StudentListItem from "@/components/StudentListItem"
 import StudentDetailsModal from "@/components/StudentDetailsModal"
+import StudentImportGuideModal from "@/components/students/StudentImportGuideModal"
 
 export default function StudentsPage() {
   const router = useRouter()
@@ -55,12 +56,12 @@ export default function StudentsPage() {
       classe: "",
       nomParent: "",
       contactParent: s.phone ?? "",
-      adresse: s.address ?? "",
+      adresse: "",
       dateInscription: s.created_at ?? new Date().toISOString(),
       statut: s.status === "active" ? "actif" : (s.status === "inactive" ? "inactif" : "transfere") as "actif" | "inactif" | "transfere",
       totalAPayer: 0,
       typeInscription: "inscription" as const,
-      informationsContact: { telephone: s.phone ?? "", email: s.email ?? "", adresse: s.address ?? "" },
+      informationsContact: { telephone: s.phone ?? "", email: s.email ?? "", adresse: "" },
       modePaiement: "mensuel" as const,
       optionsSupplementaires: { tenueScolaire: false, carteScolaire: false, cooperative: false, tenueEPS: false, assurance: false },
       fraisOptionsSupplementaires: { tenueScolaire: 0, carteScolaire: 0, cooperative: 0, tenueEPS: 0, assurance: 0 },
@@ -132,7 +133,7 @@ export default function StudentsPage() {
   const handleExportCSV = () => { const headers = "Nom,Prénom,Identifiant,Classe,Statut,Téléphone,Email,Date d'inscription\n"; const csvContent = students.map(student => `"${student.nom}","${student.prenom}","${student.identifiant}","${student.classe}","${student.statut}","${student.informationsContact.telephone}","${student.informationsContact.email}","${new Date(student.dateInscription).toLocaleDateString()}"`).join("\n"); const blob = new Blob([headers + csvContent], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "eleves.csv"; link.click(); URL.revokeObjectURL(url) }
   const handleExportIdentifiants = () => toast.info("Export des identifiants")
   const handleDownloadTemplate = () => toast.info("Téléchargement du modèle")
-  const handleImportCSV = (file: File) => { const reader = new FileReader(); reader.onload = () => toast.info("Import CSV en cours"); reader.readAsText(file) }
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => { const reader = new FileReader(); reader.onload = () => toast.info("Import CSV en cours"); const file = e.target.files?.[0]; if (!file) return; reader.readAsText(file) }
   const handlePrintReceipt = (student: DonneesEleve) => router.push(`/receipt?id=${student.id}`)
   const handlePrintSchoolCertificate = (student: DonneesEleve) => alert("Impression attestation")
   const getClassStats = () => { const stats: { [key: string]: number } = {}; students.forEach(student => { stats[student.classe] = (stats[student.classe] || 0) + 1 }); return stats }
@@ -148,6 +149,12 @@ export default function StudentsPage() {
         <div className="min-w-0"><h1 className="text-2xl font-bold text-terre flex items-center gap-2"><Users className="h-6 w-6 shrink-0" />Gestion des Élèves</h1><p className="text-pierre text-sm break-words">{filteredStudents.length} élève{filteredStudents.length > 1 ? "s" : ""}{selectedClass !== "all" ? ` en ${selectedClass}` : ""}{selectedStatus !== "all" ? ` (${selectedStatus}s)` : ""}</p></div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
           <Button variant="outline" onClick={handleExportCSV} className="w-full rounded-2xl sm:w-auto"><Download className="h-4 w-4 mr-2 shrink-0" />Exporter</Button>
+          <StudentImportGuideModal />
+          <Button variant="outline" asChild className="w-full rounded-2xl sm:w-auto">
+            <Link href="/ecole/students/import-etat" className="flex w-full items-center justify-center whitespace-normal sm:w-auto sm:whitespace-nowrap">
+              <Upload className="h-4 w-4 mr-2 shrink-0" />Import État
+            </Link>
+          </Button>
           <Button asChild className="w-full bg-terre hover:bg-terre-dark rounded-2xl sm:w-auto"><Link href="/ecole/inscriptions" className="flex w-full items-center justify-center whitespace-normal sm:w-auto sm:whitespace-nowrap"><FileText className="h-4 w-4 mr-2 shrink-0" />Nouvelle inscription</Link></Button>
           <Button variant="outline" asChild className="w-full rounded-2xl sm:w-auto"><Link href="/ecole/inscriptions" className="flex w-full items-center justify-center whitespace-normal sm:w-auto sm:whitespace-nowrap"><RotateCcw className="h-4 w-4 mr-2 shrink-0" />Réinscription</Link></Button>
         </div>

@@ -19,6 +19,7 @@ import type { ParametresEcole } from "@/types/models"
 import type { Establishment } from "@/lib/supabase/types"
 
 import StructureAcademiquePage from "./structure/page"
+import ScolariteSettingsPage from "./scolarite/page"
 
 interface EstablishmentFormData {
   nomEtablissement: string
@@ -667,27 +668,7 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="scolarite">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
-                  Tarification
-                </CardTitle>
-                <CardDescription>La configuration des tarifs et frais est gérée dans le module Comptabilité.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <DollarSign className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Gestion Financière</h3>
-                  <p className="text-gray-500 mb-4">Les tarifs de scolarité, frais d&apos;inscription et modes de paiement sont configurés dans le module Comptabilité.</p>
-                  <Button asChild>
-                    <Link href="/ecole/comptabilite">
-                      Aller à la Comptabilité
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <ScolariteSettingsPage />
           </TabsContent>
 
           <TabsContent value="users">

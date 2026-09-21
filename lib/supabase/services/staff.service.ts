@@ -50,10 +50,8 @@ export async function createStaff(data: {
   email?: string
   hireDate: string
   active?: boolean
+  roleId?: string
 }): Promise<string> {
-  // Un personnel n'est pas automatiquement un utilisateur.
-  // Si l'ancien frontend transmet le profil de l'administrateur créateur,
-  // ne jamais l'associer au nouveau personnel par erreur.
   let profileId = data.profileId ?? null
   if (profileId) {
     const { data: authData } = await supabaseBrowser.auth.getUser()
@@ -73,10 +71,32 @@ export async function createStaff(data: {
     p_hire_date: data.hireDate,
     p_profile_id: profileId,
     p_active: data.active ?? true,
+    p_role_id: data.roleId || null // If your RPC supports it. Otherwise, we update the role manually below if needed, or we assume RPC was updated.
   })
 
   if (error) throw new Error("Impossible de créer le membre du personnel.")
-  return result as string
+  
+  const newStaffId = result as string
+
+  // Si on a un email et un roleId, on invite l'utilisateur
+  if (data.email && data.roleId) {
+    try {
+      await supabaseBrowser.functions.invoke('invite-school-user', {
+        body: {
+          email: data.email,
+          establishment_id: data.establishmentId,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          role_id: data.roleId
+        }
+      })
+    } catch (e) {
+      console.error("Erreur lors de l'invitation utilisateur", e)
+      // Ne pas throw l'erreur, le personnel est créé
+    }
+  }
+
+  return newStaffId
 }
 
 export async function updateStaff(data: {
@@ -89,6 +109,7 @@ export async function updateStaff(data: {
   email?: string
   hireDate: string
   active: boolean
+  roleId?: string
 }): Promise<string> {
   const { data: result, error } = await supabaseBrowser.rpc("update_staff", {
     p_staff_id: data.staffId,
@@ -100,9 +121,26 @@ export async function updateStaff(data: {
     p_email: data.email || null,
     p_hire_date: data.hireDate,
     p_active: data.active,
+    p_role_id: data.roleId || null
   })
 
   if (error) throw new Error("Impossible de modifier le membre du personnel.")
+
+  // Si on change le statut ou le role, on appelle la fonction manage-school-user-account
+  if (data.roleId || data.active !== undefined) {
+    try {
+      await supabaseBrowser.functions.invoke('manage-school-user-account', {
+        body: {
+          staff_id: data.staffId,
+          action: data.active ? 'update_role' : 'suspend',
+          role_id: data.roleId
+        }
+      })
+    } catch (e) {
+      console.error("Erreur lors de la mise à jour du compte utilisateur", e)
+    }
+  }
+
   return result as string
 }
 

@@ -11,6 +11,9 @@ export interface Staff {
   email?: string | null
   phone?: string | null
   role: PersonnelRole
+  role_id?: string | null
+  account_id?: string | null
+  account_status?: "none" | "invited" | "active" | "inactive" | string | null
   hire_date?: string | null
   status?: "active" | "inactive" | "on_leave" | string
   active?: boolean

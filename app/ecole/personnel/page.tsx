@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Users, Plus, Edit, Trash2, Search, Clock, Calendar, FileText } from "lucide-react"
+import { ArrowLeft, Users, Plus, Edit, Trash2, Search, Clock, Calendar, FileText, Shield, UserCheck, UserX } from "lucide-react"
 import Link from "next/link"
 import { servicePointage } from "@/services/pointage.service"
 import { serviceConges } from "@/services/conges.service"
@@ -16,6 +16,7 @@ import type { DemandeConge } from "@/services/conges.service"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useStaff } from "@/hooks/useStaff"
 import { createStaff, updateStaff } from "@/lib/supabase/services/staff.service"
+import { useRoles } from "@/hooks/useRoles"
 
 export default function PersonnelPage() {
   const { primaryEstablishment, estEnCoursDeChargement, utilisateur } = useUserContext()
@@ -27,6 +28,7 @@ export default function PersonnelPage() {
     pageSize: 25,
     search: searchTerm,
   })
+  const { roles } = useRoles(establishmentId)
   const [personnel, setPersonnel] = useState<DonneesPersonnel[]>([])
   const [pointages, setPointages] = useState<Pointage[]>([])
   const [conges, setConges] = useState<DemandeConge[]>([])
@@ -44,6 +46,7 @@ export default function PersonnelPage() {
     poste: "",
     email: "",
     telephone: "",
+    roleId: "",
     typeContrat: "cdi" as any,
     modeRemuneration: "fixe" as any,
     salaireFixe: 0,
@@ -66,6 +69,8 @@ export default function PersonnelPage() {
     prenom: member.first_name,
     poste: member.position || member.department || member.role,
     email: member.email || undefined,
+    roleId: member.role_id || undefined,
+    accountStatus: member.account_status || undefined,
     typeContrat: "cdi",
     modeRemuneration: "fixe",
     salaireFixe: member.salary ?? 0,
@@ -113,6 +118,7 @@ export default function PersonnelPage() {
         email: nouveauPersonnel.email,
         hireDate: nouveauPersonnel.dateEmbauche,
         active: nouveauPersonnel.statut === "actif",
+        roleId: nouveauPersonnel.roleId || undefined,
       })
       refresh()
       setShowAddModal(false)
@@ -126,6 +132,7 @@ export default function PersonnelPage() {
       poste: "",
       email: "",
       telephone: "",
+      roleId: "",
       typeContrat: "cdi",
       modeRemuneration: "fixe",
       salaireFixe: 0,
@@ -152,6 +159,7 @@ export default function PersonnelPage() {
         email: editingPersonnel.email,
         hireDate: editingPersonnel.dateEmbauche,
         active: editingPersonnel.statut === "actif",
+        roleId: editingPersonnel.roleId || undefined,
       })
       refresh()
       setShowEditModal(false)
@@ -395,7 +403,7 @@ export default function PersonnelPage() {
                                   <p className="text-sm text-gray-600">{person.poste}</p>
                                 </div>
                               </div>
-                              <div className="flex gap-2 mt-2">
+                              <div className="flex gap-2 mt-2 flex-wrap">
                                 <span className={`text-xs px-2 py-1 rounded ${
                                   person.statut === 'actif' ? 'bg-green-100 text-green-800' :
                                   person.statut === 'inactif' ? 'bg-gray-100 text-gray-800' :
@@ -407,6 +415,27 @@ export default function PersonnelPage() {
                                 <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">
                                   {person.typeContrat}
                                 </span>
+                                {person.roleId && (() => {
+                                  const foundRole = roles.find(r => r.role.id === person.roleId)
+                                  return foundRole ? (
+                                    <span className="text-xs px-2 py-1 rounded bg-indigo-100 text-indigo-800 flex items-center gap-1">
+                                      <Shield className="h-3 w-3" />
+                                      {foundRole.role.name}
+                                    </span>
+                                  ) : null
+                                })()}
+                                {person.accountStatus && (
+                                  <span className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${
+                                    person.accountStatus === 'active' ? 'bg-green-100 text-green-800' :
+                                    person.accountStatus === 'invited' ? 'bg-amber-100 text-amber-800' :
+                                    'bg-gray-100 text-gray-500'
+                                  }`}>
+                                    {person.accountStatus === 'active' ? <UserCheck className="h-3 w-3" /> : <UserX className="h-3 w-3" />}
+                                    {person.accountStatus === 'active' ? 'Compte actif' :
+                                     person.accountStatus === 'invited' ? 'Invitation envoyée' :
+                                     'Sans compte'}
+                                  </span>
+                                )}
                                 <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-800">
                                   Solde congé: {soldeConge} jours
                                 </span>
@@ -750,6 +779,26 @@ export default function PersonnelPage() {
                         <option value="conge">En congé</option>
                       </select>
                     </div>
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="roleId">Rôle d'accès</Label>
+                      <select
+                        id="roleId"
+                        className="w-full border rounded px-3 py-2"
+                        value={nouveauPersonnel.roleId}
+                        onChange={(e) => setNouveauPersonnel({ ...nouveauPersonnel, roleId: e.target.value })}
+                      >
+                        <option value="">Aucun accès (personnel sans compte)</option>
+                        {roles.filter(r => r.role.is_active).map(r => (
+                          <option key={r.role.id} value={r.role.id}>{r.role.name}</option>
+                        ))}
+                      </select>
+                      {nouveauPersonnel.roleId && nouveauPersonnel.email && (
+                        <p className="text-xs text-blue-600">Une invitation sera envoyée à {nouveauPersonnel.email}</p>
+                      )}
+                      {nouveauPersonnel.roleId && !nouveauPersonnel.email && (
+                        <p className="text-xs text-amber-600">Ajoutez un email pour inviter cet utilisateur</p>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-2 mt-6">
                     <Button onClick={handleAjouterPersonnel} className="flex-1">
@@ -891,6 +940,26 @@ export default function PersonnelPage() {
                         <option value="inactif">Inactif</option>
                         <option value="conge">En congé</option>
                       </select>
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="edit-roleId">Rôle d'accès</Label>
+                      <select
+                        id="edit-roleId"
+                        className="w-full border rounded px-3 py-2"
+                        value={editingPersonnel.roleId || ""}
+                        onChange={(e) => setEditingPersonnel({ ...editingPersonnel, roleId: e.target.value })}
+                      >
+                        <option value="">Aucun accès (personnel sans compte)</option>
+                        {roles.filter(r => r.role.is_active).map(r => (
+                          <option key={r.role.id} value={r.role.id}>{r.role.name}</option>
+                        ))}
+                      </select>
+                      {editingPersonnel.accountStatus === 'active' && (
+                        <p className="text-xs text-green-600">Cet utilisateur a un compte actif.</p>
+                      )}
+                      {editingPersonnel.accountStatus === 'invited' && (
+                        <p className="text-xs text-amber-600">Invitation envoyée, en attente d'acceptation.</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2 mt-6">

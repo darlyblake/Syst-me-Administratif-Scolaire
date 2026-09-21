@@ -21,6 +21,7 @@ import type { Establishment } from "@/lib/supabase/types"
 import StructureAcademiquePage from "./structure/page"
 import ScolariteSettingsPage from "./scolarite/page"
 import AcademicYearsTab from "@/components/academic/AcademicYearsTab"
+import RolesTab from "@/components/settings/RolesTab"
 
 interface EstablishmentFormData {
   nomEtablissement: string
@@ -443,6 +444,7 @@ export default function SettingsPage() {
             <TabsTrigger value="academic" className="whitespace-nowrap">Année scolaire</TabsTrigger>
             <TabsTrigger value="structure" className="whitespace-nowrap">Structure académique</TabsTrigger>
             <TabsTrigger value="scolarite" className="whitespace-nowrap">Scolarité</TabsTrigger>
+            <TabsTrigger value="roles" className="whitespace-nowrap">Rôles et accès</TabsTrigger>
             <TabsTrigger value="users" className="whitespace-nowrap">Utilisateurs</TabsTrigger>
             <TabsTrigger value="appearance" className="whitespace-nowrap">Apparence</TabsTrigger>
           </TabsList>
@@ -621,6 +623,10 @@ export default function SettingsPage() {
 
           <TabsContent value="scolarite">
             <ScolariteSettingsPage />
+          </TabsContent>
+
+          <TabsContent value="roles">
+            <RolesTab />
           </TabsContent>
 
           <TabsContent value="users">

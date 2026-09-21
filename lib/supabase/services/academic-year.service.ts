@@ -93,3 +93,18 @@ export async function closeAcademicYear(yearId: string): Promise<AcademicYear> {
 
   return data as AcademicYear
 }
+
+export async function updateAcademicYear(yearId: string, data: Partial<AcademicYear>): Promise<AcademicYear> {
+  const { data: result, error } = await supabaseBrowser
+    .from("academic_years")
+    .update(data)
+    .eq("id", yearId)
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error("Impossible de modifier l’année scolaire.")
+  }
+
+  return result as AcademicYear
+}

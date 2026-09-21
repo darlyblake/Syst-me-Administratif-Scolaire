@@ -20,6 +20,7 @@ import type { Establishment } from "@/lib/supabase/types"
 
 import StructureAcademiquePage from "./structure/page"
 import ScolariteSettingsPage from "./scolarite/page"
+import AcademicYearsTab from "@/components/academic/AcademicYearsTab"
 
 interface EstablishmentFormData {
   nomEtablissement: string
@@ -611,56 +612,7 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="academic">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Année académique
-                </CardTitle>
-                <CardDescription>Configuration de l'année scolaire (gérée via Supabase)</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {academicYears.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune année académique</h3>
-                    <p className="text-gray-500 mb-4">Créez votre première année académique pour commencer.</p>
-                    <Button asChild>
-                      <Link href="/ecole/settings/annees">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Créer une année
-                      </Link>
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {academicYears.map((year) => (
-                      <div key={year.id} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg ${year.is_active ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'}`}>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium">{year.name}</h4>
-                            {year.is_active && (
-                              <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">
-                                Active
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {year.start_date ? new Date(year.start_date).toLocaleDateString('fr-FR') : '—'} - {year.end_date ? new Date(year.end_date).toLocaleDateString('fr-FR') : '—'}
-                          </p>
-                        </div>
-                        <Button variant="outline" size="sm" asChild className="mt-3 sm:mt-0">
-                          <Link href="/ecole/settings/annees">
-                            <Edit className="h-4 w-4 mr-2" />
-                            Gérer
-                          </Link>
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <AcademicYearsTab />
           </TabsContent>
 
           <TabsContent value="structure">

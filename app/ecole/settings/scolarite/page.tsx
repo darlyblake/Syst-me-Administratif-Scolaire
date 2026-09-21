@@ -68,7 +68,6 @@ interface TuitionModalProps {
 }
 
 function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYearId, establishmentId, existingPlan, defaultRegistrationFee }: TuitionModalProps) {
-  const [registrationFee, setRegistrationFee] = useState(existingPlan?.registration_fee ?? defaultRegistrationFee)
   const [annualAmount, setAnnualAmount] = useState(existingPlan?.annual_tuition ?? 0)
   const [paymentMode, setPaymentMode] = useState<PaymentMode>(existingPlan?.payment_mode ?? "monthly")
   const [installments, setInstallments] = useState<InstallmentState[]>(
@@ -100,7 +99,7 @@ function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYea
         grade_level_id: levelId,
         payment_mode: paymentMode,
         annual_tuition: annualAmount,
-        registration_fee: registrationFee,
+        registration_fee: existingPlan?.registration_fee ?? defaultRegistrationFee,
         installment_count: paymentMode === "installments" ? installments.length : null,
         installments: paymentMode === "installments" ? installments.map((inst, idx) => ({ ...inst, installment_number: idx + 1 })) : [],
       }
@@ -120,20 +119,11 @@ function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYea
           <DialogTitle className="text-base font-semibold">Configuration — {levelLabel}</DialogTitle>
         </DialogHeader>
         <div className="space-y-5 py-1">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="modal-reg-fee" className="text-sm">Frais d'inscription</Label>
-              <div className="relative">
-                <Input id="modal-reg-fee" type="number" min={0} value={registrationFee} onChange={(e) => setRegistrationFee(Number(e.target.value) || 0)} className="pr-14 text-sm" />
-                <span className="absolute inset-y-0 right-3 flex items-center text-xs text-gray-400 pointer-events-none">FCFA</span>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="modal-annual" className="text-sm">Scolarité annuelle</Label>
-              <div className="relative">
-                <Input id="modal-annual" type="number" min={0} value={annualAmount} onChange={(e) => setAnnualAmount(Number(e.target.value) || 0)} className="pr-14 text-sm" />
-                <span className="absolute inset-y-0 right-3 flex items-center text-xs text-gray-400 pointer-events-none">FCFA</span>
-              </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="modal-annual" className="text-sm">Scolarité annuelle</Label>
+            <div className="relative">
+              <Input id="modal-annual" type="number" min={0} value={annualAmount} onChange={(e) => setAnnualAmount(Number(e.target.value) || 0)} className="pr-14 text-sm" />
+              <span className="absolute inset-y-0 right-3 flex items-center text-xs text-gray-400 pointer-events-none">FCFA</span>
             </div>
           </div>
           <div className="space-y-2">

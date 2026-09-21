@@ -71,7 +71,6 @@ export async function createStaff(data: {
     p_hire_date: data.hireDate,
     p_profile_id: profileId,
     p_active: data.active ?? true,
-    p_role_id: data.roleId || null // If your RPC supports it. Otherwise, we update the role manually below if needed, or we assume RPC was updated.
   })
 
   if (error) throw new Error("Impossible de créer le membre du personnel.")
@@ -102,7 +101,6 @@ export async function updateStaff(data: {
     p_email: data.email || null,
     p_hire_date: data.hireDate,
     p_active: data.active,
-    p_role_id: data.roleId || null
   })
 
   if (error) throw new Error("Impossible de modifier le membre du personnel.")
@@ -110,9 +108,28 @@ export async function updateStaff(data: {
   return result as string
 }
 
+export async function getEstablishmentMemberId(
+  staffMemberProfileId: string,
+  establishmentId: string
+): Promise<string | null> {
+  // Cherche le establishment_members.id correspondant à ce profil utilisateur
+  const { data, error } = await supabaseBrowser
+    .from('establishment_members')
+    .select('id')
+    .eq('establishment_id', establishmentId)
+    .eq('user_id', staffMemberProfileId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('Impossible de trouver le membre dans establishment_members', error)
+    return null
+  }
+  return data?.id ?? null
+}
+
 export async function manageStaffAccount(
-  staffId: string,
-  action: 'create_user' | 'reset_password' | 'disable_user' | 'enable_user' | 'update_role',
+  memberId: string,  // establishment_members.id
+  action: 'create_user' | 'reset_password' | 'disable_user' | 'enable_user',
   data?: {
     email?: string,
     firstName?: string,
@@ -122,7 +139,7 @@ export async function manageStaffAccount(
   }
 ) {
   try {
-    const body: any = { staff_id: staffId, action }
+    const body: Record<string, unknown> = { member_id: memberId, action }
     if (data?.email) body.email = data.email
     if (data?.firstName) body.first_name = data.firstName
     if (data?.lastName) body.last_name = data.lastName

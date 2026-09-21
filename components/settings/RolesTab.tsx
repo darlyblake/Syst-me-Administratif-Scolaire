@@ -67,7 +67,7 @@ export default function RolesTab() {
       setFormData({
         name: role.role.name,
         description: role.role.description || "",
-        isActive: role.role.is_active,
+        isActive: role.role.active,
         permissions: role.permissions.map(p => p.permission)
       })
     } else {
@@ -268,7 +268,7 @@ export default function RolesTab() {
                     {usageCounts[item.role.id] !== undefined ? usageCounts[item.role.id] : "..."}
                   </td>
                   <td className="px-4 py-3">
-                    {item.role.is_active ? (
+                    {item.role.active ? (
                       <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Actif</span>
                     ) : (
                       <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">Inactif</span>

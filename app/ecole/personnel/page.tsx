@@ -15,7 +15,7 @@ import type { Pointage } from "@/services/pointage.service"
 import type { DemandeConge } from "@/services/conges.service"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useStaff } from "@/hooks/useStaff"
-import { createStaff, updateStaff, manageStaffAccount } from "@/lib/supabase/services/staff.service"
+import { createStaff, updateStaff, manageStaffAccount, getEstablishmentMemberId } from "@/lib/supabase/services/staff.service"
 import { useRoles } from "@/hooks/useRoles"
 
 export default function PersonnelPage() {
@@ -70,6 +70,7 @@ export default function PersonnelPage() {
     poste: member.position || member.department || member.role,
     email: member.email || undefined,
     roleId: member.role_id || undefined,
+    accountId: member.account_id || undefined,
     accountStatus: member.account_status || undefined,
     typeContrat: "cdi",
     modeRemuneration: "fixe",
@@ -191,8 +192,28 @@ export default function PersonnelPage() {
     }
 
     try {
+      // Pour reset/disable/enable, on a besoin du member_id dans establishment_members
+      // Pour create_user, le member_id sera créé par la Edge Function
+      let memberId: string | null = null
+
+      if (action !== 'create_user') {
+        if (!editingPersonnel.accountId) {
+          alert("Ce membre n'a pas encore de compte utilisateur associé.")
+          return
+        }
+        memberId = await getEstablishmentMemberId(editingPersonnel.accountId, establishmentId)
+        if (!memberId) {
+          alert("Impossible de trouver le lien membre dans la base de données. Le compte a peut-être été créé en dehors de ce système.")
+          return
+        }
+      } else {
+        // Pour création : on envoie le staff_member_id en attendant que la Edge Function le resolve
+        // La Edge Function doit rechercher le staff_member par son id et créer le membre si nécessaire
+        memberId = editingPersonnel.id
+      }
+
       await manageStaffAccount(
-        editingPersonnel.id,
+        memberId,
         action,
         {
           email,

@@ -19,6 +19,7 @@ export interface DonneesPersonnel {
   poste: string
   email?: string
   roleId?: string
+  accountId?: string   // profile_id / user_id dans establishment_members
   accountStatus?: string
   typeContrat: TypeContrat
   modeRemuneration: ModeRemuneration

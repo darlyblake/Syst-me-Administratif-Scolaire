@@ -3,7 +3,7 @@ export interface EstablishmentRole {
   establishment_id: string
   name: string
   description: string | null
-  is_active: boolean
+  active: boolean
   is_system: boolean
   created_at: string
   updated_at: string

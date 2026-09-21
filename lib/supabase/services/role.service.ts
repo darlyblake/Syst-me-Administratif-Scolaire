@@ -39,7 +39,7 @@ export async function createRole(data: {
       establishment_id: data.establishmentId,
       name: data.name,
       description: data.description || null,
-      is_active: true
+      active: true
     })
     .select()
     .single()
@@ -73,7 +73,7 @@ export async function updateRole(data: {
     .update({
       name: data.name,
       description: data.description || null,
-      is_active: data.isActive
+      active: data.isActive
     })
     .eq("id", data.roleId)
     .select()

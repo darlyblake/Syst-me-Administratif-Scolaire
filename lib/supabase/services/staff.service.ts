@@ -77,25 +77,6 @@ export async function createStaff(data: {
   if (error) throw new Error("Impossible de créer le membre du personnel.")
   
   const newStaffId = result as string
-
-  // Si on a un email et un roleId, on invite l'utilisateur
-  if (data.email && data.roleId) {
-    try {
-      await supabaseBrowser.functions.invoke('invite-school-user', {
-        body: {
-          email: data.email,
-          establishment_id: data.establishmentId,
-          first_name: data.firstName,
-          last_name: data.lastName,
-          role_id: data.roleId
-        }
-      })
-    } catch (e) {
-      console.error("Erreur lors de l'invitation utilisateur", e)
-      // Ne pas throw l'erreur, le personnel est créé
-    }
-  }
-
   return newStaffId
 }
 
@@ -126,22 +107,40 @@ export async function updateStaff(data: {
 
   if (error) throw new Error("Impossible de modifier le membre du personnel.")
 
-  // Si on change le statut ou le role, on appelle la fonction manage-school-user-account
-  if (data.roleId || data.active !== undefined) {
-    try {
-      await supabaseBrowser.functions.invoke('manage-school-user-account', {
-        body: {
-          staff_id: data.staffId,
-          action: data.active ? 'update_role' : 'suspend',
-          role_id: data.roleId
-        }
-      })
-    } catch (e) {
-      console.error("Erreur lors de la mise à jour du compte utilisateur", e)
-    }
-  }
-
   return result as string
+}
+
+export async function manageStaffAccount(
+  staffId: string,
+  action: 'create_user' | 'reset_password' | 'disable_user' | 'enable_user' | 'update_role',
+  data?: {
+    email?: string,
+    firstName?: string,
+    lastName?: string,
+    roleId?: string,
+    establishmentId?: string
+  }
+) {
+  try {
+    const body: any = { staff_id: staffId, action }
+    if (data?.email) body.email = data.email
+    if (data?.firstName) body.first_name = data.firstName
+    if (data?.lastName) body.last_name = data.lastName
+    if (data?.roleId) body.role_id = data.roleId
+    if (data?.establishmentId) body.establishment_id = data.establishmentId
+
+    const { error, data: fnData } = await supabaseBrowser.functions.invoke('manage-school-user-account', {
+      body
+    })
+
+    if (error) {
+      throw error
+    }
+    return fnData
+  } catch (e: any) {
+    console.error("Erreur lors de la gestion du compte", e)
+    throw new Error(e.message || "Erreur lors de la gestion du compte utilisateur")
+  }
 }
 
 export async function getStaff(establishmentId: string, role?: string): Promise<Staff[]> {

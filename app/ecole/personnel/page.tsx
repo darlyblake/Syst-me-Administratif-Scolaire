@@ -15,7 +15,7 @@ import type { Pointage } from "@/services/pointage.service"
 import type { DemandeConge } from "@/services/conges.service"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useStaff } from "@/hooks/useStaff"
-import { createStaff, updateStaff } from "@/lib/supabase/services/staff.service"
+import { createStaff, updateStaff, manageStaffAccount } from "@/lib/supabase/services/staff.service"
 import { useRoles } from "@/hooks/useRoles"
 
 export default function PersonnelPage() {
@@ -179,6 +179,34 @@ export default function PersonnelPage() {
 
     const deactivated = await deactivate(id)
     if (deactivated) alert("Membre désactivé avec succès.")
+  }
+
+  const handleGererCompte = async (action: 'create_user' | 'reset_password' | 'disable_user' | 'enable_user') => {
+    if (!editingPersonnel || !establishmentId) return
+
+    let email = editingPersonnel.email
+    if (action === 'create_user' && !email) {
+      email = prompt("Veuillez saisir l'adresse email pour créer le compte :")
+      if (!email) return
+    }
+
+    try {
+      await manageStaffAccount(
+        editingPersonnel.id,
+        action,
+        {
+          email,
+          firstName: editingPersonnel.prenom,
+          lastName: editingPersonnel.nom,
+          roleId: editingPersonnel.roleId,
+          establishmentId
+        }
+      )
+      alert("Action effectuée avec succès. Les informations seront mises à jour prochainement.")
+      refresh()
+    } catch (e: any) {
+      alert("Erreur: " + e.message)
+    }
   }
 
   const handlePointageArrivee = (personnelId: string) => {
@@ -787,17 +815,12 @@ export default function PersonnelPage() {
                         value={nouveauPersonnel.roleId}
                         onChange={(e) => setNouveauPersonnel({ ...nouveauPersonnel, roleId: e.target.value })}
                       >
-                        <option value="">Aucun accès (personnel sans compte)</option>
+                        <option value="">Aucun rôle</option>
                         {roles.filter(r => r.role.is_active).map(r => (
                           <option key={r.role.id} value={r.role.id}>{r.role.name}</option>
                         ))}
                       </select>
-                      {nouveauPersonnel.roleId && nouveauPersonnel.email && (
-                        <p className="text-xs text-blue-600">Une invitation sera envoyée à {nouveauPersonnel.email}</p>
-                      )}
-                      {nouveauPersonnel.roleId && !nouveauPersonnel.email && (
-                        <p className="text-xs text-amber-600">Ajoutez un email pour inviter cet utilisateur</p>
-                      )}
+                      <p className="text-xs text-gray-500 mt-1">Vous pourrez créer un compte de connexion plus tard depuis sa fiche.</p>
                     </div>
                   </div>
                   <div className="flex gap-2 mt-6">
@@ -949,17 +972,62 @@ export default function PersonnelPage() {
                         value={editingPersonnel.roleId || ""}
                         onChange={(e) => setEditingPersonnel({ ...editingPersonnel, roleId: e.target.value })}
                       >
-                        <option value="">Aucun accès (personnel sans compte)</option>
+                        <option value="">Aucun rôle</option>
                         {roles.filter(r => r.role.is_active).map(r => (
                           <option key={r.role.id} value={r.role.id}>{r.role.name}</option>
                         ))}
                       </select>
-                      {editingPersonnel.accountStatus === 'active' && (
-                        <p className="text-xs text-green-600">Cet utilisateur a un compte actif.</p>
-                      )}
-                      {editingPersonnel.accountStatus === 'invited' && (
-                        <p className="text-xs text-amber-600">Invitation envoyée, en attente d'acceptation.</p>
-                      )}
+                      
+                      <div className="mt-4 p-4 border rounded bg-gray-50 space-y-3">
+                        <h4 className="font-medium text-sm text-gray-800">Gestion du compte</h4>
+                        {editingPersonnel.accountStatus === 'active' ? (
+                          <>
+                            <p className="text-xs text-green-600 flex items-center gap-1">
+                              <UserCheck className="h-4 w-4" /> Cet utilisateur a un compte actif.
+                            </p>
+                            <div className="flex gap-2">
+                              <Button type="button" variant="outline" size="sm" onClick={() => handleGererCompte('reset_password')}>
+                                Réinitialiser mot de passe
+                              </Button>
+                              <Button type="button" variant="outline" size="sm" onClick={() => handleGererCompte('disable_user')} className="text-red-600 border-red-200 hover:bg-red-50">
+                                Désactiver l'accès
+                              </Button>
+                            </div>
+                          </>
+                        ) : editingPersonnel.accountStatus === 'invited' ? (
+                          <>
+                            <p className="text-xs text-amber-600 flex items-center gap-1">
+                              <Clock className="h-4 w-4" /> Invitation envoyée, en attente d'acceptation.
+                            </p>
+                            <div className="flex gap-2">
+                              <Button type="button" variant="outline" size="sm" onClick={() => handleGererCompte('create_user')}>
+                                Renvoyer l'invitation
+                              </Button>
+                            </div>
+                          </>
+                        ) : editingPersonnel.accountStatus === 'inactive' ? (
+                          <>
+                            <p className="text-xs text-red-600 flex items-center gap-1">
+                              <UserX className="h-4 w-4" /> Le compte est désactivé.
+                            </p>
+                            <div className="flex gap-2">
+                              <Button type="button" variant="outline" size="sm" onClick={() => handleGererCompte('enable_user')} className="text-green-600 border-green-200 hover:bg-green-50">
+                                Réactiver l'accès
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-xs text-gray-500">Aucun compte créé pour cet utilisateur.</p>
+                            <Button type="button" variant="outline" size="sm" onClick={() => handleGererCompte('create_user')} disabled={!editingPersonnel.roleId}>
+                              Créer un compte & envoyer invitation
+                            </Button>
+                            {!editingPersonnel.roleId && (
+                              <p className="text-xs text-red-500 mt-1">Vous devez d'abord assigner un rôle pour créer le compte.</p>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex gap-2 mt-6">

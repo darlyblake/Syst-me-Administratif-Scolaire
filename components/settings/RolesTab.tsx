@@ -12,22 +12,14 @@ import { useAuthentification } from "@/providers/authentification.provider"
 
 const AVAILABLE_MODULES = [
   { id: 'dashboard', label: 'Tableau de bord' },
-  { id: 'students', label: 'Élèves' },
-  { id: 'enrollments', label: 'Inscriptions' },
+  { id: 'inscriptions', label: 'Inscriptions' },
   { id: 'classes', label: 'Classes' },
-  { id: 'teachers', label: 'Enseignants' },
-  { id: 'personnel', label: 'Personnel' },
-  { id: 'schedule', label: 'Emploi du temps' },
   { id: 'notes', label: 'Notes' },
-  { id: 'evaluation', label: 'Évaluations' },
   { id: 'attendance', label: 'Absences & Présences' },
   { id: 'finance', label: 'Comptabilité & Paiements' },
   { id: 'documents', label: 'Documents & Dossiers' },
   { id: 'communication', label: 'Communication' },
-  { id: 'events', label: 'Événements' },
-  { id: 'demandes', label: 'Demandes' },
-  { id: 'technical', label: 'Service technique' },
-  { id: 'structure', label: 'Structure académique' },
+  { id: 'personnel', label: 'Personnel' },
   { id: 'settings', label: 'Paramètres généraux' },
   { id: 'roles.manage', label: 'Gestion des rôles' },
   { id: 'users.manage', label: 'Gestion des comptes' }
@@ -51,12 +43,23 @@ export default function RolesTab() {
   const [usageCounts, setUsageCounts] = useState<Record<string, number>>({})
 
   // Load usage counts for displayed roles
-  useState(() => {
-    // We could load usage counts in a batch or when roles load. 
-    // To keep it simple, we just assume 0 for now and fetch on demand when trying to delete, 
-    // or we fetch them all if needed. For UI purposes, it's better to fetch them in the hook, 
-    // but the backend might not return them by default. Let's do a quick count load.
-  })
+  useEffect(() => {
+    async function loadUsage() {
+      const counts: Record<string, number> = {}
+      for (const role of roles) {
+        try {
+          const count = await getRoleUsageCount(role.role.id)
+          counts[role.role.id] = count
+        } catch (e) {
+          counts[role.role.id] = 0
+        }
+      }
+      setUsageCounts(counts)
+    }
+    if (roles.length > 0) {
+      loadUsage()
+    }
+  }, [roles, getRoleUsageCount])
 
   const handleOpenForm = (role?: RoleWithPermissions) => {
     if (role) {
@@ -228,53 +231,66 @@ export default function RolesTab() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {roles.map((item) => (
-          <Card key={item.role.id} className="flex flex-col">
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-blue-600" />
-                  {item.role.name}
-                </CardTitle>
-                {item.role.is_active ? (
-                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Actif</span>
-                ) : (
-                  <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">Inactif</span>
-                )}
-              </div>
-              <CardDescription className="line-clamp-2 min-h-10 mt-1">
-                {item.role.description || "Aucune description"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 pb-4">
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="flex justify-between border-b pb-1">
-                  <span>Accès :</span>
-                  <span className="font-medium">{item.permissions.length} modules</span>
-                </p>
-                {item.role.is_system && (
-                  <p className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded mt-2 inline-block">Rôle système</p>
-                )}
-              </div>
-            </CardContent>
-            <CardFooter className="pt-0 flex gap-2 justify-end border-t mt-auto p-4">
-              <Button variant="outline" size="sm" onClick={() => handleOpenForm(item)}>
-                <Edit className="h-4 w-4 mr-1" /> Modifier
-              </Button>
-              {!item.role.is_system && (
-                <Button variant="ghost" size="sm" onClick={() => handleDelete(item)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </CardFooter>
-          </Card>
-        ))}
-        {roles.length === 0 && (
-          <div className="col-span-full p-8 text-center text-gray-500 border rounded-lg bg-gray-50">
-            Aucun rôle n'a été créé pour le moment.
-          </div>
-        )}
+      <div className="bg-white border rounded-lg">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="px-4 py-3 font-medium text-gray-700">Rôle</th>
+              <th className="px-4 py-3 font-medium text-gray-700">Description</th>
+              <th className="px-4 py-3 font-medium text-gray-700">Utilisateurs</th>
+              <th className="px-4 py-3 font-medium text-gray-700">Statut</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-700">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {roles.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                  Aucun rôle n'a été créé pour le moment.
+                </td>
+              </tr>
+            ) : (
+              roles.map((item) => (
+                <tr key={item.role.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900 flex items-center gap-2">
+                      {item.role.name}
+                      {item.role.is_system && (
+                        <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase tracking-wider">Système</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">{item.permissions.length} modules autorisés</div>
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 max-w-xs truncate">
+                    {item.role.description || "-"}
+                  </td>
+                  <td className="px-4 py-3">
+                    {usageCounts[item.role.id] !== undefined ? usageCounts[item.role.id] : "..."}
+                  </td>
+                  <td className="px-4 py-3">
+                    {item.role.is_active ? (
+                      <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Actif</span>
+                    ) : (
+                      <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">Inactif</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => handleOpenForm(item)}>
+                        Modifier
+                      </Button>
+                      {!item.role.is_system && (
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(item)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                          Supprimer
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   )

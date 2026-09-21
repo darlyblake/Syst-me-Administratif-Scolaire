@@ -17,6 +17,7 @@ import { useUserContext } from "@/hooks/useUserContext"
 import { useStaff } from "@/hooks/useStaff"
 import { createStaff, updateStaff, manageStaffAccount, getEstablishmentMemberId } from "@/lib/supabase/services/staff.service"
 import { useRoles } from "@/hooks/useRoles"
+import { supabaseBrowser } from "@/lib/supabase/client"
 
 export default function PersonnelPage() {
   const { primaryEstablishment, estEnCoursDeChargement, utilisateur } = useUserContext()
@@ -207,22 +208,38 @@ export default function PersonnelPage() {
           return
         }
       } else {
-        // Pour création : on envoie le staff_member_id en attendant que la Edge Function le resolve
-        // La Edge Function doit rechercher le staff_member par son id et créer le membre si nécessaire
-        memberId = editingPersonnel.id
+        // Pour la création : on passe le staff_id pour que la Edge Function
+        // puisse créer le compte et lier automatiquement le establishment_members
+        memberId = null // non utilisé pour create_user
       }
 
-      await manageStaffAccount(
-        memberId,
-        action,
-        {
-          email,
-          firstName: editingPersonnel.prenom,
-          lastName: editingPersonnel.nom,
-          roleId: editingPersonnel.roleId,
-          establishmentId
-        }
-      )
+      if (action === 'create_user') {
+        // Pour la création de compte, on envoie le staff_id
+        // La Edge Function est responsable de créer le auth user ET le establishment_members
+        await supabaseBrowser.functions.invoke('manage-school-user-account', {
+          body: {
+            action: 'create_user',
+            staff_id: editingPersonnel.id,
+            email,
+            first_name: editingPersonnel.prenom,
+            last_name: editingPersonnel.nom,
+            role_id: editingPersonnel.roleId,
+            establishment_id: establishmentId,
+          }
+        }).then(({ error }) => { if (error) throw error })
+      } else {
+        await manageStaffAccount(
+          memberId!,
+          action,
+          {
+            email,
+            firstName: editingPersonnel.prenom,
+            lastName: editingPersonnel.nom,
+            roleId: editingPersonnel.roleId,
+            establishmentId
+          }
+        )
+      }
       alert("Action effectuée avec succès. Les informations seront mises à jour prochainement.")
       refresh()
     } catch (e: any) {
@@ -837,7 +854,7 @@ export default function PersonnelPage() {
                         onChange={(e) => setNouveauPersonnel({ ...nouveauPersonnel, roleId: e.target.value })}
                       >
                         <option value="">Aucun rôle</option>
-                        {roles.filter(r => r.role.is_active).map(r => (
+                        {roles.filter(r => r.role.active).map(r => (
                           <option key={r.role.id} value={r.role.id}>{r.role.name}</option>
                         ))}
                       </select>
@@ -994,7 +1011,7 @@ export default function PersonnelPage() {
                         onChange={(e) => setEditingPersonnel({ ...editingPersonnel, roleId: e.target.value })}
                       >
                         <option value="">Aucun rôle</option>
-                        {roles.filter(r => r.role.is_active).map(r => (
+                        {roles.filter(r => r.role.active).map(r => (
                           <option key={r.role.id} value={r.role.id}>{r.role.name}</option>
                         ))}
                       </select>

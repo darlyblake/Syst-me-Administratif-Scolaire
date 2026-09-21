@@ -7,7 +7,7 @@ import { useAuthentification } from "@/providers/authentification.provider"
 import { hasEffectiveSchoolPermission } from "@/lib/organization/runtime-permissions"
 
 const ROUTE_PERMISSIONS: Array<[string, string]> = [
-  ["/ecole/tableau-bord", "dashboard.view"], ["/ecole/inscriptions", "enrollments.view"], ["/ecole/students", "students.view"],
+  ["/ecole/tableau-bord", "dashboard.view"], ["/ecole/inscriptions", "inscriptions.view"], ["/ecole/students", "students.view"],
   ["/ecole/dossiers-papier", "documents.view"], ["/ecole/classes", "classes.view"], ["/ecole/notes", "grades.view"],
   ["/ecole/emploi-du-temps", "timetable.view"], ["/ecole/registre-appel", "attendance.view"], ["/ecole/absences", "attendance.view"],
   ["/ecole/matieres", "subjects.view"], ["/ecole/evaluation", "grades.view"], ["/ecole/options", "settings.view"],

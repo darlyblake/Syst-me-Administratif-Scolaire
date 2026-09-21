@@ -1,28 +1,30 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Edit, Shield, Check, Trash2 } from "lucide-react"
+import { Plus, Edit, Shield, Trash2, AlertCircle } from "lucide-react"
 import { useRoles, type RoleWithPermissions } from "@/hooks/useRoles"
 import { useEstablishment } from "@/hooks/useEstablishment"
 import { useAuthentification } from "@/providers/authentification.provider"
 
 const AVAILABLE_MODULES = [
   { id: 'dashboard', label: 'Tableau de bord' },
+  { id: 'students', label: 'Élèves' },
   { id: 'inscriptions', label: 'Inscriptions' },
   { id: 'classes', label: 'Classes' },
+  { id: 'teachers', label: 'Enseignants' },
   { id: 'notes', label: 'Notes' },
-  { id: 'attendance', label: 'Absences & Présences' },
-  { id: 'finance', label: 'Comptabilité & Paiements' },
-  { id: 'documents', label: 'Documents & Dossiers' },
+  { id: 'attendance', label: 'Absences' },
+  { id: 'documents', label: 'Documents' },
   { id: 'communication', label: 'Communication' },
+  { id: 'finance', label: 'Finance' },
   { id: 'personnel', label: 'Personnel' },
-  { id: 'settings', label: 'Paramètres généraux' },
+  { id: 'settings', label: 'Paramètres' },
   { id: 'roles.manage', label: 'Gestion des rôles' },
-  { id: 'users.manage', label: 'Gestion des comptes' }
+  { id: 'users.manage', label: 'Gestion des utilisateurs' }
 ]
 
 export default function RolesTab() {
@@ -129,7 +131,7 @@ export default function RolesTab() {
     try {
       const count = await getRoleUsageCount(role.role.id)
       if (count > 0) {
-        alert(`Ce rôle est utilisé par ${count} utilisateur(s). Vous devez d'abord réattribuer ces utilisateurs.`)
+        alert(`❌ Ce rôle est utilisé par ${count} membre(s).\nDésactivez-le plutôt que de le supprimer.`)
         return
       }
 
@@ -142,88 +144,125 @@ export default function RolesTab() {
     }
   }
 
-  if (isLoading) return <div className="p-8 text-center text-gray-500">Chargement des rôles...</div>
-  if (error) return <div className="p-8 text-center text-red-500">{error}</div>
+  if (isLoading) return (
+    <div className="p-8 text-center text-gray-500 text-sm">Chargement des rôles...</div>
+  )
+  if (error) return (
+    <div className="p-6 rounded-lg border border-red-200 bg-red-50 flex items-center gap-2 text-red-700">
+      <AlertCircle className="h-4 w-4 flex-shrink-0" />
+      <span className="text-sm">{error}</span>
+    </div>
+  )
 
   if (showForm) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{editingRole ? "Modifier le rôle" : "Nouveau rôle"}</CardTitle>
-          <CardDescription>Configurez les accès pour ce profil d'utilisateur</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="roleName">Nom du rôle <span className="text-red-500">*</span></Label>
-                <Input 
-                  id="roleName" 
-                  value={formData.name} 
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                  disabled={editingRole?.role.is_system}
-                  placeholder="Ex: Secrétaire" 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="roleDesc">Description</Label>
-                <Input 
-                  id="roleDesc" 
-                  value={formData.description} 
-                  onChange={e => setFormData({...formData, description: e.target.value})}
-                  placeholder="Ex: Gestion administrative des élèves" 
-                />
-              </div>
-            </div>
+      <div className="max-w-2xl">
+        <div className="mb-6">
+          <button
+            type="button"
+            className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
+            onClick={handleCloseForm}
+          >
+            ← Retour aux rôles
+          </button>
+          <h2 className="mt-2 text-lg font-semibold text-gray-900">
+            {editingRole ? `Modifier « ${editingRole.role.name} »` : 'Nouveau rôle'}
+          </h2>
+          <p className="text-sm text-gray-500">Définissez les modules accessibles pour ce rôle.</p>
+        </div>
 
-            <div className="space-y-4">
-              <h3 className="text-md font-medium border-b pb-2">Accès autorisés</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {AVAILABLE_MODULES.map(module => (
-                  <label key={module.id} className="flex items-center space-x-3 cursor-pointer p-2 rounded hover:bg-gray-50 border border-transparent hover:border-gray-100">
-                    <input
-                      type="checkbox"
-                      className="form-checkbox h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                      checked={formData.permissions.includes(module.id)}
-                      onChange={() => togglePermission(module.id)}
-                    />
-                    <span className="text-sm text-gray-700">{module.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2 pt-4">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={formData.isActive}
-                  onChange={e => setFormData({...formData, isActive: e.target.checked})}
-                  className="form-checkbox h-4 w-4 rounded border-gray-300"
-                />
-                <span className="text-sm font-medium">Rôle actif</span>
-              </label>
-              {!formData.isActive && (
-                <p className="text-xs text-amber-600 ml-6">Les utilisateurs existants conserveront ce rôle, mais il ne pourra plus être attribué.</p>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Informations générales */}
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="roleName">Nom du rôle <span className="text-red-500">*</span></Label>
+              <Input
+                id="roleName"
+                value={formData.name}
+                onChange={e => setFormData({...formData, name: e.target.value})}
+                disabled={editingRole?.role.is_system}
+                placeholder="Ex : Secrétaire"
+                className="max-w-xs"
+              />
+              {editingRole?.role.is_system && (
+                <p className="text-xs text-gray-400">Le nom d'un rôle système ne peut pas être modifié.</p>
               )}
             </div>
-
-            <div className="flex gap-4 pt-4">
-              <Button type="button" variant="outline" onClick={handleCloseForm}>Annuler</Button>
-              <Button type="submit">{editingRole ? "Enregistrer" : "Créer le rôle"}</Button>
+            <div className="space-y-1.5">
+              <Label htmlFor="roleDesc">Description</Label>
+              <Input
+                id="roleDesc"
+                value={formData.description}
+                onChange={e => setFormData({...formData, description: e.target.value})}
+                placeholder="Ex : Gestion des inscriptions et documents"
+              />
             </div>
-          </form>
-        </CardContent>
-      </Card>
+          </div>
+
+          {/* Accès autorisés */}
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800">Accès autorisés</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Sélectionnez les modules auxquels ce rôle aura accès.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {AVAILABLE_MODULES.map(module => (
+                <label
+                  key={module.id}
+                  className={`flex items-center gap-3 p-2.5 rounded cursor-pointer border transition-colors ${
+                    formData.permissions.includes(module.id)
+                      ? 'border-blue-200 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 text-blue-600 rounded border-gray-300"
+                    checked={formData.permissions.includes(module.id)}
+                    onChange={() => togglePermission(module.id)}
+                  />
+                  <span className={`text-sm ${
+                    formData.permissions.includes(module.id) ? 'text-blue-800 font-medium' : 'text-gray-700'
+                  }`}>{module.label}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400">{formData.permissions.length} module(s) sélectionné(s)</p>
+          </div>
+
+          {/* Statut */}
+          <div className="border-t pt-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.isActive}
+                onChange={e => setFormData({...formData, isActive: e.target.checked})}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600"
+              />
+              <span className="text-sm font-medium">Rôle actif</span>
+            </label>
+            {!formData.isActive && (
+              <p className="text-xs text-amber-600 mt-1 ml-6">
+                Ce rôle ne pourra plus être attribué à de nouveaux utilisateurs.
+              </p>
+            )}
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={handleCloseForm}>Annuler</Button>
+            <Button type="submit">{editingRole ? 'Enregistrer les modifications' : 'Créer le rôle'}</Button>
+          </div>
+        </form>
+      </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-lg font-medium">Rôles et accès</h2>
-          <p className="text-sm text-gray-500">Gérez les profils d'accès pour les membres de votre personnel.</p>
+          <h2 className="text-lg font-semibold text-gray-900">Rôles et accès</h2>
+          <p className="text-sm text-gray-500">Les rôles déterminent ce que chaque utilisateur peut faire dans l'application.</p>
         </div>
         <Button onClick={() => handleOpenForm()}>
           <Plus className="h-4 w-4 mr-2" />
@@ -231,67 +270,73 @@ export default function RolesTab() {
         </Button>
       </div>
 
-      <div className="bg-white border rounded-lg">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="px-4 py-3 font-medium text-gray-700">Rôle</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Description</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Utilisateurs</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Statut</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-700">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {roles.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                  Aucun rôle n'a été créé pour le moment.
-                </td>
-              </tr>
-            ) : (
-              roles.map((item) => (
-                <tr key={item.role.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900 flex items-center gap-2">
-                      {item.role.name}
-                      {item.role.is_system && (
-                        <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase tracking-wider">Système</span>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-0.5">{item.permissions.length} modules autorisés</div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600 max-w-xs truncate">
-                    {item.role.description || "-"}
-                  </td>
-                  <td className="px-4 py-3">
-                    {usageCounts[item.role.id] !== undefined ? usageCounts[item.role.id] : "..."}
-                  </td>
-                  <td className="px-4 py-3">
-                    {item.role.active ? (
-                      <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Actif</span>
-                    ) : (
-                      <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">Inactif</span>
+      {roles.length === 0 ? (
+        <div className="border rounded-lg p-12 text-center">
+          <Shield className="h-8 w-8 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-500">Aucun rôle n'a été créé pour le moment.</p>
+          <Button variant="outline" size="sm" className="mt-4" onClick={() => handleOpenForm()}>
+            Créer le premier rôle
+          </Button>
+        </div>
+      ) : (
+        <div className="bg-white border rounded-lg divide-y">
+          {roles.map((item) => {
+            const permLabels = item.permissions
+              .map(p => AVAILABLE_MODULES.find(m => m.id === p.permission)?.label)
+              .filter(Boolean)
+            const count = usageCounts[item.role.id]
+
+            return (
+              <div key={item.role.id} className="px-4 py-3 flex items-center gap-4">
+                {/* Identité du rôle */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-900">{item.role.name}</span>
+                    {item.role.is_system && (
+                      <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded uppercase tracking-wide">Système</span>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleOpenForm(item)}>
-                        Modifier
-                      </Button>
-                      {!item.role.is_system && (
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(item)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                          Supprimer
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                    {!item.role.active && (
+                      <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded uppercase tracking-wide">Inactif</span>
+                    )}
+                  </div>
+                  {item.role.description && (
+                    <p className="text-xs text-gray-500 mt-0.5">{item.role.description}</p>
+                  )}
+                  {permLabels.length > 0 && (
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">
+                      {permLabels.join(' · ')}
+                    </p>
+                  )}
+                </div>
+
+                {/* Utilisation */}
+                <div className="text-sm text-gray-500 whitespace-nowrap">
+                  {count !== undefined ? `${count} utilisateur${count > 1 ? 's' : ''}` : '—'}
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => handleOpenForm(item)}>
+                    <Edit className="h-4 w-4 mr-1" />
+                    Modifier
+                  </Button>
+                  {!item.role.is_system && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => handleDelete(item)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Supprimer
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

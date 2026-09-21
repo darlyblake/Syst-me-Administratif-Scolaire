@@ -13,7 +13,7 @@ const ROLE_DEFAULTS: Record<string, string[]> = {
   admin: ["*"],
   director: ["students.view", "students.edit", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "documents.view", "documents.create", "staff.view", "finance.view"],
   accountant: ["dashboard.view", "students.view", "payments.view", "payments.create", "finance.view"],
-  secretary: ["dashboard.view", "students.view", "students.create", "students.edit", "enrollments.view", "enrollments.create", "documents.view", "documents.create"],
+  secretary: ["dashboard.view", "students.view", "students.create", "students.edit", "inscriptions.view", "inscriptions.create", "documents.view", "documents.create"],
   teacher: ["dashboard.view", "students.view", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "classes.view", "timetable.view"],
   supervisor: ["dashboard.view", "students.view", "attendance.view", "attendance.manage", "documents.view", "documents.create", "exclusions.create"],
 }

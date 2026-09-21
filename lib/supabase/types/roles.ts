@@ -19,7 +19,7 @@ export interface EstablishmentRolePermission {
 export type ValidPermission = 
   | 'dashboard'
   | 'students'
-  | 'enrollments'
+  | 'inscriptions'
   | 'classes'
   | 'teachers'
   | 'notes'

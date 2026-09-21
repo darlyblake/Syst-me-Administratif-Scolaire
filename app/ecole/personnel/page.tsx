@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Users, Plus, Edit, Trash2, Search, Clock, Calendar, FileText, Shield, UserCheck, UserX } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ArrowLeft, Users, Plus, Edit, Trash2, Search, Clock, Calendar, FileText, Shield, UserCheck, UserX, UserPlus, User, Key } from "lucide-react"
 import Link from "next/link"
 import { servicePointage } from "@/services/pointage.service"
 import { serviceConges } from "@/services/conges.service"
@@ -36,6 +37,7 @@ export default function PersonnelPage() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showCompteModal, setShowCompteModal] = useState(false)
   const [showCongeModal, setShowCongeModal] = useState(false)
   const [editingPersonnel, setEditingPersonnel] = useState<DonneesPersonnel | null>(null)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
@@ -54,7 +56,8 @@ export default function PersonnelPage() {
     tauxHoraire: 0,
     heuresPrevues: 0,
     statut: "actif" as any,
-    dateEmbauche: new Date().toISOString().split('T')[0]
+    dateEmbauche: new Date().toISOString().split('T')[0],
+    creerCompte: false
   })
   const [nouvelleDemandeConge, setNouvelleDemandeConge] = useState({
     personnelId: "",
@@ -110,7 +113,7 @@ export default function PersonnelPage() {
     }
 
     try {
-      await createStaff({
+      const newStaffId = await createStaff({
         establishmentId,
         profileId: utilisateur.id,
         firstName: nouveauPersonnel.prenom,
@@ -120,8 +123,27 @@ export default function PersonnelPage() {
         email: nouveauPersonnel.email,
         hireDate: nouveauPersonnel.dateEmbauche,
         active: nouveauPersonnel.statut === "actif",
-        roleId: nouveauPersonnel.roleId || undefined,
       })
+
+      if (nouveauPersonnel.creerCompte && nouveauPersonnel.roleId && nouveauPersonnel.email) {
+        await supabaseBrowser.functions.invoke('manage-school-user-account', {
+          body: {
+            action: 'create_user',
+            staff_id: newStaffId,
+            email: nouveauPersonnel.email,
+            first_name: nouveauPersonnel.prenom,
+            last_name: nouveauPersonnel.nom,
+            role_id: nouveauPersonnel.roleId,
+            establishment_id: establishmentId,
+          }
+        }).then(({ error }) => { 
+          if (error) {
+            console.error("Erreur création compte:", error);
+            alert("Le personnel a été créé mais la création du compte a échoué. Vous pourrez réessayer depuis sa fiche.");
+          }
+        })
+      }
+
       refresh()
       setShowAddModal(false)
     } catch {
@@ -141,7 +163,8 @@ export default function PersonnelPage() {
       tauxHoraire: 0,
       heuresPrevues: 0,
       statut: "actif",
-      dateEmbauche: new Date().toISOString().split('T')[0]
+      dateEmbauche: new Date().toISOString().split('T')[0],
+      creerCompte: false
     })
   }
 
@@ -161,7 +184,6 @@ export default function PersonnelPage() {
         email: editingPersonnel.email,
         hireDate: editingPersonnel.dateEmbauche,
         active: editingPersonnel.statut === "actif",
-        roleId: editingPersonnel.roleId || undefined,
       })
       refresh()
       setShowEditModal(false)
@@ -190,6 +212,11 @@ export default function PersonnelPage() {
     if (action === 'create_user' && !email) {
       email = prompt("Veuillez saisir l'adresse email pour créer le compte :")
       if (!email) return
+    }
+    if (action === 'disable_user') {
+      if (!confirm(`Désactiver le compte de ${editingPersonnel.prenom} ${editingPersonnel.nom} ?\n\nIl ne pourra plus accéder à l'établissement jusqu'à sa réactivation.`)) {
+        return
+      }
     }
 
     try {
@@ -226,9 +253,16 @@ export default function PersonnelPage() {
             role_id: editingPersonnel.roleId,
             establishment_id: establishmentId,
           }
-        }).then(({ error }) => { if (error) throw error })
+        }).then(({ data, error }) => { 
+          if (error) throw error
+          if (data?.temporary_password) {
+            alert(`Compte créé avec succès.\n\nMot de passe temporaire :\n${data.temporary_password}\n\n⚠️ Communiquez ce mot de passe à l'utilisateur.`)
+          } else {
+            alert("Compte créé avec succès.")
+          }
+        })
       } else {
-        await manageStaffAccount(
+        const responseData = await manageStaffAccount(
           memberId!,
           action,
           {
@@ -239,8 +273,12 @@ export default function PersonnelPage() {
             establishmentId
           }
         )
+        if (action === 'reset_password' && responseData?.temporary_password) {
+          alert(`Mot de passe réinitialisé.\n\nMot de passe temporaire :\n${responseData.temporary_password}\n\n⚠️ Communiquez ce mot de passe à l'utilisateur.`)
+        } else {
+          alert("Action effectuée avec succès. Les informations seront mises à jour prochainement.")
+        }
       }
-      alert("Action effectuée avec succès. Les informations seront mises à jour prochainement.")
       refresh()
     } catch (e: any) {
       alert("Erreur: " + e.message)
@@ -457,106 +495,95 @@ export default function PersonnelPage() {
                       const congesPersonnel = getCongesForPersonnel(person.id)
                       const soldeConge = serviceConges.calculerSoldeConge(person.id, new Date().getFullYear())
                       return (
-                        <div key={person.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                                  <Users className="h-6 w-6 text-blue-600" />
-                                </div>
-                                <div>
-                                  <p className="font-semibold">{person.prenom} {person.nom}</p>
-                                  <p className="text-sm text-gray-600">{person.poste}</p>
-                                </div>
+                        <div key={person.id} className="border rounded-lg p-4 bg-white hover:border-gray-300 transition-colors">
+                          {/* Header : identité */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                <User className="h-5 w-5 text-gray-500" />
                               </div>
-                              <div className="flex gap-2 mt-2 flex-wrap">
-                                <span className={`text-xs px-2 py-1 rounded ${
-                                  person.statut === 'actif' ? 'bg-green-100 text-green-800' :
-                                  person.statut === 'inactif' ? 'bg-gray-100 text-gray-800' :
-                                  person.statut === 'conge' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-red-100 text-red-800'
-                                }`}>
-                                  {person.statut}
-                                </span>
-                                <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">
-                                  {person.typeContrat}
-                                </span>
-                                {person.roleId && (() => {
-                                  const foundRole = roles.find(r => r.role.id === person.roleId)
-                                  return foundRole ? (
-                                    <span className="text-xs px-2 py-1 rounded bg-indigo-100 text-indigo-800 flex items-center gap-1">
-                                      <Shield className="h-3 w-3" />
-                                      {foundRole.role.name}
-                                    </span>
-                                  ) : null
-                                })()}
-                                {person.accountStatus && (
-                                  <span className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${
-                                    person.accountStatus === 'active' ? 'bg-green-100 text-green-800' :
-                                    person.accountStatus === 'invited' ? 'bg-amber-100 text-amber-800' :
-                                    'bg-gray-100 text-gray-500'
-                                  }`}>
-                                    {person.accountStatus === 'active' ? <UserCheck className="h-3 w-3" /> : <UserX className="h-3 w-3" />}
-                                    {person.accountStatus === 'active' ? 'Compte actif' :
-                                     person.accountStatus === 'invited' ? 'Invitation envoyée' :
-                                     'Sans compte'}
-                                  </span>
-                                )}
-                                <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-800">
-                                  Solde congé: {soldeConge} jours
-                                </span>
+                              <div>
+                                <p className="font-semibold text-gray-900">{person.prenom} {person.nom}</p>
+                                <p className="text-sm text-gray-500">{person.poste}</p>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="font-semibold">
-                                {person.modeRemuneration === "fixe" 
-                                  ? `${person.salaireFixe?.toLocaleString()} FCFA/mois`
-                                  : `${person.tauxHoraire?.toLocaleString()} FCFA/h`
-                                }
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                Depuis {new Date(person.dateEmbauche).toLocaleDateString()}
-                              </p>
+                            <div className="text-right text-xs text-gray-400">
+                              Depuis {person.dateEmbauche ? new Date(person.dateEmbauche).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : '—'}
                             </div>
                           </div>
 
-                          {/* Pointage section */}
-                          <div className="mt-4 pt-4 border-t">
-                            <div className="flex items-center justify-between">
-                              <div className="flex gap-4">
-                                <div className="text-sm">
-                                  <span className="text-gray-600">Arrivée:</span>
-                                  <span className="ml-2 font-medium">{pointage?.heureArrivee || '--:--'}</span>
-                                </div>
-                                <div className="text-sm">
-                                  <span className="text-gray-600">Départ:</span>
-                                  <span className="ml-2 font-medium">{pointage?.heureDepart || '--:--'}</span>
-                                </div>
-                                {pointage?.statut && (
-                                  <span className={`text-xs px-2 py-1 rounded ${
-                                    pointage.statut === 'present' ? 'bg-green-100 text-green-800' :
-                                    pointage.statut === 'absent' ? 'bg-red-100 text-red-800' :
-                                    pointage.statut === 'retard' ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-gray-100 text-gray-800'
-                                  }`}>
-                                    {pointage.statut}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex gap-2">
-                                <Button variant="outline" size="sm" onClick={() => { setNouvelleDemandeConge({ ...nouvelleDemandeConge, personnelId: person.id }); setShowCongeModal(true) }}>
-                                  <Calendar className="h-4 w-4 mr-1" />
-                                  Congé
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => handleOuvrirEditModal(person)}>
-                                  <Edit className="h-4 w-4 mr-1" />
-                                  Modifier
-                                </Button>
-                                <Button variant="ghost" size="sm" disabled={isDeactivating} onClick={() => handleSupprimerPersonnel(person.id)}>
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
+                          {/* Informations clés */}
+                          <div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-1 text-sm border-t pt-3">
+                            <span className="text-gray-400 text-xs uppercase tracking-wide font-medium">Statut</span>
+                            <span className="text-gray-400 text-xs uppercase tracking-wide font-medium">Compte</span>
+                            <span className="text-gray-400 text-xs uppercase tracking-wide font-medium">Rôle d'accès</span>
+
+                            {/* Statut professionnel */}
+                            <span className={`font-medium ${
+                              person.statut === 'actif' ? 'text-green-700' :
+                              person.statut === 'inactif' ? 'text-gray-500' :
+                              person.statut === 'conge' ? 'text-amber-600' :
+                              'text-gray-500'
+                            }`}>
+                              {person.statut === 'actif' ? 'Actif' :
+                               person.statut === 'inactif' ? 'Inactif' :
+                               person.statut === 'conge' ? 'En congé' : person.statut}
+                            </span>
+
+                            {/* Statut compte */}
+                            <span className={`font-medium flex items-center gap-1 ${
+                              person.accountStatus === 'active' ? 'text-green-700' :
+                              person.accountStatus === 'inactive' ? 'text-red-600' :
+                              person.accountStatus === 'invited' ? 'text-amber-600' :
+                              'text-gray-400'
+                            }`}>
+                              {person.accountStatus === 'active' && <UserCheck className="h-3 w-3" />}
+                              {person.accountStatus === 'inactive' && <UserX className="h-3 w-3" />}
+                              {person.accountStatus === 'active' ? 'Actif' :
+                               person.accountStatus === 'inactive' ? 'Désactivé' :
+                               person.accountStatus === 'invited' ? 'Invité' :
+                               'Aucun compte'}
+                            </span>
+
+                            {/* Rôle */}
+                            <span className="text-gray-700">
+                              {(() => {
+                                if (!person.roleId) return <span className="text-gray-400">Aucun</span>
+                                const foundRole = roles.find(r => r.role.id === person.roleId)
+                                return foundRole ? foundRole.role.name : <span className="text-gray-400">Aucun</span>
+                              })()}
+                            </span>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="mt-3 pt-3 border-t flex gap-2 flex-wrap">
+                            <Button variant="outline" size="sm" onClick={() => handleOuvrirEditModal(person)}>
+                              <Edit className="h-3.5 w-3.5 mr-1" />
+                              Modifier
+                            </Button>
+                            {person.accountStatus === 'active' || person.accountStatus === 'invited' ? (
+                              <Button variant="outline" size="sm" onClick={() => { setEditingPersonnel(person); setShowCompteModal(true) }}>
+                                <UserCheck className="h-3.5 w-3.5 mr-1" />
+                                Gérer le compte
+                              </Button>
+                            ) : person.accountStatus === 'inactive' ? (
+                              <Button variant="outline" size="sm" className="text-green-700 border-green-200 hover:bg-green-50" onClick={() => { setEditingPersonnel(person); setShowCompteModal(true) }}>
+                                <UserCheck className="h-3.5 w-3.5 mr-1" />
+                                Réactiver
+                              </Button>
+                            ) : (
+                              <Button variant="outline" size="sm" onClick={() => { setEditingPersonnel(person); setShowCompteModal(true) }}>
+                                <UserPlus className="h-3.5 w-3.5 mr-1" />
+                                Créer un compte
+                              </Button>
+                            )}
+                            <Button variant="outline" size="sm" onClick={() => { setNouvelleDemandeConge({ ...nouvelleDemandeConge, personnelId: person.id }); setShowCongeModal(true) }}>
+                              <Calendar className="h-3.5 w-3.5 mr-1" />
+                              Congé
+                            </Button>
+                            <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50 ml-auto" disabled={isDeactivating} onClick={() => handleSupprimerPersonnel(person.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
 
                           {/* Congés section */}
@@ -845,20 +872,37 @@ export default function PersonnelPage() {
                         <option value="conge">En congé</option>
                       </select>
                     </div>
-                    <div className="space-y-2 col-span-2">
-                      <Label htmlFor="roleId">Rôle d'accès</Label>
-                      <select
-                        id="roleId"
-                        className="w-full border rounded px-3 py-2"
-                        value={nouveauPersonnel.roleId}
-                        onChange={(e) => setNouveauPersonnel({ ...nouveauPersonnel, roleId: e.target.value })}
-                      >
-                        <option value="">Aucun rôle</option>
-                        {roles.filter(r => r.role.active).map(r => (
-                          <option key={r.role.id} value={r.role.id}>{r.role.name}</option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-gray-500 mt-1">Vous pourrez créer un compte de connexion plus tard depuis sa fiche.</p>
+                    <div className="space-y-4 col-span-2 mt-4 p-4 border rounded bg-gray-50">
+                      <h4 className="font-medium text-sm text-gray-800">Compte utilisateur</h4>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="creerCompte"
+                          checked={nouveauPersonnel.creerCompte}
+                          onChange={(e) => setNouveauPersonnel({ ...nouveauPersonnel, creerCompte: e.target.checked })}
+                          className="w-4 h-4 rounded border-gray-300"
+                        />
+                        <Label htmlFor="creerCompte" className="cursor-pointer">Créer un compte maintenant</Label>
+                      </div>
+                      
+                      {nouveauPersonnel.creerCompte ? (
+                        <div className="space-y-2 pl-6 mt-2">
+                          <Label htmlFor="roleId">Rôle d'accès *</Label>
+                          <select
+                            id="roleId"
+                            className="w-full border rounded px-3 py-2"
+                            value={nouveauPersonnel.roleId}
+                            onChange={(e) => setNouveauPersonnel({ ...nouveauPersonnel, roleId: e.target.value })}
+                          >
+                            <option value="">Sélectionnez un rôle</option>
+                            {roles.filter(r => r.role.active).map(r => (
+                              <option key={r.role.id} value={r.role.id}>{r.role.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500 mt-2 pl-6">Vous pourrez créer un compte de connexion plus tard depuis sa fiche.</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2 mt-6">
@@ -1003,69 +1047,7 @@ export default function PersonnelPage() {
                       </select>
                     </div>
                     <div className="space-y-2 col-span-2">
-                      <Label htmlFor="edit-roleId">Rôle d'accès</Label>
-                      <select
-                        id="edit-roleId"
-                        className="w-full border rounded px-3 py-2"
-                        value={editingPersonnel.roleId || ""}
-                        onChange={(e) => setEditingPersonnel({ ...editingPersonnel, roleId: e.target.value })}
-                      >
-                        <option value="">Aucun rôle</option>
-                        {roles.filter(r => r.role.active).map(r => (
-                          <option key={r.role.id} value={r.role.id}>{r.role.name}</option>
-                        ))}
-                      </select>
-                      
-                      <div className="mt-4 p-4 border rounded bg-gray-50 space-y-3">
-                        <h4 className="font-medium text-sm text-gray-800">Gestion du compte</h4>
-                        {editingPersonnel.accountStatus === 'active' ? (
-                          <>
-                            <p className="text-xs text-green-600 flex items-center gap-1">
-                              <UserCheck className="h-4 w-4" /> Cet utilisateur a un compte actif.
-                            </p>
-                            <div className="flex gap-2">
-                              <Button type="button" variant="outline" size="sm" onClick={() => handleGererCompte('reset_password')}>
-                                Réinitialiser mot de passe
-                              </Button>
-                              <Button type="button" variant="outline" size="sm" onClick={() => handleGererCompte('disable_user')} className="text-red-600 border-red-200 hover:bg-red-50">
-                                Désactiver l'accès
-                              </Button>
-                            </div>
-                          </>
-                        ) : editingPersonnel.accountStatus === 'invited' ? (
-                          <>
-                            <p className="text-xs text-amber-600 flex items-center gap-1">
-                              <Clock className="h-4 w-4" /> Invitation envoyée, en attente d'acceptation.
-                            </p>
-                            <div className="flex gap-2">
-                              <Button type="button" variant="outline" size="sm" onClick={() => handleGererCompte('create_user')}>
-                                Renvoyer l'invitation
-                              </Button>
-                            </div>
-                          </>
-                        ) : editingPersonnel.accountStatus === 'inactive' ? (
-                          <>
-                            <p className="text-xs text-red-600 flex items-center gap-1">
-                              <UserX className="h-4 w-4" /> Le compte est désactivé.
-                            </p>
-                            <div className="flex gap-2">
-                              <Button type="button" variant="outline" size="sm" onClick={() => handleGererCompte('enable_user')} className="text-green-600 border-green-200 hover:bg-green-50">
-                                Réactiver l'accès
-                              </Button>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-xs text-gray-500">Aucun compte créé pour cet utilisateur.</p>
-                            <Button type="button" variant="outline" size="sm" onClick={() => handleGererCompte('create_user')} disabled={!editingPersonnel.roleId}>
-                              Créer un compte & envoyer invitation
-                            </Button>
-                            {!editingPersonnel.roleId && (
-                              <p className="text-xs text-red-500 mt-1">Vous devez d'abord assigner un rôle pour créer le compte.</p>
-                            )}
-                          </>
-                        )}
-                      </div>
+
                     </div>
                   </div>
                   <div className="flex gap-2 mt-6">
@@ -1082,6 +1064,113 @@ export default function PersonnelPage() {
           </>
         )}
       </div>
+      {showCompteModal && editingPersonnel && (
+        <Dialog open={showCompteModal} onOpenChange={setShowCompteModal}>
+          <DialogContent className="sm:max-w-[450px]">
+            <DialogHeader>
+              <DialogTitle>
+                {(!editingPersonnel.accountStatus) ? 'Créer un compte utilisateur' : 'Gestion du compte'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              {(!editingPersonnel.accountStatus) ? (
+                <>
+                  <div className="grid grid-cols-3 gap-2 text-sm items-center">
+                    <span className="text-gray-500 font-medium">Nom</span>
+                    <span className="col-span-2">{editingPersonnel.prenom} {editingPersonnel.nom}</span>
+                    
+                    <span className="text-gray-500 font-medium">Poste</span>
+                    <span className="col-span-2">{editingPersonnel.poste}</span>
+                    
+                    <span className="text-gray-500 font-medium self-center mt-2">Email</span>
+                    <div className="col-span-2 mt-2">
+                      <Input
+                        value={editingPersonnel.email}
+                        onChange={(e) => setEditingPersonnel({...editingPersonnel, email: e.target.value})}
+                        placeholder="jean@example.com"
+                        className="h-8"
+                      />
+                    </div>
+                    
+                    <span className="text-gray-500 font-medium self-center mt-2">Rôle d'accès</span>
+                    <div className="col-span-2 mt-2">
+                      <select
+                        className="w-full border rounded px-3 py-1.5 bg-white text-sm"
+                        value={editingPersonnel.roleId || ""}
+                        onChange={(e) => setEditingPersonnel({ ...editingPersonnel, roleId: e.target.value })}
+                      >
+                        <option value="">Sélectionner un rôle</option>
+                        {roles.filter(r => r.role.active).map(r => (
+                          <option key={r.role.id} value={r.role.id}>{r.role.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 mt-6">
+                    <Button variant="outline" onClick={() => setShowCompteModal(false)}>
+                      Annuler
+                    </Button>
+                    <Button 
+                      onClick={() => { handleGererCompte('create_user'); setShowCompteModal(false); }} 
+                      disabled={!editingPersonnel.roleId || !editingPersonnel.email}
+                    >
+                      Créer le compte
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{editingPersonnel.prenom} {editingPersonnel.nom}</p>
+                      <p className="text-xs text-gray-500">{editingPersonnel.email || 'Aucun email'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {editingPersonnel.accountStatus === 'active' || editingPersonnel.accountStatus === 'invited' ? (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start text-left font-normal" 
+                          onClick={() => {
+                            if(confirm("Réinitialiser le mot de passe ? Un nouveau mot de passe temporaire sera généré.")) {
+                              handleGererCompte('reset_password'); setShowCompteModal(false);
+                            }
+                          }}
+                        >
+                          <Key className="mr-2 h-4 w-4 text-blue-500" />
+                          Réinitialiser le mot de passe
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start text-left font-normal text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" 
+                          onClick={() => { handleGererCompte('disable_user'); setShowCompteModal(false); }}
+                        >
+                          <UserX className="mr-2 h-4 w-4" />
+                          Désactiver le compte
+                        </Button>
+                      </>
+                    ) : (
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-start text-left font-normal text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200" 
+                        onClick={() => { handleGererCompte('enable_user'); setShowCompteModal(false); }}
+                      >
+                        <UserCheck className="mr-2 h-4 w-4" />
+                        Réactiver le compte
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

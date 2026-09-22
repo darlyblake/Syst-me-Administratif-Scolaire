@@ -1003,6 +1003,65 @@ export default function PersonnelPage() {
                         onChange={(e) => setEditingPersonnel({ ...editingPersonnel, dateEmbauche: e.target.value })}
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-typeContrat">Type de contrat *</Label>
+                      <select
+                        id="edit-typeContrat"
+                        className="w-full border rounded-md px-3 py-2 bg-white text-sm"
+                        value={editingPersonnel.typeContrat}
+                        onChange={(e) => setEditingPersonnel({ ...editingPersonnel, typeContrat: e.target.value as any })}
+                      >
+                        <option value="cdi">CDI</option>
+                        <option value="cdd">CDD</option>
+                        <option value="vacataire">Vacataire</option>
+                        <option value="consultant">Consultant</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-modeRemuneration">Mode de rémunération *</Label>
+                      <select
+                        id="edit-modeRemuneration"
+                        className="w-full border rounded-md px-3 py-2 bg-white text-sm"
+                        value={editingPersonnel.modeRemuneration}
+                        onChange={(e) => setEditingPersonnel({ ...editingPersonnel, modeRemuneration: e.target.value as any })}
+                      >
+                        <option value="fixe">Fixe</option>
+                        <option value="horaire">Horaire</option>
+                      </select>
+                    </div>
+                    {editingPersonnel.modeRemuneration === "fixe" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-salaireFixe">Salaire fixe (FCFA)</Label>
+                        <Input
+                          id="edit-salaireFixe"
+                          type="number"
+                          value={editingPersonnel.salaireFixe}
+                          onChange={(e) => setEditingPersonnel({ ...editingPersonnel, salaireFixe: parseInt(e.target.value) || 0 })}
+                        />
+                      </div>
+                    )}
+                    {editingPersonnel.modeRemuneration === "horaire" && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-tauxHoraire">Taux horaire (FCFA)</Label>
+                          <Input
+                            id="edit-tauxHoraire"
+                            type="number"
+                            value={editingPersonnel.tauxHoraire}
+                            onChange={(e) => setEditingPersonnel({ ...editingPersonnel, tauxHoraire: parseInt(e.target.value) || 0 })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-heuresPrevues">Heures prévues</Label>
+                          <Input
+                            id="edit-heuresPrevues"
+                            type="number"
+                            value={editingPersonnel.heuresPrevues}
+                            onChange={(e) => setEditingPersonnel({ ...editingPersonnel, heuresPrevues: parseInt(e.target.value) || 0 })}
+                          />
+                        </div>
+                      </>
+                    )}
                     <div className="space-y-2 col-span-2">
                       <Label htmlFor="edit-statut">Statut professionnel *</Label>
                       <select

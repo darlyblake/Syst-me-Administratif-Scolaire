@@ -193,6 +193,7 @@ export default function PersonnelPage() {
     }
 
     try {
+      // 1. Mise à jour des infos de base via RPC (sans toucher au champ active)
       await updateStaff({
         staffId: editingPersonnel.id,
         firstName: editingPersonnel.prenom,
@@ -201,8 +202,28 @@ export default function PersonnelPage() {
         phone: editingPersonnel.telephone,
         email: editingPersonnel.email,
         hireDate: editingPersonnel.dateEmbauche,
-        active: editingPersonnel.statut === "actif",
+        active: true, // Ne jamais désactiver via cette modal — le statut est géré séparément
       })
+
+      // 2. Mise à jour directe du statut professionnel et du salaire (non couverts par le RPC)
+      const statusMap: Record<string, string> = {
+        actif: "active",
+        inactif: "inactive",
+        conge: "on_leave",
+        suspendu: "inactive",
+      }
+      const { error: patchError } = await supabaseBrowser
+        .from("staff")
+        .update({
+          status: statusMap[editingPersonnel.statut] ?? "active",
+          salary: editingPersonnel.salaireFixe ?? null,
+        })
+        .eq("id", editingPersonnel.id)
+
+      if (patchError) {
+        console.error("Erreur mise à jour statut/salaire:", patchError)
+      }
+
       refresh()
       setShowEditModal(false)
       setEditingPersonnel(null)
@@ -212,6 +233,7 @@ export default function PersonnelPage() {
       setIsSubmitting(false)
     }
   }
+
 
   const handleOuvrirEditModal = (person: DonneesPersonnel) => {
     setEditingPersonnel({ ...person })
@@ -258,6 +280,14 @@ export default function PersonnelPage() {
       }
 
       if (action === 'create_user') {
+        if (!email) {
+          alert("L'adresse email est obligatoire pour créer un compte.")
+          setIsSubmitting(false); return;
+        }
+        if (!editingPersonnel.roleId) {
+          alert("Veuillez d'abord assigner un rôle à ce membre avant de créer son compte.")
+          setIsSubmitting(false); return;
+        }
         const { data, error } = await supabaseBrowser.functions.invoke('manage-school-user-account', {
           body: {
             action: 'create_user',
@@ -269,12 +299,24 @@ export default function PersonnelPage() {
             establishment_id: establishmentId,
           }
         })
-        if (error) throw error
+        if (error) {
+          // Extraire le message d'erreur lisible depuis la réponse de la Edge Function
+          let detail = error.message
+          try {
+            const parsed = typeof error === 'object' && 'context' in error
+              ? await (error as any).context?.json?.()
+              : null
+            if (parsed?.message) detail = parsed.message
+            else if (parsed?.error) detail = parsed.error
+          } catch { /* silencieux */ }
+          throw new Error(detail)
+        }
         if (data?.temporary_password) {
           setTemporaryPassword(data.temporary_password)
         } else {
           alert("Compte créé avec succès.")
         }
+
       } else {
         const responseData = await manageStaffAccount(
           memberId!,

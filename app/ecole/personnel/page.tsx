@@ -51,6 +51,7 @@ export default function PersonnelPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [filterPoste, setFilterPoste] = useState("")
   const [filterStatut, setFilterStatut] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [nouveauPersonnel, setNouveauPersonnel] = useState({
     nom: "",
     prenom: "",
@@ -110,13 +111,17 @@ export default function PersonnelPage() {
   }, [estEnCoursDeChargement, isLoadingStaff, personnelSource])
 
   const handleAjouterPersonnel = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     if (!nouveauPersonnel.nom || !nouveauPersonnel.prenom || !nouveauPersonnel.poste) {
       alert("Veuillez remplir tous les champs obligatoires")
+      setIsSubmitting(false)
       return
     }
 
     if (!establishmentId || !utilisateur?.id) {
       alert("Le contexte de l'établissement est indisponible.")
+      setIsSubmitting(false)
       return
     }
 
@@ -156,6 +161,7 @@ export default function PersonnelPage() {
       setShowAddModal(false)
     } catch {
       alert("Impossible de créer le membre du personnel.")
+      setIsSubmitting(false)
       return
     }
     setNouveauPersonnel({
@@ -174,11 +180,15 @@ export default function PersonnelPage() {
       dateEmbauche: new Date().toISOString().split('T')[0],
       creerCompte: false
     })
+    setIsSubmitting(false)
   }
 
   const handleModifierPersonnel = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     if (!editingPersonnel || !editingPersonnel.nom || !editingPersonnel.prenom || !editingPersonnel.poste) {
       alert("Veuillez remplir tous les champs obligatoires")
+      setIsSubmitting(false)
       return
     }
 
@@ -198,6 +208,8 @@ export default function PersonnelPage() {
       setEditingPersonnel(null)
     } catch {
       alert("Impossible de modifier le membre du personnel.")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -207,23 +219,9 @@ export default function PersonnelPage() {
   }
 
   const handleSupprimerPersonnel = async (id: string) => {
-    if (!confirm("Désactiver ce membre du personnel ?\n\nIl ne sera plus considéré comme actif, mais son historique sera conservé.")) return
-
-    const deactivated = await deactivate(id)
-    if (deactivated) alert("Membre désactivé avec succès.")
-  }
-
-  const handleGererCompte = async (action: 'create_user' | 'reset_password' | 'disable_user' | 'enable_user') => {
-    if (!editingPersonnel || !establishmentId) return
-
-    let email = editingPersonnel.email
-    if (action === 'create_user' && !email) {
-      email = prompt("Veuillez saisir l'adresse email pour créer le compte :")
-      if (!email) return
-    }
-    if (action === 'disable_user') {
-      if (!confirm(`Désactiver le compte de ${editingPersonnel.prenom} ${editingPersonnel.nom} ?\n\nIl ne pourra plus accéder à l'établissement jusqu'à sa réactivation.`)) {
-        return
+    if (!confirm(`Désactiver le compte de ${editingPersonnel.prenom} ${editingPersonnel.nom} ?\n\nIl ne pourra plus accéder à l'établissement jusqu'à sa réactivation.`)) {
+        setIsSubmitting(false);
+        return;
       }
     }
 
@@ -235,12 +233,12 @@ export default function PersonnelPage() {
       if (action !== 'create_user') {
         if (!editingPersonnel.accountId) {
           alert("Ce membre n'a pas encore de compte utilisateur associé.")
-          return
+          setIsSubmitting(false); return;
         }
         memberId = await getEstablishmentMemberId(editingPersonnel.accountId, establishmentId)
         if (!memberId) {
           alert("Impossible de trouver le lien membre dans la base de données. Le compte a peut-être été créé en dehors de ce système.")
-          return
+          setIsSubmitting(false); return;
         }
       } else {
         // Pour la création : on passe le staff_id pour que la Edge Function
@@ -295,6 +293,8 @@ export default function PersonnelPage() {
       else if (msg.includes('user_not_found')) msg = "L'utilisateur associé à ce compte est introuvable."
       else if (msg.includes('email_exists')) msg = "Cette adresse email est déjà utilisée par un autre compte."
       alert("Erreur: " + msg)
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -1013,8 +1013,8 @@ export default function PersonnelPage() {
                     <Button variant="outline" onClick={() => { setShowEditModal(false); setEditingPersonnel(null) }}>
                       Annuler
                     </Button>
-                    <Button onClick={handleModifierPersonnel}>
-                      Enregistrer
+                    <Button onClick={handleModifierPersonnel} disabled={isSubmitting}>
+                      {isSubmitting ? "Enregistrement..." : "Enregistrer"}
                     </Button>
                   </div>
                 </DialogContent>
@@ -1072,7 +1072,7 @@ export default function PersonnelPage() {
                     </Button>
                     <Button 
                       onClick={() => { handleGererCompte('create_user'); setShowCompteModal(false); }} 
-                      disabled={!editingPersonnel.roleId || !editingPersonnel.email}
+                      disabled={!editingPersonnel.roleId || !editingPersonnel.email || isSubmitting}
                     >
                       Créer le compte
                     </Button>
@@ -1095,6 +1095,7 @@ export default function PersonnelPage() {
                       <>
                         <Button 
                           variant="outline" 
+                          disabled={isSubmitting}
                           className="w-full justify-start text-left font-normal" 
                           onClick={() => {
                             if(confirm("Réinitialiser le mot de passe ? Un nouveau mot de passe temporaire sera généré.")) {
@@ -1107,6 +1108,7 @@ export default function PersonnelPage() {
                         </Button>
                         <Button 
                           variant="outline" 
+                          disabled={isSubmitting}
                           className="w-full justify-start text-left font-normal text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" 
                           onClick={() => { handleGererCompte('disable_user'); setShowCompteModal(false); }}
                         >
@@ -1117,6 +1119,7 @@ export default function PersonnelPage() {
                     ) : (
                       <Button 
                         variant="outline" 
+                        disabled={isSubmitting}
                         className="w-full justify-start text-left font-normal text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200" 
                         onClick={() => { handleGererCompte('enable_user'); setShowCompteModal(false); }}
                       >

@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ArrowLeft, Users, Plus, Edit, Trash2, Search, Clock, Calendar, FileText, Shield, UserCheck, UserX, UserPlus, User, Key } from "lucide-react"
+import { ArrowLeft, Users, Plus, Edit, Trash2, Search, Clock, Calendar, FileText, Shield, UserCheck, UserX, UserPlus, User, Key, MoreVertical } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import Link from "next/link"
 import { servicePointage } from "@/services/pointage.service"
 import { serviceConges } from "@/services/conges.service"
@@ -24,6 +25,12 @@ export default function PersonnelPage() {
   const { primaryEstablishment, estEnCoursDeChargement, utilisateur } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
   const [searchTerm, setSearchTerm] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
   const [page, setPage] = useState(1)
   const { staff, total, totalPages, isLoading: isLoadingStaff, error: staffError, refresh, deactivate, isDeactivating } = useStaff(establishmentId, {
     page,
@@ -40,6 +47,7 @@ export default function PersonnelPage() {
   const [showCompteModal, setShowCompteModal] = useState(false)
   const [showCongeModal, setShowCongeModal] = useState(false)
   const [editingPersonnel, setEditingPersonnel] = useState<DonneesPersonnel | null>(null)
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [filterPoste, setFilterPoste] = useState("")
   const [filterStatut, setFilterStatut] = useState("")
@@ -281,7 +289,12 @@ export default function PersonnelPage() {
       }
       refresh()
     } catch (e: any) {
-      alert("Erreur: " + e.message)
+      console.error(e)
+      let msg = e.message
+      if (msg.includes('member_not_found')) msg = "Ce membre est introuvable."
+      else if (msg.includes('user_not_found')) msg = "L'utilisateur associé à ce compte est introuvable."
+      else if (msg.includes('email_exists')) msg = "Cette adresse email est déjà utilisée par un autre compte."
+      alert("Erreur: " + msg)
     }
   }
 
@@ -358,15 +371,17 @@ export default function PersonnelPage() {
   }
 
   const filteredPersonnel = personnel.filter(p => {
-    const matchSearch = !searchTerm || 
-      p.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.poste.toLowerCase().includes(searchTerm.toLowerCase())
+    const searchLower = debouncedSearch.toLowerCase()
+    const fullSearch = `${p.prenom} ${p.nom} ${p.poste} ${p.telephone || ''} ${p.email || ''}`.toLowerCase()
+    const matchSearch = !debouncedSearch || fullSearch.includes(searchLower)
     
-    const matchPoste = !filterPoste || filterPoste === "tous" || p.poste.toLowerCase().includes(filterPoste.toLowerCase())
-    const matchStatut = !filterStatut || filterStatut === "tous" || p.statut === filterStatut
-    
-    return matchSearch && matchPoste && matchStatut
+    let matchFiltre = true
+    if (filterStatut === "actifs") matchFiltre = p.statut === "actif"
+    else if (filterStatut === "inactifs") matchFiltre = p.statut === "inactif"
+    else if (filterStatut === "avec_compte") matchFiltre = !!p.accountStatus
+    else if (filterStatut === "sans_compte") matchFiltre = !p.accountStatus
+
+    return matchSearch && matchFiltre
   })
 
   const postesUniques = useMemo(
@@ -375,13 +390,9 @@ export default function PersonnelPage() {
   )
   const statistiques = useMemo(() => ({
     totalPersonnel: personnel.length,
-    parStatut: {
-      actif: personnel.filter((person) => person.statut === "actif").length,
-      inactif: personnel.filter((person) => person.statut === "inactif").length,
-      suspendu: personnel.filter((person) => person.statut === "suspendu").length,
-      conge: personnel.filter((person) => person.statut === "conge").length,
-    },
-    masseSalarialeTotale: personnel.reduce((total, person) => total + (person.salaireFixe || 0), 0),
+    actifs: personnel.filter((person) => person.statut === "actif").length,
+    comptesActifs: personnel.filter((person) => person.accountStatus === "active").length,
+    sansCompte: personnel.filter((person) => !person.accountStatus).length,
   }), [personnel])
 
   return (
@@ -395,240 +406,250 @@ export default function PersonnelPage() {
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-4 mb-6">
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/ecole/tableau-bord">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Retour
-                </Link>
-              </Button>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <Users className="h-6 w-6" />
-                  Gestion du Personnel
-                </h1>
-                <p className="text-gray-600">Administration et personnel technique</p>
+                <h1 className="text-2xl font-bold text-gray-900">Personnel</h1>
+                <p className="text-gray-500 text-sm">Gérez les membres du personnel de votre établissement et leurs accès à l'application.</p>
+              </div>
+              <Button onClick={() => setShowAddModal(true)} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Ajouter un personnel
+              </Button>
+            </div>
+
+            {/* Statistiques simples */}
+            <div className="flex flex-wrap gap-6 mb-6 px-4 py-3 bg-white border border-gray-200 rounded-md shadow-sm text-sm">
+              <div className="flex flex-col">
+                <span className="text-gray-500 font-medium">Total du personnel</span>
+                <span className="text-xl font-bold text-gray-900">{statistiques.totalPersonnel}</span>
+              </div>
+              <div className="w-px bg-gray-200 hidden sm:block"></div>
+              <div className="flex flex-col">
+                <span className="text-gray-500 font-medium">Personnel actif</span>
+                <span className="text-xl font-bold text-gray-900">{statistiques.actifs}</span>
+              </div>
+              <div className="w-px bg-gray-200 hidden sm:block"></div>
+              <div className="flex flex-col">
+                <span className="text-gray-500 font-medium">Comptes actifs</span>
+                <span className="text-xl font-bold text-green-600">{statistiques.comptesActifs}</span>
+              </div>
+              <div className="w-px bg-gray-200 hidden sm:block"></div>
+              <div className="flex flex-col">
+                <span className="text-gray-500 font-medium">Sans compte</span>
+                <span className="text-xl font-bold text-amber-600">{statistiques.sansCompte}</span>
               </div>
             </div>
 
-            {/* Statistiques */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-sm text-gray-600">Total Personnel</p>
-                  <p className="text-2xl font-bold">{statistiques.totalPersonnel}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-sm text-gray-600">Actifs</p>
-                  <p className="text-2xl font-bold text-green-600">{statistiques.parStatut.actif}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-sm text-gray-600">En Congé</p>
-                  <p className="text-2xl font-bold text-yellow-600">{statistiques.parStatut.conge}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-sm text-gray-600">Masse Salariale</p>
-                  <p className="text-2xl font-bold">{statistiques.masseSalarialeTotale.toLocaleString()} FCFA</p>
-                </CardContent>
-              </Card>
+            {/* Filtres et recherche */}
+            <div className="flex flex-col md:flex-row gap-3 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Rechercher un nom, un poste ou un numéro..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 bg-white w-full"
+                />
+              </div>
+              <div className="flex bg-gray-100 p-1 rounded-md overflow-x-auto hide-scrollbar">
+                {[
+                  { id: 'tous', label: 'Tous' },
+                  { id: 'actifs', label: 'Actifs' },
+                  { id: 'inactifs', label: 'Inactifs' },
+                  { id: 'avec_compte', label: 'Avec compte' },
+                  { id: 'sans_compte', label: 'Sans compte' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setFilterStatut(tab.id)}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-colors ${
+                      filterStatut === tab.id
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Filtres et recherche */}
-            <Card className="mb-6">
-              <CardContent className="p-4">
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <Input
-                      placeholder="Rechercher par nom, prénom ou poste..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full"
-                    />
-                  </div>
-                  <select
-                    className="border rounded px-3 py-2"
-                    value={filterPoste}
-                    onChange={(e) => setFilterPoste(e.target.value)}
-                  >
-                    <option value="">Tous les postes</option>
-                    {postesUniques.map((poste) => (
-                      <option key={poste} value={poste}>{poste}</option>
-                    ))}
-                  </select>
-                  <select
-                    className="border rounded px-3 py-2"
-                    value={filterStatut}
-                    onChange={(e) => setFilterStatut(e.target.value)}
-                  >
-                    <option value="">Tous les statuts</option>
-                    <option value="actif">Actif</option>
-                    <option value="inactif">Inactif</option>
-                    <option value="conge">En congé</option>
-                  </select>
-                  <Button onClick={() => setShowAddModal(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Ajouter
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Liste du personnel */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Liste du Personnel</CardTitle>
-                <CardDescription>{total} membre(s) trouvé(s)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {filteredPersonnel.length === 0 ? (
-                    <p className="text-gray-500 text-center py-8">Aucun membre du personnel trouvé</p>
-                  ) : (
-                    filteredPersonnel.map((person) => {
-                      const pointage = getPointageForPersonnel(person.id)
-                      const congesPersonnel = getCongesForPersonnel(person.id)
-                      const soldeConge = serviceConges.calculerSoldeConge(person.id, new Date().getFullYear())
-                      return (
-                        <div key={person.id} className="border rounded-lg p-4 bg-white hover:border-gray-300 transition-colors">
-                          {/* Header : identité */}
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                <User className="h-5 w-5 text-gray-500" />
-                              </div>
-                              <div>
-                                <p className="font-semibold text-gray-900">{person.prenom} {person.nom}</p>
-                                <p className="text-sm text-gray-500">{person.poste}</p>
-                              </div>
-                            </div>
-                            <div className="text-right text-xs text-gray-400">
-                              Depuis {person.dateEmbauche ? new Date(person.dateEmbauche).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : '—'}
-                            </div>
-                          </div>
+            
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-6">
+              {filteredPersonnel.length === 0 ? (
+                <div className="p-12 text-center text-gray-500">
+                  <Users className="h-8 w-8 mx-auto text-gray-300 mb-3" />
+                  <p>Aucun membre du personnel trouvé</p>
+                </div>
+              ) : (
+                <>
+                  {/* Table Desktop */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-4 py-3 font-medium text-gray-700">Nom</th>
+                          <th className="px-4 py-3 font-medium text-gray-700">Poste</th>
+                          <th className="px-4 py-3 font-medium text-gray-700">Téléphone</th>
+                          <th className="px-4 py-3 font-medium text-gray-700">Statut</th>
+                          <th className="px-4 py-3 font-medium text-gray-700">Compte</th>
+                          <th className="px-4 py-3 font-medium text-gray-700">Rôle</th>
+                          <th className="px-4 py-3 text-right font-medium text-gray-700">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {filteredPersonnel.map((person) => (
+                          <tr key={person.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-gray-900">{person.prenom} {person.nom}</div>
+                              {person.email && <div className="text-xs text-gray-500">{person.email}</div>}
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{person.poste}</td>
+                            <td className="px-4 py-3 text-gray-600">{person.telephone || '—'}</td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                person.statut === 'actif' ? 'bg-green-100 text-green-800' :
+                                person.statut === 'inactif' ? 'bg-gray-100 text-gray-600' :
+                                person.statut === 'conge' ? 'bg-amber-100 text-amber-800' :
+                                'bg-gray-100 text-gray-600'
+                              }`}>
+                                {person.statut === 'actif' ? 'Actif' :
+                                 person.statut === 'inactif' ? 'Inactif' :
+                                 person.statut === 'conge' ? 'En congé' : person.statut}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center gap-1 text-xs font-medium ${
+                                person.accountStatus === 'active' ? 'text-green-700' :
+                                person.accountStatus === 'inactive' ? 'text-red-600' :
+                                person.accountStatus === 'invited' ? 'text-amber-600' :
+                                'text-gray-500'
+                              }`}>
+                                {person.accountStatus === 'active' && <UserCheck className="h-3.5 w-3.5" />}
+                                {person.accountStatus === 'inactive' && <UserX className="h-3.5 w-3.5" />}
+                                {person.accountStatus === 'active' ? 'Compte actif' :
+                                 person.accountStatus === 'inactive' ? 'Désactivé' :
+                                 person.accountStatus === 'invited' ? 'Invité' :
+                                 'Aucun compte'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-600 text-xs">
+                              {(() => {
+                                if (!person.roleId) return '—'
+                                const foundRole = roles.find(r => r.role.id === person.roleId)
+                                return foundRole ? foundRole.role.name : '—'
+                              })()}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <span className="sr-only">Ouvrir le menu</span>
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuItem onClick={() => handleOuvrirEditModal(person)}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Modifier les infos
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  {person.accountStatus === 'active' || person.accountStatus === 'invited' ? (
+                                    <DropdownMenuItem onClick={() => { setEditingPersonnel(person); setShowCompteModal(true) }}>
+                                      <Shield className="mr-2 h-4 w-4" />
+                                      Gérer le compte
+                                    </DropdownMenuItem>
+                                  ) : person.accountStatus === 'inactive' ? (
+                                    <DropdownMenuItem onClick={() => { setEditingPersonnel(person); setShowCompteModal(true) }} className="text-green-600">
+                                      <UserCheck className="mr-2 h-4 w-4" />
+                                      Réactiver le compte
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem onClick={() => { setEditingPersonnel(person); setShowCompteModal(true) }}>
+                                      <UserPlus className="mr-2 h-4 w-4" />
+                                      Créer un compte
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
 
-                          {/* Informations clés */}
-                          <div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-1 text-sm border-t pt-3">
-                            <span className="text-gray-400 text-xs uppercase tracking-wide font-medium">Statut</span>
-                            <span className="text-gray-400 text-xs uppercase tracking-wide font-medium">Compte</span>
-                            <span className="text-gray-400 text-xs uppercase tracking-wide font-medium">Rôle d'accès</span>
-
-                            {/* Statut professionnel */}
+                  {/* Liste Mobile */}
+                  <div className="md:hidden divide-y divide-gray-200">
+                    {filteredPersonnel.map((person) => (
+                      <div key={person.id} className="p-4 space-y-3">
+                        <div>
+                          <div className="font-semibold text-gray-900">{person.prenom} {person.nom}</div>
+                          <div className="text-sm text-gray-600">{person.poste}</div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-gray-500">Personnel : </span>
                             <span className={`font-medium ${
                               person.statut === 'actif' ? 'text-green-700' :
-                              person.statut === 'inactif' ? 'text-gray-500' :
-                              person.statut === 'conge' ? 'text-amber-600' :
-                              'text-gray-500'
+                              person.statut === 'inactif' ? 'text-gray-600' :
+                              'text-amber-600'
                             }`}>
                               {person.statut === 'actif' ? 'Actif' :
-                               person.statut === 'inactif' ? 'Inactif' :
-                               person.statut === 'conge' ? 'En congé' : person.statut}
+                               person.statut === 'inactif' ? 'Inactif' : person.statut}
                             </span>
-
-                            {/* Statut compte */}
-                            <span className={`font-medium flex items-center gap-1 ${
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Compte : </span>
+                            <span className={`font-medium ${
                               person.accountStatus === 'active' ? 'text-green-700' :
                               person.accountStatus === 'inactive' ? 'text-red-600' :
-                              person.accountStatus === 'invited' ? 'text-amber-600' :
-                              'text-gray-400'
+                              'text-gray-600'
                             }`}>
-                              {person.accountStatus === 'active' && <UserCheck className="h-3 w-3" />}
-                              {person.accountStatus === 'inactive' && <UserX className="h-3 w-3" />}
                               {person.accountStatus === 'active' ? 'Actif' :
                                person.accountStatus === 'inactive' ? 'Désactivé' :
-                               person.accountStatus === 'invited' ? 'Invité' :
                                'Aucun compte'}
                             </span>
-
-                            {/* Rôle */}
-                            <span className="text-gray-700">
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-gray-500">Rôle : </span>
+                            <span className="font-medium text-gray-700">
                               {(() => {
-                                if (!person.roleId) return <span className="text-gray-400">Aucun</span>
+                                if (!person.roleId) return '—'
                                 const foundRole = roles.find(r => r.role.id === person.roleId)
-                                return foundRole ? foundRole.role.name : <span className="text-gray-400">Aucun</span>
+                                return foundRole ? foundRole.role.name : '—'
                               })()}
                             </span>
                           </div>
-
-                          {/* Actions */}
-                          <div className="mt-3 pt-3 border-t flex gap-2 flex-wrap">
-                            <Button variant="outline" size="sm" onClick={() => handleOuvrirEditModal(person)}>
-                              <Edit className="h-3.5 w-3.5 mr-1" />
-                              Modifier
-                            </Button>
-                            {person.accountStatus === 'active' || person.accountStatus === 'invited' ? (
-                              <Button variant="outline" size="sm" onClick={() => { setEditingPersonnel(person); setShowCompteModal(true) }}>
-                                <UserCheck className="h-3.5 w-3.5 mr-1" />
-                                Gérer le compte
-                              </Button>
-                            ) : person.accountStatus === 'inactive' ? (
-                              <Button variant="outline" size="sm" className="text-green-700 border-green-200 hover:bg-green-50" onClick={() => { setEditingPersonnel(person); setShowCompteModal(true) }}>
-                                <UserCheck className="h-3.5 w-3.5 mr-1" />
-                                Réactiver
-                              </Button>
-                            ) : (
-                              <Button variant="outline" size="sm" onClick={() => { setEditingPersonnel(person); setShowCompteModal(true) }}>
-                                <UserPlus className="h-3.5 w-3.5 mr-1" />
-                                Créer un compte
-                              </Button>
-                            )}
-                            <Button variant="outline" size="sm" onClick={() => { setNouvelleDemandeConge({ ...nouvelleDemandeConge, personnelId: person.id }); setShowCongeModal(true) }}>
-                              <Calendar className="h-3.5 w-3.5 mr-1" />
-                              Congé
-                            </Button>
-                            <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50 ml-auto" disabled={isDeactivating} onClick={() => handleSupprimerPersonnel(person.id)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-
-                          {/* Congés section */}
-                          {congesPersonnel.length > 0 && (
-                            <div className="mt-4 pt-4 border-t">
-                              <p className="text-sm font-medium mb-2">Congés demandés:</p>
-                              <div className="space-y-2">
-                                {congesPersonnel.slice(-3).map((conge) => (
-                                  <div key={conge.id} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded">
-                                    <div>
-                                      <span className={`px-2 py-1 rounded text-xs ${
-                                        conge.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800' :
-                                        conge.statut === 'valide' ? 'bg-green-100 text-green-800' :
-                                        conge.statut === 'refuse' ? 'bg-red-100 text-red-800' :
-                                        'bg-gray-100 text-gray-800'
-                                      }`}>
-                                    {conge.statut}
-                                  </span>
-                                  <span className="ml-2">{conge.type} - {conge.jours} jours</span>
-                                  <span className="text-gray-500 ml-2">
-                                    {new Date(conge.dateDebut).toLocaleDateString()} - {new Date(conge.dateFin).toLocaleDateString()}
-                                  </span>
-                                </div>
-                                {conge.statut === 'en_attente' && (
-                                  <div className="flex gap-1">
-                                    <Button variant="ghost" size="sm" onClick={() => handleValiderConge(conge.id)}>
-                                      ✓
-                                    </Button>
-                                    <Button variant="ghost" size="sm" onClick={() => handleRefuserConge(conge.id)}>
-                                      ✗
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
                         </div>
-                      )}
-                    </div>
-                  )
-                })
+
+                        <div className="flex gap-2 pt-2 border-t">
+                          {person.accountStatus === 'active' || person.accountStatus === 'invited' ? (
+                            <Button variant="outline" size="sm" className="flex-1 text-blue-600 border-blue-200" onClick={() => { setEditingPersonnel(person); setShowCompteModal(true) }}>
+                              Gérer le compte
+                            </Button>
+                          ) : person.accountStatus === 'inactive' ? (
+                            <Button variant="outline" size="sm" className="flex-1 text-green-700 border-green-200" onClick={() => { setEditingPersonnel(person); setShowCompteModal(true) }}>
+                              Réactiver
+                            </Button>
+                          ) : (
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditingPersonnel(person); setShowCompteModal(true) }}>
+                              Créer un compte
+                            </Button>
+                          )}
+                          <Button variant="outline" size="sm" className="px-3" onClick={() => handleOuvrirEditModal(person)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
-          </CardContent>
-        </Card>
 
             {/* Demandes de congé en attente */}
             <Card>
@@ -917,20 +938,13 @@ export default function PersonnelPage() {
               </div>
             )}
 
-            {/* Modal de modification */}
             {showEditModal && editingPersonnel && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-                  <h3 className="text-lg font-bold mb-4">Modifier le Personnel</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-nom">Nom *</Label>
-                      <Input
-                        id="edit-nom"
-                        value={editingPersonnel.nom}
-                        onChange={(e) => setEditingPersonnel({ ...editingPersonnel, nom: e.target.value })}
-                      />
-                    </div>
+              <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Modifier les informations</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid grid-cols-2 gap-4 py-4">
                     <div className="space-y-2">
                       <Label htmlFor="edit-prenom">Prénom *</Label>
                       <Input
@@ -940,21 +954,19 @@ export default function PersonnelPage() {
                       />
                     </div>
                     <div className="space-y-2">
+                      <Label htmlFor="edit-nom">Nom *</Label>
+                      <Input
+                        id="edit-nom"
+                        value={editingPersonnel.nom}
+                        onChange={(e) => setEditingPersonnel({ ...editingPersonnel, nom: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor="edit-poste">Poste *</Label>
                       <Input
                         id="edit-poste"
                         value={editingPersonnel.poste}
                         onChange={(e) => setEditingPersonnel({ ...editingPersonnel, poste: e.target.value })}
-                        placeholder="Ex: Secrétaire"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-email">Email</Label>
-                      <Input
-                        id="edit-email"
-                        type="email"
-                        value={editingPersonnel.email}
-                        onChange={(e) => setEditingPersonnel({ ...editingPersonnel, email: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
@@ -966,78 +978,28 @@ export default function PersonnelPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="edit-typeContrat">Type de contrat *</Label>
-                      <select
-                        id="edit-typeContrat"
-                        className="w-full border rounded px-3 py-2"
-                        value={editingPersonnel.typeContrat}
-                        onChange={(e) => setEditingPersonnel({ ...editingPersonnel, typeContrat: e.target.value as any })}
-                      >
-                        <option value="cdi">CDI</option>
-                        <option value="cdd">CDD</option>
-                        <option value="vacataire">Vacataire</option>
-                        <option value="consultant">Consultant</option>
-                      </select>
+                      <Label htmlFor="edit-email">Email</Label>
+                      <Input
+                        id="edit-email"
+                        type="email"
+                        value={editingPersonnel.email || ''}
+                        onChange={(e) => setEditingPersonnel({ ...editingPersonnel, email: e.target.value })}
+                      />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="edit-modeRemuneration">Mode de rémunération *</Label>
-                      <select
-                        id="edit-modeRemuneration"
-                        className="w-full border rounded px-3 py-2"
-                        value={editingPersonnel.modeRemuneration}
-                        onChange={(e) => setEditingPersonnel({ ...editingPersonnel, modeRemuneration: e.target.value as any })}
-                      >
-                        <option value="fixe">Fixe</option>
-                        <option value="horaire">Horaire</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-dateEmbauche">Date d'embauche *</Label>
+                      <Label htmlFor="edit-dateEmbauche">Date d'embauche</Label>
                       <Input
                         id="edit-dateEmbauche"
                         type="date"
-                        value={editingPersonnel.dateEmbauche}
+                        value={editingPersonnel.dateEmbauche ? new Date(editingPersonnel.dateEmbauche).toISOString().split('T')[0] : ''}
                         onChange={(e) => setEditingPersonnel({ ...editingPersonnel, dateEmbauche: e.target.value })}
                       />
                     </div>
-                    {editingPersonnel.modeRemuneration === "fixe" && (
-                      <div className="space-y-2">
-                        <Label htmlFor="edit-salaireFixe">Salaire fixe (FCFA)</Label>
-                        <Input
-                          id="edit-salaireFixe"
-                          type="number"
-                          value={editingPersonnel.salaireFixe}
-                          onChange={(e) => setEditingPersonnel({ ...editingPersonnel, salaireFixe: parseInt(e.target.value) || 0 })}
-                        />
-                      </div>
-                    )}
-                    {editingPersonnel.modeRemuneration === "horaire" && (
-                      <>
-                        <div className="space-y-2">
-                          <Label htmlFor="edit-tauxHoraire">Taux horaire (FCFA)</Label>
-                          <Input
-                            id="edit-tauxHoraire"
-                            type="number"
-                            value={editingPersonnel.tauxHoraire}
-                            onChange={(e) => setEditingPersonnel({ ...editingPersonnel, tauxHoraire: parseInt(e.target.value) || 0 })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="edit-heuresPrevues">Heures prévues</Label>
-                          <Input
-                            id="edit-heuresPrevues"
-                            type="number"
-                            value={editingPersonnel.heuresPrevues}
-                            onChange={(e) => setEditingPersonnel({ ...editingPersonnel, heuresPrevues: parseInt(e.target.value) || 0 })}
-                          />
-                        </div>
-                      </>
-                    )}
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-statut">Statut *</Label>
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="edit-statut">Statut professionnel *</Label>
                       <select
                         id="edit-statut"
-                        className="w-full border rounded px-3 py-2"
+                        className="w-full border rounded-md px-3 py-2 bg-white text-sm"
                         value={editingPersonnel.statut}
                         onChange={(e) => setEditingPersonnel({ ...editingPersonnel, statut: e.target.value as any })}
                       >
@@ -1046,22 +1008,20 @@ export default function PersonnelPage() {
                         <option value="conge">En congé</option>
                       </select>
                     </div>
-                    <div className="space-y-2 col-span-2">
-
-                    </div>
                   </div>
-                  <div className="flex gap-2 mt-6">
-                    <Button onClick={handleModifierPersonnel} className="flex-1">
-                      Modifier
-                    </Button>
-                    <Button variant="outline" onClick={() => { setShowEditModal(false); setEditingPersonnel(null) }} className="flex-1">
+                  <div className="flex justify-end gap-2 mt-2">
+                    <Button variant="outline" onClick={() => { setShowEditModal(false); setEditingPersonnel(null) }}>
                       Annuler
                     </Button>
+                    <Button onClick={handleModifierPersonnel}>
+                      Enregistrer
+                    </Button>
                   </div>
-                </div>
-              </div>
+                </DialogContent>
+              </Dialog>
             )}
-          </>
+
+                </>
         )}
       </div>
       {showCompteModal && editingPersonnel && (
@@ -1167,6 +1127,38 @@ export default function PersonnelPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {temporaryPassword && (
+        <Dialog open={!!temporaryPassword} onOpenChange={(open) => !open && setTemporaryPassword(null)}>
+          <DialogContent className="sm:max-w-[450px]">
+            <DialogHeader>
+              <DialogTitle>Mot de passe temporaire</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <p className="text-sm text-gray-600">
+                L'action a été effectuée avec succès. Veuillez communiquer ce mot de passe temporaire à l'utilisateur :
+              </p>
+              <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-md">
+                <code className="font-mono text-lg font-bold text-gray-800">{temporaryPassword}</code>
+                <Button variant="outline" size="sm" onClick={() => {
+                  navigator.clipboard.writeText(temporaryPassword)
+                  alert('Copié dans le presse-papiers !')
+                }}>
+                  Copier
+                </Button>
+              </div>
+              <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-100">
+                ⚠️ Ce mot de passe ne sera affiché qu'une seule fois.
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={() => setTemporaryPassword(null)}>
+                Fermer
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

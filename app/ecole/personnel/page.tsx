@@ -219,15 +219,30 @@ export default function PersonnelPage() {
   }
 
   const handleSupprimerPersonnel = async (id: string) => {
-    if (!confirm(`Désactiver le compte de ${editingPersonnel.prenom} ${editingPersonnel.nom} ?\n\nIl ne pourra plus accéder à l'établissement jusqu'à sa réactivation.`)) {
+    if (!confirm("Désactiver ce membre du personnel ?\n\nIl ne sera plus considéré comme actif, mais son historique sera conservé.")) return
+    const deactivated = await deactivate(id)
+    if (deactivated) alert("Membre désactivé avec succès.")
+  }
+
+  const handleGererCompte = async (action: 'create_user' | 'reset_password' | 'disable_user' | 'enable_user') => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    if (!editingPersonnel || !establishmentId) { setIsSubmitting(false); return; }
+
+    let email: string | undefined = editingPersonnel.email
+    if (action === 'create_user' && !email) {
+      const prompted = prompt("Veuillez saisir l'adresse email pour créer le compte :")
+      if (!prompted) { setIsSubmitting(false); return; }
+      email = prompted
+    }
+    if (action === 'disable_user') {
+      if (!confirm(`Désactiver le compte de ${editingPersonnel.prenom} ${editingPersonnel.nom} ?\n\nIl ne pourra plus accéder à l'établissement jusqu'à sa réactivation.`)) {
         setIsSubmitting(false);
         return;
       }
     }
 
     try {
-      // Pour reset/disable/enable, on a besoin du member_id dans establishment_members
-      // Pour create_user, le member_id sera créé par la Edge Function
       let memberId: string | null = null
 
       if (action !== 'create_user') {
@@ -237,19 +252,13 @@ export default function PersonnelPage() {
         }
         memberId = await getEstablishmentMemberId(editingPersonnel.accountId, establishmentId)
         if (!memberId) {
-          alert("Impossible de trouver le lien membre dans la base de données. Le compte a peut-être été créé en dehors de ce système.")
+          alert("Impossible de trouver le lien membre dans la base de données.")
           setIsSubmitting(false); return;
         }
-      } else {
-        // Pour la création : on passe le staff_id pour que la Edge Function
-        // puisse créer le compte et lier automatiquement le establishment_members
-        memberId = null // non utilisé pour create_user
       }
 
       if (action === 'create_user') {
-        // Pour la création de compte, on envoie le staff_id
-        // La Edge Function est responsable de créer le auth user ET le establishment_members
-        await supabaseBrowser.functions.invoke('manage-school-user-account', {
+        const { data, error } = await supabaseBrowser.functions.invoke('manage-school-user-account', {
           body: {
             action: 'create_user',
             staff_id: editingPersonnel.id,
@@ -259,14 +268,13 @@ export default function PersonnelPage() {
             role_id: editingPersonnel.roleId,
             establishment_id: establishmentId,
           }
-        }).then(({ data, error }) => { 
-          if (error) throw error
-          if (data?.temporary_password) {
-            alert(`Compte créé avec succès.\n\nMot de passe temporaire :\n${data.temporary_password}\n\n⚠️ Communiquez ce mot de passe à l'utilisateur.`)
-          } else {
-            alert("Compte créé avec succès.")
-          }
         })
+        if (error) throw error
+        if (data?.temporary_password) {
+          setTemporaryPassword(data.temporary_password)
+        } else {
+          alert("Compte créé avec succès.")
+        }
       } else {
         const responseData = await manageStaffAccount(
           memberId!,
@@ -280,19 +288,19 @@ export default function PersonnelPage() {
           }
         )
         if (action === 'reset_password' && responseData?.temporary_password) {
-          alert(`Mot de passe réinitialisé.\n\nMot de passe temporaire :\n${responseData.temporary_password}\n\n⚠️ Communiquez ce mot de passe à l'utilisateur.`)
+          setTemporaryPassword(responseData.temporary_password)
         } else {
-          alert("Action effectuée avec succès. Les informations seront mises à jour prochainement.")
+          alert("Action effectuée avec succès.")
         }
       }
       refresh()
     } catch (e: any) {
       console.error(e)
-      let msg = e.message
+      let msg = e.message || "Erreur inconnue"
       if (msg.includes('member_not_found')) msg = "Ce membre est introuvable."
       else if (msg.includes('user_not_found')) msg = "L'utilisateur associé à ce compte est introuvable."
       else if (msg.includes('email_exists')) msg = "Cette adresse email est déjà utilisée par un autre compte."
-      alert("Erreur: " + msg)
+      alert("Erreur : " + msg)
     } finally {
       setIsSubmitting(false);
     }

@@ -26,7 +26,9 @@ type UtilisateurAvecRoleEtablissement = Utilisateur & { etablissementRole?: stri
 
 function roleUtilisateurPourEtablissement(accountType: AuthContext["account_type"], establishmentRole?: string): Utilisateur["role"] {
   if (accountType !== "school_member") return ({ platform_admin: "admin", parent: "parent", teacher: "enseignant", school_member: "ecole" } as const)[accountType!]
-  if (establishmentRole === "owner" || establishmentRole === "school_admin" || establishmentRole === "admin") return "admin"
+  // Un compte d'établissement reste un compte d'établissement au niveau global.
+  // Le rôle métier est conservé séparément dans etablissementRole.
+  // Cela évite de confondre un administrateur d'école avec un administrateur de plateforme.
   return "ecole"
 }
 

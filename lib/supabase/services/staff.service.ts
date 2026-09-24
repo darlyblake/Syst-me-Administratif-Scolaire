@@ -25,7 +25,7 @@ export async function listStaffPaginated(
   page = 1,
   pageSize = 25,
   search = "",
-  active = true,
+  active: boolean | null = null,
 ): Promise<StaffPage> {
   const { data, error } = await supabaseBrowser.rpc("list_staff_paginated", {
     p_establishment_id: establishmentId,

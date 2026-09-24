@@ -22,6 +22,24 @@ interface AccountDialogProps {
 
 type DialogStep = "main" | "confirm_disable" | "confirm_reset"
 
+const ACCOUNT_ERROR_MESSAGES: Record<string, string> = {
+  member_account_link_failed: "Impossible de lier le compte utilisateur à ce membre du personnel.",
+  member_not_found: "Ce membre du personnel est introuvable.",
+  user_not_found: "L'utilisateur associé à ce compte est introuvable.",
+  email_exists: "Cette adresse e-mail est déjà utilisée par un autre compte.",
+  account_already_exists: "Ce membre possède déjà un compte utilisateur.",
+  role_not_found: "Le rôle d'accès sélectionné est introuvable.",
+  unauthorized: "Vous n'avez pas l'autorisation d'effectuer cette action.",
+};
+
+function formatAccountError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  const normalized = raw.toLowerCase().trim();
+  const code = Object.keys(ACCOUNT_ERROR_MESSAGES).find((key) => normalized.includes(key));
+  if (code) return ACCOUNT_ERROR_MESSAGES[code];
+  return "Une erreur est survenue lors de la gestion du compte utilisateur. Veuillez réessayer.";
+}
+
 export function AccountDialog({
   personnel,
   roles,
@@ -105,12 +123,8 @@ export function AccountDialog({
       } else {
         onSuccess()
       }
-    } catch (e: any) {
-      let msg = e.message || "Erreur inconnue"
-      if (msg.includes("member_not_found")) msg = "Ce membre est introuvable dans le système."
-      else if (msg.includes("user_not_found")) msg = "L'utilisateur associé à ce compte est introuvable."
-      else if (msg.includes("email_exists")) msg = "Cette adresse email est déjà utilisée par un autre compte."
-      setError(msg)
+    } catch (e: unknown) {
+      setError(formatAccountError(e))
     } finally {
       setIsSubmitting(false)
     }

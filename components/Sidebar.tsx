@@ -1,9 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useState, Suspense } from "react"
-import { Archive, BarChart3, Banknote, BookOpen, CalendarDays, CheckSquare, ClipboardList, FileText, FolderOpen, GraduationCap, LayoutDashboard, LogOut, Settings, Timer, Users, UserRound, Wrench, LifeBuoy, Loader2, Inbox, TrendingUp, Wallet, CreditCard, Receipt, ArrowUp } from "lucide-react"
+import { Archive, BarChart3, Banknote, BookOpen, CalendarDays, CheckSquare, ClipboardList, FileText, FolderOpen, GraduationCap, LayoutDashboard, LogOut, Settings, Timer, Users, UserRound, Wrench, LifeBuoy, Loader2, Inbox, TrendingUp, Wallet, CreditCard, Receipt, Layers } from "lucide-react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { hasEffectiveSchoolPermission } from "@/lib/organization/runtime-permissions"
@@ -11,18 +11,8 @@ import { hasEffectiveSchoolPermission } from "@/lib/organization/runtime-permiss
 interface SidebarProps { isOpen: boolean; setIsOpen: (open: boolean) => void }
 
 function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
- const pathname=usePathname(); const router=useRouter(); const searchParams=useSearchParams(); const { utilisateur }=useAuthentification(); const [isLoggingOut,setIsLoggingOut]=useState(false)
- const isActive=(path:string)=>{
-  const [basePath, query] = path.split('?');
-  if (basePath !== pathname && !pathname.startsWith(basePath + "/")) return false;
-  if (query) {
-    const params = new URLSearchParams(query);
-    for (const [key, value] of params.entries()) {
-      if (searchParams.get(key) !== value) return false;
-    }
-  }
-  return true;
-}
+ const pathname=usePathname(); const router=useRouter(); const { utilisateur }=useAuthentification(); const [isLoggingOut,setIsLoggingOut]=useState(false)
+ const isActive=(path:string)=>pathname===path||pathname.startsWith(path+"/")
  const can=(permission:string)=>hasEffectiveSchoolPermission(utilisateur,permission)
 
  const handleLogout=async()=>{
@@ -44,14 +34,14 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
   {section:"Pédagogie",items:[{href:"/ecole/classes",label:"Classes",icon:GraduationCap,permission:"classes.view"},{href:"/ecole/emploi-du-temps",label:"Emploi du temps",icon:CalendarDays,permission:"timetable.view"},{href:"/ecole/registre-appel",label:"Présences",icon:CheckSquare,permission:"attendance.view"},{href:"/ecole/matieres",label:"Matières",icon:BookOpen,permission:"subjects.view"},{href:"/ecole/evaluation",label:"Évaluation",icon:ClipboardList,permission:"grades.view"},{href:"/ecole/options",label:"Options",icon:Wrench,permission:"settings.view"}]},
   {section:"Personnel",items:[{href:"/ecole/enseignants",label:"Enseignants",icon:UserRound,permission:"staff.view"},{href:"/ecole/personnel",label:"Personnel & paie",icon:Users,permission:"staff.view"},{href:"/ecole/etat-salaire",label:"État salaire",icon:Banknote,permission:"staff.view"},{href:"/ecole/heures-vacataires",label:"Heures vacataires",icon:Timer,permission:"staff.view"}]},
   {section:"Finance",items:[
-  {href:"/ecole/comptabilite?section=dashboard",label:"Tableau de bord financier",icon:TrendingUp,permission:"finance.view"},
-  {href:"/ecole/comptabilite?section=comptes",label:"Comptabilité",icon:Wallet,permission:"finance.view"},
-  {href:"/ecole/settings/scolarite",label:"Frais scolaires",icon:GraduationCap,permission:"settings.view"},
-  {href:"/ecole/comptabilite?section=paiements",label:"Paiements",icon:CreditCard,permission:"finance.view"},
-  {href:"/ecole/facturation",label:"Facturation",icon:Receipt,permission:"finance.view"},
-  {href:"/ecole/comptabilite?section=depenses",label:"Dépenses",icon:FileText,permission:"finance.view"},
-  {href:"/ecole/comptabilite?section=mouvements",label:"Caisse",icon:ArrowUp,permission:"finance.view"},
-  {href:"/ecole/comptabilite?section=rapports",label:"Rapports financiers",icon:BarChart3,permission:"finance.view"}
+  {href:"/ecole/finance/tableau-bord",label:"Tableau de bord",icon:TrendingUp,permission:"finance.view"},
+  {href:"/ecole/finance/frais-scolaires",label:"Frais scolaires",icon:GraduationCap,permission:"finance.view"},
+  {href:"/ecole/finance/paiements",label:"Paiements",icon:CreditCard,permission:"finance.view"},
+  {href:"/ecole/finance/facturation",label:"Facturation",icon:Receipt,permission:"finance.view"},
+  {href:"/ecole/finance/depenses",label:"Dépenses",icon:FileText,permission:"finance.view"},
+  {href:"/ecole/finance/caisse",label:"Caisse",icon:Layers,permission:"finance.view"},
+  {href:"/ecole/finance/comptabilite",label:"Comptabilité",icon:Wallet,permission:"finance.view"},
+  {href:"/ecole/finance/rapports",label:"Rapports",icon:BarChart3,permission:"finance.view"}
 ]},
   {section:"Administration",items:[{href:"/ecole/archivage",label:"Archivage",icon:Archive,permission:"documents.view"},{href:"/ecole/documents",label:"Documents",icon:FileText,permission:"documents.view"},{href:"/ecole/demandes",label:"Demandes des parents",icon:Inbox,permission:"documents.view"}]},
   {section:"Autres",items:[{href:"/ecole/evenements",label:"Événements",icon:CalendarDays,permission:"events.view"},{href:"/ecole/service-technique",label:"Service technique",icon:LifeBuoy,permission:"support.view"},{href:"/ecole/settings",label:"Paramètres",icon:Settings,permission:"settings.view"}],

@@ -38,7 +38,9 @@ export function useClasses() {
 
   const ajouter = useCallback(async (data: Omit<Classe, "id"> & { grade_level_id?: string; code?: string | null; academic_year_id?: string | null }) => {
     const establishmentId = await getCurrentEstablishmentId()
-    const gradeLevelId = data.grade_level_id
+    // La page fournit directement l'UUID du niveau sélectionné dans la structure académique.
+    // On normalise uniquement la chaîne pour éviter qu'un UUID entouré d'espaces soit rejeté.
+    const gradeLevelId = typeof data.grade_level_id === "string" ? data.grade_level_id.trim() : ""
     if (!gradeLevelId) throw new Error("Le niveau académique est obligatoire")
     const capacity = Number(data.capacite)
     if (!Number.isFinite(capacity) || capacity <= 0) {

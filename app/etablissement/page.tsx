@@ -13,7 +13,7 @@ export default function EtablissementPage() {
 
     const isSchoolAccount = contexte?.account_type === "school_member"
     const hasEstablishment = Boolean(etablissementActif?.id || utilisateur?.etablissementId)
-    const isPlatformAdmin = contexte?.account_type === "platform_admin" || utilisateur?.role === "admin"
+    const isPlatformAdmin = contexte?.account_type === "platform_admin"
 
     if ((!isSchoolAccount && !isPlatformAdmin) || !utilisateur || !hasEstablishment) {
       router.replace("/connexion")

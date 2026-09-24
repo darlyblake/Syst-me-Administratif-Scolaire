@@ -88,7 +88,7 @@ Deno.serve(async (req: Request) => {
       // Le nom du rôle affiché peut être en français ou personnalisé : role_id conserve le rôle réel.
       const normalizedRoleName = role.name
         .normalize("NFD")
-        .replace(/[\\u0300-\\u036f]/g, "")
+        .replace(/[\u0300-\u036f]/g, "")
         .trim()
         .toLowerCase();
       const canonicalRole =

@@ -4,7 +4,10 @@ import { useCallback, useEffect, useState } from "react"
 import { deactivateStaff, listStaffPaginated } from "@/lib/supabase/services/staff.service"
 import type { Staff } from "@/lib/supabase/types"
 
-export function useStaff(establishmentId: string | null, options: { page?: number; pageSize?: number; search?: string; active?: boolean } = {}) {
+export function useStaff(
+  establishmentId: string | null,
+  options: { page?: number; pageSize?: number; search?: string; active?: boolean | null } = {}
+) {
   const [staff, setStaff] = useState<Staff[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
@@ -32,7 +35,7 @@ export function useStaff(establishmentId: string | null, options: { page?: numbe
           options.page ?? 1,
           options.pageSize ?? 25,
           options.search ?? "",
-          options.active ?? true,
+          options.active ?? null,
         )
         if (active) {
           setStaff(result.items)

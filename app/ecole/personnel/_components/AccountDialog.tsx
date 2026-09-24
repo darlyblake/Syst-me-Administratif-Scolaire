@@ -80,13 +80,39 @@ export function AccountDialog({
 
         if (fnError) {
           let detail = fnError.message
+          let backendCode = ""
+
           try {
             const parsed = typeof fnError === "object" && "context" in fnError
               ? await (fnError as any).context?.json?.()
               : null
+
             if (parsed?.message) detail = parsed.message
             else if (parsed?.error) detail = parsed.error
+            backendCode = String(parsed?.code || parsed?.error_code || parsed?.error || "").toLowerCase()
           } catch { /* silencieux */ }
+
+          // Le compte peut avoir été créé avant un échec de liaison du personnel.
+          // On répare alors le lien côté base sans créer un second compte.
+          if (backendCode.includes("member_account_link_failed") || detail.toLowerCase().includes("member_account_link_failed")) {
+            const { data: repairData, error: repairError } = await supabaseBrowser.rpc("repair_staff_account_link", {
+              p_staff_id: personnel.id,
+              p_email: localEmail.trim(),
+              p_establishment_id: establishmentId,
+              p_role_id: localRoleId,
+            })
+
+            if (!repairError && repairData?.success) {
+              onClose()
+              onSuccess(data?.temporary_password)
+              return
+            }
+
+            if (repairError) {
+              detail = repairError.message
+            }
+          }
+
           throw new Error(detail)
         }
 

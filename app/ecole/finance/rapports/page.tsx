@@ -1,12 +1,9 @@
-"use client"
+import { FinanceRapports } from "@/components/finance/FinanceRapports"
 
-import { Suspense } from "react"
-import { FinanceModule } from "@/components/finance/FinanceModule"
-
-export default function FinanceRapportsPage() {
+export default function Page() {
   return (
-    <Suspense>
-      <FinanceModule activeSection="rapports" />
-    </Suspense>
+    <div className="p-6">
+      <FinanceRapports />
+    </div>
   )
 }

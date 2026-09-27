@@ -1,12 +1,9 @@
-"use client"
+import { FinanceDashboard } from "@/components/finance/FinanceDashboard"
 
-import { Suspense } from "react"
-import { FinanceModule } from "@/components/finance/FinanceModule"
-
-export default function FinanceTableauBordPage() {
+export default function Page() {
   return (
-    <Suspense>
-      <FinanceModule activeSection="dashboard" />
-    </Suspense>
+    <div className="p-6">
+      <FinanceDashboard />
+    </div>
   )
 }

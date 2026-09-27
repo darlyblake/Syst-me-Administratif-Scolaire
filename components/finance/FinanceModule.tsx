@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -365,7 +365,7 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
   return (
     <div className="min-h-screen p-4 bg-slate-50">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-5 shadow-sm">
+        <div className="rounded   via-slate-800  text-white p-5 ">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4">
               <Button variant="outline" size="sm" asChild className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white">
@@ -392,17 +392,17 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Navigation */}
           <div className="hidden">
-            <Card className="rounded-2xl border-slate-200 shadow-sm">
-              <CardHeader className="border-b border-slate-100 bg-slate-50/80">
-                <CardTitle>Navigation</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 p-3">
+            <div className="border border-gray-200 bg-white">
+              <div className="border-b border-gray-200 px-4 py-3 bg-gray-50">
+                <h2 className="text-lg font-semibold text-gray-900">Navigation</h2>
+              </div>
+              <div className="space-y-2 p-4">
                 {sections.map((section) => {
                   const Icon = section.icon
                   return (
                     <Button
                       key={section.id}
-                      className={`w-full justify-start rounded-xl border px-3 text-sm font-medium shadow-sm transition-all ${
+                      className={`w-full justify-start rounded border px-3 text-sm font-medium  transition-all ${
                         activeSection === section.id
                           ? "border-slate-900 bg-slate-900 text-white hover:border-slate-800 hover:bg-slate-800"
                           : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
@@ -414,225 +414,177 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
                     </Button>
                   )
                 })}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
 
           {/* Content */}
           <div className="md:col-span-3">
             {activeSection === "dashboard" && (
-              <Card className="rounded-2xl border-slate-200 shadow-sm overflow-hidden">
-                <CardHeader className="border-b border-slate-100 bg-slate-50/80">
-                  <CardTitle>Tableau de Bord Financier</CardTitle>
-                  <CardDescription>Vue d'ensemble des finances et de la trésorerie</CardDescription>
-                </CardHeader>
-                <CardContent className="p-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                    <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4">
-                      <p className="text-sm text-slate-600">Total Entrées</p>
-                      <p className="text-2xl font-bold text-emerald-700 mt-2">{totalEntrees.toLocaleString()} FCFA</p>
-                    </div>
-                    <div className="rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 to-white p-4">
-                      <p className="text-sm text-slate-600">Total Sorties</p>
-                      <p className="text-2xl font-bold text-rose-700 mt-2">{totalSorties.toLocaleString()} FCFA</p>
-                    </div>
-                    <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4">
-                      <p className="text-sm text-slate-600">Total Actif</p>
-                      <p className="text-2xl font-bold text-amber-700 mt-2">{soldeActif.toLocaleString()} FCFA</p>
-                    </div>
-                    <div className="rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-4">
-                      <p className="text-sm text-slate-600">Solde Net</p>
-                      <p className={`text-2xl font-bold mt-2 ${solde >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                        {solde.toLocaleString()} FCFA
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-white p-4">
-                    <div className="flex items-center justify-between gap-4 flex-wrap">
-                      <div>
-                        <p className="text-sm text-slate-600">Résultat Net</p>
-                        <p className={`text-2xl font-bold ${resultatNet >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                          {resultatNet.toLocaleString()} FCFA
-                        </p>
-                      </div>
-                      <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">Suivi mensuel</span>
-                    </div>
-                  </div>
+              <div className="space-y-6">
+                <div>
+                  <h1 className="text-xl font-semibold text-gray-900 uppercase">Tableau de Bord Finance</h1>
+                  <p className="text-sm text-gray-500 mt-1">Période : {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</p>
+                </div>
 
-                  <div className="mt-6 border rounded-2xl p-4 bg-white">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold">Historique du journal local</h3>
-                      <span className="text-xs text-gray-500">{journalComptable.length} écritures</span>
-                    </div>
-                    <div className="space-y-2">
-                      {journalRecents.length === 0 ? (
-                        <p className="text-sm text-gray-500">Aucune écriture enregistrée pour le moment.</p>
-                      ) : (
-                        journalRecents.map((entry) => (
-                          <div key={entry.id} className="flex items-center justify-between rounded-md border px-3 py-2">
-                            <div>
-                              <p className="text-sm font-medium">{entry.description}</p>
-                              <p className="text-xs text-gray-500">
-                                {new Date(entry.date).toLocaleDateString("fr-FR")} • {entry.categorie} • {entry.source}
-                              </p>
-                            </div>
-                            <p className={`text-sm font-semibold ${entry.type === "entree" ? "text-green-600" : "text-red-600"}`}>
-                              {entry.type === "entree" ? "+" : "-"}{entry.montant.toLocaleString()} FCFA
-                            </p>
-                          </div>
-                        ))
-                      )}
-                    </div>
+                <div className="border border-gray-200 bg-white rounded p-6 w-full max-w-md">
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Recettes :</span>
+                    <span className="font-semibold text-gray-900">{totalEntrees.toLocaleString()} FCFA</span>
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Dépenses :</span>
+                    <span className="font-semibold text-gray-900">{totalSorties.toLocaleString()} FCFA</span>
+                  </div>
+                  <div className="flex justify-between py-2 pt-3">
+                    <span className="font-medium text-gray-900">Solde :</span>
+                    <span className={`font-bold ${solde >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{solde.toLocaleString()} FCFA</span>
+                  </div>
+                </div>
+
+                <hr className="border-gray-200" />
+
+                <div>
+                  <h2 className="text-sm font-bold text-gray-900 uppercase mb-4">Derniers Paiements</h2>
+                  <div className="overflow-x-auto border border-gray-200 rounded bg-white">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-4 py-3 font-medium text-gray-500">Date</th>
+                          <th className="px-4 py-3 font-medium text-gray-500">Inscription (Ref)</th>
+                          <th className="px-4 py-3 font-medium text-gray-500">Montant</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {payments.slice(0, 5).map(payment => (
+                          <tr key={payment.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">{new Date(payment.payment_date).toLocaleDateString('fr-FR')}</td>
+                            <td className="px-4 py-3">{payment.enrollment_id.substring(0,8)}...</td>
+                            <td className="px-4 py-3">{payment.amount.toLocaleString()} FCFA</td>
+                          </tr>
+                        ))}
+                        {payments.length === 0 && (
+                          <tr><td colSpan={3} className="px-4 py-4 text-center text-gray-500">Aucun paiement récent</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <hr className="border-gray-200" />
+
+                <div>
+                  <h2 className="text-sm font-bold text-gray-900 uppercase mb-4">Dernières Dépenses</h2>
+                  <div className="overflow-x-auto border border-gray-200 rounded bg-white">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-4 py-3 font-medium text-gray-500">Date</th>
+                          <th className="px-4 py-3 font-medium text-gray-500">Libellé</th>
+                          <th className="px-4 py-3 font-medium text-gray-500">Montant</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {depenses.slice(0, 5).map((depense: any) => (
+                          <tr key={depense.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">{new Date(depense.date).toLocaleDateString('fr-FR')}</td>
+                            <td className="px-4 py-3">{depense.libelle}</td>
+                            <td className="px-4 py-3">{depense.montant.toLocaleString()} FCFA</td>
+                          </tr>
+                        ))}
+                        {depenses.length === 0 && (
+                          <tr><td colSpan={3} className="px-4 py-4 text-center text-gray-500">Aucune dépense récente</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
             )}
 
             {activeSection === "paiements" && (
               <div className="space-y-6">
-                <Card className="rounded-2xl border-slate-200 shadow-sm overflow-hidden">
-                  <CardHeader className="border-b border-slate-100 bg-slate-50/80">
-                    <div className="flex justify-between items-center gap-3 flex-wrap">
-                      <div>
-                        <CardTitle>Paiements de Scolarité</CardTitle>
-                        <CardDescription>Suivi et encaissement des frais de scolarité des élèves</CardDescription>
-                      </div>
-                      <Button onClick={() => openPayForm()} className="rounded-xl">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Nouveau Paiement
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-5">
-                    {loadingPaySummary ? <p className="text-sm text-slate-600">Chargement des données...</p> : 
-                    <div className="grid gap-4 md:grid-cols-4">
-                      {[["Attendu", paySummary?.expected], ["Payé", paySummary?.paid], ["Reste", paySummary?.remaining], ["Retards", paySummary?.overdue]].map(([label, value]) => (
-                        <div key={label as string} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                          <p className="text-sm text-slate-500">{label}</p>
-                          <p className="text-xl font-bold mt-1 text-slate-900">{typeof value === "number" ? `${value.toLocaleString()} FCFA` : "-"}</p>
-                        </div>
-                      ))}
-                    </div>}
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                  <div>
+                    <h1 className="text-xl font-semibold text-gray-900 uppercase">Paiements</h1>
+                    <p className="text-sm text-gray-500 mt-1">Suivi et encaissement des frais de scolarité</p>
+                  </div>
+                  <Button onClick={() => openPayForm()} className="rounded bg-gray-900 text-white hover:bg-gray-800">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nouveau paiement
+                  </Button>
+                </div>
 
-                    <div className="mt-6 flex flex-wrap gap-3 p-4 border rounded-2xl bg-white shadow-sm">
-                      <div className="relative min-w-64 flex-1">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                        <Input disabled placeholder="Recherche (bientôt disponible)" className="pl-9" />
-                      </div>
-                      <select value={selectedEnrollmentId} onChange={(event) => setSelectedEnrollmentId(event.target.value)} className="rounded-md border px-3 py-2 text-sm bg-white">
-                        <option value="">Toutes les inscriptions</option>
-                        {enrollments.map((item) => <option key={item.id} value={item.id}>{item.student?.first_name} {item.student?.last_name}</option>)}
-                      </select>
-                      <Input type="date" value={payFrom} onChange={(event) => setPayFrom(event.target.value)} className="w-auto" />
-                      <Input type="date" value={payTo} onChange={(event) => setPayTo(event.target.value)} className="w-auto" />
-                    </div>
+                <div className="flex flex-wrap gap-3">
+                  <div className="relative min-w-[250px] flex-1">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Input disabled placeholder="Rechercher un paiement..." className="pl-9 bg-white border-gray-300 rounded" />
+                  </div>
+                  <select value={selectedEnrollmentId} onChange={(event) => setSelectedEnrollmentId(event.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm bg-white">
+                    <option value="">Toutes les inscriptions</option>
+                    {enrollments.map((item) => <option key={item.id} value={item.id}>{item.student?.first_name} {item.student?.last_name}</option>)}
+                  </select>
+                  <Input type="date" value={payFrom} onChange={(event) => setPayFrom(event.target.value)} className="w-auto border-gray-300 rounded" />
+                  <Input type="date" value={payTo} onChange={(event) => setPayTo(event.target.value)} className="w-auto border-gray-300 rounded" />
+                  <Button variant="outline" className="rounded" onClick={() => {
+                    const csvContent = "data:text/csv;charset=utf-8,Date,Inscription,Montant,Méthode,Référence\n" + payments.map(p => `${new Date(p.payment_date).toLocaleDateString("fr-FR")},${p.enrollment_id},${p.amount},${p.payment_method || ""},${p.reference || ""}`).join("\n");
+                    const encodedUri = encodeURI(csvContent);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", "paiements.csv");
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Exporter
+                  </Button>
+                </div>
 
-                    <div className="mt-6">
-                      <h3 className="font-semibold mb-3 text-slate-800">Historique des Paiements ({payTotal})</h3>
-                      {loadingPayments ? <p className="text-sm text-slate-500">Chargement...</p> : payments.length === 0 ? <p className="py-8 text-center text-slate-500 border rounded-2xl bg-slate-50">Aucun paiement trouvé.</p> : 
-                      <div className="overflow-hidden border border-slate-200 rounded-2xl bg-white">
-                        <table className="w-full text-sm">
-                          <thead className="bg-slate-50 border-b">
-                            <tr className="text-left">
-                              <th className="p-3 font-medium text-slate-500">Date</th>
-                              <th className="p-3 font-medium text-slate-500">Inscription</th>
-                              <th className="p-3 font-medium text-slate-500">Montant</th>
-                              <th className="p-3 font-medium text-slate-500">Méthode</th>
-                              <th className="p-3 font-medium text-slate-500">Référence</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {payments.map((payment) => (
-                              <tr key={payment.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors">
-                                <td className="p-3">{new Date(payment.payment_date).toLocaleDateString("fr-FR")}</td>
-                                <td className="p-3 font-mono text-xs text-slate-500">{payment.enrollment_id.substring(0,8)}...</td>
-                                <td className="p-3 font-semibold text-slate-900">{payment.amount.toLocaleString()} FCFA</td>
-                                <td className="p-3 capitalize">{payment.payment_method || "-"}</td>
-                                <td className="p-3">{payment.reference || "-"}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>}
-                      {payTotalPages > 1 && (
-                        <div className="mt-4 flex justify-between items-center text-sm text-slate-500">
-                          <span>Page {payPage} sur {payTotalPages}</span>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setPayPage((value) => Math.max(1, value - 1))} disabled={payPage === 1}>Précédent</Button>
-                            <Button variant="outline" size="sm" onClick={() => setPayPage((value) => Math.min(payTotalPages, value + 1))} disabled={payPage === payTotalPages}>Suivant</Button>
-                          </div>
-                        </div>
+                <div className="border border-gray-200 rounded bg-white overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-3 font-medium text-gray-700">Date</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Inscription</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Référence</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Montant</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Mode</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {loadingPayments ? (
+                        <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">Chargement...</td></tr>
+                      ) : payments.length === 0 ? (
+                        <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">Aucun paiement trouvé.</td></tr>
+                      ) : (
+                        payments.map((payment) => (
+                          <tr key={payment.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">{new Date(payment.payment_date).toLocaleDateString("fr-FR")}</td>
+                            <td className="px-4 py-3 font-mono text-xs text-gray-500">{payment.enrollment_id.substring(0,8)}...</td>
+                            <td className="px-4 py-3 text-gray-600">{payment.reference || "-"}</td>
+                            <td className="px-4 py-3 font-semibold text-gray-900">{payment.amount.toLocaleString()} FCFA</td>
+                            <td className="px-4 py-3 capitalize text-gray-600">{payment.payment_method || "-"}</td>
+                            <td className="px-4 py-3">
+                              <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800 hover:bg-blue-50">Voir</Button>
+                            </td>
+                          </tr>
+                        ))
                       )}
-                    </div>
-                  </CardContent>
-                </Card>
+                    </tbody>
+                  </table>
+                </div>
 
-                {showPayForm && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <Card className="max-h-[90vh] w-full max-w-2xl overflow-y-auto shadow-2xl border-0">
-                      <CardHeader className="bg-slate-50 border-b">
-                        <CardTitle>Nouveau paiement</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-6">
-                        <form onSubmit={submitPayment} className="space-y-5">
-                          <div>
-                            <Label className="text-xs text-slate-500 mb-1 block">Sélectionner l'élève</Label>
-                            <select value={selectedEnrollmentId} onChange={(event) => setSelectedEnrollmentId(event.target.value)} required className="w-full rounded-md border px-3 py-2 h-10 bg-white">
-                              <option value="">Sélectionner une inscription</option>
-                              {enrollments.map((item) => <option key={item.id} value={item.id}>{item.student?.first_name} {item.student?.last_name}</option>)}
-                            </select>
-                          </div>
-                          
-                          {loadingPaySchedule ? <p className="text-sm text-slate-500">Chargement de l’échéancier...</p> : paySchedule.length > 0 && (
-                            <div className="border rounded-xl p-4 bg-slate-50 space-y-2">
-                              <p className="text-sm font-semibold text-slate-700 mb-2">Échéancier de scolarité</p>
-                              {paySchedule.map((item) => (
-                                <div key={item.id} className="flex items-center justify-between gap-3 border-b border-slate-200 last:border-0 pb-2 last:pb-0 pt-2 first:pt-0 text-sm">
-                                  <span className="font-medium text-slate-700">{item.label} · <span className="text-slate-500 font-normal">{item.amount.toLocaleString()} FCFA</span></span>
-                                  <Input type="number" min="0" placeholder="Allocation" value={payAllocations[item.id] || ""} onChange={(event) => setPayAllocations((current) => ({ ...current, [item.id]: event.target.value }))} className="w-32 bg-white" />
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          
-                          {payScheduleError && <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-100">{payScheduleError}</p>}
-                          
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label className="text-xs text-slate-500 mb-1 block">Montant du paiement *</Label>
-                              <Input type="number" min="1" placeholder="Montant" value={payAmount} onChange={(event) => setPayAmount(event.target.value)} required />
-                            </div>
-                            <div>
-                              <Label className="text-xs text-slate-500 mb-1 block">Méthode de paiement</Label>
-                              <select value={payMethod} onChange={(event) => setPayMethod(event.target.value)} className="w-full rounded-md border px-3 py-2 h-10 bg-white">
-                                <option value="cash">Espèces</option>
-                                <option value="transfer">Virement</option>
-                                <option value="mobile_money">Mobile Money</option>
-                                <option value="check">Chèque</option>
-                              </select>
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label className="text-xs text-slate-500 mb-1 block">Référence</Label>
-                              <Input placeholder="Ex: Chèque N°..." value={payReference} onChange={(event) => setPayReference(event.target.value)} />
-                            </div>
-                            <div>
-                              <Label className="text-xs text-slate-500 mb-1 block">Notes / Remarques</Label>
-                              <Input placeholder="Notes optionnelles" value={payNotes} onChange={(event) => setPayNotes(event.target.value)} />
-                            </div>
-                          </div>
-                          
-                          <div className="flex justify-end gap-3 pt-4 mt-6 border-t">
-                            <Button type="button" variant="outline" onClick={() => setShowPayForm(false)}>Annuler</Button>
-                            <Button type="submit" disabled={isCreatingPayment || loadingEnrollments} className="bg-slate-900 text-white">
-                              {isCreatingPayment ? "Enregistrement..." : "Enregistrer le paiement"}
-                            </Button>
-                          </div>
-                        </form>
-                      </CardContent>
-                    </Card>
+                {payTotalPages > 1 && (
+                  <div className="flex justify-between items-center mt-4">
+                    <p className="text-sm text-gray-500">
+                      Page {payPage} sur {payTotalPages} ({payTotal} paiements)
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setPayPage(p => Math.max(1, p - 1))} disabled={payPage === 1} className="rounded">Précédent</Button>
+                      <Button variant="outline" size="sm" onClick={() => setPayPage(p => Math.min(payTotalPages, p + 1))} disabled={payPage === payTotalPages} className="rounded">Suivant</Button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -640,34 +592,34 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
 
             {activeSection === "financement-etat" && (
               <div className="space-y-6">
-                <Card className="rounded-2xl border-slate-200 shadow-sm overflow-hidden">
-                  <CardHeader className="border-b border-slate-100 bg-slate-50/80">
-                    <CardTitle>Suivi du Financement de l'État</CardTitle>
-                    <CardDescription>Gestion des élèves subventionnés et paiements de l'état</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-5">
+                <div className="border border-gray-200 bg-white">
+                  <div className="border-b border-gray-200 px-4 py-3 bg-gray-50">
+                    <h2 className="text-lg font-semibold text-gray-900">Suivi du Financement de l'État</h2>
+                    <p className="text-sm text-gray-500 mt-1">Gestion des élèves subventionnés et paiements de l'état</p>
+                  </div>
+                  <div className="p-4">
                     {loadingState && !stateSummary ? (
                       <p className="text-sm text-slate-500 py-8 text-center">Chargement des données de l'État...</p>
                     ) : stateError ? (
-                      <p className="text-sm text-red-600 bg-red-50 p-4 rounded-xl border border-red-100 text-center">{stateError}</p>
+                      <p className="text-sm text-red-600 bg-red-50 p-4 rounded border border-red-100 text-center">{stateError}</p>
                     ) : stateSummary ? (
                       <div className="space-y-8">
                         <div className="grid gap-4 md:grid-cols-3">
-                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                          <div className="rounded border border-slate-200 bg-white p-5 ">
                             <p className="text-sm text-slate-500 font-medium">Financement attendu</p>
                             <p className="text-2xl font-bold mt-2 text-slate-900">{money(stateSummary.state_expected)}</p>
                             <div className="flex items-center gap-2 text-sm text-slate-500 mt-3 pt-3 border-t">
                               <Landmark className="h-4 w-4" /> {stateSummary.state_schedules} échéance(s) État
                             </div>
                           </div>
-                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                          <div className="rounded border border-slate-200 bg-white p-5 ">
                             <p className="text-sm text-slate-500 font-medium">Financement encaissé</p>
                             <p className="text-2xl font-bold mt-2 text-emerald-700">{money(stateSummary.state_paid)}</p>
                             <div className="flex items-center gap-2 text-sm text-emerald-600 mt-3 pt-3 border-t">
                               <WalletCards className="h-4 w-4" /> {stateProgress.toFixed(0)} % encaissé
                             </div>
                           </div>
-                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                          <div className="rounded border border-slate-200 bg-white p-5 ">
                             <p className="text-sm text-slate-500 font-medium">Financement restant</p>
                             <p className="text-2xl font-bold mt-2 text-rose-700">{money(stateSummary.state_remaining)}</p>
                             <div className="h-2 overflow-hidden rounded-full bg-slate-100 mt-4">
@@ -676,26 +628,26 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
                           </div>
                         </div>
 
-                        <div className="border border-slate-200 rounded-2xl bg-slate-50 p-6">
+                        <div className="border border-slate-200 rounded bg-slate-50 p-6">
                           <div className="mb-5 flex items-center justify-between flex-wrap gap-4">
                             <div>
                               <h3 className="font-semibold text-lg text-slate-900">Familles : situation indépendante</h3>
                               <p className="text-sm text-slate-500 mt-1">Les sommes dues par les parents restent séparées du financement public.</p>
                             </div>
-                            <div className="rounded-full bg-white border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm">
+                            <div className="rounded-full bg-white border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 ">
                               {yearForPayments?.name || "Année en cours"}
                             </div>
                           </div>
                           <div className="grid gap-4 sm:grid-cols-3">
-                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div className="bg-white p-4 rounded border border-slate-200 ">
                               <div className="text-sm text-slate-500 mb-1">À payer par les familles</div>
                               <div className="font-bold text-lg text-slate-900">{money(stateSummary.family_expected)}</div>
                             </div>
-                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div className="bg-white p-4 rounded border border-slate-200 ">
                               <div className="text-sm text-slate-500 mb-1">Encaissé des familles</div>
                               <div className="font-bold text-lg text-emerald-700">{money(stateSummary.family_paid)}</div>
                             </div>
-                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div className="bg-white p-4 rounded border border-slate-200 ">
                               <div className="text-sm text-slate-500 mb-1">Impayé familial</div>
                               <div className="font-bold text-lg text-rose-700">{money(stateSummary.family_remaining)}</div>
                             </div>
@@ -705,204 +657,189 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
                     ) : (
                       <p className="text-sm text-slate-500 py-8 text-center">Aucune donnée disponible pour cette année.</p>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </div>
             )}
 
             {activeSection === "mouvements" && (
-              <Card className="rounded-2xl border-slate-200 shadow-sm overflow-hidden">
-                <CardHeader className="border-b border-slate-100 bg-slate-50/80">
-                  <div className="flex justify-between items-center gap-3 flex-wrap">
-                    <div>
-                      <CardTitle>Mouvements Financiers</CardTitle>
-                      <CardDescription>Gestion des entrées et sorties d'argent</CardDescription>
-                    </div>
-                    <Button onClick={() => setShowAddMouvementModal(true)} className="rounded-xl">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Nouveau Mouvement
-                    </Button>
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                  <div>
+                    <h1 className="text-xl font-semibold text-gray-900 uppercase">Caisse</h1>
+                    <p className="text-sm text-gray-500 mt-1">Gestion des entrées et sorties d'argent</p>
                   </div>
-                </CardHeader>
-                <CardContent className="p-5">
-                  {/* Filtres */}
-                  <div className="flex gap-4 mb-4 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      <Filter className="h-4 w-4" />
-                      <span className="text-sm font-medium">Filtres:</span>
-                    </div>
-                    <select
-                      aria-label="Type de mouvement"
-                      value={filterType}
-                      onChange={(e) => setFilterType(e.target.value as "entree" | "sortie" | "all")}
-                      className="border rounded px-3 py-2"
-                    >
-                      <option value="all">Tous les types</option>
-                      <option value="entree">Entrées</option>
-                      <option value="sortie">Sorties</option>
-                    </select>
-                    <Input
-                      type="date"
-                      value={filterDateDebut}
-                      onChange={(e) => setFilterDateDebut(e.target.value)}
-                      className="w-40"
-                    />
-                    <Input
-                      type="date"
-                      value={filterDateFin}
-                      onChange={(e) => setFilterDateFin(e.target.value)}
-                      className="w-40"
-                    />
-                    <Button variant="outline" onClick={() => {
-                      setFilterDateDebut("")
-                      setFilterDateFin("")
-                      setFilterType("all")
-                    }}>
-                      Réinitialiser
-                    </Button>
-                  </div>
+                  <Button onClick={() => setShowAddMouvementModal(true)} className="rounded bg-gray-900 text-white hover:bg-gray-800">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nouveau mouvement
+                  </Button>
+                </div>
 
-                  {/* Statistiques */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                      <p className="text-sm text-slate-600">Total Entrées</p>
-                      <p className="text-xl font-bold text-emerald-700 mt-2">{totalEntrees.toLocaleString()} FCFA</p>
-                    </div>
-                    <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-                      <p className="text-sm text-slate-600">Total Sorties</p>
-                      <p className="text-xl font-bold text-rose-700 mt-2">{totalSorties.toLocaleString()} FCFA</p>
-                    </div>
-                    <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
-                      <p className="text-sm text-slate-600">Solde</p>
-                      <p className={`text-xl font-bold mt-2 ${solde >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                        {solde.toLocaleString()} FCFA
-                      </p>
-                    </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="border border-gray-200 bg-white p-4 rounded">
+                    <p className="text-sm text-gray-500">Total Entrées</p>
+                    <p className="text-lg font-bold text-gray-900 mt-1">{totalEntrees.toLocaleString()} FCFA</p>
                   </div>
+                  <div className="border border-gray-200 bg-white p-4 rounded">
+                    <p className="text-sm text-gray-500">Total Sorties</p>
+                    <p className="text-lg font-bold text-gray-900 mt-1">{totalSorties.toLocaleString()} FCFA</p>
+                  </div>
+                  <div className="border border-gray-200 bg-white p-4 rounded">
+                    <p className="text-sm text-gray-500">Solde Caisse</p>
+                    <p className={`text-lg font-bold mt-1 ${solde >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{solde.toLocaleString()} FCFA</p>
+                  </div>
+                </div>
 
-                  {/* Liste des mouvements */}
-                  <div className="space-y-2">
-                    {mouvementsFiltres.length === 0 ? (
-                      <p className="text-center text-gray-500 py-8">Aucun mouvement trouvé</p>
-                    ) : (
-                      mouvementsFiltres.map((mouvement) => (
-                        <div key={mouvement.id} className="border border-slate-200 rounded-2xl p-4 bg-white hover:bg-slate-50 transition-colors">
-                          <div className="flex justify-between items-start">
-                            <div className="flex items-start gap-3">
-                              <div className={`p-2 rounded-full ${
-                                mouvement.type === 'entree' ? 'bg-green-100' : 'bg-red-100'
-                              }`}>
-                                {mouvement.type === 'entree' ? (
-                                  <ArrowUp className="h-4 w-4 text-green-600" />
-                                ) : (
-                                  <ArrowDown className="h-4 w-4 text-red-600" />
-                                )}
-                              </div>
-                              <div>
-                                <p className="font-semibold">{mouvement.description}</p>
-                                <p className="text-sm text-gray-600">{mouvement.categorie}</p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {new Date(mouvement.date).toLocaleDateString('fr-FR')}
-                                  {mouvement.reference && ` • Réf: ${mouvement.reference}`}
-                                  {mouvement.source && ` • Source: ${mouvement.source}`}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <p className={`font-bold ${
-                                mouvement.type === 'entree' ? 'text-green-600' : 'text-red-600'
-                              }`}>
-                                {mouvement.type === 'entree' ? '+' : '-'}{mouvement.montant.toLocaleString()} FCFA
-                              </p>
-                              <Button variant="ghost" size="sm" onClick={() => handleSupprimerMouvement(mouvement.id)}>
-                                <Trash2 className="h-4 w-4 text-red-500" />
+                <div className="flex flex-wrap gap-3">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <select
+                    aria-label="Type de mouvement"
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value as "entree" | "sortie" | "all")}
+                    className="border border-gray-300 rounded px-3 py-2 text-sm bg-white"
+                  >
+                    <option value="all">Tous les types</option>
+                    <option value="entree">Entrées</option>
+                    <option value="sortie">Sorties</option>
+                  </select>
+                  <Input
+                    type="date"
+                    value={filterDateDebut}
+                    onChange={(e) => setFilterDateDebut(e.target.value)}
+                    className="w-auto border-gray-300 rounded"
+                  />
+                  <Input
+                    type="date"
+                    value={filterDateFin}
+                    onChange={(e) => setFilterDateFin(e.target.value)}
+                    className="w-auto border-gray-300 rounded"
+                  />
+                  <Button variant="outline" className="rounded" onClick={() => {
+                    setFilterDateDebut("")
+                    setFilterDateFin("")
+                    setFilterType("all")
+                  }}>
+                    Réinitialiser
+                  </Button>
+                </div>
+
+                <div className="border border-gray-200 rounded bg-white overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-3 font-medium text-gray-700">Date</th>
+                        <th className="px-4 py-3 font-medium text-gray-700 w-10">Type</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Description</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Catégorie</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Référence</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Montant</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {mouvementsFiltres.length === 0 ? (
+                        <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">Aucun mouvement trouvé.</td></tr>
+                      ) : (
+                        mouvementsFiltres.map((mouvement) => (
+                          <tr key={mouvement.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 whitespace-nowrap">{new Date(mouvement.date).toLocaleDateString('fr-FR')}</td>
+                            <td className="px-4 py-3 text-center">
+                              {mouvement.type === 'entree' ? (
+                                <ArrowUp className="h-4 w-4 text-emerald-600 inline" />
+                              ) : (
+                                <ArrowDown className="h-4 w-4 text-rose-600 inline" />
+                              )}
+                            </td>
+                            <td className="px-4 py-3 font-medium text-gray-900">{mouvement.description}</td>
+                            <td className="px-4 py-3 text-gray-600">{mouvement.categorie}</td>
+                            <td className="px-4 py-3 text-gray-600">{mouvement.reference || '-'}</td>
+                            <td className={`px-4 py-3 font-semibold ${mouvement.type === 'entree' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                              {mouvement.type === 'entree' ? '+' : '-'}{mouvement.montant.toLocaleString()} FCFA
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <Button variant="ghost" size="sm" onClick={() => handleSupprimerMouvement(mouvement.id)} className="text-red-600 hover:text-red-800 hover:bg-red-50">
+                                Supprimer
                               </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
 
             {activeSection === "comptes" && (
-              <Card className="rounded-2xl border-slate-200 shadow-sm overflow-hidden">
-                <CardHeader className="border-b border-slate-100 bg-slate-50/80">
-                  <div className="flex justify-between items-center gap-3 flex-wrap">
-                    <div>
-                      <CardTitle>Comptes Généraux</CardTitle>
-                      <CardDescription>Plan comptable et gestion des comptes</CardDescription>
-                    </div>
-                    <Button onClick={() => setShowAddModal(true)} className="rounded-xl">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Nouveau Compte
-                    </Button>
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                  <div>
+                    <h1 className="text-xl font-semibold text-gray-900 uppercase">Comptabilité</h1>
+                    <p className="text-sm text-gray-500 mt-1">Plan comptable et soldes des comptes</p>
                   </div>
-                </CardHeader>
-                <CardContent className="p-5">
-                  <div className="space-y-4">
-                    {comptesRacines.map((compte) => (
-                      <div key={compte.id} className="border border-slate-200 rounded-2xl p-4 bg-white">
-                        <div className="flex justify-between items-center mb-2">
-                          <div className="flex items-center gap-3">
-                            <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">{compte.numero}</span>
-                            <span className="font-semibold">{compte.nom}</span>
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              compte.type === 'actif' ? 'bg-green-100 text-green-800' :
-                              compte.type === 'passif' ? 'bg-red-100 text-red-800' :
-                              compte.type === 'charge' ? 'bg-orange-100 text-orange-800' :
-                              'bg-blue-100 text-blue-800'
-                            }`}>
-                              {compte.type}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono">{compte.solde.toLocaleString()} FCFA</span>
-                            <Button variant="ghost" size="sm" onClick={() => handleSupprimerCompte(compte.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        {comptes.filter(c => c.parentId === compte.id).map((sousCompte) => (
-                          <div key={sousCompte.id} className="ml-6 mt-2 p-2 bg-slate-50 rounded-xl border border-slate-200">
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-xs bg-gray-200 px-2 py-1 rounded">{sousCompte.numero}</span>
-                                <span className="text-sm">{sousCompte.nom}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-sm">{sousCompte.solde.toLocaleString()} FCFA</span>
-                                <Button variant="ghost" size="sm" onClick={() => handleSupprimerCompte(sousCompte.id)}>
+                  <Button onClick={() => setShowAddModal(true)} className="rounded bg-gray-900 text-white hover:bg-gray-800">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nouveau Compte
+                  </Button>
+                </div>
+
+                <div className="border border-gray-200 rounded bg-white overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-3 font-medium text-gray-700">Numéro</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Nom du compte</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Type</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Hiérarchie</th>
+                        <th className="px-4 py-3 font-medium text-gray-700 text-right">Solde</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {comptes.length === 0 ? (
+                        <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">Aucun compte trouvé dans le plan comptable.</td></tr>
+                      ) : (
+                        [...comptes].sort((a, b) => a.numero.localeCompare(b.numero)).map((compte) => {
+                          const parent = compte.parentId ? comptes.find(c => c.id === compte.parentId) : null;
+                          return (
+                            <tr key={compte.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 font-mono text-gray-900">{compte.numero}</td>
+                              <td className={`px-4 py-3 font-medium text-gray-900 ${compte.parentId ? 'pl-8' : ''}`}>{compte.nom}</td>
+                              <td className="px-4 py-3 capitalize text-gray-600">{compte.type}</td>
+                              <td className="px-4 py-3 text-gray-500 text-xs">{parent ? `Sous-compte de ${parent.numero}` : 'Compte racine'}</td>
+                              <td className="px-4 py-3 text-right font-mono text-gray-900">{compte.solde.toLocaleString()} FCFA</td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <Button variant="ghost" size="sm" onClick={() => handleSupprimerCompte(compte.id)} className="text-red-600 hover:text-red-800 hover:bg-red-50">
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                              </td>
+                            </tr>
+                          )
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
 
             {activeSection === "paie" && (
-              <Card className="rounded-2xl border-slate-200 shadow-sm overflow-hidden">
-                <CardHeader className="border-b border-slate-100 bg-slate-50/80">
+              <div className="border border-gray-200 bg-white">
+                <div className="border-b border-gray-200 px-4 py-3 bg-gray-50">
                   <div className="flex justify-between items-center gap-3 flex-wrap">
                     <div>
-                      <CardTitle>Gestion de la Paie</CardTitle>
-                      <CardDescription>Salaires et fiches de paie</CardDescription>
+                      <h2 className="text-lg font-semibold text-gray-900">Gestion de la Paie</h2>
+                      <p className="text-sm text-gray-500 mt-1">Salaires et fiches de paie</p>
                     </div>
-                    <Button onClick={() => setShowAddEmployeeModal(true)} className="rounded-xl">
+                    <Button onClick={() => setShowAddEmployeeModal(true)} className="rounded">
                       <Plus className="h-4 w-4 mr-2" />
                       Nouvel Employé
                     </Button>
                   </div>
-                </CardHeader>
-                <CardContent className="p-5">
+                </div>
+                <div className="p-4">
                   <div className="space-y-6">
                     {/* Liste des employés */}
                     <div>
@@ -912,7 +849,7 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
                           <p className="text-gray-500 text-center py-4">Aucun employé enregistré</p>
                         ) : (
                           employes.map((employe) => (
-                            <div key={employe.id} className="border border-slate-200 rounded-2xl p-4 flex justify-between items-center bg-white">
+                            <div key={employe.id} className="border border-slate-200 rounded p-4 flex justify-between items-center bg-white">
                               <div>
                                 <p className="font-semibold">{employe.prenom} {employe.nom}</p>
                                 <p className="text-sm text-gray-600">{employe.poste}</p>
@@ -956,7 +893,7 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
                           fichesPaie.slice(-5).reverse().map((fiche) => {
                             const employe = employes.find(e => e.id === fiche.employeId)
                             return (
-                              <div key={fiche.id} className="border border-slate-200 rounded-2xl p-4 flex justify-between items-center bg-white">
+                              <div key={fiche.id} className="border border-slate-200 rounded p-4 flex justify-between items-center bg-white">
                                 <div>
                                   <p className="font-semibold">{employe ? `${employe.prenom} ${employe.nom}` : 'Employé inconnu'}</p>
                                   <p className="text-sm text-gray-600">
@@ -980,105 +917,104 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
 
             {activeSection === "depenses" && (
-              <Card className="rounded-2xl border-slate-200 shadow-sm overflow-hidden">
-                <CardHeader className="border-b border-slate-100 bg-slate-50/80">
-                  <div className="flex justify-between items-center gap-3 flex-wrap">
-                    <div>
-                      <CardTitle>Autres Dépenses</CardTitle>
-                      <CardDescription>Dépenses opérationnelles</CardDescription>
-                    </div>
-                    <Button onClick={() => setShowAddDepenseModal(true)} className="rounded-xl">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Nouvelle Dépense
-                    </Button>
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                  <div>
+                    <h1 className="text-xl font-semibold text-gray-900 uppercase">Dépenses</h1>
+                    <p className="text-sm text-gray-500 mt-1">Dépenses opérationnelles de l'établissement</p>
                   </div>
-                </CardHeader>
-                <CardContent className="p-5">
-                  <div className="space-y-6">
-                    {/* Résumé par catégorie */}
-                    <div>
-                      <h3 className="font-semibold mb-3">Résumé par Catégorie (Ce mois)</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {categoriesDepenses.slice(0, 6).map((categorie) => {
-                          const total = serviceDepenses.calculerBudgetUtilise(categorie.id, new Date().getFullYear(), new Date().getMonth() + 1)
-                          return (
-                            <div key={categorie.id} className="border border-slate-200 rounded-2xl p-3 bg-white">
-                              <p className="text-sm font-medium">{categorie.nom}</p>
-                              <p className="text-lg font-bold">{total.toLocaleString()} FCFA</p>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
+                  <Button onClick={() => setShowAddDepenseModal(true)} className="rounded bg-gray-900 text-white hover:bg-gray-800">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nouvelle dépense
+                  </Button>
+                </div>
 
-                    {/* Liste des dépenses récentes */}
-                    <div>
-                      <h3 className="font-semibold mb-3">Dépenses Récentes</h3>
-                      <div className="space-y-2">
-                        {depenses.length === 0 ? (
-                          <p className="text-gray-500 text-center py-4">Aucune dépense enregistrée</p>
-                        ) : (
-                          depenses.slice(-10).reverse().map((depense) => {
-                            const categorie = categoriesDepenses.find(c => c.id === depense.categorieId)
-                            return (
-                              <div key={depense.id} className="border border-slate-200 rounded-2xl p-4 flex justify-between items-center bg-white">
-                                <div>
-                                  <p className="font-semibold">{depense.nom}</p>
-                                  <p className="text-sm text-gray-600">{categorie?.nom || 'Catégorie inconnue'}</p>
-                                  <p className="text-xs text-gray-500">{new Date(depense.date).toLocaleDateString()}</p>
-                                  {depense.fournisseur && <p className="text-xs text-gray-500">Fournisseur: {depense.fournisseur}</p>}
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-semibold">{depense.montant.toLocaleString()} FCFA</p>
-                                  <div className="flex gap-1 mt-1">
-                                    <span className={`text-xs px-2 py-1 rounded ${
-                                      depense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800' :
-                                      depense.statut === 'validee' ? 'bg-blue-100 text-blue-800' :
-                                      'bg-green-100 text-green-800'
-                                    }`}>
-                                      {depense.statut}
-                                    </span>
-                                    {depense.statut === 'en_attente' && (
-                                      <Button variant="ghost" size="sm" onClick={() => handleValiderDepense(depense.id)}>
-                                        Valider
-                                      </Button>
-                                    )}
-                                    {depense.statut === 'validee' && (
-                                      <Button variant="ghost" size="sm" onClick={() => handleMarquerPayee(depense.id)}>
-                                        Payer
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )
-                          })
-                        )}
-                      </div>
-                    </div>
+                <div className="flex flex-wrap gap-3">
+                  <div className="relative min-w-[250px] flex-1">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Input disabled placeholder="Rechercher une dépense..." className="pl-9 bg-white border-gray-300 rounded" />
                   </div>
-                </CardContent>
-              </Card>
+                  <Button variant="outline" className="rounded">
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filtrer
+                  </Button>
+                </div>
+
+                <div className="border border-gray-200 rounded bg-white overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-3 font-medium text-gray-700">Date</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Libellé</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Catégorie</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Fournisseur</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Montant</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Statut</th>
+                        <th className="px-4 py-3 font-medium text-gray-700">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {depenses.length === 0 ? (
+                        <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">Aucune dépense enregistrée.</td></tr>
+                      ) : (
+                        depenses.slice().reverse().map((depense) => {
+                          const categorie = categoriesDepenses.find(c => c.id === depense.categorieId)
+                          return (
+                            <tr key={depense.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 whitespace-nowrap">{new Date(depense.date).toLocaleDateString('fr-FR')}</td>
+                              <td className="px-4 py-3 font-medium text-gray-900">{depense.nom}</td>
+                              <td className="px-4 py-3 text-gray-600">{categorie?.nom || '-'}</td>
+                              <td className="px-4 py-3 text-gray-600">{depense.fournisseur || '-'}</td>
+                              <td className="px-4 py-3 font-semibold text-gray-900">{depense.montant.toLocaleString()} FCFA</td>
+                              <td className="px-4 py-3">
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  depense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800' :
+                                  depense.statut === 'validee' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-green-100 text-green-800'
+                                }`}>
+                                  {depense.statut}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {depense.statut === 'en_attente' && (
+                                  <Button variant="ghost" size="sm" onClick={() => handleValiderDepense(depense.id)} className="text-blue-600 hover:text-blue-800 hover:bg-blue-50">
+                                    Valider
+                                  </Button>
+                                )}
+                                {depense.statut === 'validee' && (
+                                  <Button variant="ghost" size="sm" onClick={() => handleMarquerPayee(depense.id)} className="text-green-600 hover:text-green-800 hover:bg-green-50">
+                                    Payer
+                                  </Button>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
 
             {activeSection === "rapports" && (
-              <Card className="rounded-2xl border-slate-200 shadow-sm overflow-hidden">
-                <CardHeader className="border-b border-slate-100 bg-slate-50/80">
-                  <CardTitle>Rapports Financiers</CardTitle>
-                  <CardDescription>Bilan et comptes de résultat</CardDescription>
-                </CardHeader>
-                <CardContent className="p-5">
+              <div className="border border-gray-200 bg-white">
+                <div className="border-b border-gray-200 px-4 py-3 bg-gray-50">
+                  <h2 className="text-lg font-semibold text-gray-900">Rapports Financiers</h2>
+                  <p className="text-sm text-gray-500 mt-1">Bilan et comptes de résultat</p>
+                </div>
+                <div className="p-4">
                   <div className="space-y-6">
                     {/* Bilan */}
                     <div>
                       <h3 className="font-semibold mb-3">Bilan</h3>
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="border rounded-lg p-4">
+                        <div className="border rounded p-4">
                           <h4 className="font-medium mb-2 text-green-700">Actif</h4>
                           <div className="space-y-2">
                             {comptes.filter(c => c.type === 'actif').map((compte) => (
@@ -1095,7 +1031,7 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
                             </div>
                           </div>
                         </div>
-                        <div className="border rounded-lg p-4">
+                        <div className="border rounded p-4">
                           <h4 className="font-medium mb-2 text-red-700">Passif</h4>
                           <div className="space-y-2">
                             {comptes.filter(c => c.type === 'passif').map((compte) => (
@@ -1123,7 +1059,7 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
                           <p className="text-sm text-gray-500">Aucune statistique par catégorie disponible.</p>
                         ) : (
                           statistiquesParCategorie.map((stat) => (
-                            <div key={stat.categorie} className="border border-slate-200 rounded-2xl p-3 flex items-center justify-between bg-white">
+                            <div key={stat.categorie} className="border border-slate-200 rounded p-3 flex items-center justify-between bg-white">
                               <div>
                                 <p className="font-medium">{stat.categorie}</p>
                                 <p className="text-xs text-gray-500">Entrées: {stat.entrees.toLocaleString()} FCFA • Sorties: {stat.sorties.toLocaleString()} FCFA</p>
@@ -1140,7 +1076,7 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
                     <div>
                       <h3 className="font-semibold mb-3">Compte de Résultat</h3>
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="border rounded-lg p-4">
+                        <div className="border rounded p-4">
                           <h4 className="font-medium mb-2 text-blue-700">Recettes scolaires</h4>
                           <div className="space-y-2">
                             {comptes.filter(c => c.type === 'produit').map((compte) => (
@@ -1157,7 +1093,7 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
                             </div>
                           </div>
                         </div>
-                        <div className="border rounded-lg p-4">
+                        <div className="border rounded p-4">
                           <h4 className="font-medium mb-2 text-orange-700">Charges</h4>
                           <div className="space-y-2">
                             {comptes.filter(c => c.type === 'charge').map((compte) => (
@@ -1175,7 +1111,7 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
                           </div>
                         </div>
                       </div>
-                      <div className={`mt-4 p-4 rounded-lg border ${resultatNet >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                      <div className={`mt-4 p-4 rounded border ${resultatNet >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
                         <div className="flex justify-between items-center">
                           <span className="font-semibold">Résultat Net</span>
                           <span className={`text-xl font-bold ${resultatNet >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -1189,15 +1125,15 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
                     <div>
                       <h3 className="font-semibold mb-3">Résumé Mensuel</h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div className="border border-slate-200 rounded-2xl p-4 bg-white">
+                        <div className="border border-slate-200 rounded p-4 bg-white">
                           <p className="text-sm text-gray-600">Recettes du mois</p>
                           <p className="text-xl font-bold text-green-600">{soldeProduits.toLocaleString()} FCFA</p>
                         </div>
-                        <div className="border rounded-lg p-4">
+                        <div className="border rounded p-4">
                           <p className="text-sm text-gray-600">Dépenses du mois</p>
                           <p className="text-xl font-bold text-red-600">{soldeCharges.toLocaleString()} FCFA</p>
                         </div>
-                        <div className="border rounded-lg p-4">
+                        <div className="border rounded p-4">
                           <p className="text-sm text-gray-600">Solde</p>
                           <p className={`text-xl font-bold ${resultatNet >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {resultatNet.toLocaleString()} FCFA
@@ -1207,7 +1143,7 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
 
                       <div className="space-y-2">
                         {statistiquesMensuelles.slice(0, 6).map((stat) => (
-                          <div key={stat.mois} className="flex items-center justify-between border border-slate-200 rounded-2xl px-3 py-2 bg-white">
+                          <div key={stat.mois} className="flex items-center justify-between border border-slate-200 rounded px-3 py-2 bg-white">
                             <span className="text-sm font-medium">{stat.mois}</span>
                             <div className="flex items-center gap-4 text-sm">
                               <span className="text-green-600">Entrées: {stat.entrees.toLocaleString()} FCFA</span>
@@ -1233,8 +1169,8 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
                       </Button>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -1242,7 +1178,7 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
         {/* Modal d'ajout de compte */}
         {showAddModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="bg-white rounded max-w-md w-full p-6">
               <h3 className="text-lg font-bold mb-4">Nouveau Compte</h3>
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -1316,7 +1252,7 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
         {/* Modal d'ajout de mouvement */}
         {showAddMouvementModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="bg-white rounded max-w-md w-full p-6">
               <h3 className="text-lg font-bold mb-4">Nouveau Mouvement Financier</h3>
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -1393,7 +1329,7 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
         {/* Modal d'ajout d'employé */}
         {showAddEmployeeModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="bg-white rounded max-w-md w-full p-6">
               <h3 className="text-lg font-bold mb-4">Nouvel Employé</h3>
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -1496,7 +1432,7 @@ export function FinanceModule({ activeSection }: { activeSection: string }) {
         {/* Modal d'ajout de dépense */}
         {showAddDepenseModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="bg-white rounded max-w-md w-full p-6">
               <h3 className="text-lg font-bold mb-4">Nouvelle Dépense</h3>
               <div className="space-y-4">
                 <div className="space-y-2">

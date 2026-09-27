@@ -34,13 +34,11 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
   {section:"Pédagogie",items:[{href:"/ecole/classes",label:"Classes",icon:GraduationCap,permission:"classes.view"},{href:"/ecole/emploi-du-temps",label:"Emploi du temps",icon:CalendarDays,permission:"timetable.view"},{href:"/ecole/registre-appel",label:"Présences",icon:CheckSquare,permission:"attendance.view"},{href:"/ecole/matieres",label:"Matières",icon:BookOpen,permission:"subjects.view"},{href:"/ecole/evaluation",label:"Évaluation",icon:ClipboardList,permission:"grades.view"},{href:"/ecole/options",label:"Options",icon:Wrench,permission:"settings.view"}]},
   {section:"Personnel",items:[{href:"/ecole/enseignants",label:"Enseignants",icon:UserRound,permission:"staff.view"},{href:"/ecole/personnel",label:"Personnel & paie",icon:Users,permission:"staff.view"},{href:"/ecole/etat-salaire",label:"État salaire",icon:Banknote,permission:"staff.view"},{href:"/ecole/heures-vacataires",label:"Heures vacataires",icon:Timer,permission:"staff.view"}]},
   {section:"Finance",items:[
-  {href:"/ecole/finance/tableau-bord",label:"Tableau de bord",icon:TrendingUp,permission:"finance.view"},
-  {href:"/ecole/finance/frais-scolaires",label:"Frais scolaires",icon:GraduationCap,permission:"finance.view"},
-  {href:"/ecole/finance/paiements",label:"Paiements",icon:CreditCard,permission:"finance.view"},
-  {href:"/ecole/finance/facturation",label:"Facturation",icon:Receipt,permission:"finance.view"},
+  {href:"/ecole/finance/tableau-bord",label:"Vue d'ensemble",icon:TrendingUp,permission:"finance.view"},
+  {href:"/ecole/finance/caisse",label:"Mouvements",icon:Layers,permission:"finance.view"},
+  {href:"/ecole/finance/paiements",label:"Scolarité",icon:CreditCard,permission:"finance.view"},
   {href:"/ecole/finance/depenses",label:"Dépenses",icon:FileText,permission:"finance.view"},
-  {href:"/ecole/finance/caisse",label:"Caisse",icon:Layers,permission:"finance.view"},
-  {href:"/ecole/finance/comptabilite",label:"Comptabilité",icon:Wallet,permission:"finance.view"},
+  {href:"/ecole/finance/paie",label:"Paie",icon:Banknote,permission:"finance.view"},
   {href:"/ecole/finance/rapports",label:"Rapports",icon:BarChart3,permission:"finance.view"}
 ]},
   {section:"Administration",items:[{href:"/ecole/archivage",label:"Archivage",icon:Archive,permission:"documents.view"},{href:"/ecole/documents",label:"Documents",icon:FileText,permission:"documents.view"},{href:"/ecole/demandes",label:"Demandes des parents",icon:Inbox,permission:"documents.view"}]},

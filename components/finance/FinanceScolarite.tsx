@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { financeService } from "@/lib/supabase/services/finance.service"
 import type { FinanceStudentPaymentBoardRow } from "@/lib/supabase/types"
-import { useAuth } from "@/contexts/AuthContext"
+import { useUserContext } from "@/hooks/useUserContext"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,8 +11,8 @@ import { Input } from "@/components/ui/input"
 import { PaymentModal } from "./PaymentModal"
 
 export function FinanceScolarite() {
-  const { user } = useAuth()
-  const establishmentId = user?.user_metadata?.establishment_id
+  const { etablissementActif } = useUserContext()
+  const establishmentId = etablissementActif?.id
   const { selectedYear: academicYear, isLoading: isYearLoading } = useAcademicYears(establishmentId)
 
   const [boardRows, setBoardRows] = useState<(FinanceStudentPaymentBoardRow & { student?: any, class?: any })[]>([])

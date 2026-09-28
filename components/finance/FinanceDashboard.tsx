@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react"
 import { financeService } from "@/lib/supabase/services/finance.service"
 import type { FinancePaymentSummary, FinanceMovementSummary } from "@/lib/supabase/types"
-import { useAuth } from "@/contexts/AuthContext"
+import { useUserContext } from "@/hooks/useUserContext"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 
 export function FinanceDashboard() {
-  const { user } = useAuth()
-  const establishmentId = user?.user_metadata?.establishment_id
+  const { etablissementActif } = useUserContext()
+  const establishmentId = etablissementActif?.id
   const { selectedYear: academicYear, isLoading: isYearLoading } = useAcademicYears(establishmentId)
 
   const [paymentSummary, setPaymentSummary] = useState<FinancePaymentSummary | null>(null)

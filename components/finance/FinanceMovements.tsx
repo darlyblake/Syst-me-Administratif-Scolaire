@@ -3,13 +3,13 @@
 import { useState, useEffect } from "react"
 import { financeService } from "@/lib/supabase/services/finance.service"
 import type { FinanceMovementRow } from "@/lib/supabase/types"
-import { useAuth } from "@/contexts/AuthContext"
+import { useUserContext } from "@/hooks/useUserContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 export function FinanceMovements() {
-  const { user } = useAuth()
-  const establishmentId = user?.user_metadata?.establishment_id
+  const { etablissementActif } = useUserContext()
+  const establishmentId = etablissementActif?.id
 
   const [movements, setMovements] = useState<FinanceMovementRow[]>([])
   const [loading, setLoading] = useState(true)

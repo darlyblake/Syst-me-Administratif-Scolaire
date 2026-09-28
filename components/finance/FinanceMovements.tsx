@@ -53,11 +53,11 @@ export function FinanceMovements() {
         </div>
       </div>
 
-      <div className="flex gap-4 mb-4">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 w-full">
         <select 
           value={directionFilter} 
           onChange={(e) => setDirectionFilter(e.target.value as any)}
-          className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
+          className="w-full sm:w-auto border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
         >
           <option value="">Tous les types</option>
           <option value="in">Entrées (Encaissements)</option>
@@ -67,7 +67,7 @@ export function FinanceMovements() {
           type="date" 
           value={dateFrom} 
           onChange={(e) => setDateFrom(e.target.value)} 
-          className="w-auto rounded bg-white" 
+          className="w-full sm:w-auto rounded bg-white" 
           placeholder="Du"
         />
         <Input 

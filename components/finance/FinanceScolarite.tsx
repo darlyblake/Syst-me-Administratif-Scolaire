@@ -546,7 +546,7 @@ export function FinanceScolarite() {
   )
 
   return (
-    <div className="space-y-5">
+    <div className="-mx-1 w-[calc(100%+0.5rem)] space-y-5 sm:mx-0 sm:w-full">
       <div>
         <h1 className="text-xl font-semibold text-gray-900">Scolarité</h1>
         <p className="mt-1 text-sm text-gray-500">
@@ -576,7 +576,7 @@ export function FinanceScolarite() {
           Aucune échéance trouvée.
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {studentsByClass.map((group) => renderTable(group.name, group.students))}
         </div>
       )}

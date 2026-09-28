@@ -592,7 +592,11 @@ export default function NouvelleInscriptionModal({
                 {(selectedPlan.payment_mode === "monthly" || selectedPlan.payment_mode === "installments") && (
                   <>
                     {installments.length === 0 ? (
-                      <p className="text-xs text-slate-500">Aucune échéance configurée pour ce forfait.</p>
+                      <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                        {selectedPlan.payment_mode === "monthly"
+                          ? "Ce plan mensuel n'a pas encore d'échéances générées. Les échéances sont créées automatiquement lors de l'inscription."
+                          : "Aucune échéance configurée pour ce plan. Configurez les tranches dans Paramètres → Scolarité."}
+                      </p>
                     ) : (
                       <div className="border rounded divide-y text-sm">
                         {installments.map((inst) => (

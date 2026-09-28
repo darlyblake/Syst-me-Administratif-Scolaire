@@ -61,13 +61,13 @@ interface TuitionModalProps {
   onSaved: () => Promise<void>
   levelId: string
   levelLabel: string
-  academicYearId: string
+  academicYear: import("@/lib/supabase/types").AcademicYear
   establishmentId: string
   existingPlan: TuitionPlanWithInstallments | null
   defaultRegistrationFee: number
 }
 
-function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYearId, establishmentId, existingPlan, defaultRegistrationFee }: TuitionModalProps) {
+function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYear, establishmentId, existingPlan, defaultRegistrationFee }: TuitionModalProps) {
   const [annualAmount, setAnnualAmount] = useState(existingPlan?.annual_tuition ?? 0)
   const [paymentMode, setPaymentMode] = useState<PaymentMode>(existingPlan?.payment_mode ?? "monthly")
   const [installments, setInstallments] = useState<InstallmentState[]>(
@@ -93,28 +93,15 @@ function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYea
     if (paymentMode === "installments" && !amountsMatch) { setError("Le total des tranches doit correspondre au montant annuel."); return }
     setIsSaving(true); setError(null)
     try {
-      let computedInstallmentCount = 1
-      if (paymentMode === "single") {
-        computedInstallmentCount = 1
-      } else if (paymentMode === "monthly") {
-        computedInstallmentCount = 12
-      } else if (paymentMode === "installments") {
-        computedInstallmentCount = installments.length
-        if (!computedInstallmentCount || computedInstallmentCount <= 0 || isNaN(computedInstallmentCount)) {
-          setError("Le nombre de tranches est invalide.")
-          setIsSaving(false)
-          return
-        }
-      }
-
       const payload = {
         establishment_id: establishmentId,
-        academic_year_id: academicYearId,
+        academic_year_id: academicYear.id,
         grade_level_id: levelId,
         payment_mode: paymentMode,
         annual_tuition: annualAmount,
         registration_fee: existingPlan?.registration_fee ?? defaultRegistrationFee,
-        installment_count: computedInstallmentCount,
+        billing_start_date: academicYear.start_date,
+        billing_end_date: academicYear.end_date,
         installments: paymentMode === "installments" ? installments.map((inst, idx) => ({ ...inst, installment_number: idx + 1 })) : [],
       }
       if (existingPlan) { await updateTuitionPlan(existingPlan.id, payload) } else { await createTuitionPlan(payload) }
@@ -150,6 +137,16 @@ function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYea
               ))}
             </RadioGroup>
           </div>
+          {paymentMode === "monthly" && (
+            <div className="space-y-2 border-t pt-4">
+              <p className="text-sm font-medium">Période de facturation</p>
+              <div className="bg-blue-50 text-blue-700 text-sm rounded px-3 py-2">
+                Les échéances seront générées automatiquement par le système sur la période de l'année scolaire :
+                <br/>
+                <strong>{academicYear.start_date ? new Date(academicYear.start_date).toLocaleDateString("fr-FR") : "Non définie"}</strong> au <strong>{academicYear.end_date ? new Date(academicYear.end_date).toLocaleDateString("fr-FR") : "Non définie"}</strong>.
+              </div>
+            </div>
+          )}
           {paymentMode === "installments" && (
             <div className="space-y-3 border-t pt-4">
               <div className="flex items-end gap-2">
@@ -275,7 +272,11 @@ export default function ScolariteSettingsPage() {
                         {plan ? (
                           <p className="text-xs text-gray-500 mt-0.5">
                             {formatFCFA(plan.annual_tuition)} / an · {MODE_LABELS[plan.payment_mode]}
-                            {plan.payment_mode === "installments" && plan.installment_count ? ` (${plan.installment_count} tranches)` : ""}
+                            {plan.payment_mode === "monthly" && plan.installments && plan.installments.length > 0
+                              ? ` · ${plan.installments.length} mensualités de ${formatFCFA(plan.installments[0].amount)}`
+                              : plan.payment_mode === "installments" && plan.installment_count
+                              ? ` · ${plan.installment_count} tranche(s)`
+                              : ""}
                           </p>
                         ) : (
                           <p className="text-xs text-gray-400 italic mt-0.5">Tarif non configuré</p>
@@ -293,15 +294,15 @@ export default function ScolariteSettingsPage() {
         )}
       </div>
 
-      {modalState.open && (
+      {modalState.open && (selectedYear || activeYear) && (
         <TuitionModal
           open={modalState.open}
           onClose={() => setModalState((s) => ({ ...s, open: false }))}
           onSaved={refresh}
           levelId={modalState.levelId}
           levelLabel={modalState.levelLabel}
-          academicYearId={academicYearId}
-          establishmentId={establishmentId}
+          academicYear={(selectedYear || activeYear)!}
+          establishmentId={establishmentId!}
           existingPlan={modalState.existingPlan}
           defaultRegistrationFee={settings?.registration_fee || 0}
         />

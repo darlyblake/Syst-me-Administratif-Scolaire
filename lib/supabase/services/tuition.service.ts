@@ -54,82 +54,95 @@ export async function getTuitionPlan(academicYearId: string, gradeLevelId: strin
 }
 
 export async function createTuitionPlan(data: TuitionPlanPayload): Promise<TuitionPlan> {
-  const { installments, ...planData } = data
-
-  const { data: plan, error: planError } = await supabaseBrowser
-    .from("tuition_plans")
-    .insert(planData)
-    .select()
-    .single()
-
-  if (planError) throw new Error("Impossible d’enregistrer le tarif.")
-
-  if (installments && installments.length > 0) {
-    const rows = installments.map((installment) => ({
-      ...installment,
-      tuition_plan_id: plan.id,
-      due_date: installment.due_date ?? null,
-    }))
-
-    const { error: installmentError } = await supabaseBrowser.from("tuition_plan_installments").insert(rows)
-
-    if (installmentError) {
-      throw new Error("Impossible d’enregistrer les échéances.")
+  let percentageSumCreate = 0;
+  const schedule = data.installments?.map((inst, idx, arr) => {
+    let p = inst.percentage;
+    if (!p) {
+      if (idx === arr.length - 1) {
+        p = 100 - percentageSumCreate;
+      } else {
+        p = inst.amount && data.annual_tuition ? Math.round((inst.amount / data.annual_tuition) * 100) : 0;
+      }
     }
+    percentageSumCreate += p;
+    return {
+      label: inst.label,
+      percentage: p,
+      due_date: inst.due_date ?? null
+    }
+  }) ?? []
+
+  let planError = null;
+  let plan = null;
+
+  if (data.payment_mode === "installments") {
+    const res = await supabaseBrowser.rpc("create_tuition_plan_server_validated", {
+      p_establishment_id: data.establishment_id!,
+      p_academic_year_id: data.academic_year_id!,
+      p_grade_level_id: data.grade_level_id!,
+      p_name: data.name ?? "Scolarité",
+      p_annual_tuition: data.annual_tuition!,
+      p_payment_mode: data.payment_mode,
+      p_schedule: schedule,
+      p_billing_start_date: data.billing_start_date ?? null,
+      p_billing_end_date: data.billing_end_date ?? null,
+      p_enrollment_payment_priority: data.enrollment_payment_priority ?? 1,
+    })
+    plan = res.data;
+    planError = res.error;
+  } else {
+    // Mode mensuel ou unique
+    const res = await supabaseBrowser.rpc("create_tuition_plan", {
+      p_establishment_id: data.establishment_id!,
+      p_academic_year_id: data.academic_year_id!,
+      p_grade_level_id: data.grade_level_id!,
+      p_name: data.name ?? "Scolarité",
+      p_registration_fee: data.registration_fee ?? 0,
+      p_annual_tuition: data.annual_tuition!,
+      p_payment_mode: data.payment_mode!,
+      p_installment_count: data.payment_mode === "single" ? 1 : null // null lets the backend generate based on dates or fallback
+    })
+    plan = res.data;
+    planError = res.error;
   }
 
+  if (planError) throw new Error("Impossible d’enregistrer le tarif. " + planError.message)
   return plan as TuitionPlan
 }
 
 export async function updateTuitionPlan(planId: string, data: TuitionPlanPayload): Promise<TuitionPlan> {
-  const { installments, ...planData } = data
-
-  const { data: plan, error: planError } = await supabaseBrowser
-    .from("tuition_plans")
-    .update(planData)
-    .eq("id", planId)
-    .select()
-    .single()
-
-  if (planError) throw new Error("Impossible de modifier le tarif.")
-
-  if (installments) {
-    // Récupérer les tranches existantes pour identifier celles à supprimer
-    const { data: existingInstallments } = await supabaseBrowser
-      .from("tuition_plan_installments")
-      .select("id")
-      .eq("tuition_plan_id", planId)
-
-    const rows = installments.map((installment) => ({
-      ...installment,
-      tuition_plan_id: planId,
-      due_date: installment.due_date ?? null,
-    }))
-
-    if (rows.length > 0) {
-      const { error: installmentError } = await supabaseBrowser.from("tuition_plan_installments").upsert(rows, {
-        onConflict: "id",
-      })
-
-      if (installmentError) {
-        throw new Error("Impossible de synchroniser les échéances.")
+  let percentageSumUpdate = 0;
+  const schedule = data.installments?.map((inst, idx, arr) => {
+    let p = inst.percentage;
+    if (!p) {
+      if (idx === arr.length - 1) {
+        p = 100 - percentageSumUpdate;
+      } else {
+        p = inst.amount && data.annual_tuition ? Math.round((inst.amount / data.annual_tuition) * 100) : 0;
       }
     }
-
-    // Supprimer les échéances qui ne sont plus dans le payload
-    if (existingInstallments) {
-      const incomingIds = rows.map((r) => r.id).filter(Boolean)
-      const toDelete = existingInstallments.map((i) => i.id).filter((id) => !incomingIds.includes(id as string))
-      
-      if (toDelete.length > 0) {
-        await supabaseBrowser.from("tuition_plan_installments").delete().in("id", toDelete)
-      }
+    percentageSumUpdate += p;
+    return {
+      label: inst.label,
+      percentage: p,
+      due_date: inst.due_date ?? null
     }
-  } else if (planData.payment_mode !== "installments") {
-     // Si on passe en mode mensuel ou unique, on supprime toutes les tranches existantes
-     await supabaseBrowser.from("tuition_plan_installments").delete().eq("tuition_plan_id", planId)
-  }
+  }) ?? []
 
+  const { data: plan, error: planError } = await supabaseBrowser.rpc("update_tuition_plan_server_validated", {
+    p_tuition_plan_id: planId,
+    p_name: data.name ?? "Scolarité",
+    p_registration_fee: data.registration_fee ?? 0,
+    p_annual_tuition: data.annual_tuition!,
+    p_payment_mode: data.payment_mode!,
+    p_schedule: schedule,
+    p_billing_start_date: data.billing_start_date ?? null,
+    p_billing_end_date: data.billing_end_date ?? null,
+    p_active: data.active ?? true,
+    p_enrollment_payment_priority: data.enrollment_payment_priority ?? 1,
+  })
+
+  if (planError) throw new Error("Impossible de modifier le tarif. " + planError.message)
   return plan as TuitionPlan
 }
 

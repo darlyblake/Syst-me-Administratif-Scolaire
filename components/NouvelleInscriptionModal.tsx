@@ -90,6 +90,7 @@ export default function NouvelleInscriptionModal({
 
   // ─── Paiement ───────────────────────────────────────────────────────────────
   const [selectedInstallmentIds, setSelectedInstallmentIds] = useState<Set<string>>(new Set())
+  const [paySingleTuitionNow, setPaySingleTuitionNow] = useState(false)
 
   // ─── Options ────────────────────────────────────────────────────────────────
   const [availableOptions, setAvailableOptions] = useState<StudentOption[]>([])
@@ -118,9 +119,11 @@ export default function NouvelleInscriptionModal({
       : (selectedPlan?.registration_fee ?? 0)
 
   // Total en temps réel
-  const installmentTotal = installments
-    .filter((i) => selectedInstallmentIds.has(i.id))
-    .reduce((sum, i) => sum + i.amount, 0)
+  const installmentTotal = selectedPlan?.payment_mode === "single"
+    ? (paySingleTuitionNow ? selectedPlan.annual_tuition : 0)
+    : installments
+        .filter((i) => selectedInstallmentIds.has(i.id))
+        .reduce((sum, i) => sum + i.amount, 0)
 
   const optionTotal = availableOptions
     .filter((o) => selectedOptionIds.has(o.id))
@@ -171,12 +174,14 @@ export default function NouvelleInscriptionModal({
     setSelectedLevelId("")
     setSelectedClassId("")
     setSelectedInstallmentIds(new Set())
+    setPaySingleTuitionNow(false)
   }
 
   const handleLevelChange = (levelId: string) => {
     setSelectedLevelId(levelId)
     setSelectedClassId("")
     setSelectedInstallmentIds(new Set())
+    setPaySingleTuitionNow(false)
   }
 
   // ─── Validation par étape ────────────────────────────────────────────────────
@@ -259,6 +264,7 @@ export default function NouvelleInscriptionModal({
         sex,
         phone: parentPhone,
         email: parentEmail,
+        optionIds: Array.from(selectedOptionIds),
       })
 
       if (!result) {
@@ -280,6 +286,7 @@ export default function NouvelleInscriptionModal({
     setParentLastName(""); setParentFirstName(""); setParentPhone(""); setParentEmail(""); setParentAddress("")
     setSelectedCycleId(""); setSelectedLevelId(""); setSelectedClassId("")
     setSelectedInstallmentIds(new Set()); setSelectedOptionIds(new Set())
+    setPaySingleTuitionNow(false)
     setBirthCertificate(null); setMedicalCertificate(null)
     onClose()
   }
@@ -572,10 +579,14 @@ export default function NouvelleInscriptionModal({
                 </p>
 
                 {selectedPlan.payment_mode === "single" && (
-                  <div className="flex justify-between text-sm border rounded px-3 py-2 bg-slate-50">
-                    <span>Scolarité annuelle</span>
+                  <label className="flex items-center gap-3 px-3 py-2 border rounded cursor-pointer hover:bg-slate-50">
+                    <Checkbox
+                      checked={paySingleTuitionNow}
+                      onCheckedChange={(checked) => setPaySingleTuitionNow(!!checked)}
+                    />
+                    <span className="flex-1">Scolarité annuelle complète</span>
                     <span className="font-medium">{fmt(selectedPlan.annual_tuition)}</span>
-                  </div>
+                  </label>
                 )}
 
                 {(selectedPlan.payment_mode === "monthly" || selectedPlan.payment_mode === "installments") && (
@@ -618,11 +629,11 @@ export default function NouvelleInscriptionModal({
               </div>
 
               {/* Options dynamiques */}
-              {isLoadingOptions ? (
-                <p className="text-sm text-slate-500">Chargement des options…</p>
-              ) : availableOptions.length > 0 ? (
-                <div>
-                  <p className="text-sm font-medium mb-2">Options</p>
+              <div>
+                <p className="text-sm font-medium mb-2">Options</p>
+                {isLoadingOptions ? (
+                  <p className="text-sm text-slate-500">Chargement des options…</p>
+                ) : availableOptions.length > 0 ? (
                   <div className="border rounded divide-y text-sm">
                     {availableOptions.map((opt) => (
                       <label key={opt.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50">
@@ -642,8 +653,10 @@ export default function NouvelleInscriptionModal({
                       </label>
                     ))}
                   </div>
-                </div>
-              ) : null}
+                ) : (
+                  <p className="text-xs text-slate-500">Aucune option supplémentaire configurée.</p>
+                )}
+              </div>
 
               {/* Récapitulatif total */}
               <div className="border rounded bg-slate-50">
@@ -653,6 +666,12 @@ export default function NouvelleInscriptionModal({
                     <span>{typeInscription === "reinscription" ? "Frais de réinscription" : "Frais d'inscription"}</span>
                     <span>{fmt(registrationFee)}</span>
                   </div>
+                  {selectedPlan?.payment_mode === "single" && paySingleTuitionNow && (
+                    <div className="flex justify-between py-1.5 text-sm">
+                      <span>Scolarité annuelle complète</span>
+                      <span>{fmt(selectedPlan.annual_tuition)}</span>
+                    </div>
+                  )}
                   {installments.filter((i) => selectedInstallmentIds.has(i.id)).map((i) => (
                     <div key={i.id} className="flex justify-between py-1.5 text-sm">
                       <span>{i.label}</span>
@@ -744,6 +763,12 @@ export default function NouvelleInscriptionModal({
                       <div className="flex justify-between">
                         <span>{typeInscription === "reinscription" ? "Frais de réinscription" : "Frais d'inscription"}</span>
                         <span>{fmt(registrationFee)}</span>
+                      </div>
+                    )}
+                    {selectedPlan?.payment_mode === "single" && paySingleTuitionNow && (
+                      <div className="flex justify-between">
+                        <span>Scolarité annuelle complète</span>
+                        <span>{fmt(selectedPlan.annual_tuition)}</span>
                       </div>
                     )}
                     {installments.filter((i) => selectedInstallmentIds.has(i.id)).map((i) => (

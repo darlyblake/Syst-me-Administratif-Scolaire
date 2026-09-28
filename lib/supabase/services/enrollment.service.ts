@@ -61,6 +61,7 @@ export async function createStudentEnrollmentWithSchedule(data: {
   sex?: string
   phone?: string
   email?: string
+  optionIds?: string[]
 }): Promise<StudentEnrollmentResult> {
   const { data: result, error } = await supabaseBrowser.rpc("create_student_enrollment_with_schedule", {
     p_establishment_id: data.establishmentId,
@@ -76,6 +77,7 @@ export async function createStudentEnrollmentWithSchedule(data: {
     p_sex: data.sex || null,
     p_phone: data.phone || null,
     p_email: data.email || null,
+    p_option_ids: data.optionIds || [],
   })
 
   if (error) throw new Error("Impossible d'enregistrer l'inscription.")

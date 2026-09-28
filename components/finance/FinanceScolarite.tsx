@@ -478,22 +478,27 @@ export function FinanceScolarite() {
 
       {/* Tablette / PC : on conserve le tableau large existant. */}
       <div className="hidden w-full overflow-x-auto overscroll-x-contain md:block">
-        <table className="min-w-[760px] w-full text-sm">
+        <table className="w-full min-w-[760px] table-fixed text-sm">
+          <colgroup>
+            <col className="w-[22%]" />
+            {columns.map((column) => <col key={`col-${column.key}`} />)}
+            <col className="w-[18%]" />
+          </colgroup>
           <thead className="border-b border-gray-200 bg-white">
             <tr>
-              <th className="sticky left-0 z-20 min-w-[180px] border-r border-gray-100 bg-white px-3 py-3 text-left font-medium text-gray-700">
+              <th className="sticky left-0 z-20 border-r border-gray-100 bg-white px-3 py-3 text-left font-medium text-gray-700">
                 Élève
               </th>
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className="min-w-[72px] px-2 py-3 text-center font-medium text-gray-700"
+                  className="px-2 py-3 text-center font-medium text-gray-700"
                   title={`${column.longLabel}${column.due_date ? ` — ${fmtDate(column.due_date)}` : ""}`}
                 >
                   {column.label}
                 </th>
               ))}
-              <th className="min-w-[170px] px-3 py-3 text-left font-medium text-gray-700">État</th>
+              <th className="px-3 py-3 text-left font-medium text-gray-700">État</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">

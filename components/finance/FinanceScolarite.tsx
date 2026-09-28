@@ -546,7 +546,7 @@ export function FinanceScolarite() {
   )
 
   return (
-    <div className="-mx-1 w-[calc(100%+0.5rem)] space-y-5 sm:mx-0 sm:w-full">
+    <div className="w-full space-y-5">
       <div>
         <h1 className="text-xl font-semibold text-gray-900">Scolarité</h1>
         <p className="mt-1 text-sm text-gray-500">

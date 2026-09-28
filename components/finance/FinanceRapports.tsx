@@ -18,8 +18,8 @@ export function FinanceRapports() {
         <div className="border border-gray-200 rounded p-6 bg-white">
           <h3 className="font-semibold text-gray-900 mb-2">Bilan Périodique</h3>
           <p className="text-sm text-gray-500 mb-4">Exportez le résumé de toutes les entrées et sorties sur une période définie.</p>
-          <div className="flex gap-2 mb-4">
-            <Input type="date" className="rounded border-gray-300" />
+          <div className="flex flex-col sm:flex-row gap-2 mb-4">
+            <Input type="date" className="w-full sm:flex-1 rounded border-gray-300" />
             <Input type="date" className="rounded border-gray-300" />
           </div>
           <Button variant="outline" className="w-full rounded border-gray-300">

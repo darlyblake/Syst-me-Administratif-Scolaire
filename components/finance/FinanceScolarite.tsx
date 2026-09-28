@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { CheckCircle2 } from "lucide-react"
+import { CheckCircle2, X } from "lucide-react"
 import { financeService } from "@/lib/supabase/services/finance.service"
 import type { FinancePaymentHistoryRow, FinanceStudentPaymentBoardRow } from "@/lib/supabase/types"
 import { useUserContext } from "@/hooks/useUserContext"
@@ -236,6 +236,11 @@ export function FinanceScolarite() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [selectedStudentForPay, setSelectedStudentForPay] = useState<BoardRow[] | null>(null)
+  const [selectedStudentForDetails, setSelectedStudentForDetails] = useState<{
+    student: any
+    class: any
+    schedules: BoardRow[]
+  } | null>(null)
 
   const reload = async () => {
     if (!establishmentId || !academicYear) return
@@ -495,14 +500,12 @@ export function FinanceScolarite() {
             {students.map((student) => (
               <tr key={student.student?.id || student.enrollment_id} className="hover:bg-gray-50">
                 <td className="sticky left-0 z-10 border-r border-gray-100 bg-white px-3 py-3 font-medium text-gray-900">
-                  <div className="max-w-[180px] truncate">
-                    {student.student ? `${student.student.first_name} ${student.student.last_name}` : "Élève inconnu"}
-                  </div>
-                  {student.student?.student_number && (
-                    <div className="mt-0.5 text-[11px] font-normal text-gray-400">
-                      {student.student.student_number}
+                  <button type="button" className="w-full text-left hover:text-green-700" onClick={() => setSelectedStudentForDetails({ student: student.student, class: student.class, schedules: student.schedules })}>
+                    <div className="max-w-[180px] truncate underline-offset-2 hover:underline">
+                      {student.student ? `${student.student.first_name} ${student.student.last_name}` : "Élève inconnu"}
                     </div>
-                  )}
+                    {student.student?.student_number && <div className="mt-0.5 text-[11px] font-normal text-gray-400">{student.student.student_number}</div>}
+                  </button>
                 </td>
                 {columns.map((column) => {
                   const group = scheduleForColumn(student, column)
@@ -570,6 +573,43 @@ export function FinanceScolarite() {
       ) : (
         <div className="space-y-4">
           {studentsByClass.map((group) => renderTable(group.name, group.students))}
+        </div>
+      )}
+
+
+      {selectedStudentForDetails && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-3 sm:p-6" role="dialog" aria-modal="true">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-gray-200 px-5 py-4">
+              <div><h2 className="text-base font-semibold text-gray-900">\${selectedStudentForDetails.student ? \`\${selectedStudentForDetails.student.first_name} \${selectedStudentForDetails.student.last_name}\` : "Élève"}</h2>
+                <p className="mt-0.5 text-xs text-gray-500">\${selectedStudentForDetails.student?.student_number || "Numéro non renseigné"}\${selectedStudentForDetails.class?.name ? \` · \${selectedStudentForDetails.class.name}\` : ""}</p></div>
+              <button type="button" className="rounded-md p-2 text-gray-400 hover:bg-gray-100" onClick={() => setSelectedStudentForDetails(null)} aria-label="Fermer"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="max-h-[calc(90vh-150px)] overflow-y-auto p-5">
+              <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="rounded-lg border bg-gray-50 p-3"><p className="text-[11px] text-gray-500">Total prévu</p><p className="mt-1 text-sm font-semibold">\${fmt(selectedStudentForDetails.schedules.reduce((sum, s) => sum + Number(s.amount_due || 0), 0))}</p></div>
+                <div className="rounded-lg border bg-gray-50 p-3"><p className="text-[11px] text-gray-500">Total payé</p><p className="mt-1 text-sm font-semibold text-green-700">\${fmt(selectedStudentForDetails.schedules.reduce((sum, s) => sum + Math.max(0, Number(s.amount_due || 0) - Number(s.remaining_amount || 0)), 0))}</p></div>
+                <div className="col-span-2 rounded-lg border bg-gray-50 p-3 sm:col-span-1"><p className="text-[11px] text-gray-500">Reste</p><p className="mt-1 text-sm font-semibold text-red-600">\${fmt(selectedStudentForDetails.schedules.reduce((sum, s) => sum + Number(s.remaining_amount || 0), 0))}</p></div>
+              </div>
+              <div className="overflow-hidden rounded-lg border border-gray-200"><div className="border-b bg-gray-50 px-3 py-2.5 text-xs font-semibold">Échéances et paiements</div>
+                <div className="divide-y">
+                  \${groupSchedules(selectedStudentForDetails.schedules).map((group) => {
+                    const ids = new Set(group.schedules.map((s) => s.schedule_id))
+                    const payments = paymentHistory.filter((p) => ids.has(p.schedule_id)).sort((a, b) => new Date(a.payment_date).getTime() - new Date(b.payment_date).getTime())
+                    return (
+                      <div key={group.key} className="p-3">
+                        <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium">\${colLabel(group.label, group.due_date, false)}</p><p className="text-xs text-gray-500">Échéance : \${fmtDate(group.due_date)} · À payer : \${fmt(group.amount_due)}</p></div>
+                        \${group.payment_state === "paid" ? <span className="rounded-full bg-green-50 px-2 py-1 text-xs text-green-700">Payé</span> : group.paid_amount > 0 ? <span className="rounded-full bg-orange-50 px-2 py-1 text-xs text-orange-700">Partiel</span> : <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">Non payé</span>}</div>
+                        \${payments.length ? <div className="mt-2 space-y-1.5">\${payments.map((payment, index) => <div key={payment.payment_id + payment.allocation_id + index} className="flex flex-wrap justify-between gap-2 rounded-md bg-gray-50 px-2.5 py-2 text-xs"><div><span className="font-medium">\${fmtDate(payment.payment_date)}</span><span className="ml-2 text-gray-500">\${payment.method || "Mode non renseigné"}</span>\${payment.reference && <span className="ml-2 text-gray-400">Réf. \${payment.reference}</span>}</div><span className="font-semibold text-green-700">\${fmt(payment.allocated_amount)}</span></div>)}</div> : <p className="mt-2 text-xs text-gray-400">Aucun versement enregistré.</p>}
+                        <div className="mt-2 flex justify-end gap-4 border-t pt-2 text-xs"><span>Payé : <strong>\${fmt(group.paid_amount)}</strong></span><span>Reste : <strong className="text-red-600">\${fmt(group.remaining_amount)}</strong></span></div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t px-5 py-3"><Button variant="outline" onClick={() => setSelectedStudentForDetails(null)}>Fermer</Button><Button onClick={() => { setSelectedStudentForPay(selectedStudentForDetails.schedules); setSelectedStudentForDetails(null) }}>Encaisser</Button></div>
+          </div>
         </div>
       )}
 

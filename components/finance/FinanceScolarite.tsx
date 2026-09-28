@@ -1,106 +1,209 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { CheckCircle2 } from "lucide-react"
 import { financeService } from "@/lib/supabase/services/finance.service"
-import type { FinanceStudentPaymentBoardRow, FinancePaymentHistoryRow } from "@/lib/supabase/types"
+import type { FinancePaymentHistoryRow, FinanceStudentPaymentBoardRow } from "@/lib/supabase/types"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PaymentModal } from "./PaymentModal"
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
 const MOIS_FR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
 const MOIS_LONG = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+
+type BoardRow = FinanceStudentPaymentBoardRow & { student?: any; class?: any }
+
+type ScheduleGroup = {
+  key: string
+  installment_number: number
+  label: string
+  due_date: string
+  schedules: BoardRow[]
+  amount_due: number
+  remaining_amount: number
+  paid_amount: number
+  payment_state: FinanceStudentPaymentBoardRow["payment_state"]
+}
 
 function fmt(n: number) {
   return n.toLocaleString("fr-FR") + " FCFA"
 }
 
-function fmtDate(iso: string) {
-  const d = new Date(iso)
-  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit" })
+function fmtCompact(n: number) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(".0", "") + " M"
+  if (n >= 1000) return Math.round(n / 1000) + "k"
+  return n.toLocaleString("fr-FR")
 }
 
-/** Retourne le libellé court d'une échéance : mois si monthly sinon label du plan */
-function colLabel(label: string, dueDate: string, short = true): string {
-  // Si le label ressemble à un mois ("Mensualité Septembre", "Octobre", etc.)
-  const monthMatch = (label + " " + dueDate).match(
-    /(janvier|f[eé]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[eé]cembre)/i
+function fmtDate(iso: string) {
+  const d = new Date(iso)
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })
+}
+
+function monthIndex(iso: string) {
+  const month = Number(iso?.slice(5, 7))
+  return Number.isInteger(month) && month >= 1 && month <= 12 ? month - 1 : -1
+}
+
+function monthKey(iso: string) {
+  return /^\d{4}-\d{2}/.test(iso) ? iso.slice(0, 7) : ""
+}
+
+function colLabel(label: string, dueDate: string, short = true) {
+  const idx = monthIndex(dueDate)
+  if (idx >= 0) return short ? MOIS_FR[idx] : MOIS_LONG[idx]
+
+  const match = label.match(
+    /(janvier|f[eé]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[eé]cembre)/i,
   )
-  if (monthMatch) {
-    const idx = MOIS_LONG.findIndex(m => m.toLowerCase().startsWith(monthMatch[1].toLowerCase().slice(0, 3)))
-    if (idx >= 0) return short ? MOIS_FR[idx] : MOIS_LONG[idx]
+  if (match) {
+    const normalized = match[1].toLowerCase().slice(0, 3)
+    const labelIndex = MOIS_LONG.findIndex((m) => m.toLowerCase().startsWith(normalized))
+    if (labelIndex >= 0) return short ? MOIS_FR[labelIndex] : MOIS_LONG[labelIndex]
   }
-  // Sinon essayer la date elle-même
-  if (dueDate) {
-    const d = new Date(dueDate)
-    if (!isNaN(d.getTime())) return short ? MOIS_FR[d.getMonth()] : MOIS_LONG[d.getMonth()]
-  }
+
   return label
 }
 
-// ─── Composant cellule avec tooltip de détail ────────────────────────────────
-
-interface CellDetailProps {
-  sched: FinanceStudentPaymentBoardRow
-  payments: FinancePaymentHistoryRow[]   // versements pour cette échéance
+function isMonthlySchedule(row: FinanceStudentPaymentBoardRow) {
+  const label = row.label.toLowerCase()
+  return label.includes("mensual") || /(janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)/i.test(label)
 }
 
-function ScheduleCell({ sched, payments }: CellDetailProps) {
-  const [open, setOpen] = useState(false)
+function groupKey(row: FinanceStudentPaymentBoardRow) {
+  const month = monthKey(row.due_date)
+  return isMonthlySchedule(row) && month ? `month:${month}` : `installment:${row.installment_number}`
+}
 
-  // Versements sur cette échéance spécifique
-  const schedPayments = payments.filter(p => p.schedule_id === sched.schedule_id)
+function buildGroup(rows: BoardRow[]): ScheduleGroup {
+  const first = rows[0]
+  const amount_due = rows.reduce((sum, row) => sum + Number(row.amount_due || 0), 0)
+  const remaining_amount = rows.reduce((sum, row) => sum + Number(row.remaining_amount || 0), 0)
+  const paid_amount = Math.max(0, amount_due - remaining_amount)
 
-  const state = sched.payment_state
+  let payment_state: ScheduleGroup["payment_state"] = "pending"
+  if (rows.some((row) => row.payment_state === "late")) payment_state = "late"
+  else if (rows.some((row) => row.payment_state === "partial_late")) payment_state = "partial_late"
+  else if (remaining_amount <= 0 && amount_due > 0) payment_state = "paid"
+  else if (paid_amount > 0) payment_state = "partial"
 
-  let cellContent: React.ReactNode
+  return {
+    key: groupKey(first),
+    installment_number: Math.min(...rows.map((row) => row.installment_number)),
+    label: first.label,
+    due_date: first.due_date,
+    schedules: rows,
+    amount_due,
+    remaining_amount,
+    paid_amount,
+    payment_state,
+  }
+}
 
-  if (state === "paid") {
-    cellContent = (
-      <span className="text-green-600 font-bold cursor-pointer" onClick={() => setOpen(o => !o)}>✓</span>
-    )
-  } else if (state === "partial" || state === "partial_late") {
-    const paid = sched.amount_due - sched.remaining_amount
-    cellContent = (
-      <span
-        className={`font-medium cursor-pointer text-xs ${state === "partial_late" ? "text-red-500" : "text-orange-500"}`}
-        onClick={() => setOpen(o => !o)}
-      >
-        {(paid / 1000).toFixed(0)}k
-      </span>
-    )
-  } else if (state === "late") {
-    cellContent = <span className="text-red-600 font-bold">✕</span>
-  } else {
-    cellContent = <span className="text-gray-300">–</span>
+function groupSchedules(rows: BoardRow[]) {
+  const map = new Map<string, BoardRow[]>()
+  for (const row of rows) {
+    const key = groupKey(row)
+    const current = map.get(key) ?? []
+    current.push(row)
+    map.set(key, current)
   }
 
-  return (
-    <div className="relative flex flex-col items-center">
-      {cellContent}
+  return Array.from(map.values())
+    .map(buildGroup)
+    .sort((a, b) => {
+      const aDate = a.due_date || ""
+      const bDate = b.due_date || ""
+      if (aDate !== bDate) return aDate.localeCompare(bDate)
+      return a.installment_number - b.installment_number
+    })
+}
 
-      {/* Tooltip versements */}
-      {open && schedPayments.length > 0 && (
+interface ScheduleCellProps {
+  group: ScheduleGroup
+  payments: FinancePaymentHistoryRow[]
+  mobile?: boolean
+}
+
+function ScheduleCell({ group, payments, mobile = false }: ScheduleCellProps) {
+  const [hovered, setHovered] = useState(false)
+  const [clicked, setClicked] = useState(false)
+
+  const scheduleIds = new Set(group.schedules.map((schedule) => schedule.schedule_id))
+  const groupPayments = payments
+    .filter((payment) => scheduleIds.has(payment.schedule_id))
+    .sort((a, b) => new Date(a.payment_date).getTime() - new Date(b.payment_date).getTime())
+
+  const open = hovered || clicked
+  const paid = group.paid_amount
+
+  const content =
+    group.payment_state === "paid" ? (
+      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-green-50 text-green-600">
+        <CheckCircle2 className="h-5 w-5" />
+      </span>
+    ) : group.payment_state === "partial" || group.payment_state === "partial_late" ? (
+      <span className={`font-semibold ${group.payment_state === "partial_late" ? "text-red-600" : "text-orange-600"}`}>
+        {fmtCompact(paid)}
+      </span>
+    ) : group.payment_state === "late" ? (
+      <span className="font-semibold text-red-600">En retard</span>
+    ) : (
+      <span className="text-gray-300">—</span>
+    )
+
+  return (
+    <div
+      className={`relative ${mobile ? "min-w-0" : "inline-flex"} group`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <button
+        type="button"
+        className={`inline-flex items-center justify-center rounded-md focus:outline-none focus:ring-2 focus:ring-green-200 ${mobile ? "w-full px-2 py-2" : "min-w-12 px-2 py-1"}`}
+        onClick={() => setClicked((value) => !value)}
+        aria-label={`${colLabel(group.label, group.due_date, false)} : ${paid.toLocaleString("fr-FR")} FCFA versés`}
+      >
+        {content}
+      </button>
+
+      {open && groupPayments.length > 0 && (
         <div
-          className="absolute z-30 top-6 left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded shadow-lg text-xs w-52 p-2 space-y-1"
-          onMouseLeave={() => setOpen(false)}
+          className="absolute z-50 top-full mt-1 left-1/2 -translate-x-1/2 w-64 max-w-[calc(100vw-2rem)] rounded-lg border border-gray-200 bg-white p-3 text-left shadow-xl"
+          onClick={(event) => event.stopPropagation()}
         >
-          <p className="font-medium text-gray-700 border-b pb-1 mb-1">
-            {colLabel(sched.label, sched.due_date, false)} — dû : {fmt(sched.amount_due)}
-          </p>
-          {schedPayments.map((p, i) => (
-            <div key={p.payment_id + i} className="flex justify-between text-gray-600">
-              <span>{fmtDate(p.payment_date)}</span>
-              <span className="font-medium text-green-700">{fmt(p.allocated_amount)}</span>
-            </div>
-          ))}
-          {sched.remaining_amount > 0 && (
-            <div className="flex justify-between text-red-600 font-medium border-t pt-1 mt-1">
+          <div className="border-b border-gray-100 pb-2">
+            <p className="font-semibold text-gray-800">
+              {colLabel(group.label, group.due_date, false)}
+            </p>
+            <p className="text-xs text-gray-500">À payer : {fmt(group.amount_due)}</p>
+          </div>
+
+          <div className="space-y-2 py-2">
+            {groupPayments.map((payment, index) => (
+              <div key={payment.payment_id + payment.allocation_id + index} className="rounded-md bg-gray-50 px-2 py-1.5">
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-gray-500">{fmtDate(payment.payment_date)}</span>
+                  <span className="font-semibold text-green-700">{fmt(payment.allocated_amount)}</span>
+                </div>
+                <div className="mt-0.5 text-[11px] text-gray-500">
+                  {payment.method || "Mode non renseigné"}
+                  {payment.reference ? ` · ${payment.reference}` : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between border-t border-gray-100 pt-2 text-xs">
+            <span className="font-medium text-gray-600">Total versé</span>
+            <span className="font-semibold text-gray-900">{fmt(paid)}</span>
+          </div>
+          {group.remaining_amount > 0 && (
+            <div className="mt-1 flex items-center justify-between text-xs text-red-600">
               <span>Reste</span>
-              <span>{fmt(sched.remaining_amount)}</span>
+              <span className="font-semibold">{fmt(group.remaining_amount)}</span>
             </div>
           )}
         </div>
@@ -109,19 +212,30 @@ function ScheduleCell({ sched, payments }: CellDetailProps) {
   )
 }
 
-// ─── Composant principal ─────────────────────────────────────────────────────
+function GlobalState({ schedules }: { schedules: BoardRow[] }) {
+  if (schedules.some((s) => s.payment_state === "late" || s.payment_state === "partial_late")) {
+    return <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">En retard</span>
+  }
+  if (schedules.some((s) => s.payment_state === "partial")) {
+    return <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700">Partiel</span>
+  }
+  if (schedules.length > 0 && schedules.every((s) => s.payment_state === "paid")) {
+    return <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">Soldé</span>
+  }
+  return <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">À jour</span>
+}
 
 export function FinanceScolarite() {
   const { etablissementActif } = useUserContext()
   const establishmentId = etablissementActif?.id
   const { activeYear: academicYear, isLoading: isYearLoading } = useAcademicYears(establishmentId ?? null)
 
-  const [boardRows, setBoardRows] = useState<(FinanceStudentPaymentBoardRow & { student?: any; class?: any })[]>([])
+  const [boardRows, setBoardRows] = useState<BoardRow[]>([])
   const [paymentHistory, setPaymentHistory] = useState<FinancePaymentHistoryRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
-  const [selectedStudentForPay, setSelectedStudentForPay] = useState<(FinanceStudentPaymentBoardRow & { student?: any; class?: any })[] | null>(null)
+  const [selectedStudentForPay, setSelectedStudentForPay] = useState<BoardRow[] | null>(null)
 
   const reload = async () => {
     if (!establishmentId || !academicYear) return
@@ -142,126 +256,144 @@ export function FinanceScolarite() {
   }
 
   useEffect(() => {
-    if (!isYearLoading) reload()
+    if (!isYearLoading) void reload()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [establishmentId, academicYear, isYearLoading])
 
-  // Agrégation par élève
   const studentsMap = useMemo(() => {
     const map = new Map<string, {
       student: any
       class: any
       enrollment_id: string
-      schedules: (FinanceStudentPaymentBoardRow & { student?: any; class?: any })[]
+      schedules: BoardRow[]
     }>()
+
     for (const row of boardRows) {
       if (!map.has(row.student_id)) {
-        map.set(row.student_id, { student: row.student, class: row.class, enrollment_id: row.enrollment_id, schedules: [] })
+        map.set(row.student_id, {
+          student: row.student,
+          class: row.class,
+          enrollment_id: row.enrollment_id,
+          schedules: [],
+        })
       }
       map.get(row.student_id)!.schedules.push(row)
     }
-    return Array.from(map.values())
+
+    return Array.from(map.values()).map((student) => ({
+      ...student,
+      groups: groupSchedules(student.schedules),
+    }))
   }, [boardRows])
 
   const filteredStudents = useMemo(() => {
-    if (!search) return studentsMap
-    const q = search.toLowerCase()
-    return studentsMap.filter(s => {
-      const name = `${s.student?.first_name || ""} ${s.student?.last_name || ""}`.toLowerCase()
-      return name.includes(q)
+    const q = search.trim().toLowerCase()
+    if (!q) return studentsMap
+
+    return studentsMap.filter((student) => {
+      const name = `${student.student?.first_name || ""} ${student.student?.last_name || ""}`.toLowerCase()
+      const number = String(student.student?.student_number || "").toLowerCase()
+      return name.includes(q) || number.includes(q)
     })
   }, [studentsMap, search])
 
-  // Colonnes : toutes les échéances uniques, triées
-  const installments = useMemo(() => {
-    const all = new Map<number, { label: string; due_date: string }>()
+  const columns = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; longLabel: string; due_date: string; installment_number: number }>()
     for (const row of boardRows) {
-      all.set(row.installment_number, { label: row.label, due_date: row.due_date })
+      const key = groupKey(row)
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          label: colLabel(row.label, row.due_date),
+          longLabel: colLabel(row.label, row.due_date, false),
+          due_date: row.due_date,
+          installment_number: row.installment_number,
+        })
+      }
     }
-    return Array.from(all.entries()).sort((a, b) => a[0] - b[0])
+
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.due_date !== b.due_date) return a.due_date.localeCompare(b.due_date)
+      return a.installment_number - b.installment_number
+    })
   }, [boardRows])
 
-  const getGlobalState = (schedules: FinanceStudentPaymentBoardRow[]) => {
-    if (schedules.some(s => s.payment_state === "late" || s.payment_state === "partial_late"))
-      return <span className="text-xs px-2 py-1 rounded bg-red-100 text-red-800">En retard</span>
-    if (schedules.some(s => s.payment_state === "partial"))
-      return <span className="text-xs px-2 py-1 rounded bg-orange-100 text-orange-800">Partiel</span>
-    if (schedules.every(s => s.payment_state === "paid"))
-      return <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-800">Soldé</span>
-    return <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-800">À jour</span>
+  const scheduleForColumn = (student: { groups: ScheduleGroup[] }, column: { key: string }) =>
+    student.groups.find((group) => group.key === column.key)
+
+  const renderLoadingOrEmpty = (className: string) => {
+    if (loading || isYearLoading) return <div className={className}>Chargement des échéances...</div>
+    if (error) return <div className={`${className} text-red-600`}>{error}</div>
+    if (filteredStudents.length === 0) return <div className={className}>Aucune échéance trouvée.</div>
+    return null
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900 uppercase">Scolarité</h1>
-          <p className="text-sm text-gray-500 mt-1">Suivi des échéances par élève. Cliquez sur une cellule payée pour voir le détail des versements.</p>
-        </div>
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-xl font-semibold text-gray-900">Scolarité</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Suivi des échéances et des versements. Survolez ou touchez une échéance pour voir le détail.
+        </p>
       </div>
 
-      <div className="flex gap-4 mb-4">
+      <div className="flex w-full">
         <Input
           placeholder="Rechercher un élève..."
-          className="max-w-sm rounded"
+          className="w-full max-w-sm rounded-md"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(event) => setSearch(event.target.value)}
         />
       </div>
 
-      <div className="border border-gray-200 rounded bg-white overflow-x-auto">
-        <table className="w-full text-sm text-left whitespace-nowrap">
-          <thead className="bg-gray-50 border-b border-gray-200">
+      <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200 bg-white">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead className="border-b border-gray-200 bg-gray-50">
             <tr>
-              <th className="px-4 py-3 font-medium text-gray-700">Élève</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Classe</th>
-              {installments.map(([num, { label, due_date }]) => (
+              <th className="sticky left-0 z-10 bg-gray-50 px-4 py-3 text-left font-medium text-gray-700">Élève</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-700">Classe</th>
+              {columns.map((column) => (
                 <th
-                  key={num}
-                  className="px-3 py-3 font-medium text-gray-700 text-center"
-                  title={`${label}${due_date ? " — " + fmtDate(due_date) : ""}`}
+                  key={column.key}
+                  className="px-3 py-3 text-center font-medium text-gray-700"
+                  title={`${column.longLabel}${column.due_date ? ` — ${fmtDate(column.due_date)}` : ""}`}
                 >
-                  {colLabel(label, due_date)}
+                  {column.label}
                 </th>
               ))}
-              <th className="px-4 py-3 font-medium text-gray-700">État</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-700">État</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {loading || isYearLoading ? (
-              <tr><td colSpan={installments.length + 3} className="px-4 py-8 text-center text-gray-500">Chargement des échéances...</td></tr>
-            ) : error ? (
-              <tr><td colSpan={installments.length + 3} className="px-4 py-8 text-center text-red-500">{error}</td></tr>
-            ) : filteredStudents.length === 0 ? (
-              <tr><td colSpan={installments.length + 3} className="px-4 py-8 text-center text-gray-500">Aucune échéance trouvée.</td></tr>
+            {loading || isYearLoading || error || filteredStudents.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length + 3} className="px-4 py-10 text-center text-gray-500">
+                  {loading || isYearLoading ? "Chargement des échéances..." : error || "Aucune échéance trouvée."}
+                </td>
+              </tr>
             ) : (
-              filteredStudents.map((s) => (
-                <tr key={s.student?.id || s.enrollment_id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">
-                    {s.student ? `${s.student.first_name} ${s.student.last_name}` : "Élève inconnu"}
+              filteredStudents.map((student) => (
+                <tr key={student.student?.id || student.enrollment_id} className="hover:bg-gray-50">
+                  <td className="sticky left-0 bg-white px-4 py-3 font-medium text-gray-900">
+                    {student.student ? `${student.student.first_name} ${student.student.last_name}` : "Élève inconnu"}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{s.class?.name || "–"}</td>
-
-                  {installments.map(([num]) => {
-                    const sched = s.schedules.find(x => x.installment_number === num)
+                  <td className="px-4 py-3 text-gray-600">{student.class?.name || "—"}</td>
+                  {columns.map((column) => {
+                    const group = scheduleForColumn(student, column)
                     return (
-                      <td key={num} className="px-3 py-3 text-center">
-                        {sched
-                          ? <ScheduleCell sched={sched} payments={paymentHistory} />
-                          : <span className="text-gray-300">–</span>
-                        }
+                      <td key={column.key} className="px-2 py-2 text-center">
+                        {group ? <ScheduleCell group={group} payments={paymentHistory} /> : <span className="text-gray-300">—</span>}
                       </td>
                     )
                   })}
-
                   <td className="px-4 py-3">
-                    <div className="flex gap-2 items-center">
-                      {getGlobalState(s.schedules)}
+                    <div className="flex items-center gap-2">
+                      <GlobalState schedules={student.schedules} />
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-7 text-xs"
-                        onClick={() => setSelectedStudentForPay(s.schedules)}
+                        className="h-8 text-xs"
+                        onClick={() => setSelectedStudentForPay(student.schedules)}
                       >
                         Encaisser
                       </Button>
@@ -272,6 +404,43 @@ export function FinanceScolarite() {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="space-y-3 md:hidden">
+        {renderLoadingOrEmpty("rounded-lg border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500")}
+        {!loading && !isYearLoading && !error && filteredStudents.map((student) => (
+          <article key={student.student?.id || student.enrollment_id} className="rounded-lg border border-gray-200 bg-white p-4">
+            <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-3">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-gray-900">
+                  {student.student ? `${student.student.first_name} ${student.student.last_name}` : "Élève inconnu"}
+                </p>
+                <p className="mt-0.5 text-xs text-gray-500">{student.class?.name || "Classe non renseignée"}</p>
+              </div>
+              <GlobalState schedules={student.schedules} />
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {student.groups.map((group) => (
+                <div key={group.key} className="rounded-md border border-gray-100 bg-gray-50 px-2 py-1">
+                  <div className="mb-0.5 text-center text-[11px] font-medium text-gray-500">
+                    {colLabel(group.label, group.due_date)}
+                  </div>
+                  <ScheduleCell group={group} payments={paymentHistory} mobile />
+                </div>
+              ))}
+            </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-3 w-full"
+              onClick={() => setSelectedStudentForPay(student.schedules)}
+            >
+              Encaisser un versement
+            </Button>
+          </article>
+        ))}
       </div>
 
       {selectedStudentForPay && (

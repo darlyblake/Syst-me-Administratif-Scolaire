@@ -12,18 +12,18 @@ export function FinanceDepenses() {
           <h1 className="text-xl font-semibold text-gray-900 uppercase">Dépenses</h1>
           <p className="text-sm text-gray-500 mt-1">Dépenses opérationnelles de l'établissement</p>
         </div>
-        <Button className="rounded bg-gray-900 text-white hover:bg-gray-800">
+        <Button className="w-full sm:w-auto rounded bg-gray-900 text-white hover:bg-gray-800">
           <Plus className="h-4 w-4 mr-2" />
           Nouvelle Dépense
         </Button>
       </div>
 
-      <div className="flex gap-4 mb-4">
-        <div className="relative min-w-[250px] flex-1">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 w-full">
+        <div className="relative w-full sm:min-w-0 flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input placeholder="Rechercher une dépense..." className="pl-9 bg-white border-gray-300 rounded" />
         </div>
-        <select className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white">
+        <select className="w-full sm:w-auto border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white">
           <option value="">Toutes les catégories</option>
           <option value="fournitures">Fournitures</option>
           <option value="entretien">Entretien</option>

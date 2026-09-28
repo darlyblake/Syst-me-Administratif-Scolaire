@@ -1,17 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { toast } from "sonner"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Textarea } from "@/components/ui/textarea"
-import { X, ArrowRight, ArrowLeft, UserPlus, QrCode } from "lucide-react"
-import { genererCodeUnique, genererQRCode } from "@/utils/codeGenerator"
-import type { DonneesEleve } from "@/types/models"
+import { X, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react"
+import { genererCodeUnique } from "@/utils/codeGenerator"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
@@ -19,832 +16,773 @@ import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import { useEnrollment } from "@/hooks/useEnrollment"
 import { createStudent } from "@/lib/supabase/services/student.service"
+import { supabaseBrowser } from "@/lib/supabase/client"
+import type { TuitionPlanInstallment, TuitionPlanWithInstallments } from "@/lib/supabase/types"
+
+interface StudentOption {
+  id: string
+  name: string
+  amount: number
+}
 
 interface NouvelleInscriptionModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
   typeInscription?: "inscription" | "reinscription"
-  studentId?: string // Pour la réinscription
+  studentId?: string
 }
 
-export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, typeInscription = "inscription", studentId }: NouvelleInscriptionModalProps) {
+const STEPS = [
+  { id: 1, label: "Élève" },
+  { id: 2, label: "Parents" },
+  { id: 3, label: "Scolarité" },
+  { id: 4, label: "Paiement" },
+  { id: 5, label: "Documents" },
+  { id: 6, label: "Validation" },
+]
+
+function fmt(amount: number) {
+  return amount.toLocaleString("fr-FR") + " FCFA"
+}
+
+export default function NouvelleInscriptionModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  typeInscription = "inscription",
+  studentId,
+}: NouvelleInscriptionModalProps) {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
-  const { data: students } = useStudents(establishmentId, { search: "", pageSize: 50 })
-  const { data: academicStructure } = useAcademicStructure(establishmentId)
+
+  // ─── Hooks de données ───────────────────────────────────────────────────────
+  const { data: students } = useStudents(establishmentId, { search: "", pageSize: 200 })
+  const { data: academicStructure, isLoading: isStructureLoading } = useAcademicStructure(establishmentId)
   const { activeYear, isLoading: isYearLoading } = useAcademicYears(establishmentId)
-  const { data: tuitionPlans } = useTuitionPlans(activeYear?.id ?? null)
+  const { data: tuitionPlans, isLoading: isPlansLoading } = useTuitionPlans(activeYear?.id ?? null)
   const { createStudentEnrollment, isSubmitting, error: submissionError } = useEnrollment(null)
-  const [currentStep, setCurrentStep] = useState(1)
-  const totalSteps = 6
 
-  const [formData, setFormData] = useState({
-    // Étape 1: Informations de l'enfant
-    nom: "",
-    prenom: "",
-    dateNaissance: "",
-    lieuNaissance: "",
-    sexe: "",
-    classe: "",
-    classeAncienne: "",
-    nouvelleClasse: "",
-    photo: null as File | null,
-    
-    // Étape 2: Informations des parents
-    nomParent: "",
-    prenomParent: "",
-    telephoneParent: "",
-    emailParent: "",
-    adresse: "",
-    
-    // Étape 3: Association avec frère/sœur
-    searchSibling: "",
-    selectedSibling: null as DonneesEleve | null,
-    lienParente: "",
-    
-    // Étape 4: Mode de paiement
-    modePaiement: "mensuel" as "mensuel" | "tranches",
-    nombreTranches: 3,
-    moisPaiement: [] as string[],
-    
-    // Étape 5: Options supplémentaires
-    optionsSupplementaires: {
-      tenueScolaire: false,
-      carteScolaire: false,
-      cooperative: false,
-      tenueEPS: false,
-      assurance: false,
-    },
-    
-    // Étape 6: Documents
-    acteNaissance: null as File | null,
-    certificatMedical: null as File | null,
-    autresDocuments: [] as File[],
-  })
+  // ─── État navigation ────────────────────────────────────────────────────────
+  const [step, setStep] = useState(1)
+  const [submitted, setSubmitted] = useState(false)
+  const [newEnrollmentId, setNewEnrollmentId] = useState("")
 
-  const [financialSummary, setFinancialSummary] = useState<Record<string, unknown> | null>(null)
-  const [codeUnique, setCodeUnique] = useState("")
-  const [qrCodeUrl, setQrCodeUrl] = useState("")
-  const [inscriptionValidee, setInscriptionValidee] = useState(false)
-  const [studentIdentifiant, setStudentIdentifiant] = useState("")
+  // ─── Données élève ──────────────────────────────────────────────────────────
+  const [lastName, setLastName] = useState("")
+  const [firstName, setFirstName] = useState("")
+  const [birthDate, setBirthDate] = useState("")
+  const [birthPlace, setBirthPlace] = useState("")
+  const [sex, setSex] = useState("")
+  const [studentNumber, setStudentNumber] = useState("")
 
-  const [siblingSuggestions, setSiblingSuggestions] = useState<DonneesEleve[]>([])
+  // ─── Données parent ─────────────────────────────────────────────────────────
+  const [parentLastName, setParentLastName] = useState("")
+  const [parentFirstName, setParentFirstName] = useState("")
+  const [parentPhone, setParentPhone] = useState("")
+  const [parentEmail, setParentEmail] = useState("")
+  const [parentAddress, setParentAddress] = useState("")
 
-  const classes = academicStructure.flatMap((cycle) =>
-    (cycle.grade_levels ?? []).flatMap((level) =>
-      (level.school_classes ?? []).map((schoolClass) => ({
-        id: schoolClass.id,
-        name: schoolClass.name,
-        gradeLevelId: level.id,
-      }))
-    )
+  // ─── Sélection académique ───────────────────────────────────────────────────
+  const [selectedCycleId, setSelectedCycleId] = useState("")
+  const [selectedLevelId, setSelectedLevelId] = useState("")
+  const [selectedClassId, setSelectedClassId] = useState("")
+
+  // ─── Paiement ───────────────────────────────────────────────────────────────
+  const [selectedInstallmentIds, setSelectedInstallmentIds] = useState<Set<string>>(new Set())
+
+  // ─── Options ────────────────────────────────────────────────────────────────
+  const [availableOptions, setAvailableOptions] = useState<StudentOption[]>([])
+  const [selectedOptionIds, setSelectedOptionIds] = useState<Set<string>>(new Set())
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false)
+
+  // ─── Documents ──────────────────────────────────────────────────────────────
+  const [birthCertificate, setBirthCertificate] = useState<File | null>(null)
+  const [medicalCertificate, setMedicalCertificate] = useState<File | null>(null)
+
+  // ─── Données calculées ──────────────────────────────────────────────────────
+  const selectedCycle = academicStructure.find((c) => c.id === selectedCycleId)
+  const levels = selectedCycle?.grade_levels ?? []
+  const selectedLevel = levels.find((l) => l.id === selectedLevelId)
+  const classes = selectedLevel?.school_classes ?? []
+  const selectedClass = classes.find((c) => c.id === selectedClassId)
+
+  const selectedPlan: TuitionPlanWithInstallments | undefined = tuitionPlans.find(
+    (p) => p.grade_level_id === selectedLevelId
   )
-  const selectedClassId = typeInscription === "reinscription" ? formData.nouvelleClasse : formData.classe
-  const selectedClass = classes.find((schoolClass) => schoolClass.id === selectedClassId)
-  const selectedPlan = tuitionPlans.find((plan) => plan.grade_level_id === selectedClass?.gradeLevelId && plan.is_active !== false)
-  const niveaux = classes
-  const moisDisponibles = ["Septembre", "Octobre", "Novembre", "Décembre", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin"]
+  const installments: TuitionPlanInstallment[] = selectedPlan?.installments ?? []
 
-  // Charger les données de l'élève existant pour la réinscription
+  const registrationFee =
+    typeInscription === "reinscription"
+      ? (selectedPlan?.re_registration_fee ?? selectedPlan?.registration_fee ?? 0)
+      : (selectedPlan?.registration_fee ?? 0)
+
+  // Total en temps réel
+  const installmentTotal = installments
+    .filter((i) => selectedInstallmentIds.has(i.id))
+    .reduce((sum, i) => sum + i.amount, 0)
+
+  const optionTotal = availableOptions
+    .filter((o) => selectedOptionIds.has(o.id))
+    .reduce((sum, o) => sum + o.amount, 0)
+
+  const totalNow = registrationFee + installmentTotal + optionTotal
+
+  // ─── Chargement options depuis Supabase ─────────────────────────────────────
+  const loadOptions = useCallback(async () => {
+    if (!establishmentId) return
+    setIsLoadingOptions(true)
+    try {
+      const { data } = await supabaseBrowser
+        .from("student_options")
+        .select("id, name, default_amount")
+        .eq("establishment_id", establishmentId)
+        .eq("active", true)
+        .order("name")
+      setAvailableOptions(
+        (data ?? []).map((x: any) => ({ id: x.id, name: x.name, amount: Number(x.default_amount) || 0 }))
+      )
+    } finally {
+      setIsLoadingOptions(false)
+    }
+  }, [establishmentId])
+
   useEffect(() => {
-    if (typeInscription === "reinscription" && studentId) {
-      const existingStudent = students.find(s => s.id === studentId)
-      if (existingStudent) {
-        setFormData(prev => ({
-          ...prev,
-          nom: existingStudent.nom,
-          prenom: existingStudent.prenom,
-          dateNaissance: existingStudent.dateNaissance,
-          lieuNaissance: existingStudent.lieuNaissance || "",
-          sexe: existingStudent.sexe || "",
-          classeAncienne: existingStudent.classe,
-          nouvelleClasse: existingStudent.classe,
-          nomParent: existingStudent.nomParent || "",
-          prenomParent: "",
-          telephoneParent: existingStudent.contactParent || "",
-          emailParent: existingStudent.informationsContact?.email || "",
-          adresse: existingStudent.adresse || "",
-          optionsSupplementaires: existingStudent.optionsSupplementaires || prev.optionsSupplementaires,
-        }))
+    if (isOpen) loadOptions()
+  }, [isOpen, loadOptions])
+
+  // ─── Pré-remplissage réinscription ──────────────────────────────────────────
+  useEffect(() => {
+    if (typeInscription === "reinscription" && studentId && students.length > 0) {
+      const s = students.find((st) => st.id === studentId)
+      if (s) {
+        setLastName(s.last_name ?? "")
+        setFirstName(s.first_name ?? "")
+        setBirthDate(s.birth_date ?? "")
+        setSex(s.sex ?? "")
+        setStudentNumber(s.student_number ?? "")
       }
     }
-  }, [typeInscription, studentId])
+  }, [typeInscription, studentId, students])
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+  // ─── Réinitialiser cascade sélection académique ─────────────────────────────
+  const handleCycleChange = (cycleId: string) => {
+    setSelectedCycleId(cycleId)
+    setSelectedLevelId("")
+    setSelectedClassId("")
+    setSelectedInstallmentIds(new Set())
   }
 
-  const handleOptionChange = (option: string, checked: boolean) => {
-    const newOptions = { ...formData.optionsSupplementaires, [option]: checked }
-    setFormData(prev => ({
-      ...prev,
-      optionsSupplementaires: newOptions
-    }))
+  const handleLevelChange = (levelId: string) => {
+    setSelectedLevelId(levelId)
+    setSelectedClassId("")
+    setSelectedInstallmentIds(new Set())
   }
 
-  const handleMoisPaiementChange = (mois: string, checked: boolean) => {
-    setFormData(prev => {
-      const newMois = checked
-        ? [...prev.moisPaiement, mois]
-        : prev.moisPaiement.filter(m => m !== mois)
-      return { ...prev, moisPaiement: newMois }
-    })
-  }
-
-  const handleSiblingSearch = (term: string) => {
-    setFormData(prev => ({ ...prev, searchSibling: term }))
-    if (term.length < 2) {
-      setSiblingSuggestions([])
-      return
-    }
-
-    const searchTerm = term.toLowerCase()
-    const suggestions = students.filter(student =>
-      student.last_name.toLowerCase().includes(searchTerm) ||
-      student.first_name.toLowerCase().includes(searchTerm) ||
-      `${student.first_name} ${student.last_name}`.toLowerCase().includes(searchTerm)
-    ).slice(0, 5)
-
-    setSiblingSuggestions(suggestions.map((student) => ({
-      id: student.id,
-      nom: student.last_name,
-      prenom: student.first_name,
-      identifiant: student.student_number || student.id.slice(0, 8).toUpperCase(),
-    } as DonneesEleve)))
-  }
-
-  const handleSelectSibling = (sibling: DonneesEleve) => {
-    setFormData(prev => ({
-      ...prev,
-      selectedSibling: sibling,
-      searchSibling: `${sibling.prenom} ${sibling.nom}`,
-    }))
-    setSiblingSuggestions([])
-  }
-
-  const handleRemoveSibling = () => {
-    setFormData(prev => ({
-      ...prev,
-      selectedSibling: null,
-      searchSibling: "",
-      lienParente: "",
-    }))
-  }
-
-  const validateStep = (step: number): boolean => {
-    switch (step) {
+  // ─── Validation par étape ────────────────────────────────────────────────────
+  const validateStep = (s: number): { ok: boolean; message?: string } => {
+    switch (s) {
       case 1:
-        if (typeInscription === "reinscription") {
-          return !!(formData.nom && formData.prenom && formData.dateNaissance && formData.lieuNaissance && formData.nouvelleClasse)
-        }
-        return !!(formData.nom && formData.prenom && formData.dateNaissance && formData.lieuNaissance && formData.sexe && formData.classe)
+        if (!lastName.trim()) return { ok: false, message: "Le nom est obligatoire." }
+        if (!firstName.trim()) return { ok: false, message: "Le prénom est obligatoire." }
+        if (!birthDate) return { ok: false, message: "La date de naissance est obligatoire." }
+        if (!sex) return { ok: false, message: "Le sexe est obligatoire." }
+        return { ok: true }
       case 2:
-        return !!(formData.nomParent && formData.telephoneParent && formData.adresse)
+        if (!parentLastName.trim()) return { ok: false, message: "Le nom du parent est obligatoire." }
+        if (!parentPhone.trim()) return { ok: false, message: "Le téléphone est obligatoire." }
+        return { ok: true }
       case 3:
-        return true // Optionnel
+        if (!selectedCycleId) return { ok: false, message: "Sélectionnez un cycle." }
+        if (!selectedLevelId) return { ok: false, message: "Sélectionnez un niveau." }
+        if (!selectedClassId) return { ok: false, message: "Sélectionnez une classe." }
+        if (!selectedPlan) return { ok: false, message: `Aucun forfait configuré pour ce niveau pour ${activeYear?.name ?? "l'année active"}.` }
+        return { ok: true }
       case 4:
-        return !!(formData.modePaiement && (formData.modePaiement === "mensuel" ? formData.moisPaiement.length > 0 : true))
-      case 5:
-        return true // Options sont optionnelles
-      case 6:
-        return true // Documents sont optionnels
+        if (selectedPlan?.payment_mode !== "single" && selectedInstallmentIds.size === 0) {
+          return { ok: false, message: "Sélectionnez au moins une échéance à payer maintenant." }
+        }
+        return { ok: true }
       default:
-        return false
+        return { ok: true }
     }
   }
 
   const handleNext = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, totalSteps))
-    } else {
-      toast.error("Champs obligatoires", {
-        description: "Veuillez remplir tous les champs obligatoires de cette étape"
-      })
-    }
+    const { ok, message } = validateStep(step)
+    if (!ok) { toast.error(message); return }
+    setStep((s) => Math.min(s + 1, STEPS.length))
   }
 
-  const handlePrevious = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1))
-  }
+  const handleBack = () => setStep((s) => Math.max(s - 1, 1))
 
+  // ─── Soumission ──────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    // Validation finale
-    if (!formData.nom || !formData.prenom || !formData.dateNaissance || !formData.classe || !formData.nomParent || !formData.telephoneParent || !formData.adresse) {
-      toast.error("Champs obligatoires", {
-        description: "Veuillez remplir tous les champs obligatoires"
-      })
-      return
-    }
-
     if (!activeYear) {
-      toast.error("Aucune année académique active", {
-        description: "Définissez l'année actuelle dans Paramètres → Années académiques."
-      })
+      toast.error("Aucune année scolaire active. Configurez l'année dans Paramètres → Années académiques.")
+      return
+    }
+    if (!selectedClass || !selectedPlan || !establishmentId) {
+      toast.error("Informations académiques incomplètes.")
       return
     }
 
-    if (!selectedClass?.id) {
-      toast.error(`Aucune classe disponible pour l'année ${activeYear.name}`, {
-        description: "Vérifiez que des classes sont bien configurées pour cette année académique."
-      })
-      return
-    }
-
-    if (!selectedPlan) {
-      toast.error("Aucun forfait de scolarité configuré", {
-        description: "Configurez un forfait de scolarité pour ce niveau dans Paramètres → Scolarité."
-      })
-      return
-    }
-
-    let studentIdToUse = studentId
-
-    // Pour nouvelle inscription, créer d'abord l'étudiant
-    if (typeInscription === "inscription") {
-      try {
-        const generatedStudentNumber = studentIdentifiant || genererCodeUnique()
-        const newStudentId = await createStudent({
+    try {
+      // 1. Créer ou récupérer l'élève
+      let finalStudentId = studentId ?? null
+      if (typeInscription === "inscription") {
+        const num = studentNumber || genererCodeUnique()
+        finalStudentId = await createStudent({
           establishmentId,
-          firstName: formData.prenom,
-          lastName: formData.nom,
-          studentNumber: generatedStudentNumber,
-          birthDate: formData.dateNaissance,
-          sex: formData.sexe,
-          phone: formData.telephoneParent,
-          email: formData.emailParent,
+          firstName,
+          lastName,
+          studentNumber: num,
+          birthDate,
+          sex,
+          phone: parentPhone,
+          email: parentEmail,
           active: true,
         })
-        studentIdToUse = newStudentId
-        setStudentIdentifiant(generatedStudentNumber)
-      } catch (err) {
-        toast.error("Erreur lors de la création de l'élève", {
-          description: err instanceof Error ? err.message : "Impossible de créer l'élève"
-        })
+      }
+
+      // 2. Créer l'inscription
+      const result = await createStudentEnrollment({
+        establishmentId,
+        studentId: finalStudentId,
+        academicYearId: activeYear.id,
+        classId: selectedClass.id,
+        tuitionPlanId: selectedPlan.id,
+        enrollmentDate: new Date().toISOString().slice(0, 10),
+        firstName,
+        lastName,
+        birthDate,
+        sex,
+        phone: parentPhone,
+        email: parentEmail,
+      })
+
+      if (!result) {
+        toast.error(submissionError || "Impossible de créer l'inscription.")
         return
       }
+
+      setNewEnrollmentId(result.enrollment_id)
+      setSubmitted(true)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'inscription.")
     }
+  }
 
-    // Créer l'inscription
-    const result = await createStudentEnrollment({
-      establishmentId,
-      studentId: studentIdToUse,
-      academicYearId: activeYear.id,
-      classId: selectedClass.id,
-      tuitionPlanId: selectedPlan.id,
-      enrollmentDate: new Date().toISOString().slice(0, 10),
-      firstName: formData.prenom,
-      lastName: formData.nom,
-      studentNumber: studentIdentifiant || genererCodeUnique(),
-      birthDate: formData.dateNaissance,
-      sex: formData.sexe,
-      phone: formData.telephoneParent,
-      email: formData.emailParent,
-    })
-
-    if (!result) {
-      toast.error(submissionError || "Impossible d'enregistrer l'inscription.")
-      return
-    }
-
-    const code = genererCodeUnique()
-    setCodeUnique(code)
-    setStudentIdentifiant(result.student_id)
-    const qrUrl = genererQRCode(code)
-    setQrCodeUrl(qrUrl)
-    setFinancialSummary(result.financial_summary)
-    setInscriptionValidee(true)
+  // ─── Reset ────────────────────────────────────────────────────────────────────
+  const resetAndClose = () => {
+    setStep(1); setSubmitted(false); setNewEnrollmentId("")
+    setLastName(""); setFirstName(""); setBirthDate(""); setBirthPlace(""); setSex(""); setStudentNumber("")
+    setParentLastName(""); setParentFirstName(""); setParentPhone(""); setParentEmail(""); setParentAddress("")
+    setSelectedCycleId(""); setSelectedLevelId(""); setSelectedClassId("")
+    setSelectedInstallmentIds(new Set()); setSelectedOptionIds(new Set())
+    setBirthCertificate(null); setMedicalCertificate(null)
+    onClose()
   }
 
   if (!isOpen) return null
 
+  // ─── Écran succès ─────────────────────────────────────────────────────────────
+  if (submitted) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50" onClick={resetAndClose} />
+        <div className="relative z-50 bg-white rounded border max-w-lg w-full p-8 text-center space-y-5">
+          <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto" />
+          <h3 className="text-lg font-semibold">
+            {typeInscription === "reinscription" ? "Réinscription enregistrée" : "Inscription enregistrée"}
+          </h3>
+          <p className="text-sm text-slate-600">
+            {firstName} {lastName} a bien été {typeInscription === "reinscription" ? "réinscrit(e)" : "inscrit(e)"} en {selectedLevel?.name} pour {activeYear?.name}.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={onSuccess}>Voir les inscriptions</Button>
+            <Button variant="outline" onClick={resetAndClose}>Fermer</Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative z-50 bg-background rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        {/* Header */}
-        <div className="p-6 border-b flex justify-between items-center">
+      <div className="fixed inset-0 bg-black/50" onClick={resetAndClose} />
+      <div className="relative z-50 bg-white rounded border max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
+
+        {/* En-tête */}
+        <div className="border-b px-6 py-4 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold">
-              {typeInscription === "reinscription" ? "Réinscription" : "Nouvelle Inscription"}
+            <h2 className="font-semibold text-base">
+              {typeInscription === "reinscription" ? "Réinscription" : "Nouvelle inscription"}
             </h2>
-            <p className="text-sm text-gray-600">Étape {currentStep} sur {totalSteps}</p>
+            {isYearLoading ? (
+              <p className="text-xs text-slate-500">Chargement de l'année…</p>
+            ) : activeYear ? (
+              <p className="text-xs text-slate-500">Année scolaire : {activeYear.name}</p>
+            ) : (
+              <p className="text-xs text-red-500">
+                Aucune année scolaire active — Paramètres → Années académiques
+              </p>
+            )}
           </div>
-          <Button variant="outline" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={resetAndClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="px-6 pt-4">
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5, 6].map((step) => (
-              <div
-                key={step}
-                className={`flex-1 h-2 rounded-full ${
-                  step <= currentStep ? 'bg-blue-600' : 'bg-gray-200'
-                }`}
-              />
-            ))}
-          </div>
-          <div className="flex justify-between mt-2 text-xs text-gray-600">
-            <span>Enfant</span>
-            <span>Parents</span>
-            <span>Frère/Sœur</span>
-            <span>Paiement</span>
-            <span>Options</span>
-            <span>Documents</span>
-          </div>
+        {/* Fil d'étapes */}
+        <div className="px-6 pt-4 flex gap-1">
+          {STEPS.map((s) => (
+            <div key={s.id} className="flex-1 text-center">
+              <div className={`h-1 rounded-full mb-1 ${s.id <= step ? "bg-slate-700" : "bg-slate-200"}`} />
+              <span className={`text-[10px] ${s.id === step ? "text-slate-800 font-medium" : "text-slate-400"}`}>
+                {s.label}
+              </span>
+            </div>
+          ))}
         </div>
 
-        {/* Content */}
-        <div className="p-6">
-          {inscriptionValidee ? (
-            <div className="text-center space-y-6">
-              <div className="p-6 bg-green-50 rounded-lg">
-                <h3 className="text-xl font-bold text-green-600 mb-4">Inscription Validée !</h3>
-                <div className="mb-4">
-                  <p className="font-semibold mb-2">Identifiant de l'élève:</p>
-                  <p className="font-mono text-2xl text-blue-600">{codeUnique}</p>
+        {/* Contenu */}
+        <div className="p-6 space-y-5">
+
+          {/* ── Étape 1 : Élève ──────────────────────────────────────────────── */}
+          {step === 1 && (
+            <div className="space-y-4">
+              <h3 className="font-medium text-sm border-b pb-2">Informations de l'élève</h3>
+              {typeInscription === "reinscription" && (
+                <p className="text-xs bg-slate-50 border rounded px-3 py-2 text-slate-600">
+                  Réinscription — les informations ci-dessous sont pré-remplies depuis le dossier existant.
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Nom *</Label>
+                  <Input value={lastName} onChange={(e) => setLastName(e.target.value)} disabled={typeInscription === "reinscription"} />
                 </div>
-                {qrCodeUrl && (
-                  <div className="flex justify-center">
-                    <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48 border" />
-                  </div>
-                )}
+                <div>
+                  <Label>Prénom *</Label>
+                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} disabled={typeInscription === "reinscription"} />
+                </div>
               </div>
-              <div className="flex gap-4 justify-center">
-                <Button onClick={onSuccess}>
-                  Voir l'historique
-                </Button>
-                <Button variant="outline" onClick={() => window.open(`/receipt?id=${studentIdentifiant}`, '_blank')}>
-                  <QrCode className="mr-2 h-4 w-4" />
-                  Imprimer le reçu
-                </Button>
-                <Button variant="outline" onClick={() => {
-                  setInscriptionValidee(false)
-                  setCurrentStep(1)
-                  setFormData({
-                    nom: "",
-                    prenom: "",
-                    dateNaissance: "",
-                    lieuNaissance: "",
-                    sexe: "",
-                    classe: "",
-                    classeAncienne: "",
-                    nouvelleClasse: "",
-                    photo: null,
-                    nomParent: "",
-                    prenomParent: "",
-                    telephoneParent: "",
-                    emailParent: "",
-                    adresse: "",
-                    searchSibling: "",
-                    selectedSibling: null,
-                    lienParente: "",
-                    modePaiement: "mensuel",
-                    nombreTranches: 3,
-                    moisPaiement: [],
-                    optionsSupplementaires: {
-                      tenueScolaire: false,
-                      carteScolaire: false,
-                      cooperative: false,
-                      tenueEPS: false,
-                      assurance: false,
-                    },
-                    acteNaissance: null,
-                    certificatMedical: null,
-                    autresDocuments: [],
-                  })
-                  setCodeUnique("")
-                  setQrCodeUrl("")
-                  setStudentIdentifiant("")
-                }}>
-                  Nouvelle inscription
-                </Button>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Date de naissance *</Label>
+                  <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} disabled={typeInscription === "reinscription"} />
+                </div>
+                <div>
+                  <Label>Lieu de naissance</Label>
+                  <Input value={birthPlace} onChange={(e) => setBirthPlace(e.target.value)} disabled={typeInscription === "reinscription"} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Sexe *</Label>
+                  <Select value={sex} onValueChange={setSex} disabled={typeInscription === "reinscription"}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="M">Masculin</SelectItem>
+                      <SelectItem value="F">Féminin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>N° matricule</Label>
+                  <Input value={studentNumber} onChange={(e) => setStudentNumber(e.target.value)} placeholder="Généré automatiquement si vide" />
+                </div>
               </div>
             </div>
-          ) : (
-            <>
-              {/* Étape 1: Informations de l'enfant */}
-              {currentStep === 1 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Informations de l'Enfant</CardTitle>
-                    <CardDescription>Données personnelles de l'élève</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Nom *</Label>
-                        <Input value={formData.nom} onChange={(e) => handleInputChange("nom", e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Prénom *</Label>
-                        <Input value={formData.prenom} onChange={(e) => handleInputChange("prenom", e.target.value)} />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Date de Naissance *</Label>
-                        <Input type="date" value={formData.dateNaissance} onChange={(e) => handleInputChange("dateNaissance", e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Lieu de Naissance *</Label>
-                        <Input value={formData.lieuNaissance} onChange={(e) => handleInputChange("lieuNaissance", e.target.value)} />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Sexe *</Label>
-                        <Select value={formData.sexe} onValueChange={(value) => handleInputChange("sexe", value)} disabled={typeInscription === "reinscription"}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner" />
-                          </SelectTrigger>
+          )}
+
+          {/* ── Étape 2 : Parents ────────────────────────────────────────────── */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <h3 className="font-medium text-sm border-b pb-2">Informations du parent / tuteur</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Nom *</Label>
+                  <Input value={parentLastName} onChange={(e) => setParentLastName(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Prénom</Label>
+                  <Input value={parentFirstName} onChange={(e) => setParentFirstName(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Téléphone *</Label>
+                  <Input value={parentPhone} onChange={(e) => setParentPhone(e.target.value)} type="tel" />
+                </div>
+                <div>
+                  <Label>E-mail</Label>
+                  <Input value={parentEmail} onChange={(e) => setParentEmail(e.target.value)} type="email" />
+                </div>
+              </div>
+              <div>
+                <Label>Adresse</Label>
+                <Input value={parentAddress} onChange={(e) => setParentAddress(e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {/* ── Étape 3 : Scolarité ──────────────────────────────────────────── */}
+          {step === 3 && (
+            <div className="space-y-5">
+              <h3 className="font-medium text-sm border-b pb-2">Scolarité</h3>
+
+              {!activeYear && !isYearLoading && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+                  Aucune année scolaire active. Définissez l'année actuelle dans Paramètres → Années académiques.
+                </p>
+              )}
+
+              {isStructureLoading ? (
+                <p className="text-sm text-slate-500">Chargement des cycles…</p>
+              ) : academicStructure.length === 0 ? (
+                <p className="text-sm text-slate-500">Aucun cycle pédagogique configuré.</p>
+              ) : (
+                <>
+                  {/* Cycle */}
+                  <div>
+                    <Label>Cycle *</Label>
+                    <Select value={selectedCycleId} onValueChange={handleCycleChange}>
+                      <SelectTrigger><SelectValue placeholder="Sélectionner un cycle" /></SelectTrigger>
+                      <SelectContent>
+                        {academicStructure.map((cycle) => (
+                          <SelectItem key={cycle.id} value={cycle.id}>{cycle.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Niveau */}
+                  {selectedCycleId && (
+                    <div>
+                      <Label>Niveau *</Label>
+                      {levels.length === 0 ? (
+                        <p className="text-xs text-slate-500 mt-1">Aucun niveau configuré pour ce cycle.</p>
+                      ) : (
+                        <Select value={selectedLevelId} onValueChange={handleLevelChange}>
+                          <SelectTrigger><SelectValue placeholder="Sélectionner un niveau" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="M">Masculin</SelectItem>
-                            <SelectItem value="F">Féminin</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Niveau *</Label>
-                        <Select value={formData.classe} onValueChange={(value) => handleInputChange("classe", value)} disabled={typeInscription === "reinscription"}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {niveaux.map((niveau) => (
-                              <SelectItem key={niveau.id} value={niveau.id}>{niveau.name}</SelectItem>
+                            {levels.map((l) => (
+                              <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                    </div>
-                    {typeInscription === "reinscription" && (
-                      <div className="grid grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <div className="space-y-2">
-                          <Label>Ancien niveau</Label>
-                          <Input value={formData.classeAncienne} disabled className="bg-gray-100" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Nouveau niveau *</Label>
-                          <div className="flex gap-2">
-                            <Select value={formData.nouvelleClasse} onValueChange={(value) => handleInputChange("nouvelleClasse", value)}>
-                              <SelectTrigger className="flex-1">
-                                <SelectValue placeholder="Sélectionner" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {niveaux.map((niveau) => (
-                                  <SelectItem key={niveau.id} value={niveau.id}>{niveau.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleInputChange("nouvelleClasse", formData.classeAncienne)}
-                              title="Redouble — garder le même niveau"
-                            >
-                              Redouble
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <Label>Photo de l'enfant</Label>
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleInputChange("photo", e.target.files?.[0])}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Étape 2: Informations des parents */}
-              {currentStep === 2 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Informations des Parents</CardTitle>
-                    <CardDescription>Coordonnées du responsable légal</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Nom du Parent *</Label>
-                        <Input value={formData.nomParent} onChange={(e) => handleInputChange("nomParent", e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Prénom du Parent</Label>
-                        <Input value={formData.prenomParent} onChange={(e) => handleInputChange("prenomParent", e.target.value)} />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Téléphone *</Label>
-                        <Input type="tel" value={formData.telephoneParent} onChange={(e) => handleInputChange("telephoneParent", e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Email</Label>
-                        <Input type="email" value={formData.emailParent} onChange={(e) => handleInputChange("emailParent", e.target.value)} />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Adresse *</Label>
-                      <Textarea value={formData.adresse} onChange={(e) => handleInputChange("adresse", e.target.value)} rows={3} />
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Étape 3: Association avec frère/sœur */}
-              {currentStep === 3 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Association avec un autre Élève</CardTitle>
-                    <CardDescription>Optionnel - Si l'enfant a un frère ou une sœur déjà inscrit</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {!formData.selectedSibling ? (
-                      <div className="space-y-2">
-                        <Label>Rechercher un frère/sœur</Label>
-                        <div className="relative">
-                          <Input
-                            placeholder="Tapez le nom ou prénom..."
-                            value={formData.searchSibling}
-                            onChange={(e) => handleSiblingSearch(e.target.value)}
-                          />
-                          {siblingSuggestions.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                              {siblingSuggestions.map((sibling) => (
-                                <div
-                                  key={sibling.id}
-                                  className="p-3 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
-                                  onClick={() => handleSelectSibling(sibling)}
-                                >
-                                  <p className="font-semibold">{sibling.prenom} {sibling.nom}</p>
-                                  <p className="text-sm text-gray-600">Classe: {sibling.classe} | ID: {sibling.identifiant}</p>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="p-4 bg-blue-50 rounded-lg space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold text-lg">{formData.selectedSibling.prenom} {formData.selectedSibling.nom}</p>
-                            <p className="text-sm text-gray-600">Classe: {formData.selectedSibling.classe}</p>
-                            <p className="text-sm text-gray-600">ID: {formData.selectedSibling.identifiant}</p>
-                          </div>
-                          <Button variant="outline" size="sm" onClick={handleRemoveSibling}>
-                            Supprimer
-                          </Button>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Lien de parenté</Label>
-                          <Select value={formData.lienParente} onValueChange={(value) => handleInputChange("lienParente", value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Sélectionner le lien" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="frere">Frère</SelectItem>
-                              <SelectItem value="soeur">Sœur</SelectItem>
-                              <SelectItem value="jumeau">Jumeau/Jumelle</SelectItem>
-                              <SelectItem value="demi_frere">Demi-frère</SelectItem>
-                              <SelectItem value="demi_soeur">Demi-sœur</SelectItem>
-                              <SelectItem value="cousin">Cousin/Cousine</SelectItem>
-                              <SelectItem value="autre">Autre</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Étape 4: Mode de paiement */}
-              {currentStep === 4 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Mode de Paiement</CardTitle>
-                    <CardDescription>Configuration du paiement des frais de scolarité</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Mode de Paiement *</Label>
-                      <Select value={formData.modePaiement} onValueChange={(value) => handleInputChange("modePaiement", value)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="mensuel">Paiement Mensuel</SelectItem>
-                          <SelectItem value="tranches">Paiement par Tranches</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {formData.modePaiement === "mensuel" && (
-                      <div className="space-y-2">
-                        <Label>Mois de Paiement *</Label>
-                        <div className="grid grid-cols-2 gap-2">
-                          {moisDisponibles.map((mois) => (
-                            <div key={mois} className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`mois-${mois}`}
-                                checked={formData.moisPaiement.includes(mois)}
-                                onCheckedChange={(checked) => handleMoisPaiementChange(mois, checked as boolean)}
-                              />
-                              <Label htmlFor={`mois-${mois}`} className="text-sm">{mois}</Label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {formData.modePaiement === "tranches" && (
-                      <div className="space-y-2">
-                        <Label>Nombre de Tranches</Label>
-                        <Select value={formData.nombreTranches.toString()} onValueChange={(value) => handleInputChange("nombreTranches", parseInt(value))}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="2">2 Tranches</SelectItem>
-                            <SelectItem value="3">3 Tranches</SelectItem>
-                            <SelectItem value="4">4 Tranches</SelectItem>
-                            <SelectItem value="6">6 Tranches</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    <div className="space-y-4 pt-4 border-t">
-                      <div className="rounded-2xl bg-creme p-4 border border-terre/10">
-                        <p className="text-sm text-pierre">Scolarité</p>
-                        <p className="text-2xl font-bold text-terre tabular">
-                          {selectedPlan ? `${selectedPlan.annual_tuition.toLocaleString("fr-FR")} FCFA` : "Sélectionnez une classe"}
-                        </p>
-                      </div>
-                      <p className="text-sm text-pierre">Les échéances seront générées par le backend.</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Étape 5: Options supplémentaires */}
-              {currentStep === 5 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Options Supplémentaires</CardTitle>
-                    <CardDescription>Services et options additionnels</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="tenueScolaire"
-                          checked={formData.optionsSupplementaires.tenueScolaire}
-                          onCheckedChange={(checked) => handleOptionChange("tenueScolaire", checked as boolean)}
-                        />
-                        <Label htmlFor="tenueScolaire">Tenue Scolaire</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="carteScolaire"
-                          checked={formData.optionsSupplementaires.carteScolaire}
-                          onCheckedChange={(checked) => handleOptionChange("carteScolaire", checked as boolean)}
-                        />
-                        <Label htmlFor="carteScolaire">Carte Scolaire</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="cooperative"
-                          checked={formData.optionsSupplementaires.cooperative}
-                          onCheckedChange={(checked) => handleOptionChange("cooperative", checked as boolean)}
-                        />
-                        <Label htmlFor="cooperative">Coopérative</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="tenueEPS"
-                          checked={formData.optionsSupplementaires.tenueEPS}
-                          onCheckedChange={(checked) => handleOptionChange("tenueEPS", checked as boolean)}
-                        />
-                        <Label htmlFor="tenueEPS">Tenue EPS</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="assurance"
-                          checked={formData.optionsSupplementaires.assurance}
-                          onCheckedChange={(checked) => handleOptionChange("assurance", checked as boolean)}
-                        />
-                        <Label htmlFor="assurance">Assurance</Label>
-                      </div>
-                    </div>
-
-                    <div className="border-t pt-4 space-y-3">
-                      <div className="border-t pt-3 flex justify-between text-lg font-bold">
-                        <span>Plan tarifaire sélectionné</span>
-                        <span className="text-blue-600">{selectedPlan ? `${selectedPlan.annual_tuition.toLocaleString()} FCFA` : "-"}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Étape 6: Documents */}
-              {currentStep === 6 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Documents</CardTitle>
-                    <CardDescription>Documents optionnels (photo, acte de naissance, etc.)</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Acte de naissance</Label>
-                      <Input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => handleInputChange("acteNaissance", e.target.files?.[0])}
-                      />
-                      <p className="text-xs text-gray-500">Formats acceptés: PDF, JPG, PNG</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Certificat médical</Label>
-                      <Input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => handleInputChange("certificatMedical", e.target.files?.[0])}
-                      />
-                      <p className="text-xs text-gray-500">Formats acceptés: PDF, JPG, PNG</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Autres documents</Label>
-                      <Input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                        multiple
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []) as File[]
-                          setFormData(prev => ({ ...prev, autresDocuments: files }))
-                        }}
-                      />
-                      <p className="text-xs text-gray-500">Formats acceptés: PDF, JPG, PNG, DOC, DOCX</p>
-                      {formData.autresDocuments.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          {formData.autresDocuments.map((file, index) => (
-                            <div key={index} className="text-sm text-gray-600 flex items-center gap-2">
-                              <span>• {file.name}</span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    autresDocuments: prev.autresDocuments.filter((_, i) => i !== index)
-                                  }))
-                                }}
-                              >
-                                ×
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                  )}
 
-              {/* Navigation buttons */}
-              <div className="flex justify-between mt-6">
-                <Button
-                  variant="outline"
-                  onClick={handlePrevious}
-                  disabled={currentStep === 1}
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Précédent
-                </Button>
-                {currentStep === totalSteps ? (
-                  <Button onClick={handleSubmit}>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Valider l'Inscription
-                  </Button>
-                ) : (
-                  <Button onClick={handleNext}>
-                    Suivant
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
+                  {/* Classe */}
+                  {selectedLevelId && (
+                    <div>
+                      <Label>Classe *</Label>
+                      {classes.length === 0 ? (
+                        <p className="text-xs text-slate-500 mt-1">Aucune classe configurée pour ce niveau.</p>
+                      ) : (
+                        <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                          <SelectTrigger><SelectValue placeholder="Sélectionner une classe" /></SelectTrigger>
+                          <SelectContent>
+                            {classes.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Forfait auto */}
+                  {selectedLevelId && (
+                    <div className="mt-2 border rounded p-4 bg-slate-50">
+                      {isPlansLoading ? (
+                        <p className="text-sm text-slate-500">Chargement du forfait…</p>
+                      ) : selectedPlan ? (
+                        <>
+                          <p className="text-sm font-medium mb-1">Forfait de scolarité — {selectedLevel?.name}</p>
+                          <table className="w-full text-sm">
+                            <tbody>
+                              <tr>
+                                <td className="py-0.5 text-slate-600">Scolarité annuelle</td>
+                                <td className="py-0.5 text-right font-medium">{fmt(selectedPlan.annual_tuition)}</td>
+                              </tr>
+                              <tr>
+                                <td className="py-0.5 text-slate-600">
+                                  {typeInscription === "reinscription" ? "Frais de réinscription" : "Frais d'inscription"}
+                                </td>
+                                <td className="py-0.5 text-right font-medium">{fmt(registrationFee)}</td>
+                              </tr>
+                              <tr>
+                                <td className="py-0.5 text-slate-600">Mode de paiement</td>
+                                <td className="py-0.5 text-right">
+                                  {selectedPlan.payment_mode === "monthly" && "Mensuel"}
+                                  {selectedPlan.payment_mode === "installments" && `${selectedPlan.installment_count ?? installments.length} tranche(s)`}
+                                  {selectedPlan.payment_mode === "single" && "Paiement unique"}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </>
+                      ) : (
+                        <p className="text-sm text-amber-700">
+                          Aucun forfait configuré pour ce niveau pour {activeYear?.name ?? "l'année active"}.<br />
+                          <span className="text-xs text-slate-500">Configurez-en un dans Paramètres → Scolarité.</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── Étape 4 : Paiement ───────────────────────────────────────────── */}
+          {step === 4 && selectedPlan && (
+            <div className="space-y-5">
+              <h3 className="font-medium text-sm border-b pb-2">Paiement</h3>
+
+              {/* Résumé contexte */}
+              <div className="text-xs text-slate-500 flex gap-4">
+                <span><span className="font-medium text-slate-700">{selectedCycle?.name}</span></span>
+                <span>›</span>
+                <span><span className="font-medium text-slate-700">{selectedLevel?.name}</span></span>
+                <span>›</span>
+                <span><span className="font-medium text-slate-700">{selectedClass?.name}</span></span>
+              </div>
+
+              {/* Frais inscription (toujours inclus) */}
+              <div>
+                <p className="text-sm font-medium mb-2">
+                  {typeInscription === "reinscription" ? "Frais de réinscription" : "Frais d'inscription"}
+                </p>
+                <div className="flex justify-between text-sm border rounded px-3 py-2 bg-slate-50">
+                  <span>{typeInscription === "reinscription" ? "Réinscription" : "Inscription"}</span>
+                  <span className="font-medium">{fmt(registrationFee)}</span>
+                </div>
+              </div>
+
+              {/* Scolarité selon mode */}
+              <div>
+                <p className="text-sm font-medium mb-2">
+                  Scolarité — {selectedPlan.payment_mode === "monthly" ? "Mensuel" : selectedPlan.payment_mode === "installments" ? "Par tranches" : "Paiement unique"}
+                </p>
+
+                {selectedPlan.payment_mode === "single" && (
+                  <div className="flex justify-between text-sm border rounded px-3 py-2 bg-slate-50">
+                    <span>Scolarité annuelle</span>
+                    <span className="font-medium">{fmt(selectedPlan.annual_tuition)}</span>
+                  </div>
+                )}
+
+                {(selectedPlan.payment_mode === "monthly" || selectedPlan.payment_mode === "installments") && (
+                  <>
+                    {installments.length === 0 ? (
+                      <p className="text-xs text-slate-500">Aucune échéance configurée pour ce forfait.</p>
+                    ) : (
+                      <div className="border rounded divide-y text-sm">
+                        {installments.map((inst) => (
+                          <label key={inst.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50">
+                            <Checkbox
+                              checked={selectedInstallmentIds.has(inst.id)}
+                              onCheckedChange={(checked) => {
+                                setSelectedInstallmentIds((prev) => {
+                                  const next = new Set(prev)
+                                  if (checked) next.add(inst.id)
+                                  else next.delete(inst.id)
+                                  return next
+                                })
+                              }}
+                            />
+                            <span className="flex-1">
+                              {inst.label}
+                              {inst.due_date && (
+                                <span className="text-slate-400 ml-2 text-xs">
+                                  {new Date(inst.due_date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                                </span>
+                              )}
+                            </span>
+                            <span className="font-medium">{fmt(inst.amount)}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs text-slate-500 mt-1">
+                      Scolarité annuelle totale : {fmt(selectedPlan.annual_tuition)}
+                    </p>
+                  </>
                 )}
               </div>
-            </>
+
+              {/* Options dynamiques */}
+              {isLoadingOptions ? (
+                <p className="text-sm text-slate-500">Chargement des options…</p>
+              ) : availableOptions.length > 0 ? (
+                <div>
+                  <p className="text-sm font-medium mb-2">Options</p>
+                  <div className="border rounded divide-y text-sm">
+                    {availableOptions.map((opt) => (
+                      <label key={opt.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50">
+                        <Checkbox
+                          checked={selectedOptionIds.has(opt.id)}
+                          onCheckedChange={(checked) => {
+                            setSelectedOptionIds((prev) => {
+                              const next = new Set(prev)
+                              if (checked) next.add(opt.id)
+                              else next.delete(opt.id)
+                              return next
+                            })
+                          }}
+                        />
+                        <span className="flex-1">{opt.name}</span>
+                        <span className="font-medium">{fmt(opt.amount)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Récapitulatif total */}
+              <div className="border rounded bg-slate-50">
+                <p className="text-xs font-medium text-slate-500 px-3 pt-2 pb-1 uppercase tracking-wide">Récapitulatif — à payer maintenant</p>
+                <div className="divide-y px-3">
+                  <div className="flex justify-between py-1.5 text-sm">
+                    <span>{typeInscription === "reinscription" ? "Frais de réinscription" : "Frais d'inscription"}</span>
+                    <span>{fmt(registrationFee)}</span>
+                  </div>
+                  {installments.filter((i) => selectedInstallmentIds.has(i.id)).map((i) => (
+                    <div key={i.id} className="flex justify-between py-1.5 text-sm">
+                      <span>{i.label}</span>
+                      <span>{fmt(i.amount)}</span>
+                    </div>
+                  ))}
+                  {availableOptions.filter((o) => selectedOptionIds.has(o.id)).map((o) => (
+                    <div key={o.id} className="flex justify-between py-1.5 text-sm">
+                      <span>{o.name}</span>
+                      <span>{fmt(o.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between px-3 py-2 border-t font-semibold text-sm">
+                  <span>Total</span>
+                  <span>{fmt(totalNow)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 4 && !selectedPlan && (
+            <div className="space-y-3">
+              <h3 className="font-medium text-sm border-b pb-2">Paiement</h3>
+              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                Aucun forfait configuré pour ce niveau. Retournez à l'étape précédente ou configurez un forfait dans Paramètres → Scolarité.
+              </p>
+            </div>
+          )}
+
+          {/* ── Étape 5 : Documents ──────────────────────────────────────────── */}
+          {step === 5 && (
+            <div className="space-y-4">
+              <h3 className="font-medium text-sm border-b pb-2">Documents (facultatif)</h3>
+              <div>
+                <Label>Acte de naissance</Label>
+                <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setBirthCertificate(e.target.files?.[0] ?? null)} />
+              </div>
+              <div>
+                <Label>Certificat médical</Label>
+                <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setMedicalCertificate(e.target.files?.[0] ?? null)} />
+              </div>
+            </div>
+          )}
+
+          {/* ── Étape 6 : Validation ─────────────────────────────────────────── */}
+          {step === 6 && (
+            <div className="space-y-4">
+              <h3 className="font-medium text-sm border-b pb-2">Validation — Récapitulatif</h3>
+
+              <table className="w-full text-sm">
+                <tbody className="divide-y">
+                  <tr>
+                    <td className="py-2 text-slate-500 w-40">Élève</td>
+                    <td className="py-2 font-medium">{firstName} {lastName}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 text-slate-500">Année scolaire</td>
+                    <td className="py-2">{activeYear?.name ?? "—"}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 text-slate-500">Cycle</td>
+                    <td className="py-2">{selectedCycle?.name}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 text-slate-500">Niveau</td>
+                    <td className="py-2">{selectedLevel?.name}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 text-slate-500">Classe</td>
+                    <td className="py-2">{selectedClass?.name}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 text-slate-500">Scolarité annuelle</td>
+                    <td className="py-2">{selectedPlan ? fmt(selectedPlan.annual_tuition) : "—"}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 text-slate-500">Parent</td>
+                    <td className="py-2">{parentFirstName} {parentLastName} — {parentPhone}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {totalNow > 0 && (
+                <div className="border rounded bg-slate-50 p-3">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">À payer maintenant</p>
+                  <div className="space-y-1 text-sm">
+                    {registrationFee > 0 && (
+                      <div className="flex justify-between">
+                        <span>{typeInscription === "reinscription" ? "Frais de réinscription" : "Frais d'inscription"}</span>
+                        <span>{fmt(registrationFee)}</span>
+                      </div>
+                    )}
+                    {installments.filter((i) => selectedInstallmentIds.has(i.id)).map((i) => (
+                      <div key={i.id} className="flex justify-between">
+                        <span>{i.label}</span>
+                        <span>{fmt(i.amount)}</span>
+                      </div>
+                    ))}
+                    {availableOptions.filter((o) => selectedOptionIds.has(o.id)).map((o) => (
+                      <div key={o.id} className="flex justify-between">
+                        <span>{o.name}</span>
+                        <span>{fmt(o.amount)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between font-semibold border-t pt-1 mt-1">
+                      <span>Total</span>
+                      <span>{fmt(totalNow)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <div className="border-t px-6 py-4 flex justify-between items-center">
+          <Button variant="outline" onClick={handleBack} disabled={step === 1}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Précédent
+          </Button>
+          <span className="text-xs text-slate-400">{step} / {STEPS.length}</span>
+          {step < STEPS.length ? (
+            <Button onClick={handleNext}>
+              Suivant <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          ) : (
+            <Button onClick={handleSubmit} disabled={isSubmitting || !activeYear}>
+              {isSubmitting ? "Enregistrement…" : typeInscription === "reinscription" ? "Confirmer la réinscription" : "Confirmer l'inscription"}
+            </Button>
           )}
         </div>
       </div>

@@ -93,6 +93,20 @@ function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYea
     if (paymentMode === "installments" && !amountsMatch) { setError("Le total des tranches doit correspondre au montant annuel."); return }
     setIsSaving(true); setError(null)
     try {
+      let computedInstallmentCount = 1
+      if (paymentMode === "single") {
+        computedInstallmentCount = 1
+      } else if (paymentMode === "monthly") {
+        computedInstallmentCount = 12
+      } else if (paymentMode === "installments") {
+        computedInstallmentCount = installments.length
+        if (!computedInstallmentCount || computedInstallmentCount <= 0 || isNaN(computedInstallmentCount)) {
+          setError("Le nombre de tranches est invalide.")
+          setIsSaving(false)
+          return
+        }
+      }
+
       const payload = {
         establishment_id: establishmentId,
         academic_year_id: academicYearId,
@@ -100,7 +114,7 @@ function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYea
         payment_mode: paymentMode,
         annual_tuition: annualAmount,
         registration_fee: existingPlan?.registration_fee ?? defaultRegistrationFee,
-        installment_count: paymentMode === "installments" ? installments.length : null,
+        installment_count: computedInstallmentCount,
         installments: paymentMode === "installments" ? installments.map((inst, idx) => ({ ...inst, installment_number: idx + 1 })) : [],
       }
       if (existingPlan) { await updateTuitionPlan(existingPlan.id, payload) } else { await createTuitionPlan(payload) }

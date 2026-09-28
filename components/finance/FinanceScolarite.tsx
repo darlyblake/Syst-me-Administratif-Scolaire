@@ -328,6 +328,89 @@ export function FinanceScolarite() {
     return null
   }
 
+  const studentsByClass = useMemo(() => {
+    const groups = new Map<string, typeof filteredStudents>()
+    for (const student of filteredStudents) {
+      const key = student.class?.id || student.class?.name || "sans-classe"
+      const current = groups.get(key) ?? []
+      current.push(student)
+      groups.set(key, current)
+    }
+    return Array.from(groups.entries()).map(([key, students]) => ({
+      key,
+      name: students[0]?.class?.name || "Classe non renseignée",
+      students,
+    }))
+  }, [filteredStudents])
+
+  const renderTable = (className: string, students: typeof filteredStudents) => (
+    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+        <h2 className="text-sm font-semibold text-gray-800">{className}</h2>
+        <p className="mt-0.5 text-xs text-gray-500">{students.length} élève{students.length > 1 ? "s" : ""}</p>
+      </div>
+
+      <div className="w-full overflow-x-auto overscroll-x-contain">
+        <table className="min-w-[760px] w-full text-sm">
+          <thead className="border-b border-gray-200 bg-white">
+            <tr>
+              <th className="sticky left-0 z-20 min-w-[180px] border-r border-gray-100 bg-white px-3 py-3 text-left font-medium text-gray-700">
+                Élève
+              </th>
+              {columns.map((column) => (
+                <th
+                  key={column.key}
+                  className="min-w-[72px] px-2 py-3 text-center font-medium text-gray-700"
+                  title={`${column.longLabel}${column.due_date ? ` — ${fmtDate(column.due_date)}` : ""}`}
+                >
+                  {column.label}
+                </th>
+              ))}
+              <th className="min-w-[170px] px-3 py-3 text-left font-medium text-gray-700">État</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {students.map((student) => (
+              <tr key={student.student?.id || student.enrollment_id} className="hover:bg-gray-50">
+                <td className="sticky left-0 z-10 border-r border-gray-100 bg-white px-3 py-3 font-medium text-gray-900">
+                  <div className="max-w-[180px] truncate">
+                    {student.student ? `${student.student.first_name} ${student.student.last_name}` : "Élève inconnu"}
+                  </div>
+                  {student.student?.student_number && (
+                    <div className="mt-0.5 text-[11px] font-normal text-gray-400">
+                      {student.student.student_number}
+                    </div>
+                  )}
+                </td>
+                {columns.map((column) => {
+                  const group = scheduleForColumn(student, column)
+                  return (
+                    <td key={column.key} className="px-2 py-2 text-center">
+                      {group ? <ScheduleCell group={group} payments={paymentHistory} /> : <span className="text-gray-300">—</span>}
+                    </td>
+                  )
+                })}
+                <td className="px-3 py-3">
+                  <div className="flex items-center gap-2 whitespace-nowrap">
+                    <GlobalState schedules={student.schedules} />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs"
+                      onClick={() => setSelectedStudentForPay(student.schedules)}
+                    >
+                      Encaisser
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+
   return (
     <div className="space-y-5">
       <div>
@@ -346,102 +429,23 @@ export function FinanceScolarite() {
         />
       </div>
 
-      <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200 bg-white">
-        <table className="w-full min-w-[760px] text-sm">
-          <thead className="border-b border-gray-200 bg-gray-50">
-            <tr>
-              <th className="sticky left-0 z-10 bg-gray-50 px-4 py-3 text-left font-medium text-gray-700">Élève</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-700">Classe</th>
-              {columns.map((column) => (
-                <th
-                  key={column.key}
-                  className="px-3 py-3 text-center font-medium text-gray-700"
-                  title={`${column.longLabel}${column.due_date ? ` — ${fmtDate(column.due_date)}` : ""}`}
-                >
-                  {column.label}
-                </th>
-              ))}
-              <th className="px-4 py-3 text-left font-medium text-gray-700">État</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading || isYearLoading || error || filteredStudents.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length + 3} className="px-4 py-10 text-center text-gray-500">
-                  {loading || isYearLoading ? "Chargement des échéances..." : error || "Aucune échéance trouvée."}
-                </td>
-              </tr>
-            ) : (
-              filteredStudents.map((student) => (
-                <tr key={student.student?.id || student.enrollment_id} className="hover:bg-gray-50">
-                  <td className="sticky left-0 bg-white px-4 py-3 font-medium text-gray-900">
-                    {student.student ? `${student.student.first_name} ${student.student.last_name}` : "Élève inconnu"}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{student.class?.name || "—"}</td>
-                  {columns.map((column) => {
-                    const group = scheduleForColumn(student, column)
-                    return (
-                      <td key={column.key} className="px-2 py-2 text-center">
-                        {group ? <ScheduleCell group={group} payments={paymentHistory} /> : <span className="text-gray-300">—</span>}
-                      </td>
-                    )
-                  })}
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <GlobalState schedules={student.schedules} />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 text-xs"
-                        onClick={() => setSelectedStudentForPay(student.schedules)}
-                      >
-                        Encaisser
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="space-y-3 md:hidden">
-        {renderLoadingOrEmpty("rounded-lg border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500")}
-        {!loading && !isYearLoading && !error && filteredStudents.map((student) => (
-          <article key={student.student?.id || student.enrollment_id} className="rounded-lg border border-gray-200 bg-white p-4">
-            <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-3">
-              <div className="min-w-0">
-                <p className="truncate font-semibold text-gray-900">
-                  {student.student ? `${student.student.first_name} ${student.student.last_name}` : "Élève inconnu"}
-                </p>
-                <p className="mt-0.5 text-xs text-gray-500">{student.class?.name || "Classe non renseignée"}</p>
-              </div>
-              <GlobalState schedules={student.schedules} />
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {student.groups.map((group) => (
-                <div key={group.key} className="rounded-md border border-gray-100 bg-gray-50 px-2 py-1">
-                  <div className="mb-0.5 text-center text-[11px] font-medium text-gray-500">
-                    {colLabel(group.label, group.due_date)}
-                  </div>
-                  <ScheduleCell group={group} payments={paymentHistory} mobile />
-                </div>
-              ))}
-            </div>
-
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-3 w-full"
-              onClick={() => setSelectedStudentForPay(student.schedules)}
-            >
-              Encaisser un versement
-            </Button>
-          </article>
-        ))}
-      </div>
+      {loading || isYearLoading ? (
+        <div className="rounded-lg border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
+          Chargement des échéances...
+        </div>
+      ) : error ? (
+        <div className="rounded-lg border border-red-200 bg-white px-4 py-10 text-center text-sm text-red-600">
+          {error}
+        </div>
+      ) : studentsByClass.length === 0 ? (
+        <div className="rounded-lg border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
+          Aucune échéance trouvée.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {studentsByClass.map((group) => renderTable(group.name, group.students))}
+        </div>
+      )}
 
       {selectedStudentForPay && (
         <PaymentModal

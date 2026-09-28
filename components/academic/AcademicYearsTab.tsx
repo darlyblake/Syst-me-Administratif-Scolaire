@@ -227,7 +227,7 @@ export default function AcademicYearsTab() {
                     {year.status === "active" && (
                       <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">
                         <CheckCircle2 className="h-3 w-3" />
-                        Active
+                        Année actuelle
                       </span>
                     )}
                   </div>

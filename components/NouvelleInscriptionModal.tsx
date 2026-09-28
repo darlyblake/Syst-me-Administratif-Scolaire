@@ -33,8 +33,8 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
   const establishmentId = primaryEstablishment?.id ?? null
   const { data: students } = useStudents(establishmentId, { search: "", pageSize: 50 })
   const { data: academicStructure } = useAcademicStructure(establishmentId)
-  const { selectedYear } = useAcademicYears(establishmentId)
-  const { data: tuitionPlans } = useTuitionPlans(selectedYear?.id ?? null)
+  const { activeYear, isLoading: isYearLoading } = useAcademicYears(establishmentId)
+  const { data: tuitionPlans } = useTuitionPlans(activeYear?.id ?? null)
   const { createStudentEnrollment, isSubmitting, error: submissionError } = useEnrollment(null)
   const [currentStep, setCurrentStep] = useState(1)
   const totalSteps = 6
@@ -237,8 +237,24 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
       return
     }
 
-    if (!establishmentId || !selectedYear?.id || !selectedClass?.id || !selectedPlan) {
-      toast.error("Sélection académique incomplète", { description: "Vérifiez l'année, la classe et le forfait sélectionnés." })
+    if (!activeYear) {
+      toast.error("Aucune année académique active", {
+        description: "Définissez l'année actuelle dans Paramètres → Années académiques."
+      })
+      return
+    }
+
+    if (!selectedClass?.id) {
+      toast.error(`Aucune classe disponible pour l'année ${activeYear.name}`, {
+        description: "Vérifiez que des classes sont bien configurées pour cette année académique."
+      })
+      return
+    }
+
+    if (!selectedPlan) {
+      toast.error("Aucun forfait de scolarité configuré", {
+        description: "Configurez un forfait de scolarité pour ce niveau dans Paramètres → Scolarité."
+      })
       return
     }
 
@@ -273,7 +289,7 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
     const result = await createStudentEnrollment({
       establishmentId,
       studentId: studentIdToUse,
-      academicYearId: selectedYear.id,
+      academicYearId: activeYear.id,
       classId: selectedClass.id,
       tuitionPlanId: selectedPlan.id,
       enrollmentDate: new Date().toISOString().slice(0, 10),
@@ -775,7 +791,7 @@ export default function NouvelleInscriptionModal({ isOpen, onClose, onSuccess, t
                         accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                         multiple
                         onChange={(e) => {
-                          const files = Array.from(e.target.files || [])
+                          const files = Array.from(e.target.files || []) as File[]
                           setFormData(prev => ({ ...prev, autresDocuments: files }))
                         }}
                       />

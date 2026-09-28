@@ -34,8 +34,8 @@ export default function StudentsPage() {
   const [selectedLevel, setSelectedLevel] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
   const { data: academicStructure } = useAcademicStructure(establishmentId)
-  const { selectedYear } = useAcademicYears(establishmentId)
-  const { data: tuitionPlans } = useTuitionPlans(selectedYear?.id ?? null)
+  const { activeYear } = useAcademicYears(establishmentId)
+  const { data: tuitionPlans } = useTuitionPlans(activeYear?.id ?? null)
   const { data: supabaseStudents, total, totalPages: backendTotalPages, isLoading: isLoadingSupabase, error: studentsError, create, update, deactivate, assignToClass, isCreating, isUpdating, isDeactivating, isAssigning } = useStudents(establishmentId, {
     page: currentPage,
     pageSize: 50,
@@ -112,14 +112,14 @@ export default function StudentsPage() {
   const handleSelectStudent = (id: string, selected: boolean) => { setSelectedIds(prev => { const next = new Set(prev); if (selected) next.add(id); else next.delete(id); return next }) }
   const handleBulkStatusChange = async () => { for (const id of selectedIds) { const student = students.find(s => s.id === id); if (student) await handleToggleStatus(student) }; setSelectedIds(new Set()) }
   const handleBulkClassChange = async () => {
-    if (!establishmentId || !selectedYear?.id || selectedIds.size === 0) return toast.error("Le contexte académique est indisponible")
+    if (!establishmentId || !activeYear?.id || selectedIds.size === 0) return toast.error("Le contexte académique est indisponible")
     if (assignmentClasses.length === 0 || tuitionPlans.length === 0) return toast.error("Aucune classe ou aucun forfait actif disponible")
     const classChoice = prompt(`Classe cible (1-${assignmentClasses.length}) :\n${assignmentClasses.map((item, index) => `${index + 1}. ${item.name}`).join("\n")}`)
     const classIndex = Number(classChoice) - 1; const targetClass = assignmentClasses[classIndex]; if (!targetClass) return
     const classPlans = tuitionPlans.filter((plan) => plan.grade_level_id === targetClass.gradeLevelId)
     const targetPlan = classPlans.length === 1 ? classPlans[0] : classPlans[Number(prompt(`Forfait (1-${classPlans.length}) :\n${classPlans.map((plan, index) => `${index + 1}. ${plan.annual_tuition.toLocaleString()} FCFA`).join("\n")}`)) - 1]
     if (!targetPlan) return toast.error("Aucun forfait valide sélectionné")
-    const result = await assignToClass({ establishmentId, studentIds: Array.from(selectedIds), academicYearId: selectedYear.id, classId: targetClass.id, tuitionPlanId: targetPlan.id, enrollmentDate: new Date().toISOString().slice(0, 10) })
+    const result = await assignToClass({ establishmentId, studentIds: Array.from(selectedIds), academicYearId: activeYear.id, classId: targetClass.id, tuitionPlanId: targetPlan.id, enrollmentDate: new Date().toISOString().slice(0, 10) })
     if (result) { toast.success(`${result.total} élève(s) affecté(s) : ${result.created} inscription(s) créée(s), ${result.updated} mise(s) à jour`); setSelectedIds(new Set()) } else toast.error("Impossible d'affecter les élèves")
   }
   const handleBulkGenerateCertificates = () => {

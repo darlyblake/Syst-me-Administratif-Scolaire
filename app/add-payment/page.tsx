@@ -15,8 +15,8 @@ import { Input } from "@/components/ui/input"
 export default function AddPaymentPage() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
-  const { selectedYear } = useAcademicYears(establishmentId)
-  const { enrollments } = useEnrollments({ establishmentId, academicYearId: selectedYear?.id ?? null, pageSize: 100 })
+  const { activeYear } = useAcademicYears(establishmentId)
+  const { enrollments } = useEnrollments({ establishmentId, academicYearId: activeYear?.id ?? null, pageSize: 100 })
   const [enrollmentId, setEnrollmentId] = useState("")
   const [amount, setAmount] = useState("")
   const [reference, setReference] = useState("")

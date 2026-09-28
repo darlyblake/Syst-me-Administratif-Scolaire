@@ -13,7 +13,7 @@ import { PaymentModal } from "./PaymentModal"
 export function FinanceScolarite() {
   const { etablissementActif } = useUserContext()
   const establishmentId = etablissementActif?.id
-  const { selectedYear: academicYear, isLoading: isYearLoading } = useAcademicYears(establishmentId)
+  const { activeYear: academicYear, isLoading: isYearLoading } = useAcademicYears(establishmentId)
 
   const [boardRows, setBoardRows] = useState<(FinanceStudentPaymentBoardRow & { student?: any, class?: any })[]>([])
   const [loading, setLoading] = useState(true)

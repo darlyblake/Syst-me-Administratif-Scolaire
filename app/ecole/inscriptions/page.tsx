@@ -22,7 +22,7 @@ import type { EnrollmentWithRelations } from "@/lib/supabase/types"
 export default function InscriptionsPage() {
   const { primaryEstablishment, estEnCoursDeChargement } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
-  const { selectedYear } = useAcademicYears(establishmentId)
+  const { activeYear } = useAcademicYears(establishmentId)
   const [showModal, setShowModal] = useState(false)
   const [modalType, setModalType] = useState<"inscription" | "reinscription">("inscription")
   const [search, setSearch] = useState("")
@@ -34,7 +34,7 @@ export default function InscriptionsPage() {
     establishmentId,
     page,
     pageSize: 25,
-    academicYearId: selectedYear?.id ?? null,
+    academicYearId: activeYear?.id ?? null,
     classId: filterClasse || null,
     status: filterStatut || null,
     refreshKey,

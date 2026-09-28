@@ -192,7 +192,7 @@ export default function ScolariteSettingsPage() {
 
   const { data: academicYears, activeYear, selectedYear, selectYear } = useAcademicYears(establishmentId ?? null)
   const { data: academicStructure, isLoading: isStructureLoading } = useAcademicStructure(establishmentId ?? null)
-  const academicYearId = selectedYear?.id ?? activeYear?.id ?? academicYears[0]?.id ?? ""
+  const academicYearId = selectedYear?.id ?? activeYear?.id ?? ""
   const { data: tuitionPlans, isLoading: isTuitionLoading, refresh } = useTuitionPlans(academicYearId)
   const { settings } = useEstablishmentFees(establishmentId ?? null)
 

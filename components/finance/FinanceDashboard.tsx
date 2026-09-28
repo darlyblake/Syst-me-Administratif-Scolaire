@@ -9,7 +9,7 @@ import { useAcademicYears } from "@/hooks/useAcademicYears"
 export function FinanceDashboard() {
   const { etablissementActif } = useUserContext()
   const establishmentId = etablissementActif?.id
-  const { selectedYear: academicYear, isLoading: isYearLoading } = useAcademicYears(establishmentId)
+  const { activeYear: academicYear, isLoading: isYearLoading } = useAcademicYears(establishmentId)
 
   const [paymentSummary, setPaymentSummary] = useState<FinancePaymentSummary | null>(null)
   const [movementSummary, setMovementSummary] = useState<FinanceMovementSummary | null>(null)

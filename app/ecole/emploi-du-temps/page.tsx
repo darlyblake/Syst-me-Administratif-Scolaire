@@ -101,7 +101,7 @@ export default function EmploiDuTempsPage() {
         if (!active) return
         setClasses(classRows.map(item => ({ id: item.id, nom: item.nom })))
         setAcademicYears(years)
-        const current = years.find(year => year.status === "active") ?? years[0]
+        const current = years.find(year => year.status === "active") ?? null
         if (current) setSelectedYearId(current.id)
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : "Impossible de charger les données.")

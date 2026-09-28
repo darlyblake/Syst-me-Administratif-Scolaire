@@ -24,8 +24,8 @@ const norm = (v: unknown) => String(v ?? "").trim().toLowerCase().normalize("NFD
 export default function ImportEtatStudentsPage() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
-  const { data: years, activeYear, selectedYear } = useAcademicYears(establishmentId)
-  const year = selectedYear ?? activeYear ?? years[0]
+  const { data: years, activeYear } = useAcademicYears(establishmentId)
+  const year = activeYear ?? null
   const { data: structure } = useAcademicStructure(establishmentId)
   const { data: plans } = useTuitionPlans(year?.id ?? null)
   const [rows, setRows] = useState<StateImportStudent[]>([])

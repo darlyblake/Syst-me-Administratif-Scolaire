@@ -15,7 +15,7 @@ export function useAcademicYears(establishmentId: string | null) {
   const [error, setError] = useState<string | null>(null)
 
   const applySelection = useCallback((years: AcademicYear[], preferred: AcademicYear | null) => {
-    const fallbackYear = preferred ?? years[0] ?? null
+    const fallbackYear = preferred ?? null
 
     setSelectedYear(fallbackYear)
   }, [])

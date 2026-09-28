@@ -343,14 +343,136 @@ export function FinanceScolarite() {
     }))
   }, [filteredStudents])
 
+  const [expandedMobileStudents, setExpandedMobileStudents] = useState<Set<string>>(new Set())
+
+  const toggleMobileStudent = (studentId: string) => {
+    setExpandedMobileStudents((current) => {
+      const next = new Set(current)
+      if (next.has(studentId)) next.delete(studentId)
+      else next.add(studentId)
+      return next
+    })
+  }
+
   const renderTable = (className: string, students: typeof filteredStudents) => (
     <section className="overflow-hidden rounded-lg border border-gray-200 bg-white">
       <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
         <h2 className="text-sm font-semibold text-gray-800">{className}</h2>
-        <p className="mt-0.5 text-xs text-gray-500">{students.length} élève{students.length > 1 ? "s" : ""}</p>
+        <p className="mt-0.5 text-xs text-gray-500">
+          {students.length} élève{students.length > 1 ? "s" : ""}
+        </p>
       </div>
 
-      <div className="w-full overflow-x-auto overscroll-x-contain">
+      {/* Mobile : vrai tableau compact. Un clic sur la ligne ouvre les détails. */}
+      <div className="md:hidden">
+        <table className="w-full table-fixed text-sm">
+          <thead className="border-b border-gray-200 bg-gray-50">
+            <tr>
+              <th className="px-3 py-3 text-left font-medium text-gray-600">Élève</th>
+              <th className="w-[92px] px-2 py-3 text-center font-medium text-gray-600">État</th>
+              <th className="w-9 px-2 py-3"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {students.map((student) => {
+              const studentId = student.student?.id || student.enrollment_id
+              const expanded = expandedMobileStudents.has(studentId)
+
+              return (
+                <tr key={studentId}>
+                  <td colSpan={3} className="p-0">
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 px-3 py-3 text-left active:bg-gray-50"
+                      onClick={() => toggleMobileStudent(studentId)}
+                      aria-expanded={expanded}
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium text-gray-900">
+                          {student.student
+                            ? `${student.student.first_name} ${student.student.last_name}`
+                            : "Élève inconnu"}
+                        </span>
+                        {student.student?.student_number && (
+                          <span className="mt-0.5 block truncate text-[11px] text-gray-400">
+                            {student.student.student_number}
+                          </span>
+                        )}
+                      </span>
+                      <span className="shrink-0">
+                        <GlobalState schedules={student.schedules} />
+                      </span>
+                      <span
+                        className={`ml-1 shrink-0 text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`}
+                        aria-hidden="true"
+                      >
+                        ▾
+                      </span>
+                    </button>
+
+                    {expanded && (
+                      <div className="border-t border-gray-100 bg-gray-50/70 px-3 py-3">
+                        <div className="mb-3 flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Échéances</p>
+                            <p className="text-xs text-gray-500">Touchez un mois pour voir les versements.</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              setSelectedStudentForPay(student.schedules)
+                            }}
+                          >
+                            Encaisser
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {columns.map((column) => {
+                            const group = scheduleForColumn(student, column)
+
+                            return (
+                              <div
+                                key={column.key}
+                                className="min-w-0 rounded-md border border-gray-200 bg-white px-1.5 py-2 text-center"
+                              >
+                                <div className="text-[10px] font-medium uppercase text-gray-400">
+                                  {column.label}
+                                </div>
+                                {group ? (
+                                  <ScheduleCell
+                                    group={group}
+                                    payments={paymentHistory}
+                                    mobile
+                                  />
+                                ) : (
+                                  <div className="py-2 text-xs text-gray-300">—</div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+
+                        <div className="mt-3 rounded-md border border-gray-200 bg-white px-3 py-2">
+                          <div className="flex items-center justify-between gap-3 text-xs">
+                            <span className="text-gray-500">Situation</span>
+                            <GlobalState schedules={student.schedules} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Tablette / PC : on conserve le tableau large existant. */}
+      <div className="hidden w-full overflow-x-auto overscroll-x-contain md:block">
         <table className="min-w-[760px] w-full text-sm">
           <thead className="border-b border-gray-200 bg-white">
             <tr>
@@ -386,7 +508,11 @@ export function FinanceScolarite() {
                   const group = scheduleForColumn(student, column)
                   return (
                     <td key={column.key} className="px-2 py-2 text-center">
-                      {group ? <ScheduleCell group={group} payments={paymentHistory} /> : <span className="text-gray-300">—</span>}
+                      {group ? (
+                        <ScheduleCell group={group} payments={paymentHistory} />
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
                     </td>
                   )
                 })}
@@ -416,7 +542,7 @@ export function FinanceScolarite() {
       <div>
         <h1 className="text-xl font-semibold text-gray-900">Scolarité</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Suivi des échéances et des versements. Survolez ou touchez une échéance pour voir le détail.
+          Suivi des échéances et des versements. Sur téléphone, touchez un élève pour afficher ses échéances et ses versements.
         </p>
       </div>
 

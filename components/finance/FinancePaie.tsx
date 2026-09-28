@@ -11,7 +11,7 @@ export function FinancePaie() {
           <h1 className="text-xl font-semibold text-gray-900 uppercase">Paie et Salaires</h1>
           <p className="text-sm text-gray-500 mt-1">Gestion des rémunérations du personnel</p>
         </div>
-        <Button className="rounded bg-gray-900 text-white hover:bg-gray-800">
+        <Button className="w-full sm:w-auto rounded bg-gray-900 text-white hover:bg-gray-800">
           <FileText className="h-4 w-4 mr-2" />
           Générer les Fiches
         </Button>

@@ -265,6 +265,11 @@ export default function NouvelleInscriptionModal({
         phone: parentPhone,
         email: parentEmail,
         optionIds: Array.from(selectedOptionIds),
+        paidInstallmentIds:
+          selectedPlan.payment_mode === "single"
+            ? (paySingleTuitionNow && installments[0] ? [installments[0].id] : [])
+            : Array.from(selectedInstallmentIds),
+        payOptions: selectedOptionIds.size > 0,
       })
 
       if (!result) {

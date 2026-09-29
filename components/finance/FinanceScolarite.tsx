@@ -13,7 +13,7 @@ import { PaymentModal } from "./PaymentModal"
 const MOIS_FR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
 const MOIS_LONG = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
-type BoardRow = FinanceStudentPaymentBoardRow & { student?: any; class?: any }
+type BoardRow = FinanceStudentPaymentBoardRow & { student?: any; class?: any; category?: string }
 
 type ScheduleGroup = {
   key: string
@@ -51,7 +51,15 @@ function monthKey(iso: string) {
   return /^\d{4}-\d{2}/.test(iso) ? iso.slice(0, 7) : ""
 }
 
-function colLabel(label: string, dueDate: string, short = true) {
+function isRegistrationSchedule(row: Pick<FinanceStudentPaymentBoardRow, "label"> & { category?: string }) {
+  return row.category === "registration" || row.label.toLowerCase().includes("frais d'inscription")
+}
+
+function colLabel(label: string, dueDate: string, short = true, category?: string) {
+  if (category === "registration" || label.toLowerCase().includes("frais d'inscription")) {
+    return short ? "Inscription" : "Frais d'inscription"
+  }
+
   const idx = monthIndex(dueDate)
   if (idx >= 0) return short ? MOIS_FR[idx] : MOIS_LONG[idx]
 
@@ -67,12 +75,14 @@ function colLabel(label: string, dueDate: string, short = true) {
   return label
 }
 
-function isMonthlySchedule(row: FinanceStudentPaymentBoardRow) {
+function isMonthlySchedule(row: FinanceStudentPaymentBoardRow & { category?: string }) {
+  if (isRegistrationSchedule(row)) return false
   const label = row.label.toLowerCase()
   return label.includes("mensual") || /(janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)/i.test(label)
 }
 
-function groupKey(row: FinanceStudentPaymentBoardRow) {
+function groupKey(row: FinanceStudentPaymentBoardRow & { category?: string }) {
+  if (isRegistrationSchedule(row)) return `registration:${row.schedule_id}`
   const month = monthKey(row.due_date)
   return isMonthlySchedule(row) && month ? `month:${month}` : `installment:${row.installment_number}`
 }
@@ -164,7 +174,7 @@ function ScheduleCell({ group, payments, mobile = false }: ScheduleCellProps) {
         type="button"
         className={`inline-flex items-center justify-center rounded-md focus:outline-none focus:ring-2 focus:ring-green-200 ${mobile ? "w-full px-2 py-2" : "min-w-12 px-2 py-1"}`}
         onClick={() => setClicked((value) => !value)}
-        aria-label={`${colLabel(group.label, group.due_date, false)} : ${paid.toLocaleString("fr-FR")} FCFA versés`}
+        aria-label={`${colLabel(group.label, group.due_date, false, group.schedules[0]?.category)} : ${paid.toLocaleString("fr-FR")} FCFA versés`}
       >
         {content}
       </button>
@@ -305,12 +315,13 @@ export function FinanceScolarite() {
   const columns = useMemo(() => {
     const map = new Map<string, { key: string; label: string; longLabel: string; due_date: string; installment_number: number }>()
     for (const row of boardRows) {
+      if (isRegistrationSchedule(row)) continue
       const key = groupKey(row)
       if (!map.has(key)) {
         map.set(key, {
           key,
-          label: colLabel(row.label, row.due_date),
-          longLabel: colLabel(row.label, row.due_date, false),
+          label: colLabel(row.label, row.due_date, true, row.category),
+          longLabel: colLabel(row.label, row.due_date, false, row.category),
           due_date: row.due_date,
           installment_number: row.installment_number,
         })
@@ -382,6 +393,7 @@ export function FinanceScolarite() {
             {students.map((student) => {
               const studentId = student.student?.id || student.enrollment_id
               const expanded = expandedMobileStudents.has(studentId)
+              const registration = student.groups.find((group) => group.schedules.some((schedule) => isRegistrationSchedule(schedule)))
 
               return (
                 <tr key={studentId}>
@@ -433,6 +445,20 @@ export function FinanceScolarite() {
                             Encaisser
                           </Button>
                         </div>
+
+                        {registration && (
+                          <div className="mb-3 rounded-md border border-gray-200 bg-white px-3 py-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-medium uppercase text-gray-400">Inscription</p>
+                                <p className="truncate text-xs text-gray-500">
+                                  {fmtDate(registration.due_date)} · {fmt(registration.amount_due)}
+                                </p>
+                              </div>
+                              <ScheduleCell group={registration} payments={paymentHistory} mobile />
+                            </div>
+                          </div>
+                        )}
 
                         <div className="grid grid-cols-3 gap-1.5">
                           {columns.map((column) => {

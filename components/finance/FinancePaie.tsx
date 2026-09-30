@@ -11,9 +11,15 @@ import { payrollService } from "@/lib/supabase/services/payroll.service"
 
 const money = (n: number) => Number(n || 0).toLocaleString("fr-FR") + " FCFA"
 
+function dateOnly(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
 function previousMonth() {
-  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1)
-  return { start: new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10), end: new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10) }
+  const now = new Date()
+  const startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const endDate = new Date(now.getFullYear(), now.getMonth(), 0)
+  return { start: dateOnly(startDate), end: dateOnly(endDate) }
 }
 
 export function FinancePaie() {
@@ -23,7 +29,7 @@ export function FinancePaie() {
   const [rows,setRows]=useState<any[]>([]), [loading,setLoading]=useState(true), [generating,setGenerating]=useState(false)
   const [generationDay,setGenerationDay]=useState("5"), [saving,setSaving]=useState(false)
   const [selected,setSelected]=useState<any>(null), [amount,setAmount]=useState(""), [advance,setAdvance]=useState("")
-  const [method,setMethod]=useState("cash"), [date,setDate]=useState(new Date().toISOString().slice(0,10))
+  const [method,setMethod]=useState("cash"), [date,setDate]=useState(dateOnly(new Date()))
   const [config,setConfig]=useState<any>(null), [remType,setRemType]=useState("fixed"), [salary,setSalary]=useState(""), [rate,setRate]=useState("")
 
   const load=async()=>{if(!establishmentId)return;try{setLoading(true);const[p,s]=await Promise.all([payrollService.getPeriods(establishmentId),payrollService.getSettings(establishmentId)]);setPeriods(p);if(s?.generation_day)setGenerationDay(String(s.generation_day));if(p.length&&!periodId)setPeriodId(p[0].id)}catch(e:any){toast.error(e.message||"Erreur de chargement")}finally{setLoading(false)}}

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Save, Settings, Calendar, DollarSign, RotateCcw, Plus, Trash2, Edit, HelpCircle, Users } from "lucide-react"
+import { ArrowLeft, Save, Settings, Calendar, DollarSign, RotateCcw, Plus, Trash2, Edit, HelpCircle, Users, WalletCards } from "lucide-react"
 import Link from "next/link"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useEstablishment } from "@/hooks/useEstablishment"
@@ -22,6 +22,7 @@ import StructureAcademiquePage from "./structure/page"
 import ScolariteSettingsPage from "./scolarite/page"
 import AcademicYearsTab from "@/components/academic/AcademicYearsTab"
 import RolesTab from "@/components/settings/RolesTab"
+import { payrollService } from "@/lib/supabase/services/payroll.service"
 
 interface EstablishmentFormData {
   nomEtablissement: string
@@ -112,6 +113,11 @@ export default function SettingsPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [initialSettings, setInitialSettings] = useState<ParametresEcole | null>(null)
 
+  const [payrollGenerationDay, setPayrollGenerationDay] = useState("5")
+  const [payrollAutoGenerate, setPayrollAutoGenerate] = useState(true)
+  const [payrollSaving, setPayrollSaving] = useState(false)
+  const [payrollLoading, setPayrollLoading] = useState(false)
+
   // Détecter les modifications non enregistrées
   useEffect(() => {
     const establishmentChanged = initialEstablishmentFormData
@@ -185,6 +191,38 @@ export default function SettingsPage() {
       console.error("Erreur lors du chargement des paramètres:", error)
     }
   }, [])
+
+  useEffect(() => {
+    if (!establishmentId) return
+    let cancelled = false
+    setPayrollLoading(true)
+    payrollService.getSettings(establishmentId).then((data) => {
+      if (cancelled) return
+      if (data?.generation_day) setPayrollGenerationDay(String(data.generation_day))
+      setPayrollAutoGenerate(data?.auto_generate !== false)
+    }).catch((error) => console.error("Erreur chargement paramètres paie:", error)).finally(() => {
+      if (!cancelled) setPayrollLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [establishmentId])
+
+  const savePayrollSettings = async () => {
+    if (!establishmentId) return
+    const day = Number(payrollGenerationDay)
+    if (day < 1 || day > 28) {
+      alert("Le jour de génération doit être compris entre 1 et 28.")
+      return
+    }
+    try {
+      setPayrollSaving(true)
+      await payrollService.saveSettings(establishmentId, day, payrollAutoGenerate)
+      alert("Paramètres de paie enregistrés.")
+    } catch (error) {
+      alert("Erreur lors de l'enregistrement de la paie : " + (error as Error).message)
+    } finally {
+      setPayrollSaving(false)
+    }
+  }
 
   // Synchroniser tarificationTypesEcole avec academicStructure
 
@@ -445,6 +483,7 @@ export default function SettingsPage() {
             <TabsTrigger value="structure" className="whitespace-nowrap">Structure académique</TabsTrigger>
             <TabsTrigger value="scolarite" className="whitespace-nowrap">Scolarité</TabsTrigger>
             <TabsTrigger value="roles" className="whitespace-nowrap">Rôles et accès</TabsTrigger>
+            <TabsTrigger value="payroll" className="whitespace-nowrap">Paie du personnel</TabsTrigger>
             <TabsTrigger value="appearance" className="whitespace-nowrap">Apparence</TabsTrigger>
           </TabsList>
 
@@ -626,6 +665,41 @@ export default function SettingsPage() {
 
           <TabsContent value="roles">
             <RolesTab />
+          </TabsContent>
+
+          <TabsContent value="payroll">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><WalletCards className="h-5 w-5" /> Paie du personnel</CardTitle>
+                <CardDescription>Définissez quand les états de salaire sont préparés et utilisez ensuite la navigation mensuelle dans Finance → Paie.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="rounded-md border bg-gray-50 p-4 text-sm text-gray-600">
+                  <p className="font-medium text-gray-900">Fonctionnement</p>
+                  <p className="mt-1">Chaque état correspond à un mois de salaire. La navigation dans Finance permet de passer au mois précédent ou suivant sans perdre l'historique des périodes déjà générées.</p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="payroll-generation-day">Jour de génération automatique</Label>
+                    <Input id="payroll-generation-day" type="number" min={1} max={28} value={payrollGenerationDay} onChange={(e) => setPayrollGenerationDay(e.target.value)} disabled={payrollLoading} />
+                    <p className="text-xs text-gray-500">Exemple : le 5 prépare l'état du mois précédent.</p>
+                  </div>
+                  <div className="flex items-start gap-3 rounded-md border p-4">
+                    <input id="payroll-auto-generate" type="checkbox" checked={payrollAutoGenerate} onChange={(e) => setPayrollAutoGenerate(e.target.checked)} className="mt-1 h-4 w-4" />
+                    <div>
+                      <Label htmlFor="payroll-auto-generate" className="cursor-pointer">Générer automatiquement les états</Label>
+                      <p className="text-xs text-gray-500 mt-1">Le système prépare l'état mensuel au jour défini.</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button onClick={savePayrollSettings} disabled={payrollSaving || payrollLoading}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {payrollSaving ? "Enregistrement..." : "Enregistrer la configuration"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="appearance">

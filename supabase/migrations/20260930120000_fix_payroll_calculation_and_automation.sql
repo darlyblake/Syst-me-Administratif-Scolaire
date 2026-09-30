@@ -41,7 +41,7 @@ begin
     )
     on conflict(period_id,staff_type,staff_id) do update set
       base_amount=excluded.base_amount,hours_worked=excluded.hours_worked,
-      hourly_rate=excluded.hourly_rate,net_amount=excluded.net_amount;
+      hourly_rate=excluded.hourly_rate;
   end loop;
   return v_period_id;
 end;$function$;

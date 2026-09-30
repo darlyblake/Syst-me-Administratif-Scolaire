@@ -39,6 +39,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
   {href:"/ecole/finance/paiements",label:"Scolarité",icon:CreditCard,permission:"finance.view"},
   {href:"/ecole/finance/depenses",label:"Dépenses",icon:FileText,permission:"finance.view"},
   {href:"/ecole/finance/paie",label:"Paie",icon:Banknote,permission:"finance.view"},
+  {href:"/ecole/finance/avances",label:"Avances sur salaire",icon:Wallet,permission:"finance.view"},
   {href:"/ecole/finance/rapports",label:"Rapports",icon:BarChart3,permission:"finance.view"}
 ]},
   {section:"Administration",items:[{href:"/ecole/archivage",label:"Archivage",icon:Archive,permission:"documents.view"},{href:"/ecole/documents",label:"Documents",icon:FileText,permission:"documents.view"},{href:"/ecole/demandes",label:"Demandes des parents",icon:Inbox,permission:"documents.view"}]},

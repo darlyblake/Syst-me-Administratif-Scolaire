@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -10,7 +10,6 @@ import { useClasses } from "@/hooks/useClasses"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { serviceMatieres } from "@/services/matieres.service"
 import { serviceAffectationsEnseignants, type AffectationEnseignant } from "@/services/affectations-enseignants.service"
-import { serviceEnseignants } from "@/services/enseignants.service"
 import type { DonneesEnseignant } from "@/types/models"
 
 interface AssignerClassesModalProps {
@@ -31,7 +30,6 @@ export function AssignerClassesModal({ isOpen, onClose, enseignant, onSuccess }:
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const byId = useMemo(() => new Map(classes.map((classe) => [classe.id, classe])), [classes])
 
   useEffect(() => {
     if (!isOpen || !enseignant || !etablissementActif?.id) return

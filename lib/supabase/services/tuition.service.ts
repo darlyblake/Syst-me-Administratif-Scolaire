@@ -146,6 +146,18 @@ export async function updateTuitionPlan(planId: string, data: TuitionPlanPayload
   return plan as TuitionPlan
 }
 
+
+export async function setTuitionPlanLateEnrollmentPolicy(
+  tuitionPlanId: string,
+  policy: "full_year" | "from_enrollment",
+): Promise<void> {
+  const { error } = await supabaseBrowser.rpc("set_tuition_plan_late_enrollment_policy", {
+    p_tuition_plan_id: tuitionPlanId,
+    p_policy: policy,
+  })
+  if (error) throw new Error("Impossible d'enregistrer la règle des inscriptions en cours d'année. " + error.message)
+}
+
 export async function deactivateTuitionPlan(planId: string): Promise<void> {
   const { error } = await supabaseBrowser.from("tuition_plans").update({ active: false }).eq("id", planId)
 

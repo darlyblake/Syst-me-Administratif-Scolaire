@@ -278,6 +278,8 @@ export function FinanceScolarite() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
+  const [selectedClassId, setSelectedClassId] = useState("all")
+  const [selectedStatus, setSelectedStatus] = useState<"all" | "À jour" | "En retard" | "Partiel" | "Soldé">("all")
   const [selectedStudentForPay, setSelectedStudentForPay] = useState<BoardRow[] | null>(null)
   const [selectedStudentForDetails, setSelectedStudentForDetails] = useState<{
     student: any

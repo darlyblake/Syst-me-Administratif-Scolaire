@@ -14,6 +14,7 @@ export interface CreneauEmploiDuTemps {
   dateCreation: string
   dateModification: string
   matiereId?: string
+  classSubjectId?: string
 }
 
 export interface EmploiDuTempsClasse {
@@ -38,7 +39,7 @@ class ServiceEmploiDuTempsClasses {
     if (error) throw new Error(error.message)
     const jours = ["lundi","mardi","mercredi","jeudi","vendredi","samedi"] as const
     return (data ?? []).map((r: any) => ({
-      id:r.id, classeId:r.class_subject?.class_id ?? "", classeNom:r.class_subject?.school_class?.name ?? "",
+      id:r.id, classSubjectId:r.class_subject_id ?? "", classeId:r.class_subject?.class_id ?? "", classeNom:r.class_subject?.school_class?.name ?? "",
       enseignantId:r.class_subject?.teacher_id ?? "",
       enseignantNom:r.class_subject?.teacher ? r.class_subject.teacher.first_name + " " + r.class_subject.teacher.last_name : "",
       jour:jours[Math.max(0,Math.min(5,Number(r.day_of_week)-1))],
@@ -51,56 +52,60 @@ class ServiceEmploiDuTempsClasses {
   /**
    * Récupère les créneaux pour une classe spécifique
    */
-  obtenirCreneauxParClasse(classeId: string): CreneauEmploiDuTemps[] {
-    const creneaux = this.obtenirTousLesCreneaux()
+  async obtenirCreneauxParClasse(classeId: string, academicYearId?: string): Promise<CreneauEmploiDuTemps[]> {
+    const creneaux = await this.obtenirTousLesCreneaux(academicYearId)
     return creneaux.filter(c => c.classeId === classeId)
   }
 
-  /**
-   * Récupère les créneaux pour un enseignant spécifique
-   */
-  obtenirCreneauxParEnseignant(enseignantId: string): CreneauEmploiDuTemps[] {
-    const creneaux = this.obtenirTousLesCreneaux()
+  async obtenirCreneauxParEnseignant(enseignantId: string, academicYearId?: string): Promise<CreneauEmploiDuTemps[]> {
+    const creneaux = await this.obtenirTousLesCreneaux(academicYearId)
     return creneaux.filter(c => c.enseignantId === enseignantId)
   }
 
-  /**
-   * Récupère les créneaux pour un enseignant à une date spécifique
-   */
-  obtenirCreneauxPourEnseignantEtDate(enseignantId: string, date: string): CreneauEmploiDuTemps[] {
-    const creneaux = this.obtenirTousLesCreneaux()
+  async obtenirCreneauxPourEnseignantEtDate(enseignantId: string, date: string, academicYearId?: string): Promise<CreneauEmploiDuTemps[]> {
+    const creneaux = await this.obtenirTousLesCreneaux(academicYearId)
     const dateObj = new Date(date)
     const jourSemaine = this.obtenirJourSemaine(dateObj)
-    
-    return creneaux.filter(c => 
-      c.enseignantId === enseignantId && c.jour === jourSemaine
-    )
+    return creneaux.filter(c => c.enseignantId === enseignantId && c.jour === jourSemaine)
   }
 
-  /**
-   * Vérifie si un enseignant a un créneau à une date et heure spécifique
-   */
-  verifierCreneauEnseignant(enseignantId: string, date: string, heure: string): CreneauEmploiDuTemps | null {
-    const creneaux = this.obtenirCreneauxPourEnseignantEtDate(enseignantId, date)
+  async verifierCreneauEnseignant(enseignantId: string, date: string, heure: string, academicYearId?: string): Promise<CreneauEmploiDuTemps | null> {
+    const creneaux = await this.obtenirCreneauxPourEnseignantEtDate(enseignantId, date, academicYearId)
     const heureMinutes = this.convertirHeureEnMinutes(heure)
-    
-    for (const creneau of creneaux) {
-      const debutMinutes = this.convertirHeureEnMinutes(creneau.heureDebut)
-      const finMinutes = this.convertirHeureEnMinutes(creneau.heureFin)
-      
-      if (heureMinutes >= debutMinutes && heureMinutes <= finMinutes) {
-        return creneau
-      }
-    }
-    
-    return null
+    return creneaux.find(c => {
+      const debut = this.convertirHeureEnMinutes(c.heureDebut)
+      const fin = this.convertirHeureEnMinutes(c.heureFin)
+      return heureMinutes >= debut && heureMinutes < fin
+    }) ?? null
+  }
+
+  async obtenirAffectationsClasse(establishmentId: string, classId: string) {
+    const { data, error } = await supabaseBrowser
+      .from("class_subjects")
+      .select("id,class_id,subject_id,teacher_id,subject:subjects(id,name),teacher:teachers(id,first_name,last_name,profile_id,active)")
+      .eq("class_id", classId)
+      .eq("teachers.establishment_id", establishmentId)
+      .order("created_at")
+    if (error) throw new Error(error.message)
+    return data ?? []
+  }
+
+  async obtenirClasses(establishmentId: string) {
+    const { data, error } = await supabaseBrowser
+      .from("school_classes")
+      .select("id,name,code,grade_level_id,active")
+      .eq("establishment_id", establishmentId)
+      .eq("active", true)
+      .order("name")
+    if (error) throw new Error(error.message)
+    return data ?? []
   }
 
   /**
    * Calcule le nombre total d'heures prévues pour un enseignant dans une période
    */
-  calculerHeuresPrevuesEnseignant(enseignantId: string, debut: string, fin: string): number {
-    const creneaux = this.obtenirCreneauxParEnseignant(enseignantId)
+  async calculerHeuresPrevuesEnseignant(enseignantId: string, debut: string, fin: string, academicYearId?: string): Promise<number> {
+    const creneaux = await this.obtenirCreneauxParEnseignant(enseignantId, academicYearId)
     const debutDate = new Date(debut)
     const finDate = new Date(fin)
     
@@ -175,13 +180,13 @@ class ServiceEmploiDuTempsClasses {
   /**
    * Génère les statistiques des emplois du temps
    */
-  genererStatistiques(): {
+  async genererStatistiques(academicYearId?: string): Promise<{
     totalCreneaux: number
     totalClasses: number
     totalEnseignants: number
     heuresTotales: number
   } {
-    const creneaux = this.obtenirTousLesCreneaux()
+    const creneaux = await this.obtenirTousLesCreneaux(academicYearId)
     const classesUniques = new Set(creneaux.map(c => c.classeId))
     const enseignantsUniques = new Set(creneaux.map(c => c.enseignantId))
     

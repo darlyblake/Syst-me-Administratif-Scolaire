@@ -28,7 +28,7 @@ export interface FinanceMovementRow {
   transaction_date: string;
   description: string;
   amount: number;
-  direction: 'in' | 'out';
+  direction: 'credit' | 'debit';
   reference: string | null;
   created_by: string | null;
   created_at: string;

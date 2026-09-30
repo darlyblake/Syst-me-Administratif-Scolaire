@@ -20,6 +20,20 @@ function categoryLabel(category?: string) {
   return "Scolarité"
 }
 
+function scheduleLabel(schedule: Pick<FinanceStudentPaymentBoardRow, "label" | "due_date" | "category">) {
+  if (schedule.category === "registration") return "Inscription"
+  if (schedule.category === "option") return schedule.label
+
+  if (schedule.due_date) {
+    const date = new Date(schedule.due_date + "T00:00:00")
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
+    }
+  }
+
+  return schedule.label
+}
+
 export function PaymentModal({ open, onClose, studentSchedules, onSuccess }: PaymentModalProps) {
   const [selectedScheduleId, setSelectedScheduleId] = useState("")
   const [amount, setAmount] = useState("")
@@ -123,14 +137,14 @@ export function PaymentModal({ open, onClose, studentSchedules, onSuccess }: Pay
               ) : (
                 unpaidSchedules.map((s) => (
                   <option key={s.schedule_id} value={s.schedule_id}>
-                    {categoryLabel(s.category)} — {s.label} — reste {Number(s.remaining_amount).toLocaleString("fr-FR")} FCFA
+                    {categoryLabel(s.category)} — {scheduleLabel(s)} — reste {Number(s.remaining_amount).toLocaleString("fr-FR")} FCFA
                   </option>
                 ))
               )}
             </select>
             {selected && (
               <p className="text-xs text-gray-500">
-                Échéance : {new Date(selected.due_date).toLocaleDateString("fr-FR")} · Reste à payer : {Number(selected.remaining_amount).toLocaleString("fr-FR")} FCFA
+                Échéance : {scheduleLabel(selected)} ({new Date(selected.due_date).toLocaleDateString("fr-FR")}) · Reste à payer : {Number(selected.remaining_amount).toLocaleString("fr-FR")} FCFA
                 {Number(selected.remaining_amount) < Number(selected.amount_due) && " · Cette échéance est partiellement payée."}
               </p>
             )}

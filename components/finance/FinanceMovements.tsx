@@ -5,6 +5,7 @@ import { financeService } from "@/lib/supabase/services/finance.service"
 import type { FinanceMovementRow } from "@/lib/supabase/types"
 import { useUserContext } from "@/hooks/useUserContext"
 import { Input } from "@/components/ui/input"
+import { X } from "lucide-react"
 
 export function FinanceMovements() {
   const { etablissementActif } = useUserContext()
@@ -17,6 +18,10 @@ export function FinanceMovements() {
   const [directionFilter, setDirectionFilter] = useState<'credit' | 'debit' | ''>('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [selectedMovement, setSelectedMovement] = useState<FinanceMovementRow | null>(null)
+  const [movementDetails, setMovementDetails] = useState<any>(null)
+  const [detailsLoading, setDetailsLoading] = useState(false)
+  const [detailsError, setDetailsError] = useState<string | null>(null)
 
   const isEntry = (movement: FinanceMovementRow) => movement.direction === "credit"
 
@@ -43,6 +48,19 @@ export function FinanceMovements() {
     return movement.description || "Mouvement de caisse"
   }
 
+  useEffect(() => {
+    async function loadDetails() {
+      if (!selectedMovement) { setMovementDetails(null); return }
+      try {
+        setDetailsLoading(true); setDetailsError(null)
+        const details = await financeService.getMovementDetails(selectedMovement)
+        setMovementDetails(details)
+      } catch (err: any) {
+        setDetailsError(err.message || "Impossible de charger les détails de la transaction.")
+      } finally { setDetailsLoading(false) }
+    }
+    loadDetails()
+  }, [selectedMovement])
   useEffect(() => {
     async function loadData() {
       if (!establishmentId) return
@@ -129,7 +147,7 @@ export function FinanceMovements() {
               </tr>
             ) : (
               movements.map((mov) => (
-                <tr key={mov.id} className="hover:bg-gray-50">
+                <tr key={mov.id} onClick={() => setSelectedMovement(mov)} className="cursor-pointer hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-900">
                     {new Date(mov.transaction_date).toLocaleDateString()}
                   </td>
@@ -151,6 +169,40 @@ export function FinanceMovements() {
           </tbody>
         </table>
       </div>
+
+      {selectedMovement && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setSelectedMovement(null)}>
+          <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between border-b px-5 py-4">
+              <div><h2 className="text-lg font-semibold text-gray-900">Détails de la transaction</h2><p className="mt-1 text-sm text-gray-500">{getReference(selectedMovement)} · {new Date(selectedMovement.transaction_date).toLocaleDateString("fr-FR")}</p></div>
+              <button type="button" onClick={() => setSelectedMovement(null)} className="rounded p-1 text-gray-500 hover:bg-gray-100"><X className="h-5 w-5" /></button>
+            </div>
+            {detailsLoading ? <div className="px-5 py-10 text-center text-sm text-gray-500">Chargement des détails...</div> : detailsError ? <div className="px-5 py-8 text-sm text-red-600">{detailsError}</div> : (
+              <div className="space-y-5 px-5 py-5">
+                <div className="grid grid-cols-2 gap-4 rounded-lg bg-gray-50 p-4 sm:grid-cols-4">
+                  <div><p className="text-xs text-gray-500">Type</p><p className="mt-1 font-medium">{isEntry(selectedMovement) ? "Entrée" : "Sortie"}</p></div>
+                  <div><p className="text-xs text-gray-500">Montant</p><p className={isEntry(selectedMovement) ? "mt-1 font-semibold text-green-600" : "mt-1 font-semibold text-red-600"}>{isEntry(selectedMovement) ? "+" : "-"} {Math.abs(Number(selectedMovement.amount || 0)).toLocaleString("fr-FR")} FCFA</p></div>
+                  <div><p className="text-xs text-gray-500">Référence</p><p className="mt-1 font-medium">{getReference(selectedMovement)}</p></div>
+                  <div><p className="text-xs text-gray-500">Mode</p><p className="mt-1 font-medium">{movementDetails?.payment?.method || "-"}</p></div>
+                </div>
+                {movementDetails?.kind === "student_payment" && <>
+                  <div><h3 className="mb-3 text-sm font-semibold text-gray-900">Élève concerné</h3><div className="grid grid-cols-1 gap-3 rounded-lg border p-4 sm:grid-cols-3">
+                    <div><p className="text-xs text-gray-500">Élève</p><p className="mt-1 font-medium">{movementDetails.student ? `${movementDetails.student.first_name} ${movementDetails.student.last_name}` : "-"}</p></div>
+                    <div><p className="text-xs text-gray-500">Classe</p><p className="mt-1 font-medium">{movementDetails.schoolClass?.name || "-"}</p></div>
+                    <div><p className="text-xs text-gray-500">Année scolaire</p><p className="mt-1 font-medium">{movementDetails.academicYear?.name || "-"}</p></div>
+                  </div></div>
+                  <div><h3 className="mb-3 text-sm font-semibold text-gray-900">Affectation du paiement</h3><div className="space-y-2">
+                    {(movementDetails.allocations || []).map((allocation: any, index: number) => <div key={index} className="flex flex-col gap-1 rounded-lg border px-4 py-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{allocation.payment_schedules?.label || "Échéance"}</p><p className="text-xs text-gray-500">{allocation.payment_schedules?.category === "registration" ? "Inscription / réinscription" : "Scolarité"} · échéance du {allocation.payment_schedules?.due_date ? new Date(allocation.payment_schedules.due_date).toLocaleDateString("fr-FR") : "-"}</p></div><p className="font-semibold">{Number(allocation.amount || 0).toLocaleString("fr-FR")} FCFA</p></div>)}
+                  </div></div>
+                </>}
+                {movementDetails?.kind === "expense" && movementDetails.expense && <div className="rounded-lg border p-4"><h3 className="mb-3 text-sm font-semibold">Dépense</h3><div className="grid gap-3 sm:grid-cols-2"><div><p className="text-xs text-gray-500">Catégorie</p><p className="mt-1 font-medium">{movementDetails.expense.category || "-"}</p></div><div><p className="text-xs text-gray-500">Date</p><p className="mt-1 font-medium">{movementDetails.expense.expense_date ? new Date(movementDetails.expense.expense_date).toLocaleDateString("fr-FR") : "-"}</p></div><div className="sm:col-span-2"><p className="text-xs text-gray-500">Motif</p><p className="mt-1 font-medium">{movementDetails.expense.description || "-"}</p></div></div></div>}
+                {movementDetails?.kind === "payroll" && movementDetails.payroll && <div className="rounded-lg border p-4"><h3 className="mb-3 text-sm font-semibold">Paiement du personnel</h3><div className="grid gap-3 sm:grid-cols-2"><div><p className="text-xs text-gray-500">Personnel</p><p className="mt-1 font-medium">{movementDetails.staff ? `${movementDetails.staff.first_name} ${movementDetails.staff.last_name}` : "Personnel"}</p></div><div><p className="text-xs text-gray-500">Période</p><p className="mt-1 font-medium">{movementDetails.period?.name || "-"}</p></div><div><p className="text-xs text-gray-500">Salaire net</p><p className="mt-1 font-medium">{Number(movementDetails.payroll.net_amount || selectedMovement.amount).toLocaleString("fr-FR")} FCFA</p></div></div></div>}
+                <div className="border-t pt-4"><p className="text-xs text-gray-500">Description enregistrée</p><p className="mt-1 text-sm text-gray-700">{selectedMovement.description || "-"}</p></div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

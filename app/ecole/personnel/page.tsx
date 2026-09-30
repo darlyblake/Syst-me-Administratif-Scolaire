@@ -15,6 +15,7 @@ import { EditPersonnelDialog } from "./_components/EditPersonnelDialog"
 import { AccountDialog } from "./_components/AccountDialog"
 import { TemporaryPasswordDialog } from "./_components/TemporaryPasswordDialog"
 import { RemunerationDialog } from "./_components/RemunerationDialog"
+import Link from "next/link"
 
 export default function PersonnelPage() {
   const { primaryEstablishment, estEnCoursDeChargement } = useUserContext()
@@ -149,7 +150,9 @@ export default function PersonnelPage() {
                   Gérez les membres du personnel et leurs accès à l'application.
                 </p>
               </div>
-              <Button onClick={() => setShowAdd(true)} className="w-full md:w-auto">
+              <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                <Button variant="outline" asChild className="w-full sm:w-auto"><Link href="/ecole/personnel/pointage">Pointage du personnel</Link></Button>
+                <Button onClick={() => setShowAdd(true)} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Ajouter un membre
               </Button>

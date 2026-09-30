@@ -22,7 +22,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
-import { createTuitionPlan, updateTuitionPlan } from "@/lib/supabase/services/tuition.service"
+import { createTuitionPlan, updateTuitionPlan, setTuitionPlanLateEnrollmentPolicy } from "@/lib/supabase/services/tuition.service"
 import { useEstablishmentFees } from "@/hooks/useEstablishmentFees"
 import { AcademicYearSelector } from "@/components/academic/AcademicYearSelector"
 import { GeneralFeesSection } from "@/components/tuition/GeneralFeesSection"
@@ -70,6 +70,9 @@ interface TuitionModalProps {
 function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYear, establishmentId, existingPlan, defaultRegistrationFee }: TuitionModalProps) {
   const [annualAmount, setAnnualAmount] = useState(existingPlan?.annual_tuition ?? 0)
   const [paymentMode, setPaymentMode] = useState<PaymentMode>(existingPlan?.payment_mode ?? "monthly")
+  const [lateEnrollmentPolicy, setLateEnrollmentPolicy] = useState<"full_year" | "from_enrollment">(
+    (existingPlan as any)?.late_enrollment_billing_policy ?? "full_year"
+  )
   const [installments, setInstallments] = useState<InstallmentState[]>(
     existingPlan?.installments?.map((i) => ({ id: i.id, label: i.label, amount: i.amount, due_date: i.due_date ? i.due_date.split("T")[0] : null })) ?? []
   )
@@ -104,7 +107,15 @@ function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYea
         billing_end_date: academicYear.end_date,
         installments: paymentMode === "installments" ? installments.map((inst, idx) => ({ ...inst, installment_number: idx + 1 })) : [],
       }
-      if (existingPlan) { await updateTuitionPlan(existingPlan.id, payload) } else { await createTuitionPlan(payload) }
+      let savedPlanId = existingPlan?.id
+      if (existingPlan) {
+        await updateTuitionPlan(existingPlan.id, payload)
+      } else {
+        savedPlanId = await createTuitionPlan(payload).then((plan) => plan.id)
+      }
+      if (savedPlanId) {
+        await setTuitionPlanLateEnrollmentPolicy(savedPlanId, lateEnrollmentPolicy)
+      }
       toast.success("Tarif enregistré.")
       await onSaved()
       onClose()
@@ -137,6 +148,33 @@ function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYea
               ))}
             </RadioGroup>
           </div>
+          <div className="space-y-2 border-t pt-4">
+            <Label className="text-sm">Inscription en cours d'année</Label>
+            <p className="text-xs text-gray-500">
+              Détermine les échéances facturées lorsqu'un élève arrive après le début de l'année scolaire.
+            </p>
+            <RadioGroup
+              value={lateEnrollmentPolicy}
+              onValueChange={(v) => setLateEnrollmentPolicy(v as "full_year" | "from_enrollment")}
+              className="space-y-2"
+            >
+              <label className={`flex cursor-pointer items-start gap-2 rounded border px-3 py-2.5 text-sm ${lateEnrollmentPolicy === "full_year" ? "border-gray-800 bg-gray-50" : "border-gray-200"}`}>
+                <RadioGroupItem value="full_year" className="mt-0.5" />
+                <span>
+                  <span className="block font-medium">Facturer toute l'année</span>
+                  <span className="block text-xs text-gray-500">Les mois ou tranches antérieurs à l'inscription restent dus.</span>
+                </span>
+              </label>
+              <label className={`flex cursor-pointer items-start gap-2 rounded border px-3 py-2.5 text-sm ${lateEnrollmentPolicy === "from_enrollment" ? "border-gray-800 bg-gray-50" : "border-gray-200"}`}>
+                <RadioGroupItem value="from_enrollment" className="mt-0.5" />
+                <span>
+                  <span className="block font-medium">Facturer à partir du mois / de la tranche d'inscription</span>
+                  <span className="block text-xs text-gray-500">Les échéances avant le mois d'inscription ne sont pas créées pour l'élève.</span>
+                </span>
+              </label>
+            </RadioGroup>
+          </div>
+
           {paymentMode === "monthly" && (
             <div className="space-y-2 border-t pt-4">
               <p className="text-sm font-medium">Période de facturation</p>

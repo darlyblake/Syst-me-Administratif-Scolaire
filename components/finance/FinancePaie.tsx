@@ -49,12 +49,11 @@ export function FinancePaie() {
   const [periods,setPeriods]=useState<any[]>([]), [periodId,setPeriodId]=useState("")
   const [selectedMonth,setSelectedMonth]=useState(monthKey(new Date(new Date().getFullYear(), new Date().getMonth()-1, 1)))
   const [rows,setRows]=useState<any[]>([]), [loading,setLoading]=useState(true), [generating,setGenerating]=useState(false)
-  const [generationDay,setGenerationDay]=useState("5"), [saving,setSaving]=useState(false)
   const [selected,setSelected]=useState<any>(null), [amount,setAmount]=useState(""), [advance,setAdvance]=useState("")
   const [method,setMethod]=useState("cash"), [date,setDate]=useState(dateOnly(new Date()))
   const [config,setConfig]=useState<any>(null), [remType,setRemType]=useState("fixed"), [salary,setSalary]=useState(""), [rate,setRate]=useState("")
 
-  const load=async()=>{if(!establishmentId)return;try{setLoading(true);const[p,s]=await Promise.all([payrollService.getPeriods(establishmentId),payrollService.getSettings(establishmentId)]);setPeriods(p);if(s?.generation_day)setGenerationDay(String(s.generation_day));if(p.length){const current=p.find((x:any)=>String(x.starts_on).slice(0,7)===selectedMonth)||p[0];setSelectedMonth(String(current.starts_on).slice(0,7));setPeriodId(current.id)}}catch(e:any){toast.error(e.message||"Erreur de chargement")}finally{setLoading(false)}}
+  const load=async()=>{if(!establishmentId)return;try{setLoading(true);const[p]=await Promise.all([payrollService.getPeriods(establishmentId)]);setPeriods(p);if(p.length){const current=p.find((x:any)=>String(x.starts_on).slice(0,7)===selectedMonth)||p[0];setSelectedMonth(String(current.starts_on).slice(0,7));setPeriodId(current.id)}}catch(e:any){toast.error(e.message||"Erreur de chargement")}finally{setLoading(false)}}
   const loadState=async()=>{if(!establishmentId||!periodId)return setRows([]);try{setRows(await payrollService.getState(establishmentId,periodId))}catch(e:any){toast.error(e.message||"Impossible de charger l'état")}}
   useEffect(()=>{load()},[establishmentId])
   useEffect(()=>{

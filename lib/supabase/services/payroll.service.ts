@@ -104,7 +104,8 @@ export const payrollService = {
       ...r, base_amount: Number(r.base_amount || 0), hours_worked: Number(r.hours_worked || 0),
       hourly_rate: Number(r.hourly_rate || 0), net_amount: Number(r.net_amount || 0),
       advances: Number(r.advances || 0), amount_paid: Number(r.amount_paid || 0),
-      arrears: Number(r.arrears || 0), remaining_amount: Number(r.remaining_amount || 0),
+      arrears: Number(r.arrears || 0), prior_advance_balance: Number(r.prior_advance_balance || 0),
+      advance_balance: Number(r.advance_balance || 0), remaining_amount: Number(r.remaining_amount || 0),
     }))
   },
 

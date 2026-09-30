@@ -202,12 +202,12 @@ export const financeService = {
   },
 
   // 5. Résumé des mouvements (RPC)
-  async getMovementSummary(establishmentId: string, from: string, to: string, direction?: 'in' | 'out'): Promise<FinanceMovementSummary> {
+  async getMovementSummary(establishmentId: string, from?: string, to?: string, direction?: 'all' | 'credit' | 'debit'): Promise<FinanceMovementSummary> {
     const { data, error } = await supabaseBrowser.rpc("finance_movement_summary", {
       p_establishment_id: establishmentId,
-      p_from: from,
-      p_to: to,
-      p_direction: direction || null
+      p_from: from || null,
+      p_to: to || null,
+      p_direction: direction || "all"
     });
     
     if (error) throw new Error("Impossible de charger le résumé des mouvements.");

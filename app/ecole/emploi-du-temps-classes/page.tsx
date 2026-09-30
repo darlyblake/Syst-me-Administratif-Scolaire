@@ -129,6 +129,7 @@ export default function EmploiDuTempsClassesPage() {
       if (viewMode === "classe" && selectedClasse !== "all" && c.classeId !== selectedClasse) return false
       if (viewMode === "enseignant" && selectedEnseignant !== "all" && c.enseignantId !== selectedEnseignant) return false
       if (viewMode === "salle" && selectedSalle !== "all" && c.salle !== selectedSalle) return false
+      if (selectedMatiere !== "all" && c.matiere !== selectedMatiere) return false
       if (c.jour !== jour) return false
       
       // Vérifier si le créneau correspond exactement à l'intervalle
@@ -389,10 +390,10 @@ export default function EmploiDuTempsClassesPage() {
                     <option key={classe.id} value={classe.id}>{classe.nom}</option>
                   ))}
                   {viewMode === "enseignant" && enseignantsUniques.filter(id => id && id !== "").map((enseignantId) => {
-                    const enseignant = personnel.find(p => p.id === enseignantId)
+                    const enseignantNom = creneaux.find(c => c.enseignantId === enseignantId)?.enseignantNom || enseignantId
                     return (
                       <option key={enseignantId} value={enseignantId}>
-                        {enseignant ? `${enseignant.prenom} ${enseignant.nom}` : enseignantId}
+                        {enseignantNom}
                       </option>
                     )
                   })}

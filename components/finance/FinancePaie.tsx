@@ -5,7 +5,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Input } from "@/components/ui/input"
-import { FileText, Settings2, Wallet, ChevronDown } from "lucide-react"
+import { FileText, Settings2, Wallet, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react"
 import { useUserContext } from "@/hooks/useUserContext"
 import { payrollService } from "@/lib/supabase/services/payroll.service"
 
@@ -15,30 +15,57 @@ function dateOnly(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
 
-function previousMonth() {
-  const now = new Date()
-  const startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-  const endDate = new Date(now.getFullYear(), now.getMonth(), 0)
-  return { start: dateOnly(startDate), end: dateOnly(endDate) }
+const MOIS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
+
+function monthKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+}
+
+function monthLabel(key: string) {
+  const [year, month] = key.split("-").map(Number)
+  return `${MOIS_FR[month - 1]} ${year}`
+}
+
+function periodDates(key: string) {
+  const [year, month] = key.split("-").map(Number)
+  const start = new Date(year, month - 1, 1)
+  const end = new Date(year, month, 0)
+  return { start: dateOnly(start), end: dateOnly(end) }
+}
+
+function previousMonthKey(key: string) {
+  const [year, month] = key.split("-").map(Number)
+  return monthKey(new Date(year, month - 2, 1))
+}
+
+function nextMonthKey(key: string) {
+  const [year, month] = key.split("-").map(Number)
+  return monthKey(new Date(year, month, 1))
 }
 
 export function FinancePaie() {
   const { etablissementActif } = useUserContext()
   const establishmentId = etablissementActif?.id
   const [periods,setPeriods]=useState<any[]>([]), [periodId,setPeriodId]=useState("")
+  const [selectedMonth,setSelectedMonth]=useState(monthKey(new Date(new Date().getFullYear(), new Date().getMonth()-1, 1)))
   const [rows,setRows]=useState<any[]>([]), [loading,setLoading]=useState(true), [generating,setGenerating]=useState(false)
   const [generationDay,setGenerationDay]=useState("5"), [saving,setSaving]=useState(false)
   const [selected,setSelected]=useState<any>(null), [amount,setAmount]=useState(""), [advance,setAdvance]=useState("")
   const [method,setMethod]=useState("cash"), [date,setDate]=useState(dateOnly(new Date()))
   const [config,setConfig]=useState<any>(null), [remType,setRemType]=useState("fixed"), [salary,setSalary]=useState(""), [rate,setRate]=useState("")
 
-  const load=async()=>{if(!establishmentId)return;try{setLoading(true);const[p,s]=await Promise.all([payrollService.getPeriods(establishmentId),payrollService.getSettings(establishmentId)]);setPeriods(p);if(s?.generation_day)setGenerationDay(String(s.generation_day));if(p.length&&!periodId)setPeriodId(p[0].id)}catch(e:any){toast.error(e.message||"Erreur de chargement")}finally{setLoading(false)}}
+  const load=async()=>{if(!establishmentId)return;try{setLoading(true);const[p,s]=await Promise.all([payrollService.getPeriods(establishmentId),payrollService.getSettings(establishmentId)]);setPeriods(p);if(s?.generation_day)setGenerationDay(String(s.generation_day));if(p.length){const current=p.find((x:any)=>String(x.starts_on).slice(0,7)===selectedMonth)||p[0];setSelectedMonth(String(current.starts_on).slice(0,7));setPeriodId(current.id)}}catch(e:any){toast.error(e.message||"Erreur de chargement")}finally{setLoading(false)}}
   const loadState=async()=>{if(!establishmentId||!periodId)return setRows([]);try{setRows(await payrollService.getState(establishmentId,periodId))}catch(e:any){toast.error(e.message||"Impossible de charger l'état")}}
-  useEffect(()=>{load()},[establishmentId]); useEffect(()=>{loadState()},[establishmentId,periodId])
+  useEffect(()=>{load()},[establishmentId])
+  useEffect(()=>{
+    const period=periods.find((p:any)=>String(p.starts_on).slice(0,7)===selectedMonth)
+    setPeriodId(period?.id || "")
+  },[periods,selectedMonth])
+  useEffect(()=>{loadState()},[establishmentId,periodId])
 
   const totals=useMemo(()=>rows.reduce((a,r)=>({net:a.net+r.net_amount,advances:a.advances+r.advances,arrears:a.arrears+r.arrears,paid:a.paid+r.amount_paid,remaining:a.remaining+r.remaining_amount}),{net:0,advances:0,arrears:0,paid:0,remaining:0}),[rows])
 
-  const generate=async()=>{if(!establishmentId)return;const{start,end}=previousMonth();try{setGenerating(true);const id=await payrollService.generatePeriod(establishmentId,start,end);const p=await payrollService.getPeriods(establishmentId);setPeriods(p);setPeriodId(id);toast.success("État de salaire généré")}catch(e:any){toast.error(e.message||"Impossible de générer l'état")}finally{setGenerating(false)}}
+  const generate=async()=>{if(!establishmentId)return;const{start,end}=periodDates(selectedMonth);try{setGenerating(true);const id=await payrollService.generatePeriod(establishmentId,start,end);const p=await payrollService.getPeriods(establishmentId);setPeriods(p);setPeriodId(id);toast.success("État de salaire généré")}catch(e:any){toast.error(e.message||"Impossible de générer l'état")}finally{setGenerating(false)}}
   const saveDay=async()=>{if(!establishmentId)return;const d=Number(generationDay);if(d<1||d>28)return toast.error("Choisissez un jour entre 1 et 28.");try{setSaving(true);await payrollService.saveSettings(establishmentId,d,true);toast.success("Paramètre enregistré")}catch(e:any){toast.error(e.message||"Impossible d'enregistrer")}finally{setSaving(false)}}
 
   const openConfig=(r:any)=>{setConfig(r);setRemType(r.remuneration_type==="hourly"?"hourly":"fixed");setSalary(r.monthly_salary?String(r.monthly_salary):"");setRate(r.hourly_rate?String(r.hourly_rate):"")}
@@ -55,7 +82,23 @@ export function FinancePaie() {
 
     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">{[["Net à payer",totals.net],["Avances",totals.advances],["Arriérés",totals.arrears],["Déjà payé",totals.paid],["Reste",totals.remaining]].map(([l,v])=><div key={String(l)} className="border rounded bg-white p-4"><p className="text-xs text-gray-500">{l}</p><p className="font-semibold mt-1">{money(Number(v))}</p></div>)}</div>
 
-    <div className="border rounded bg-white p-4"><div className="flex flex-col md:flex-row gap-3 md:items-end"><div className="flex-1"><label className="text-xs text-gray-500">Période</label><select value={periodId} onChange={e=>setPeriodId(e.target.value)} className="mt-1 w-full border rounded px-3 py-2 text-sm"><option value="">Sélectionner</option>{periods.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></div><div><label className="text-xs text-gray-500">Générer automatiquement le</label><div className="flex gap-2 mt-1"><Input type="number" min={1} max={28} value={generationDay} onChange={e=>setGenerationDay(e.target.value)} className="w-24"/><Button variant="outline" onClick={saveDay} disabled={saving}>Enregistrer</Button></div></div></div><p className="text-xs text-gray-500 mt-3">Exemple : le 5 octobre prépare l'état de septembre.</p></div>
+    <div className="border rounded bg-white p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-xs text-gray-500">Mois de paie</p>
+          <div className="flex items-center gap-2 mt-1">
+            <Button variant="outline" size="sm" onClick={()=>setSelectedMonth(previousMonthKey(selectedMonth))} aria-label="Mois précédent"><ChevronLeft className="h-4 w-4"/></Button>
+            <div className="min-w-[170px] text-center font-semibold"><CalendarDays className="inline h-4 w-4 mr-2"/>{monthLabel(selectedMonth)}</div>
+            <Button variant="outline" size="sm" onClick={()=>setSelectedMonth(nextMonthKey(selectedMonth))} aria-label="Mois suivant"><ChevronRight className="h-4 w-4"/></Button>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={()=>{const k=monthKey(new Date(new Date().getFullYear(),new Date().getMonth()-1,1));setSelectedMonth(k)}}>Mois précédent actuel</Button>
+          {!periodId && <Button onClick={generate} disabled={generating}>{generating?"Génération...":"Générer cet état"}</Button>}
+        </div>
+      </div>
+      <div className="mt-3 text-xs text-gray-500">{periodId ? "État déjà généré pour ce mois." : "Aucun état généré pour ce mois. Vous pouvez le créer depuis cette page."}</div>
+    </div>
 
     <div className="border rounded bg-white overflow-x-auto"><table className="w-full min-w-[1150px] text-sm"><thead className="bg-gray-50 border-b"><tr>{["Personnel","Fonction","Type","Base / heures","Avance","Arriéré","Payé","Reste","État",""].map(h=><th key={h} className="px-4 py-3 text-left">{h}</th>)}</tr></thead><tbody className="divide-y">{loading?<tr><td colSpan={10} className="p-10 text-center text-gray-500">Chargement...</td></tr>:rows.length===0?<tr><td colSpan={10} className="p-10 text-center text-gray-500">Aucun état pour cette période.</td></tr>:rows.map(r=><tr key={r.id} className="hover:bg-gray-50"><td className="px-4 py-3 font-medium">{r.first_name} {r.last_name}</td><td className="px-4 py-3">{r.position}</td><td className="px-4 py-3">{r.remuneration_type==="hourly"?"Horaire":"Fixe"}</td><td className="px-4 py-3">{r.remuneration_type==="hourly"?`${r.hours_worked} h × ${money(r.hourly_rate)}`:money(r.base_amount)}</td><td className="px-4 py-3">{money(r.advances)}</td><td className="px-4 py-3">{money(r.arrears)}</td><td className="px-4 py-3">{money(r.amount_paid)}</td><td className="px-4 py-3 font-semibold">{money(r.remaining_amount)}</td><td className="px-4 py-3">{r.remuneration_type==="hourly" && Number(r.hours_worked||0)<=0 ? "Pointage requis" : r.payment_status==="paid"?"Soldé":r.payment_status==="partial"?"Partiel":r.payment_status==="overdue"?"En retard":"À payer"}</td><td className="px-4 py-3"><div className="flex gap-1"><Button size="sm" variant="outline" onClick={()=>openConfig(r)} title="Rémunération"><Settings2 className="h-4 w-4"/></Button>{r.remaining_amount>0&&<Button size="sm" onClick={()=>setSelected(r)} className="bg-gray-900 text-white">Payer</Button>}</div></td></tr>)}</tbody></table></div>
 

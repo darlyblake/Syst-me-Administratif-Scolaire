@@ -100,3 +100,17 @@ begin
   return v_count;
 end;
 $function$;
+
+
+-- Par défaut, une année existante reprend tous les mois qui chevauchent sa période.
+insert into public.payroll_academic_year_settings(establishment_id,academic_year_id,payable_months)
+select ay.establishment_id,ay.id,
+       array_agg(distinct extract(month from gs)::int order by extract(month from gs)::int)::smallint[]
+from public.academic_years ay
+cross join lateral generate_series(
+  date_trunc('month',ay.start_date),
+  date_trunc('month',ay.end_date),
+  interval '1 month'
+) gs
+group by ay.establishment_id,ay.id
+on conflict(establishment_id,academic_year_id) do nothing;

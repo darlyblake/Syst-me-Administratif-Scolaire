@@ -198,7 +198,7 @@ export const financeService = {
     });
     
     if (error) throw new Error("Impossible de charger le résumé de la scolarité.");
-    return data as FinancePaymentSummary;
+    return (Array.isArray(data) ? data[0] : data) as FinancePaymentSummary;
   },
 
   // 5. Résumé des mouvements (RPC)
@@ -211,7 +211,7 @@ export const financeService = {
     });
     
     if (error) throw new Error("Impossible de charger le résumé des mouvements.");
-    return data as FinanceMovementSummary;
+    return (Array.isArray(data) ? data[0] : data) as FinanceMovementSummary;
   },
 
   async getActiveStudentOptions(establishmentId: string) {

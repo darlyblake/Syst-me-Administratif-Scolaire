@@ -117,6 +117,8 @@ export default function SettingsPage() {
   const [payrollAutoGenerate, setPayrollAutoGenerate] = useState(true)
   const [payrollSaving, setPayrollSaving] = useState(false)
   const [payrollLoading, setPayrollLoading] = useState(false)
+  const [payrollYearId, setPayrollYearId] = useState("")
+  const [payrollPayableMonths, setPayrollPayableMonths] = useState<number[]>([])
 
   // Détecter les modifications non enregistrées
   useEffect(() => {
@@ -192,19 +194,42 @@ export default function SettingsPage() {
     }
   }, [])
 
+  const payrollMonthOptions = (year: any) => {
+    if (!year?.start_date || !year?.end_date) return []
+    const result: { month: number; year: number; label: string }[] = []
+    const cursor = new Date(year.start_date + "T12:00:00")
+    const end = new Date(year.end_date + "T12:00:00")
+    const months = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
+    while (cursor <= end) {
+      result.push({ month: cursor.getMonth() + 1, year: cursor.getFullYear(), label: months[cursor.getMonth()] + " " + cursor.getFullYear() })
+      cursor.setMonth(cursor.getMonth() + 1)
+    }
+    return result
+  }
+
   useEffect(() => {
     if (!establishmentId) return
     let cancelled = false
     setPayrollLoading(true)
-    payrollService.getSettings(establishmentId).then((data) => {
+    const year = academicYears?.find((y) => y.status === "active") ?? academicYears?.[0]
+    Promise.all([
+      payrollService.getSettings(establishmentId),
+      year ? payrollService.getAcademicYearPayrollSettings(establishmentId, year.id) : Promise.resolve(null),
+    ]).then(([data, yearSettings]) => {
       if (cancelled) return
       if (data?.generation_day) setPayrollGenerationDay(String(data.generation_day))
       setPayrollAutoGenerate(data?.auto_generate !== false)
+      if (year) {
+        setPayrollYearId(year.id)
+        const options = payrollMonthOptions(year)
+        const configured = Array.isArray(yearSettings?.payable_months) ? yearSettings.payable_months.map(Number) : options.map((m) => m.month)
+        setPayrollPayableMonths(configured.filter((month: number) => options.some((m) => m.month === month)))
+      }
     }).catch((error) => console.error("Erreur chargement paramètres paie:", error)).finally(() => {
       if (!cancelled) setPayrollLoading(false)
     })
     return () => { cancelled = true }
-  }, [establishmentId])
+  }, [establishmentId, academicYears])
 
   const savePayrollSettings = async () => {
     if (!establishmentId) return
@@ -216,6 +241,7 @@ export default function SettingsPage() {
     try {
       setPayrollSaving(true)
       await payrollService.saveSettings(establishmentId, day, payrollAutoGenerate)
+      if (payrollYearId) await payrollService.saveAcademicYearPayrollSettings(establishmentId, payrollYearId, payrollPayableMonths)
       alert("Paramètres de paie enregistrés.")
     } catch (error) {
       alert("Erreur lors de l'enregistrement de la paie : " + (error as Error).message)
@@ -689,6 +715,38 @@ export default function SettingsPage() {
                     <div>
                       <Label htmlFor="payroll-auto-generate" className="cursor-pointer">Générer automatiquement les états</Label>
                       <p className="text-xs text-gray-500 mt-1">Le système prépare l'état mensuel au jour défini.</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3 rounded-md border p-4">
+                  <div>
+                    <Label>Année académique concernée</Label>
+                    <Select value={payrollYearId} onValueChange={(value) => {
+                      const year = academicYears?.find((y) => y.id === value)
+                      setPayrollYearId(value)
+                      setPayrollPayableMonths(year ? payrollMonthOptions(year).map((m) => m.month) : [])
+                      if (year) {
+                        payrollService.getAcademicYearPayrollSettings(establishmentId!, value).then((data) => {
+                          if (Array.isArray(data?.payable_months)) setPayrollPayableMonths(data.payable_months.map(Number))
+                        }).catch(() => {})
+                      }
+                    }}>
+                      <SelectTrigger><SelectValue placeholder="Sélectionner une année" /></SelectTrigger>
+                      <SelectContent>
+                        {(academicYears ?? []).map((year) => <SelectItem key={year.id} value={year.id}>{year.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Mois payables dans cet établissement</Label>
+                    <p className="text-xs text-gray-500 mb-3">Seuls les mois compris dans la période de cette année académique peuvent être sélectionnés.</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {(academicYears?.find((y) => y.id === payrollYearId) ? payrollMonthOptions(academicYears.find((y) => y.id === payrollYearId)!) : []).map((item) => (
+                        <label key={item.year + "-" + item.month} className="flex items-center gap-2 rounded border px-3 py-2 text-sm cursor-pointer">
+                          <input type="checkbox" checked={payrollPayableMonths.includes(item.month)} onChange={(e) => setPayrollPayableMonths((prev) => e.target.checked ? [...new Set([...prev, item.month])] : prev.filter((m) => m !== item.month))} />
+                          {item.label}
+                        </label>
+                      ))}
                     </div>
                   </div>
                 </div>

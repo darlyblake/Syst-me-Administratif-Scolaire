@@ -18,7 +18,32 @@ export function FinanceMovements() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
 
-  const isEntry = (movement: FinanceMovementRow) => movement.direction === "credit"\n\n  const getReference = (movement: FinanceMovementRow) => {\n    const raw = movement.reference?.trim().toUpperCase() ?? ""\n    const shortId = movement.id.replace(/-/g, "").slice(-6).toUpperCase()\n\n    if (raw.startsWith("INSCRIPTION-")) return `INS-${shortId}`\n    if (raw.startsWith("SCOLARITE-")) return `SCO-${shortId}`\n    if (movement.source_type === "student_payment") return `SCO-${shortId}`\n    if (movement.source_type?.toLowerCase().includes("expense") || movement.source_type?.toLowerCase().includes("depense")) return `DEP-${shortId}`\n    if (movement.source_type?.toLowerCase().includes("payroll") || movement.source_type?.toLowerCase().includes("paie")) return `SAL-${shortId}`\n    if (raw) return raw.length > 16 ? `${raw.slice(0, 13)}...` : raw\n    return `MVT-${shortId}`\n  }\n\n  const getDescription = (movement: FinanceMovementRow) => {\n    const raw = movement.reference?.trim().toUpperCase() ?? ""\n    if (raw.startsWith("INSCRIPTION-")) return "Inscription"\n    if (raw.startsWith("SCOLARITE-")) return "Scolarité"\n    if (movement.source_type === "student_payment") return "Versement scolarité"\n    if (movement.source_type?.toLowerCase().includes("expense") || movement.source_type?.toLowerCase().includes("depense")) return "Dépense"\n    if (movement.source_type?.toLowerCase().includes("payroll") || movement.source_type?.toLowerCase().includes("paie")) return "Paie"\n    return movement.description || "Mouvement de caisse"\n  }\n\n  useEffect(() => {
+  const isEntry = (movement: FinanceMovementRow) => movement.direction === "credit"
+
+  const getReference = (movement: FinanceMovementRow) => {
+    const raw = movement.reference?.trim().toUpperCase() ?? ""
+    const shortId = movement.id.replace(/-/g, "").slice(-6).toUpperCase()
+
+    if (raw.startsWith("INSCRIPTION-")) return `INS-${shortId}`
+    if (raw.startsWith("SCOLARITE-")) return `SCO-${shortId}`
+    if (movement.source_type === "student_payment") return `SCO-${shortId}`
+    if (movement.source_type?.toLowerCase().includes("expense") || movement.source_type?.toLowerCase().includes("depense")) return `DEP-${shortId}`
+    if (movement.source_type?.toLowerCase().includes("payroll") || movement.source_type?.toLowerCase().includes("paie")) return `SAL-${shortId}`
+    if (raw) return raw.length > 16 ? `${raw.slice(0, 13)}...` : raw
+    return `MVT-${shortId}`
+  }
+
+  const getDescription = (movement: FinanceMovementRow) => {
+    const raw = movement.reference?.trim().toUpperCase() ?? ""
+    if (raw.startsWith("INSCRIPTION-")) return "Inscription"
+    if (raw.startsWith("SCOLARITE-")) return "Scolarité"
+    if (movement.source_type === "student_payment") return "Versement scolarité"
+    if (movement.source_type?.toLowerCase().includes("expense") || movement.source_type?.toLowerCase().includes("depense")) return "Dépense"
+    if (movement.source_type?.toLowerCase().includes("payroll") || movement.source_type?.toLowerCase().includes("paie")) return "Paie"
+    return movement.description || "Mouvement de caisse"
+  }
+
+  useEffect(() => {
     async function loadData() {
       if (!establishmentId) return
       
@@ -59,8 +84,8 @@ export function FinanceMovements() {
           className="w-full sm:w-auto border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
         >
           <option value="">Tous les types</option>
-          <option value="in">Entrées (Encaissements)</option>
-          <option value="out">Sorties (Dépenses, Paie)</option>
+          <option value="credit">Entrées (encaissements)</option>
+          <option value="debit">Sorties (dépenses, paie)</option>
         </select>
         <Input 
           type="date" 

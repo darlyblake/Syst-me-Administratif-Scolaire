@@ -275,6 +275,7 @@ export function FinanceScolarite() {
 
   const [boardRows, setBoardRows] = useState<BoardRow[]>([])
   const [paymentHistory, setPaymentHistory] = useState<FinancePaymentHistoryRow[]>([])
+  const [legacyDebts, setLegacyDebts] = useState<BoardRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
@@ -303,6 +304,13 @@ export function FinanceScolarite() {
       ])
       setBoardRows(board)
       setPaymentHistory(history)
+
+      try {
+        const previousDebts = await financeService.getLegacyDebts(establishmentId, academicYear.id)
+        setLegacyDebts(previousDebts as BoardRow[])
+      } catch {
+        setLegacyDebts([])
+      }
     } catch (err: any) {
       setError(err.message || "Erreur lors du chargement")
     } finally {
@@ -379,6 +387,26 @@ export function FinanceScolarite() {
       return matchesSearch && matchesClass && matchesStatus
     })
   }, [studentsMap, search, selectedClassId, selectedStatus])
+
+  const legacyDebtStudents = useMemo(() => {
+    const map = new Map<string, { student: any; class: any; rows: BoardRow[]; amount: number }>()
+    for (const row of legacyDebts) {
+      const key = row.student_id + ":" + row.academic_year_id
+      const current = map.get(key)
+      if (current) {
+        current.rows.push(row)
+        current.amount += Number(row.remaining_amount || 0)
+      } else {
+        map.set(key, {
+          student: row.student,
+          class: row.class,
+          rows: [row],
+          amount: Number(row.remaining_amount || 0),
+        })
+      }
+    }
+    return Array.from(map.entries()).map(([key, value]) => ({ key, ...value }))
+  }, [legacyDebts])
 
   const columns = useMemo(() => {
     const map = new Map<string, { key: string; label: string; longLabel: string; due_date: string; installment_number: number }>()
@@ -722,6 +750,60 @@ export function FinanceScolarite() {
           Imprimer
         </Button>
       </div>
+
+      {legacyDebtStudents.length > 0 && (
+        <section className="rounded-lg border border-amber-200 bg-amber-50/60">
+          <div className="flex flex-col gap-2 border-b border-amber-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-amber-900">Dettes des années précédentes</h2>
+              <p className="mt-0.5 text-xs text-amber-800">
+                Ces soldes restent rattachés à leur année d'origine. Ils peuvent être encaissés sans modifier la nouvelle année scolaire.
+              </p>
+            </div>
+            <span className="text-sm font-semibold text-amber-900">
+              {fmt(legacyDebts.reduce((sum, row) => sum + Number(row.remaining_amount || 0), 0))}
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[680px] text-sm">
+              <thead className="border-b border-amber-200 bg-amber-50">
+                <tr>
+                  <th className="px-4 py-2.5 text-left font-medium text-amber-900">Élève</th>
+                  <th className="px-4 py-2.5 text-left font-medium text-amber-900">Année</th>
+                  <th className="px-4 py-2.5 text-left font-medium text-amber-900">Classe</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-amber-900">Reste</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-amber-900">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-amber-100 bg-white">
+                {legacyDebtStudents.map((item) => {
+                  const first = item.rows[0]
+                  return (
+                    <tr key={item.key}>
+                      <td className="px-4 py-3 font-medium text-gray-900">
+                        {item.student ? item.student.first_name + " " + item.student.last_name : "Élève inconnu"}
+                        {item.student?.student_number && <div className="text-[11px] font-normal text-gray-400">{item.student.student_number}</div>}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">{first.academic_year?.name || "Année précédente"}</td>
+                      <td className="px-4 py-3 text-gray-600">{item.class?.name || "—"}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-red-600">{fmt(item.amount)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          size="sm"
+                          className="print-hidden"
+                          onClick={() => setSelectedStudentForPay(item.rows)}
+                        >
+                          Encaisser
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <div className="print-only mb-4">
         <h2 className="text-lg font-semibold">Suivi de scolarité — {academicYear?.name || ""}</h2>

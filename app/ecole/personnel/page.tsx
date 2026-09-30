@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Users, Plus, Edit, Search, Shield, UserCheck, UserX, UserPlus, MoreVertical, UserMinus } from "lucide-react"
+import { Users, Plus, Edit, Search, Shield, UserCheck, UserX, UserPlus, MoreVertical, UserMinus, WalletCards } from "lucide-react"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useStaff } from "@/hooks/useStaff"
 import { useRoles } from "@/hooks/useRoles"
@@ -14,6 +14,7 @@ import { AddPersonnelDialog } from "./_components/AddPersonnelDialog"
 import { EditPersonnelDialog } from "./_components/EditPersonnelDialog"
 import { AccountDialog } from "./_components/AccountDialog"
 import { TemporaryPasswordDialog } from "./_components/TemporaryPasswordDialog"
+import { RemunerationDialog } from "./_components/RemunerationDialog"
 
 export default function PersonnelPage() {
   const { primaryEstablishment, estEnCoursDeChargement } = useUserContext()
@@ -49,6 +50,7 @@ export default function PersonnelPage() {
   const [editingPersonnel, setEditingPersonnel] = useState<DonneesPersonnel | null>(null)
   const [accountPersonnel, setAccountPersonnel] = useState<DonneesPersonnel | null>(null)
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null)
+  const [remunerationPersonnel, setRemunerationPersonnel] = useState<DonneesPersonnel | null>(null)
 
   // Confirmation désactivation personnel (pas du compte)
   const [deactivateTarget, setDeactivateTarget] = useState<DonneesPersonnel | null>(null)
@@ -265,6 +267,10 @@ export default function PersonnelPage() {
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                    <DropdownMenuItem onClick={() => setRemunerationPersonnel(person)}>
+                                      <WalletCards className="mr-2 h-4 w-4" />
+                                      Rémunération
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => setEditingPersonnel(person)}>
                                       <Edit className="mr-2 h-4 w-4" />
                                       Modifier les informations
@@ -344,6 +350,9 @@ export default function PersonnelPage() {
                                 Gérer le compte
                               </Button>
                             )}
+                            <Button variant="outline" size="sm" className="px-3" onClick={() => setRemunerationPersonnel(person)} title="Rémunération">
+                              <WalletCards className="h-4 w-4" />
+                            </Button>
                             <Button variant="outline" size="sm" className="px-3" onClick={() => setEditingPersonnel(person)}>
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -432,6 +441,18 @@ export default function PersonnelPage() {
           onClose={() => setAccountPersonnel(null)}
           onPersonnelChange={(updated) => setAccountPersonnel(updated)}
           onSuccess={(pwd) => { setAccountPersonnel(null); refresh(); if (pwd) setTemporaryPassword(pwd) }}
+        />
+      )}
+
+      {remunerationPersonnel && establishmentId && (
+        <RemunerationDialog
+          open
+          onOpenChange={(open) => { if (!open) setRemunerationPersonnel(null) }}
+          establishmentId={establishmentId}
+          staffId={remunerationPersonnel.id}
+          firstName={remunerationPersonnel.prenom}
+          lastName={remunerationPersonnel.nom}
+          onSaved={() => { setRemunerationPersonnel(null); refresh() }}
         />
       )}
 

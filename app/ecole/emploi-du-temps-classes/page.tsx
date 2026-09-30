@@ -8,20 +8,13 @@ import { Label } from "@/components/ui/label"
 import { ArrowLeft, Calendar, Plus, Trash2, User, Filter, Download, Printer, Share2, Moon, Sun } from "lucide-react"
 import Link from "next/link"
 import { serviceEmploiDuTempsClasses } from "@/services/emploi-du-temps-classes.service"
-import { servicePersonnel } from "@/services/personnel.service"
-import { serviceMatieres } from "@/services/matieres.service"
-import { serviceClasses } from "@/services/classes.service"
 import type { CreneauEmploiDuTemps } from "@/services/emploi-du-temps-classes.service"
-import type { Matiere } from "@/types/models"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 
 const jours: CreneauEmploiDuTemps["jour"][] = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"]
 
-const getCouleurMatiere = (matiere: string, matieres: Matiere[]): string => {
-  const matiereData = matieres.find(m => m.nom === matiere)
-  return matiereData?.couleur || "#6B7280"
-}
+const getCouleurMatiere = (): string => "#4f8f63"
 
 // Fonction pour extraire toutes les heures uniques des créneaux
 const getHeuresUniques = (creneaux: CreneauEmploiDuTemps[]): string[] => {
@@ -54,8 +47,7 @@ const getCreneauxUniques = (creneaux: CreneauEmploiDuTemps[]): Array<{ debut: st
 export default function EmploiDuTempsClassesPage() {
   const [creneaux, setCreneaux] = useState<CreneauEmploiDuTemps[]>([])
   const [classes, setClasses] = useState<any[]>([])
-  const [personnel, setPersonnel] = useState<any[]>([])
-  const [matieres, setMatieres] = useState<Matiere[]>([])
+  const [affectations, setAffectations] = useState<any[]>([])
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? ""
   const { academicYears, selectedYear, activeYear, selectYear, isLoading: isYearLoading } = useAcademicYears(establishmentId)
@@ -73,6 +65,7 @@ export default function EmploiDuTempsClassesPage() {
   const [formData, setFormData] = useState({
     classeId: "",
     classeNom: "",
+    classSubjectId: "",
     enseignantId: "",
     matiere: "",
     salle: "",
@@ -85,13 +78,12 @@ export default function EmploiDuTempsClassesPage() {
     if (!establishmentId || !academicYear?.id) return
     const load = async () => {
       try {
-        const [schedule] = await Promise.all([
+        const [schedule, scheduleClasses] = await Promise.all([
           serviceEmploiDuTempsClasses.obtenirTousLesCreneaux(academicYear.id),
+          serviceEmploiDuTempsClasses.obtenirClasses(establishmentId),
         ])
         setCreneaux(schedule)
-        setClasses(serviceClasses.obtenirToutesLesClasses())
-        setPersonnel(servicePersonnel.obtenirToutLePersonnel())
-        setMatieres(serviceMatieres.obtenirToutesLesMatieres())
+        setClasses(scheduleClasses)
       } catch (error) {
         alert(error instanceof Error ? error.message : "Impossible de charger l'emploi du temps.")
       } finally {
@@ -101,7 +93,7 @@ export default function EmploiDuTempsClassesPage() {
     void load()
   }, [establishmentId, academicYear?.id])
 
-  const classesUniques = classes.map(c => ({ id: c.id, nom: c.nom }))
+  const classesUniques = classes.map(c => ({ id: c.id, nom: c.name ?? c.nom }))
   const enseignantsUniques = Array.from(new Set(creneaux.map(c => c.enseignantId).filter(id => id && id !== "")))
   const sallesUniques = Array.from(new Set(creneaux.map(c => c.salle).filter(Boolean)))
   const matieresUniques = Array.from(new Set(creneaux.map(c => c.matiere).filter(Boolean)))
@@ -465,7 +457,7 @@ export default function EmploiDuTempsClassesPage() {
                                 className={`h-full rounded p-2 text-white text-xs ${
                                   aConflit ? 'ring-2 ring-red-500' : ''
                                 }`}
-                                style={{ backgroundColor: getCouleurMatiere(creneau.matiere, matieres) }}
+                                style={{ backgroundColor: getCouleurMatiere() }}
                               >
                                 <div className="font-semibold truncate">{creneau.matiere || "Cours"}</div>
                                 <div className="truncate opacity-90">{creneau.enseignantNom}</div>
@@ -546,7 +538,7 @@ export default function EmploiDuTempsClassesPage() {
                   >
                     <option value="">Sélectionner une classe</option>
                     {classes.map((c) => (
-                      <option key={c.id} value={c.id}>{c.nom} ({c.niveau})</option>
+                      <option key={c.id} value={c.id}>{c.name ?? c.nom}</option>
                     ))}
                   </select>
                 </div>

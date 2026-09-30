@@ -13,7 +13,7 @@ import { PaymentModal } from "./PaymentModal"
 const MOIS_FR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
 const MOIS_LONG = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
-type BoardRow = FinanceStudentPaymentBoardRow & { student?: any; class?: any; category?: string }
+type BoardRow = FinanceStudentPaymentBoardRow & { student?: any; class?: any; category?: string; academic_year?: any }
 
 type ScheduleGroup = {
   key: string
@@ -1044,7 +1044,7 @@ export function FinanceScolarite() {
         @media print {
           @page { size: landscape; margin: 10mm; }
           body { background: white !important; }
-          .print-hidden, header, nav, aside, button { display: none !important; }
+          .print-hidden, header, nav, aside { display: none !important; }\n          button.print-hidden { display: none !important; }
           .print-only { display: block !important; }
           .md\\:hidden { display: none !important; }
           .hidden.md\\:block { display: block !important; }

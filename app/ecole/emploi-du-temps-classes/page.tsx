@@ -212,7 +212,7 @@ export default function EmploiDuTempsClassesPage() {
       }
       if (editingCreneau) {
         await serviceEmploiDuTempsClasses.mettreAJourCreneau(editingCreneau.id, {
-          classSubjectId: selected.id, jour: formData.jour, heureDebut: formData.heureDebut,
+          classSubjectId: formData.classSubjectId, jour: formData.jour, heureDebut: formData.heureDebut,
           heureFin: formData.heureFin, salle: formData.salle
         })
       } else {
@@ -534,7 +534,7 @@ export default function EmploiDuTempsClassesPage() {
                     value={formData.classeId || ""}
                     onChange={(e) => {
                       const selectedClasse = classes.find(c => c.id === e.target.value)
-                      setFormData({...formData, classeId: e.target.value, classeNom: selectedClasse?.nom || ""})
+                      setFormData({...formData, classeId: e.target.value, classeNom: selectedClasse?.name ?? selectedClasse?.nom ?? "", classSubjectId: "", enseignantId: "", matiere: ""})
                     }}
                   >
                     <option value="">Sélectionner une classe</option>
@@ -544,30 +544,22 @@ export default function EmploiDuTempsClassesPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="enseignant" className="text-gray-900 dark:text-white">Enseignant *</Label>
+                  <Label htmlFor="affectation" className="text-gray-900 dark:text-white">Matière / enseignant *</Label>
                   <select
-                    id="enseignant"
+                    id="affectation"
                     className="w-full border rounded px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    value={formData.enseignantId || ""}
-                    onChange={(e) => setFormData({...formData, enseignantId: e.target.value})}
+                    value={formData.classSubjectId || ""}
+                    disabled={!formData.classeId}
+                    onChange={(e) => {
+                      const a = affectations.find((item) => item.id === e.target.value)
+                      setFormData({...formData, classSubjectId: e.target.value, enseignantId: a?.teacher_id ?? "", matiere: a?.subject?.name ?? ""})
+                    }}
                   >
-                    <option value="">Sélectionner un enseignant</option>
-                    {personnel.filter(p => p.id && p.id !== "").map((p) => (
-                      <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="matiere" className="text-gray-900 dark:text-white">Matière</Label>
-                  <select
-                    id="matiere"
-                    className="w-full border rounded px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    value={formData.matiere || ""}
-                    onChange={(e) => setFormData({...formData, matiere: e.target.value})}
-                  >
-                    <option value="">Sélectionner une matière</option>
-                    {matieres.map((m) => (
-                      <option key={m.id} value={m.nom}>{m.nom} ({m.code})</option>
+                    <option value="">{formData.classeId ? "Sélectionner une affectation" : "Sélectionnez d’abord une classe"}</option>
+                    {affectations.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.subject?.name ?? "Matière"} — {a.teacher ? [a.teacher.first_name, a.teacher.last_name].filter(Boolean).join(" ") : "Enseignant"}
+                      </option>
                     ))}
                   </select>
                 </div>

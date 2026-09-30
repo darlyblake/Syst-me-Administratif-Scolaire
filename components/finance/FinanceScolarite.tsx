@@ -222,51 +222,56 @@ function ScheduleCell({ group, payments, mobile = false }: ScheduleCellProps) {
   )
 }
 
-function GlobalState({ schedules }: { schedules: BoardRow[] }) {
-  // Un versement sur une échéance future est une avance : il ne doit pas
-  // rendre l'élève "Partiel" tant que cette échéance n'est pas exigible.
+function getGlobalStatus(schedules: BoardRow[]): "À jour" | "En retard" | "Partiel" | "Soldé" {
   const today = new Date()
   today.setHours(23, 59, 59, 999)
 
   const dueSchedules = schedules.filter((schedule) => {
     if (!schedule.due_date) return true
-    const dueDate = new Date(schedule.due_date)
-    return dueDate <= today
+    return new Date(schedule.due_date) <= today
   })
 
   const hasLate = dueSchedules.some(
     (s) => s.payment_state === "late" || s.payment_state === "partial_late",
   )
-  if (hasLate) {
+  if (hasLate) return "En retard"
+
+  if (dueSchedules.some((s) => s.payment_state === "partial")) return "Partiel"
+
+  if (dueSchedules.length > 0 && dueSchedules.every((s) => s.payment_state === "paid")) {
+    const allSchedulesPaid = schedules.length > 0 && schedules.every((s) => s.payment_state === "paid")
+    return allSchedulesPaid ? "Soldé" : "À jour"
+  }
+
+  return "À jour"
+}
+
+function GlobalState({ schedules }: { schedules: BoardRow[] }) {
+  const status = getGlobalStatus(schedules)
+
+  if (status === "En retard") {
     return <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">En retard</span>
   }
-
-  const hasDuePartial = dueSchedules.some((s) => s.payment_state === "partial")
-  if (hasDuePartial) {
+  if (status === "Partiel") {
     return <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700">Partiel</span>
   }
-
-  // Les échéances futures (ex. octobre alors que septembre est la période
-  // demandée) sont volontairement ignorées pour le statut courant.
-  if (
-    dueSchedules.length > 0 &&
-    dueSchedules.every((s) => s.payment_state === "paid")
-  ) {
-    const allSchedulesPaid = schedules.length > 0 && schedules.every((s) => s.payment_state === "paid")
-    return allSchedulesPaid ? (
-      <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">Soldé</span>
-    ) : (
-      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">À jour</span>
-    )
+  if (status === "Soldé") {
+    return <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">Soldé</span>
   }
-
   return <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">À jour</span>
 }
 
 export function FinanceScolarite() {
   const { etablissementActif } = useUserContext()
   const establishmentId = etablissementActif?.id
-  const { activeYear: academicYear, isLoading: isYearLoading } = useAcademicYears(establishmentId ?? null)
+  const {
+    data: academicYears,
+    activeYear,
+    selectedYear,
+    selectYear,
+    isLoading: isYearLoading,
+  } = useAcademicYears(establishmentId ?? null)
+  const academicYear = selectedYear ?? activeYear
 
   const [boardRows, setBoardRows] = useState<BoardRow[]>([])
   const [paymentHistory, setPaymentHistory] = useState<FinancePaymentHistoryRow[]>([])
@@ -306,7 +311,7 @@ export function FinanceScolarite() {
   useEffect(() => {
     if (!isYearLoading) void reload()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [establishmentId, academicYear, isYearLoading])
+  }, [establishmentId, academicYear?.id, isYearLoading])
 
   useEffect(() => {
     if (!showAddOption || !establishmentId) return
@@ -349,16 +354,29 @@ export function FinanceScolarite() {
     }))
   }, [boardRows])
 
+  const classOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const student of studentsMap) {
+      const id = student.class?.id
+      const name = student.class?.name
+      if (id && name) map.set(id, name)
+    }
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1], "fr"))
+  }, [studentsMap])
+
   const filteredStudents = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return studentsMap
 
     return studentsMap.filter((student) => {
       const name = `${student.student?.first_name || ""} ${student.student?.last_name || ""}`.toLowerCase()
       const number = String(student.student?.student_number || "").toLowerCase()
-      return name.includes(q) || number.includes(q)
+      const matchesSearch = !q || name.includes(q) || number.includes(q)
+      const matchesClass = selectedClassId === "all" || student.class?.id === selectedClassId
+      const matchesStatus = selectedStatus === "all" || getGlobalStatus(student.schedules) === selectedStatus
+
+      return matchesSearch && matchesClass && matchesStatus
     })
-  }, [studentsMap, search])
+  }, [studentsMap, search, selectedClassId, selectedStatus])
 
   const columns = useMemo(() => {
     const map = new Map<string, { key: string; label: string; longLabel: string; due_date: string; installment_number: number }>()
@@ -628,13 +646,90 @@ export function FinanceScolarite() {
         </p>
       </div>
 
-      <div className="flex w-full">
-        <Input
-          placeholder="Rechercher un élève..."
-          className="w-full max-w-sm rounded-md"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
+      <div className="print-hidden flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-3 sm:flex-row sm:items-end sm:flex-wrap">
+        <div className="min-w-[180px] flex-1 sm:flex-none">
+          <label className="mb-1.5 block text-xs font-medium text-gray-600">Année académique</label>
+          <select
+            value={academicYear?.id ?? ""}
+            onChange={(event) => {
+              const yearId = event.target.value
+              const year = academicYears.find((item) => item.id === yearId) ?? null
+              if (year) selectYear(year.id)
+            }}
+            className="h-9 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-700"
+          >
+            {academicYears.length === 0 && <option value="">Aucune année</option>}
+            {academicYears.map((year) => (
+              <option key={year.id} value={year.id}>
+                {year.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="min-w-[160px] flex-1 sm:flex-none">
+          <label className="mb-1.5 block text-xs font-medium text-gray-600">Classe</label>
+          <select
+            value={selectedClassId}
+            onChange={(event) => setSelectedClassId(event.target.value)}
+            className="h-9 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-700"
+          >
+            <option value="all">Toutes les classes</option>
+            {classOptions.map(([id, name]) => (
+              <option key={id} value={id}>{name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="min-w-[150px] flex-1 sm:flex-none">
+          <label className="mb-1.5 block text-xs font-medium text-gray-600">Paiement</label>
+          <select
+            value={selectedStatus}
+            onChange={(event) => setSelectedStatus(event.target.value as typeof selectedStatus)}
+            className="h-9 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-700"
+          >
+            <option value="all">Tous les statuts</option>
+            <option value="À jour">À jour</option>
+            <option value="En retard">En retard</option>
+            <option value="Partiel">Partiel</option>
+            <option value="Soldé">Soldé</option>
+          </select>
+        </div>
+
+        <div className="min-w-[220px] flex-1">
+          <label className="mb-1.5 block text-xs font-medium text-gray-600">Recherche</label>
+          <Input
+            placeholder="Nom ou numéro..."
+            className="h-9 w-full rounded-md"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9 shrink-0"
+          onClick={() => {
+            const previousTitle = document.title
+            document.title = `Scolarité - ${academicYear?.name || "année académique"}`
+            window.print()
+            document.title = previousTitle
+          }}
+        >
+          Imprimer
+        </Button>
+      </div>
+
+      <div className="print-only mb-4">
+        <h2 className="text-lg font-semibold">Suivi de scolarité — {academicYear?.name || ""}</h2>
+        <p className="text-sm text-gray-600">
+          Classe : {selectedClassId === "all" ? "Toutes les classes" : classOptions.find(([id]) => id === selectedClassId)?.[1] || "—"}
+          {" · "}
+          Statut : {selectedStatus === "all" ? "Tous" : selectedStatus}
+          {" · "}
+          {filteredStudents.length} élève{filteredStudents.length > 1 ? "s" : ""}
+        </p>
       </div>
 
       {loading || isYearLoading ? (
@@ -860,6 +955,19 @@ export function FinanceScolarite() {
           onSuccess={reload}
         />
       )}
+      <style jsx global>{`
+        .print-only { display: none; }
+        @media print {
+          @page { size: landscape; margin: 10mm; }
+          body { background: white !important; }
+          .print-hidden, header, nav, aside, button { display: none !important; }
+          .print-only { display: block !important; }
+          .md\\:hidden { display: none !important; }
+          .hidden.md\\:block { display: block !important; }
+          section { break-inside: avoid; border: 1px solid #ddd !important; box-shadow: none !important; }
+          main { padding: 0 !important; }
+        }
+      `}</style>
     </div>
   )
 }

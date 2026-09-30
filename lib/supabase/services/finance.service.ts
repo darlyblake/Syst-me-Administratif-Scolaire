@@ -98,6 +98,26 @@ export const financeService = {
     return data as FinanceMovementSummary;
   },
 
+  async getActiveStudentOptions(establishmentId: string) {
+    const { data, error } = await supabaseBrowser
+      .from("student_options")
+      .select("id,name,default_amount,code,description")
+      .eq("establishment_id", establishmentId)
+      .eq("active", true)
+      .order("name")
+    if (error) throw new Error("Impossible de charger les options.")
+    return data ?? []
+  },
+
+  async addEnrollmentOption(enrollmentId: string, optionId: string) {
+    const { data, error } = await supabaseBrowser.rpc("add_enrollment_option", {
+      p_enrollment_id: enrollmentId,
+      p_option_id: optionId,
+    })
+    if (error) throw new Error(error.message || "Impossible d'ajouter l'option.")
+    return data as { id: string; schedule_id?: string | null; already_exists?: boolean }
+  },
+
   // 6. Encaissement atomique (RPC)
   async createPaymentWithAllocations(
     enrollmentId: string, 

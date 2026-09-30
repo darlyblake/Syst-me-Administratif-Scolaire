@@ -91,8 +91,7 @@ export async function createTuitionPlan(data: TuitionPlanPayload): Promise<Tuiti
     plan = res.data;
     planError = res.error;
   } else {
-    // Mode mensuel ou unique
-    const res = await supabaseBrowser.rpc("create_tuition_plan", {
+    const res = await supabaseBrowser.rpc("create_tuition_plan_with_billing", {
       p_establishment_id: data.establishment_id!,
       p_academic_year_id: data.academic_year_id!,
       p_grade_level_id: data.grade_level_id!,
@@ -100,7 +99,10 @@ export async function createTuitionPlan(data: TuitionPlanPayload): Promise<Tuiti
       p_registration_fee: data.registration_fee ?? 0,
       p_annual_tuition: data.annual_tuition!,
       p_payment_mode: data.payment_mode!,
-      p_installment_count: data.payment_mode === "single" ? 1 : null // null lets the backend generate based on dates or fallback
+      p_schedule: [],
+      p_billing_start_date: data.billing_start_date ?? null,
+      p_billing_end_date: data.billing_end_date ?? null,
+      p_enrollment_payment_priority: data.enrollment_payment_priority ?? "schedule_order",
     })
     plan = res.data;
     planError = res.error;

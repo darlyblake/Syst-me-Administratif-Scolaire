@@ -223,15 +223,43 @@ function ScheduleCell({ group, payments, mobile = false }: ScheduleCellProps) {
 }
 
 function GlobalState({ schedules }: { schedules: BoardRow[] }) {
-  if (schedules.some((s) => s.payment_state === "late" || s.payment_state === "partial_late")) {
+  // Un versement sur une échéance future est une avance : il ne doit pas
+  // rendre l'élève "Partiel" tant que cette échéance n'est pas exigible.
+  const today = new Date()
+  today.setHours(23, 59, 59, 999)
+
+  const dueSchedules = schedules.filter((schedule) => {
+    if (!schedule.due_date) return true
+    const dueDate = new Date(schedule.due_date)
+    return dueDate <= today
+  })
+
+  const hasLate = dueSchedules.some(
+    (s) => s.payment_state === "late" || s.payment_state === "partial_late",
+  )
+  if (hasLate) {
     return <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">En retard</span>
   }
-  if (schedules.some((s) => s.payment_state === "partial")) {
+
+  const hasDuePartial = dueSchedules.some((s) => s.payment_state === "partial")
+  if (hasDuePartial) {
     return <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700">Partiel</span>
   }
-  if (schedules.length > 0 && schedules.every((s) => s.payment_state === "paid")) {
-    return <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">Soldé</span>
+
+  // Les échéances futures (ex. octobre alors que septembre est la période
+  // demandée) sont volontairement ignorées pour le statut courant.
+  if (
+    dueSchedules.length > 0 &&
+    dueSchedules.every((s) => s.payment_state === "paid")
+  ) {
+    const allSchedulesPaid = schedules.length > 0 && schedules.every((s) => s.payment_state === "paid")
+    return allSchedulesPaid ? (
+      <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">Soldé</span>
+    ) : (
+      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">À jour</span>
+    )
   }
+
   return <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">À jour</span>
 }
 

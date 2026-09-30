@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { financeService } from "@/lib/supabase/services/finance.service"
 import type { FinanceMovementRow } from "@/lib/supabase/types"
 import { useUserContext } from "@/hooks/useUserContext"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 export function FinanceMovements() {
@@ -15,11 +14,11 @@ export function FinanceMovements() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  const [directionFilter, setDirectionFilter] = useState<'in' | 'out' | ''>('')
+  const [directionFilter, setDirectionFilter] = useState<'credit' | 'debit' | ''>('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
 
-  useEffect(() => {
+  const isEntry = (movement: FinanceMovementRow) => movement.direction === "credit"\n\n  const getReference = (movement: FinanceMovementRow) => {\n    const raw = movement.reference?.trim().toUpperCase() ?? ""\n    const shortId = movement.id.replace(/-/g, "").slice(-6).toUpperCase()\n\n    if (raw.startsWith("INSCRIPTION-")) return `INS-${shortId}`\n    if (raw.startsWith("SCOLARITE-")) return `SCO-${shortId}`\n    if (movement.source_type === "student_payment") return `SCO-${shortId}`\n    if (movement.source_type?.toLowerCase().includes("expense") || movement.source_type?.toLowerCase().includes("depense")) return `DEP-${shortId}`\n    if (movement.source_type?.toLowerCase().includes("payroll") || movement.source_type?.toLowerCase().includes("paie")) return `SAL-${shortId}`\n    if (raw) return raw.length > 16 ? `${raw.slice(0, 13)}...` : raw\n    return `MVT-${shortId}`\n  }\n\n  const getDescription = (movement: FinanceMovementRow) => {\n    const raw = movement.reference?.trim().toUpperCase() ?? ""\n    if (raw.startsWith("INSCRIPTION-")) return "Inscription"\n    if (raw.startsWith("SCOLARITE-")) return "Scolarité"\n    if (movement.source_type === "student_payment") return "Versement scolarité"\n    if (movement.source_type?.toLowerCase().includes("expense") || movement.source_type?.toLowerCase().includes("depense")) return "Dépense"\n    if (movement.source_type?.toLowerCase().includes("payroll") || movement.source_type?.toLowerCase().includes("paie")) return "Paie"\n    return movement.description || "Mouvement de caisse"\n  }\n\n  useEffect(() => {
     async function loadData() {
       if (!establishmentId) return
       
@@ -110,16 +109,16 @@ export function FinanceMovements() {
                     {new Date(mov.transaction_date).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3">
-                    {mov.direction === 'in' ? (
+                    {isEntry(mov) ? (
                       <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-800">Entrée</span>
                     ) : (
                       <span className="text-xs px-2 py-1 rounded bg-red-100 text-red-800">Sortie</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{mov.reference || '-'}</td>
-                  <td className="px-4 py-3 text-gray-600">{mov.description}</td>
-                  <td className={`px-4 py-3 text-right font-bold ${mov.direction === 'in' ? 'text-green-600' : 'text-red-600'}`}>
-                    {mov.direction === 'in' ? '+' : '-'} {mov.amount.toLocaleString()}
+                  <td className="px-4 py-3 text-gray-600">{getReference(mov)}</td>
+                  <td className="px-4 py-3 text-gray-600">{getDescription(mov)}</td>
+                  <td className={`px-4 py-3 text-right font-bold ${isEntry(mov) ? 'text-green-600' : 'text-red-600'}`}>
+                    {isEntry(mov) ? '+' : '-'} {Math.abs(Number(mov.amount || 0)).toLocaleString('fr-FR')} FCFA
                   </td>
                 </tr>
               ))

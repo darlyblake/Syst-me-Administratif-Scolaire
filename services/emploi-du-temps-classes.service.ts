@@ -82,12 +82,11 @@ class ServiceEmploiDuTempsClasses {
   async obtenirAffectationsClasse(establishmentId: string, classId: string) {
     const { data, error } = await supabaseBrowser
       .from("class_subjects")
-      .select("id,class_id,subject_id,teacher_id,subject:subjects(id,name),teacher:teachers(id,first_name,last_name,profile_id,active)")
+      .select("id,class_id,subject_id,teacher_id,subject:subjects(id,name),teacher:teachers(id,establishment_id,first_name,last_name,profile_id,active)")
       .eq("class_id", classId)
-      .eq("teachers.establishment_id", establishmentId)
       .order("created_at")
     if (error) throw new Error(error.message)
-    return data ?? []
+    return (data ?? []).filter((item: any) => item.teacher?.establishment_id === establishmentId && item.teacher?.active !== false)
   }
 
   async obtenirClasses(establishmentId: string) {

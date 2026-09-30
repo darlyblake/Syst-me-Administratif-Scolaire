@@ -262,7 +262,12 @@ export default function PersonnelPage() {
                                 </span>
                               </td>
                               <td className="px-4 py-3 text-right">
-                                <DropdownMenu>
+                                <div className="flex items-center justify-end gap-2">
+                                  <Button variant="outline" size="sm" onClick={() => setRemunerationPersonnel(person)} title="Configurer la rémunération">
+                                    <WalletCards className="mr-1 h-4 w-4" />
+                                    Rémunération
+                                  </Button>
+                                  <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" className="h-8 w-8 p-0">
                                       <span className="sr-only">Actions</span>
@@ -305,7 +310,8 @@ export default function PersonnelPage() {
                                       Désactiver le personnel
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
-                                </DropdownMenu>
+                                  </DropdownMenu>
+                                </div>
                               </td>
                             </tr>
                           )
@@ -340,7 +346,10 @@ export default function PersonnelPage() {
                               </span>
                             </div>
                           </div>
-                          <div className="flex gap-2 pt-1">
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <Button variant="outline" size="sm" onClick={() => setRemunerationPersonnel(person)}>
+                              <WalletCards className="mr-1 h-4 w-4" /> Rémunération
+                            </Button>
                             {!person.accountStatus ? (
                               <Button variant="outline" size="sm" className="flex-1" onClick={() => setAccountPersonnel(person)}>
                                 Créer un compte

@@ -68,6 +68,80 @@ export async function listAttendanceForClassDate(classId: string, date: string):
   return (data ?? []) as AttendanceRecordForDate[]
 }
 
+export interface LessonAttendanceRecord extends AttendanceRecordForDate {
+  subject_id?: string | null
+  lesson_key: string
+}
+
+export interface TeacherClassSubject {
+  class_id: string
+  class_name: string
+  subject_id: string
+  subject_name: string
+  teacher_id: string
+  weekly_hours?: number | null
+}
+
+export interface AttendanceSubject {
+  id: string
+  name: string
+}
+
+export async function listTeacherClassSubjects(establishmentId: string): Promise<TeacherClassSubject[]> {
+  const { data, error } = await supabaseBrowser.rpc("teacher_classes", { p_establishment_id: establishmentId })
+  if (error) throw new Error("Impossible de charger les classes et matières de l'enseignant.")
+  return (data ?? []) as TeacherClassSubject[]
+}
+
+export async function listAttendanceForLesson(classId: string, date: string, lessonKey: string): Promise<LessonAttendanceRecord[]> {
+  const { data, error } = await supabaseBrowser
+    .from("attendance_records")
+    .select("id, student_id, class_id, attendance_date, status, reason, subject_id, lesson_key")
+    .eq("class_id", classId)
+    .eq("attendance_date", date)
+    .eq("lesson_key", lessonKey)
+
+  if (error) throw new Error("Impossible de charger l'appel de ce cours.")
+  return (data ?? []) as LessonAttendanceRecord[]
+}
+
+export async function listAttendanceSubjects(establishmentId: string): Promise<AttendanceSubject[]> {
+  const { data, error } = await supabaseBrowser
+    .from("subjects")
+    .select("id, name")
+    .eq("establishment_id", establishmentId)
+    .eq("active", true)
+    .order("name", { ascending: true })
+
+  if (error) throw new Error("Impossible de charger les matières.")
+  return (data ?? []) as AttendanceSubject[]
+}
+
+export async function recordLessonAttendance(data: {
+  establishmentId: string
+  studentId: string
+  classId: string
+  subjectId: string
+  date: string
+  lessonKey: string
+  status: string
+  reason?: string
+}): Promise<string> {
+  const { data: result, error } = await supabaseBrowser.rpc("record_lesson_attendance", {
+    p_establishment_id: data.establishmentId,
+    p_student_id: data.studentId,
+    p_class_id: data.classId,
+    p_subject_id: data.subjectId,
+    p_date: data.date,
+    p_lesson_key: data.lessonKey,
+    p_status: data.status,
+    p_reason: data.reason || null,
+  })
+
+  if (error) throw new Error(error.message || "Impossible d'enregistrer la présence.")
+  return result as string
+}
+
 export async function listAttendanceHistoryPaginated(params: {
   establishmentId: string
   page: number

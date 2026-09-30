@@ -20,7 +20,7 @@ function categoryLabel(category?: string) {
   return "Scolarité"
 }
 
-function scheduleLabel(schedule: Pick<FinanceStudentPaymentBoardRow, "label" | "due_date" | "category">) {
+function scheduleLabel(schedule: Pick<FinanceStudentPaymentBoardRow, "label" | "due_date"> & { category?: string }) {
   if (schedule.category === "registration") return "Inscription"
   if (schedule.category === "option") return schedule.label
 

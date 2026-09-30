@@ -391,7 +391,7 @@ export function FinanceScolarite() {
   }
 
   const renderTable = (className: string, students: typeof filteredStudents) => (
-    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+    <section className="rounded-lg border border-gray-200 bg-white">
       <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
         <h2 className="text-sm font-semibold text-gray-800">{className}</h2>
         <p className="mt-0.5 text-xs text-gray-500">
@@ -523,7 +523,7 @@ export function FinanceScolarite() {
       </div>
 
       {/* Tablette / PC : on conserve le tableau large existant. */}
-      <div className="hidden w-full overflow-x-auto overscroll-x-contain md:block">
+      <div className="hidden w-full md:block">
         <table className="w-full min-w-[760px] table-fixed text-sm">
           <colgroup>
             <col className="w-[22%]" />

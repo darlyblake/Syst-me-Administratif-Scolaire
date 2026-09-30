@@ -75,6 +75,48 @@ export const financeService = {
     return (data ?? []) as FinancePaymentHistoryRow[];
   },
 
+
+  // 3bis. Dettes des années antérieures
+  async getLegacyDebts(establishmentId: string, beforeAcademicYearId?: string | null) {
+    let query = supabaseBrowser
+      .from("v_finance_student_payment_board")
+      .select("*, student:students!student_id(first_name, last_name, student_number), class:school_classes!class_id(name), academic_year:academic_years!academic_year_id(name, start_date, end_date)")
+      .eq("establishment_id", establishmentId)
+      .gt("remaining_amount", 0)
+
+    if (beforeAcademicYearId) {
+      const { data: currentYear, error: yearError } = await supabaseBrowser
+        .from("academic_years")
+        .select("start_date")
+        .eq("id", beforeAcademicYearId)
+        .maybeSingle()
+      if (yearError) throw new Error("Impossible de déterminer l'année académique sélectionnée.")
+      if (currentYear?.start_date) query = query.lt("academic_year.start_date", currentYear.start_date)
+    }
+
+    const { data, error } = await query.order("student_id").order("academic_year_id").order("installment_number")
+    if (error) {
+      // Fallback without the academic-year relation if PostgREST relation inference is unavailable.
+      let fallback = supabaseBrowser
+        .from("v_finance_student_payment_board")
+        .select("*")
+        .eq("establishment_id", establishmentId)
+        .gt("remaining_amount", 0)
+      if (beforeAcademicYearId) {
+        const { data: currentYear } = await supabaseBrowser.from("academic_years").select("start_date").eq("id", beforeAcademicYearId).maybeSingle()
+        if (currentYear?.start_date) {
+          const { data: years } = await supabaseBrowser.from("academic_years").select("id").eq("establishment_id", establishmentId).lt("start_date", currentYear.start_date)
+          const ids = (years ?? []).map((year) => year.id)
+          if (ids.length === 0) return []
+          fallback = fallback.in("academic_year_id", ids)
+        }
+      }
+      const result = await fallback.order("student_id").order("academic_year_id").order("installment_number")
+      if (result.error) throw new Error("Impossible de charger les dettes antérieures.")
+      return (result.data ?? []) as any[]
+    }
+    return (data ?? []) as any[]
+  },
   // 4. Résumé financier de scolarité (RPC)
   async getPaymentSummary(establishmentId: string, academicYearId: string): Promise<FinancePaymentSummary> {
     const { data, error } = await supabaseBrowser.rpc("get_payment_summary", {

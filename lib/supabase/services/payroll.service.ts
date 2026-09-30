@@ -22,6 +22,27 @@ export const payrollService = {
     return data
   },
 
+  async getAcademicYearPayrollSettings(establishmentId: string, academicYearId: string) {
+    const { data, error } = await db.from("payroll_academic_year_settings").select("*")
+      .eq("establishment_id", establishmentId).eq("academic_year_id", academicYearId).maybeSingle()
+    if (error) throw new Error(error.message || "Impossible de charger les mois de paie.")
+    return data
+  },
+
+  async saveAcademicYearPayrollSettings(establishmentId: string, academicYearId: string, payableMonths: number[]) {
+    const normalized = [...new Set(payableMonths.map(Number))]
+      .filter((month) => month >= 1 && month <= 12)
+      .sort((a, b) => a - b)
+    const { data, error } = await db.from("payroll_academic_year_settings").upsert({
+      establishment_id: establishmentId,
+      academic_year_id: academicYearId,
+      payable_months: normalized,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "establishment_id,academic_year_id" }).select().single()
+    if (error) throw new Error(error.message || "Impossible d'enregistrer les mois de paie.")
+    return data
+  },
+
   async getStaff(establishmentId: string) {
     const { data: staff, error } = await db.from("v_payroll_staff").select("*")
       .eq("establishment_id", establishmentId).order("last_name").order("first_name")

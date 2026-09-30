@@ -73,13 +73,16 @@ export function AssignerClassesModal({ isOpen, onClose, enseignant, onSuccess }:
         const subjectId = subjectByClass[classId]
         if (!subjectId) throw new Error("Chaque classe sélectionnée doit avoir une matière.")
         const existing = currentByClass.get(classId)
+        const weeklyHours = weeklyHoursByClass[classId] ? Number(weeklyHoursByClass[classId]) : null
         if (!existing) {
           await serviceAffectationsEnseignants.ajouter({
             teacherId: enseignant.id,
             classId,
             subjectId,
-            weeklyHours: weeklyHoursByClass[classId] ? Number(weeklyHoursByClass[classId]) : null,
+            weeklyHours,
           })
+        } else if (existing.subjectId !== subjectId || existing.weeklyHours !== weeklyHours) {
+          await serviceAffectationsEnseignants.modifier(existing.id, { subjectId, weeklyHours })
         }
       }
       for (const existing of assignments) {

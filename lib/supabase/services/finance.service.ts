@@ -43,7 +43,7 @@ export const financeService = {
   },
 
   // 2. Vue Mouvements
-  async getMovements(establishmentId: string, from?: string, to?: string, direction?: 'in' | 'out'): Promise<FinanceMovementRow[]> {
+  async getMovements(establishmentId: string, from?: string, to?: string, direction?: 'credit' | 'debit'): Promise<FinanceMovementRow[]> {
     let query = supabaseBrowser
       .from("v_finance_movements")
       .select("*")

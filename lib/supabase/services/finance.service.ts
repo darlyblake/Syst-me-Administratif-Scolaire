@@ -59,6 +59,79 @@ export const financeService = {
     return (data ?? []) as FinanceMovementRow[];
   },
 
+  async getMovementDetails(movement: FinanceMovementRow) {
+    const base = { movement }
+    if (!movement.source_id || !movement.source_type) return base
+
+    const sourceType = movement.source_type.toLowerCase()
+
+    if (sourceType === "student_payment" || sourceType.includes("payment")) {
+      const { data: payment, error: paymentError } = await supabaseBrowser
+        .from("payments")
+        .select("id, payment_date, amount, method, reference, notes, payer_type, category, enrollment_id")
+        .eq("id", movement.source_id)
+        .maybeSingle()
+      if (paymentError) throw new Error("Impossible de charger le détail du paiement.")
+      if (!payment) return base
+
+      const { data: enrollment, error: enrollmentError } = await supabaseBrowser
+        .from("enrollments")
+        .select("id, student_id, class_id, academic_year_id, enrollment_date, funding_source")
+        .eq("id", payment.enrollment_id)
+        .maybeSingle()
+      if (enrollmentError) throw new Error("Impossible de charger l'inscription du paiement.")
+
+      let student: any = null
+      let schoolClass: any = null
+      let academicYear: any = null
+      if (enrollment) {
+        const [studentResult, classResult, yearResult] = await Promise.all([
+          supabaseBrowser.from("students").select("id, first_name, last_name, student_number").eq("id", enrollment.student_id).maybeSingle(),
+          supabaseBrowser.from("school_classes").select("id, name, code").eq("id", enrollment.class_id).maybeSingle(),
+          supabaseBrowser.from("academic_years").select("id, name").eq("id", enrollment.academic_year_id).maybeSingle(),
+        ])
+        student = studentResult.data
+        schoolClass = classResult.data
+        academicYear = yearResult.data
+      }
+
+      const { data: allocations } = await supabaseBrowser
+        .from("payment_allocations")
+        .select("amount, payment_schedule_id, payment_schedules(id, installment_number, label, due_date, amount_due, category, payer_type)")
+        .eq("payment_id", payment.id)
+
+      return { ...base, kind: "student_payment", payment, enrollment, student, schoolClass, academicYear, allocations: allocations ?? [] }
+    }
+
+    if (sourceType.includes("expense") || sourceType.includes("depense")) {
+      const { data: expense } = await supabaseBrowser
+        .from("expenses")
+        .select("id, category, description, amount, expense_date, payment_method, reference, created_by")
+        .eq("id", movement.source_id)
+        .maybeSingle()
+      return { ...base, kind: "expense", expense }
+    }
+
+    if (sourceType.includes("payroll") || sourceType.includes("paie")) {
+      const { data: payroll } = await supabaseBrowser
+        .from("payroll_entries")
+        .select("id, staff_type, staff_id, base_amount, overtime_amount, bonuses, deductions, net_amount, status, period_id")
+        .eq("id", movement.source_id)
+        .maybeSingle()
+      let staff: any = null
+      if (payroll?.staff_id) {
+        if (payroll.staff_type?.toLowerCase().includes("teacher") || payroll.staff_type?.toLowerCase().includes("enseign")) {
+          const result = await supabaseBrowser.from("teachers").select("id, first_name, last_name, employee_number, specialty").eq("id", payroll.staff_id).maybeSingle()
+          staff = result.data
+        }
+      }
+      const { data: period } = payroll?.period_id ? await supabaseBrowser.from("payroll_periods").select("id, name, starts_on, ends_on").eq("id", payroll.period_id).maybeSingle() : { data: null }
+      return { ...base, kind: "payroll", payroll, staff, period }
+    }
+
+    return base
+  },
+
   // 3. Historique d'un paiement / d'un élève
   async getPaymentHistory(establishmentId: string, enrollmentId?: string): Promise<FinancePaymentHistoryRow[]> {
     let query = supabaseBrowser

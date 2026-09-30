@@ -251,6 +251,11 @@ export function FinanceScolarite() {
     class: any
     schedules: BoardRow[]
   } | null>(null)
+  const [showAddOption, setShowAddOption] = useState(false)
+  const [availableOptions, setAvailableOptions] = useState<any[]>([])
+  const [selectedOptionId, setSelectedOptionId] = useState("")
+  const [addingOption, setAddingOption] = useState(false)
+  const [optionError, setOptionError] = useState<string | null>(null)
 
   const reload = async () => {
     if (!establishmentId || !academicYear) return
@@ -274,6 +279,21 @@ export function FinanceScolarite() {
     if (!isYearLoading) void reload()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [establishmentId, academicYear, isYearLoading])
+
+  useEffect(() => {
+    if (!showAddOption || !establishmentId) return
+    let active = true
+    void financeService.getActiveStudentOptions(establishmentId).then((options) => {
+      if (!active) return
+      const existing = new Set(
+        selectedStudentForDetails?.schedules
+          .filter((s) => s.category === "option")
+          .map((s) => s.label.toLowerCase()) ?? [],
+      )
+      setAvailableOptions(options.filter((option: any) => !existing.has(String(option.name).toLowerCase())))
+    }).catch((err: any) => setOptionError(err.message || "Impossible de charger les options."))
+    return () => { active = false }
+  }, [showAddOption, establishmentId, selectedStudentForDetails])
 
   const studentsMap = useMemo(() => {
     const map = new Map<string, {
@@ -715,7 +735,20 @@ export function FinanceScolarite() {
               </div>
             </div>
 
-            <div className="flex flex-col-reverse gap-2 border-t px-5 py-3 sm:flex-row sm:justify-end">
+            <div className="flex flex-col gap-3 border-t px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  setOptionError(null)
+                  setSelectedOptionId("")
+                  setShowAddOption(true)
+                }}
+              >
+                + Ajouter une option
+              </Button>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+
               <Button
                 variant="outline"
                 className="w-full sm:w-auto"
@@ -723,14 +756,68 @@ export function FinanceScolarite() {
               >
                 Fermer
               </Button>
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={() => {
+                    setSelectedStudentForPay(selectedStudentForDetails.schedules)
+                    setSelectedStudentForDetails(null)
+                  }}
+                >
+                  Encaisser
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddOption && selectedStudentForDetails && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 p-3" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
+            <div className="border-b px-5 py-4">
+              <h3 className="font-semibold text-gray-900">Ajouter une option</h3>
+              <p className="mt-1 text-xs text-gray-500">L'option sera ajoutée à l'inscription et pourra ensuite être encaissée séparément.</p>
+            </div>
+            <div className="space-y-3 p-5">
+              {optionError && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{optionError}</p>}
+              <select
+                value={selectedOptionId}
+                onChange={(e) => setSelectedOptionId(e.target.value)}
+                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm"
+              >
+                <option value="">Choisir une option...</option>
+                {availableOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name} — {Number(option.default_amount || 0).toLocaleString("fr-FR")} FCFA
+                  </option>
+                ))}
+              </select>
+              {availableOptions.length === 0 && !optionError && (
+                <p className="text-sm text-gray-500">Aucune autre option active n'est disponible.</p>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 border-t px-5 py-3">
+              <Button variant="outline" onClick={() => setShowAddOption(false)} disabled={addingOption}>Annuler</Button>
               <Button
-                className="w-full sm:w-auto"
-                onClick={() => {
-                  setSelectedStudentForPay(selectedStudentForDetails.schedules)
-                  setSelectedStudentForDetails(null)
+                disabled={!selectedOptionId || addingOption}
+                onClick={async () => {
+                  try {
+                    setAddingOption(true)
+                    setOptionError(null)
+                    await financeService.addEnrollmentOption(selectedStudentForDetails.enrollment_id, selectedOptionId)
+                    setShowAddOption(false)
+                    await reload()
+                    const refreshed = await financeService.getStudentPaymentBoard(establishmentId!, academicYear!.id)
+                    const schedules = refreshed.filter((row: any) => row.enrollment_id === selectedStudentForDetails.enrollment_id) as BoardRow[]
+                    setSelectedStudentForDetails({ ...selectedStudentForDetails, schedules })
+                  } catch (err: any) {
+                    setOptionError(err.message || "Impossible d'ajouter l'option.")
+                  } finally {
+                    setAddingOption(false)
+                  }
                 }}
               >
-                Encaisser
+                {addingOption ? "Ajout..." : "Ajouter l'option"}
               </Button>
             </div>
           </div>

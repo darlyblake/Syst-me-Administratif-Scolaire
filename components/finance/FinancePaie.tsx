@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { FileText, Settings2, Wallet, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react"
 import { useUserContext } from "@/hooks/useUserContext"
 import { payrollService } from "@/lib/supabase/services/payroll.service"
+import { getAcademicYears, getActiveAcademicYear } from "@/lib/supabase/services/academic-year.service"
 
 const money = (n: number) => Number(n || 0).toLocaleString("fr-FR") + " FCFA"
 
@@ -47,13 +48,59 @@ export function FinancePaie() {
   const { etablissementActif } = useUserContext()
   const establishmentId = etablissementActif?.id
   const [periods,setPeriods]=useState<any[]>([]), [periodId,setPeriodId]=useState("")
-  const [selectedMonth,setSelectedMonth]=useState(monthKey(new Date(new Date().getFullYear(), new Date().getMonth()-1, 1)))
+  const [academicYears,setAcademicYears]=useState<any[]>([]), [selectedYearId,setSelectedYearId]=useState("")
+  const [payableMonths,setPayableMonths]=useState<number[]>([])
+  const [selectedMonth,setSelectedMonth]=useState("")
   const [rows,setRows]=useState<any[]>([]), [loading,setLoading]=useState(true), [generating,setGenerating]=useState(false)
   const [selected,setSelected]=useState<any>(null), [amount,setAmount]=useState(""), [advance,setAdvance]=useState("")
   const [method,setMethod]=useState("cash"), [date,setDate]=useState(dateOnly(new Date()))
   const [config,setConfig]=useState<any>(null), [remType,setRemType]=useState("fixed"), [salary,setSalary]=useState(""), [rate,setRate]=useState("")
 
-  const load=async()=>{if(!establishmentId)return;try{setLoading(true);const[p]=await Promise.all([payrollService.getPeriods(establishmentId)]);setPeriods(p);if(p.length){const current=p.find((x:any)=>String(x.starts_on).slice(0,7)===selectedMonth)||p[0];setSelectedMonth(String(current.starts_on).slice(0,7));setPeriodId(current.id)}}catch(e:any){toast.error(e.message||"Erreur de chargement")}finally{setLoading(false)}}
+  const availableMonthKeys = useMemo(() => {
+    const year = academicYears.find((item) => item.id === selectedYearId)
+    if (!year?.start_date || !year?.end_date || !payableMonths.length) return []
+    const result: string[] = []
+    const cursor = new Date(year.start_date + "T12:00:00")
+    const end = new Date(year.end_date + "T12:00:00")
+    while (cursor <= end) {
+      const month = cursor.getMonth() + 1
+      if (payableMonths.includes(month)) result.push(monthKey(cursor))
+      cursor.setMonth(cursor.getMonth() + 1)
+    }
+    return result
+  }, [academicYears, selectedYearId, payableMonths])
+
+  const load=async()=>{if(!establishmentId)return;try{
+    setLoading(true)
+    const [p, years, active] = await Promise.all([
+      payrollService.getPeriods(establishmentId),
+      getAcademicYears(establishmentId),
+      getActiveAcademicYear(establishmentId),
+    ])
+    setPeriods(p)
+    setAcademicYears(years)
+    const year = active ?? years[0]
+    if (year) {
+      setSelectedYearId(year.id)
+      const config = await payrollService.getAcademicYearPayrollSettings(establishmentId, year.id)
+      const months = Array.isArray(config?.payable_months) ? config.payable_months.map(Number) : []
+      const cursor = new Date(year.start_date + "T12:00:00")
+      const end = new Date(year.end_date + "T12:00:00")
+      const allowed = months.length ? months : Array.from({length: 12}, (_, i) => i + 1)
+      const keys: string[] = []
+      while (cursor <= end) {
+        if (allowed.includes(cursor.getMonth() + 1)) keys.push(monthKey(cursor))
+        cursor.setMonth(cursor.getMonth() + 1)
+      }
+      setPayableMonths(allowed)
+      if (keys.length) setSelectedMonth((current) => keys.includes(current) ? current : keys[0])
+      else setSelectedMonth("")
+    } else {
+      setSelectedYearId("")
+      setPayableMonths([])
+      setSelectedMonth("")
+    }
+  }catch(e:any){toast.error(e.message||"Erreur de chargement")}finally{setLoading(false)}}
   const loadState=async()=>{if(!establishmentId||!periodId)return setRows([]);try{setRows(await payrollService.getState(establishmentId,periodId))}catch(e:any){toast.error(e.message||"Impossible de charger l'état")}}
   useEffect(()=>{load()},[establishmentId])
   useEffect(()=>{
@@ -64,8 +111,33 @@ export function FinancePaie() {
 
   const totals=useMemo(()=>rows.reduce((a,r)=>({net:a.net+r.net_amount,advances:a.advances+r.advances,arrears:a.arrears+r.arrears,paid:a.paid+r.amount_paid,remaining:a.remaining+r.remaining_amount}),{net:0,advances:0,arrears:0,paid:0,remaining:0}),[rows])
 
-  const generate=async()=>{if(!establishmentId)return;const{start,end}=periodDates(selectedMonth);try{setGenerating(true);const id=await payrollService.generatePeriod(establishmentId,start,end);const p=await payrollService.getPeriods(establishmentId);setPeriods(p);setPeriodId(id);toast.success("État de salaire généré")}catch(e:any){toast.error(e.message||"Impossible de générer l'état")}finally{setGenerating(false)}}
-  const saveDay=async()=>{if(!establishmentId)return;const d=Number(generationDay);if(d<1||d>28)return toast.error("Choisissez un jour entre 1 et 28.");try{setSaving(true);await payrollService.saveSettings(establishmentId,d,true);toast.success("Paramètre enregistré")}catch(e:any){toast.error(e.message||"Impossible d'enregistrer")}finally{setSaving(false)}}
+  const changeYear = async (yearId: string) => {
+    if (!establishmentId) return
+    const year = academicYears.find((item) => item.id === yearId)
+    if (!year) return
+    setSelectedYearId(yearId)
+    const config = await payrollService.getAcademicYearPayrollSettings(establishmentId, yearId)
+    const configured = Array.isArray(config?.payable_months) ? config.payable_months.map(Number) : []
+    const cursor = new Date(year.start_date + "T12:00:00")
+    const end = new Date(year.end_date + "T12:00:00")
+    const allowed = configured.length ? configured : Array.from({length: 12}, (_, i) => i + 1)
+    const keys: string[] = []
+    while (cursor <= end) {
+      if (allowed.includes(cursor.getMonth() + 1)) keys.push(monthKey(cursor))
+      cursor.setMonth(cursor.getMonth() + 1)
+    }
+    setPayableMonths(allowed)
+    setSelectedMonth(keys[0] || "")
+  }
+
+  const moveMonth = (direction: number) => {
+    const index = availableMonthKeys.indexOf(selectedMonth)
+    if (index < 0) return setSelectedMonth(availableMonthKeys[0] || "")
+    const next = availableMonthKeys[index + direction]
+    if (next) setSelectedMonth(next)
+  }
+
+  const generate=async()=>{if(!establishmentId||!selectedMonth)return;const{start,end}=periodDates(selectedMonth);try{setGenerating(true);const id=await payrollService.generatePeriod(establishmentId,start,end);const p=await payrollService.getPeriods(establishmentId);setPeriods(p);setPeriodId(id);toast.success("État de salaire généré")}catch(e:any){toast.error(e.message||"Impossible de générer l'état")}finally{setGenerating(false)}}
 
   const openConfig=(r:any)=>{setConfig(r);setRemType(r.remuneration_type==="hourly"?"hourly":"fixed");setSalary(r.monthly_salary?String(r.monthly_salary):"");setRate(r.hourly_rate?String(r.hourly_rate):"")}
   const saveConfig=async()=>{if(!establishmentId||!config)return;try{await payrollService.saveCompensation({establishmentId,staffType:config.staff_type,staffId:config.staff_id,remunerationType:remType,monthlySalary:Number(salary||0),hourlyRate:Number(rate||0)});toast.success("Rémunération enregistrée");setConfig(null);await load();await loadState()}catch(e:any){toast.error(e.message||"Impossible d'enregistrer")}}
@@ -85,18 +157,21 @@ export function FinancePaie() {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs text-gray-500">Mois de paie</p>
-          <div className="flex items-center gap-2 mt-1">
-            <Button variant="outline" size="sm" onClick={()=>setSelectedMonth(previousMonthKey(selectedMonth))} aria-label="Mois précédent"><ChevronLeft className="h-4 w-4"/></Button>
-            <div className="min-w-[170px] text-center font-semibold"><CalendarDays className="inline h-4 w-4 mr-2"/>{monthLabel(selectedMonth)}</div>
-            <Button variant="outline" size="sm" onClick={()=>setSelectedMonth(nextMonthKey(selectedMonth))} aria-label="Mois suivant"><ChevronRight className="h-4 w-4"/></Button>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <select value={selectedYearId} onChange={(e)=>void changeYear(e.target.value)} className="border rounded px-3 py-2 text-sm bg-white">
+              {academicYears.map((year)=><option key={year.id} value={year.id}>{year.name}</option>)}
+            </select>
+            <Button variant="outline" size="sm" onClick={()=>moveMonth(-1)} disabled={!selectedMonth || availableMonthKeys.indexOf(selectedMonth)<=0} aria-label="Mois précédent"><ChevronLeft className="h-4 w-4"/></Button>
+            <div className="min-w-[170px] text-center font-semibold">{selectedMonth ? <><CalendarDays className="inline h-4 w-4 mr-2"/>{monthLabel(selectedMonth)}</> : "Aucun mois payable"}</div>
+            <Button variant="outline" size="sm" onClick={()=>moveMonth(1)} disabled={!selectedMonth || availableMonthKeys.indexOf(selectedMonth)>=availableMonthKeys.length-1} aria-label="Mois suivant"><ChevronRight className="h-4 w-4"/></Button>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={()=>{const k=monthKey(new Date(new Date().getFullYear(),new Date().getMonth()-1,1));setSelectedMonth(k)}}>Mois précédent actuel</Button>
+          <span className="text-xs text-gray-500">{availableMonthKeys.length} mois payable(s) configuré(s)</span>
           {!periodId && <Button onClick={generate} disabled={generating}>{generating?"Génération...":"Générer cet état"}</Button>}
         </div>
       </div>
-      <div className="mt-3 text-xs text-gray-500">{periodId ? "État déjà généré pour ce mois." : "Aucun état généré pour ce mois. Vous pouvez le créer depuis cette page."}</div>
+      <div className="mt-3 text-xs text-gray-500">{periodId ? "État déjà généré pour ce mois." : selectedMonth ? "Aucun état généré pour ce mois. Vous pouvez le créer depuis cette page." : "Aucun mois payable n'est configuré pour cette année académique."}</div>
     </div>
 
     <div className="border rounded bg-white overflow-x-auto"><table className="w-full min-w-[1150px] text-sm"><thead className="bg-gray-50 border-b"><tr>{["Personnel","Fonction","Type","Base / heures","Avance","Arriéré","Payé","Reste","État",""].map(h=><th key={h} className="px-4 py-3 text-left">{h}</th>)}</tr></thead><tbody className="divide-y">{loading?<tr><td colSpan={10} className="p-10 text-center text-gray-500">Chargement...</td></tr>:rows.length===0?<tr><td colSpan={10} className="p-10 text-center text-gray-500">Aucun état pour cette période.</td></tr>:rows.map(r=><tr key={r.id} className="hover:bg-gray-50"><td className="px-4 py-3 font-medium">{r.first_name} {r.last_name}</td><td className="px-4 py-3">{r.position}</td><td className="px-4 py-3">{r.remuneration_type==="hourly"?"Horaire":"Fixe"}</td><td className="px-4 py-3">{r.remuneration_type==="hourly"?`${r.hours_worked} h × ${money(r.hourly_rate)}`:money(r.base_amount)}</td><td className="px-4 py-3">{money(r.advances)}</td><td className="px-4 py-3">{money(r.arrears)}</td><td className="px-4 py-3">{money(r.amount_paid)}</td><td className="px-4 py-3 font-semibold">{money(r.remaining_amount)}</td><td className="px-4 py-3">{r.remuneration_type==="hourly" && Number(r.hours_worked||0)<=0 ? "Pointage requis" : r.payment_status==="paid"?"Soldé":r.payment_status==="partial"?"Partiel":r.payment_status==="overdue"?"En retard":"À payer"}</td><td className="px-4 py-3"><div className="flex gap-1"><Button size="sm" variant="outline" onClick={()=>openConfig(r)} title="Rémunération"><Settings2 className="h-4 w-4"/></Button>{r.remaining_amount>0&&<Button size="sm" onClick={()=>setSelected(r)} className="bg-gray-900 text-white">Payer</Button>}</div></td></tr>)}</tbody></table></div>

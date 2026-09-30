@@ -255,4 +255,33 @@ export const financeService = {
     if (error) throw new Error(messageErreurFinance(error, "Impossible d’enregistrer le paiement."));
     return data as string;
   }
+
+  async getExpenses(establishmentId: string, from?: string, to?: string) {
+    let query = supabaseBrowser.from("expenses")
+      .select("id, establishment_id, account_id, category, description, amount, expense_date, payment_method, reference, created_by, created_at")
+      .eq("establishment_id", establishmentId)
+    if (from) query = query.gte("expense_date", from)
+    if (to) query = query.lte("expense_date", to)
+    const { data, error } = await query.order("expense_date", { ascending: false }).order("created_at", { ascending: false })
+    if (error) throw new Error("Impossible de charger les dépenses.")
+    return data ?? []
+  },
+
+  async createExpense(input: { establishmentId: string; category: string; description: string; amount: number; expenseDate: string; paymentMethod: string; reference?: string }) {
+    const { data: userResult } = await supabaseBrowser.auth.getUser()
+    const userId = userResult.user?.id
+    if (!userId) throw new Error("Votre session a expiré. Veuillez vous reconnecter.")
+    const { data: account, error: accountError } = await supabaseBrowser.from("accounting_accounts")
+      .select("id").eq("establishment_id", input.establishmentId).eq("code", "571").eq("active", true).maybeSingle()
+    if (accountError) throw new Error("Impossible de trouver la caisse générale.")
+    if (!account) throw new Error("La caisse générale (571) n'est pas configurée.")
+    const reference = input.reference?.trim() || ("DEP-" + Date.now().toString(36).toUpperCase())
+    const { data, error } = await supabaseBrowser.from("expenses").insert({
+      establishment_id: input.establishmentId, account_id: account.id, category: input.category.trim(),
+      description: input.description.trim(), amount: input.amount, expense_date: input.expenseDate,
+      payment_method: input.paymentMethod, reference, created_by: userId,
+    }).select("id, establishment_id, account_id, category, description, amount, expense_date, payment_method, reference, created_by, created_at").single()
+    if (error) throw new Error(error.message || "Impossible d'enregistrer la dépense.")
+    return data
+  },
 };

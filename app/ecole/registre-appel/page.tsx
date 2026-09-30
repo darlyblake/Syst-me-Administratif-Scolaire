@@ -1,36 +1,61 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, CheckCircle, XCircle, Clock, UserCheck } from "lucide-react"
+import { ArrowLeft, Check, Clock, Save, UserCheck, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
-import { useAttendanceHistory } from "@/hooks/useAttendance"
+import { useAcademicYears } from "@/hooks/useAcademicYears"
+import { listStudentsPaginated } from "@/lib/supabase/services/student.service"
+import { listAttendanceForClassDate, recordAttendance } from "@/lib/supabase/services/absence.service"
+
+type AttendanceStatus = "present" | "absent" | "late" | "justified"
+
+type CallStudent = {
+  id: string
+  first_name: string
+  last_name: string
+  student_number?: string | null
+}
+
+type AttendanceEntry = {
+  status: AttendanceStatus
+  reason: string
+}
+
+const statusLabels: Record<AttendanceStatus, string> = {
+  present: "Présent",
+  absent: "Absent",
+  late: "Retard",
+  justified: "Justifié",
+}
+
+const statusClasses: Record<AttendanceStatus, string> = {
+  present: "bg-green-50 text-green-700 border-green-200",
+  absent: "bg-red-50 text-red-700 border-red-200",
+  late: "bg-amber-50 text-amber-700 border-amber-200",
+  justified: "bg-blue-50 text-blue-700 border-blue-200",
+}
 
 export default function RegistreAppelPage() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
   const { data: academicStructure } = useAcademicStructure(establishmentId)
+  const { data: academicYears, selectedYear, activeYear, selectYear, isLoading: isYearLoading } = useAcademicYears(establishmentId)
 
-  const [filterDate, setFilterDate] = useState("")
-  const [filterDateTo, setFilterDateTo] = useState("")
-  const [filterClasse, setFilterClasse] = useState<string | null>(null)
-  const [page, setPage] = useState(1)
-  const pageSize = 50
-
-  const { data, isLoading, error, refetch } = useAttendanceHistory({
-    establishmentId,
-    page,
-    pageSize,
-    classId: filterClasse,
-    from: filterDate || undefined,
-    to: filterDateTo || undefined,
-  })
+  const academicYear = selectedYear ?? activeYear
+  const [selectedClassId, setSelectedClassId] = useState("")
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [students, setStudents] = useState<CallStudent[]>([])
+  const [attendance, setAttendance] = useState<Record<string, AttendanceEntry>>({})
+  const [search, setSearch] = useState("")
+  const [isLoadingStudents, setIsLoadingStudents] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const classes = useMemo(
     () =>
@@ -45,239 +70,310 @@ export default function RegistreAppelPage() {
     [academicStructure]
   )
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "present":
-        return <CheckCircle className="h-4 w-4 text-green-600" />
-      case "absent":
-        return <XCircle className="h-4 w-4 text-red-600" />
-      case "late":
-        return <Clock className="h-4 w-4 text-yellow-600" />
-      case "justified":
-        return <UserCheck className="h-4 w-4 text-blue-600" />
-      default:
-        return null
+  const selectedClass = classes.find((item) => item.id === selectedClassId)
+
+  const loadStudents = useCallback(async () => {
+    if (!establishmentId || !academicYear?.id || !selectedClassId) {
+      setStudents([])
+      setAttendance({})
+      return
+    }
+
+    try {
+      setIsLoadingStudents(true)
+      setError(null)
+      setMessage(null)
+
+      const [studentPage, records] = await Promise.all([
+        listStudentsPaginated(establishmentId, 1, 1000, "", true, selectedClassId, academicYear.id),
+        listAttendanceForClassDate(selectedClassId, date),
+      ])
+
+      const loadedStudents = (studentPage.items ?? []) as CallStudent[]
+      const nextAttendance: Record<string, AttendanceEntry> = {}
+
+      loadedStudents.forEach((student) => {
+        nextAttendance[student.id] = { status: "present", reason: "" }
+      })
+
+      records.forEach((record) => {
+        if (nextAttendance[record.student_id]) {
+          nextAttendance[record.student_id] = {
+            status: (record.status as AttendanceStatus) || "present",
+            reason: record.reason ?? "",
+          }
+        }
+      })
+
+      setStudents(loadedStudents)
+      setAttendance(nextAttendance)
+    } catch (err) {
+      setStudents([])
+      setAttendance({})
+      setError(err instanceof Error ? err.message : "Impossible de charger les élèves de la classe.")
+    } finally {
+      setIsLoadingStudents(false)
+    }
+  }, [academicYear?.id, date, establishmentId, selectedClassId])
+
+  useEffect(() => {
+    if (!isYearLoading) void loadStudents()
+  }, [isYearLoading, loadStudents])
+
+  const filteredStudents = useMemo(() => {
+    const value = search.trim().toLowerCase()
+    if (!value) return students
+
+    return students.filter((student) =>
+      `${student.first_name} ${student.last_name} ${student.student_number ?? ""}`.toLowerCase().includes(value)
+    )
+  }, [search, students])
+
+  const setStudentStatus = (studentId: string, status: AttendanceStatus) => {
+    setAttendance((current) => ({
+      ...current,
+      [studentId]: {
+        status,
+        reason: current[studentId]?.reason ?? "",
+      },
+    }))
+  }
+
+  const setStudentReason = (studentId: string, reason: string) => {
+    setAttendance((current) => ({
+      ...current,
+      [studentId]: {
+        status: current[studentId]?.status ?? "present",
+        reason,
+      },
+    }))
+  }
+
+  const markAllPresent = () => {
+    setAttendance((current) => {
+      const next = { ...current }
+      students.forEach((student) => {
+        next[student.id] = { status: "present", reason: "" }
+      })
+      return next
+    })
+  }
+
+  const saveCall = async () => {
+    if (!establishmentId || !selectedClassId || !date || !students.length) return
+
+    try {
+      setIsSaving(true)
+      setError(null)
+      setMessage(null)
+
+      await Promise.all(
+        students.map((student) => {
+          const entry = attendance[student.id] ?? { status: "present", reason: "" }
+          return recordAttendance({
+            establishmentId,
+            studentId: student.id,
+            classId: selectedClassId,
+            date,
+            status: entry.status,
+            reason: entry.reason || undefined,
+          })
+        })
+      )
+
+      setMessage(`Appel enregistré pour ${students.length} élève(s).`)
+      await loadStudents()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible d'enregistrer l'appel.")
+    } finally {
+      setIsSaving(false)
     }
   }
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "present":
-        return "Présent"
-      case "absent":
-        return "Absent"
-      case "late":
-        return "Retard"
-      case "justified":
-        return "Justifié"
-      default:
-        return status
+  const counts = useMemo(() => {
+    const values = students.map((student) => attendance[student.id]?.status ?? "present")
+    return {
+      total: students.length,
+      present: values.filter((status) => status === "present").length,
+      absent: values.filter((status) => status === "absent").length,
+      late: values.filter((status) => status === "late").length,
+      justified: values.filter((status) => status === "justified").length,
     }
-  }
-
-  const getClassLabel = (classId: string) => {
-    return classes.find((c) => c.id === classId)?.name || classId
-  }
+  }, [attendance, students])
 
   return (
-    <div className="min-h-screen p-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="outline" size="sm" asChild>
+    <main className="min-h-screen bg-white text-slate-900">
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
+        <div className="mb-6 flex items-center gap-3 border-b pb-5">
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/ecole/tableau-bord">
-              <ArrowLeft className="h-4 w-4 mr-2" />
+              <ArrowLeft className="mr-2 h-4 w-4" />
               Retour
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <UserCheck className="h-6 w-6" />
-              Historique des Présences
-            </h1>
-            <p className="text-gray-600">Consultation des enregistrements de présence</p>
+            <h1 className="text-xl font-semibold">Registre d'appel</h1>
+            <p className="text-sm text-slate-500">Sélectionnez une classe pour afficher ses élèves et faire l'appel.</p>
           </div>
         </div>
 
-        {/* Filtres */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="date-from">Date début</Label>
-                <Input
-                  id="date-from"
-                  type="date"
-                  value={filterDate}
-                  onChange={(e) => {
-                    setFilterDate(e.target.value)
-                    setPage(1)
-                  }}
-                />
+        <section className="mb-5 border-b pb-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Année scolaire</label>
+              <Select
+                value={academicYear?.id ?? ""}
+                onValueChange={selectYear}
+                disabled={isYearLoading || academicYears.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Année scolaire" />
+                </SelectTrigger>
+                <SelectContent>
+                  {academicYears.map((year) => (
+                    <SelectItem key={year.id} value={year.id}>
+                      {year.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Classe</label>
+              <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir une classe" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classes.map((classe) => (
+                    <SelectItem key={classe.id} value={classe.id}>
+                      {classe.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Date de l'appel</label>
+              <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Rechercher un élève</label>
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Nom ou matricule"
+                disabled={!selectedClassId}
+              />
+            </div>
+          </div>
+        </section>
+
+        {message && <div className="mb-4 border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{message}</div>}
+        {error && <div className="mb-4 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>}
+
+        {!selectedClassId ? (
+          <div className="border px-6 py-12 text-center">
+            <UserCheck className="mx-auto mb-3 h-8 w-8 text-slate-400" />
+            <p className="font-medium">Choisissez une classe</p>
+            <p className="mt-1 text-sm text-slate-500">Les élèves inscrits dans cette classe seront chargés automatiquement.</p>
+          </div>
+        ) : isLoadingStudents ? (
+          <div className="border px-6 py-12 text-center text-sm text-slate-500">Chargement des élèves de {selectedClass?.name ?? "la classe"}…</div>
+        ) : (
+          <>
+            <div className="mb-4 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="font-semibold">{selectedClass?.name}</h2>
+                <p className="text-sm text-slate-500">
+                  {date ? new Date(`${date}T12:00:00`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : ""}
+                  {" · "}{counts.total} élève(s)
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="date-to">Date fin</Label>
-                <Input
-                  id="date-to"
-                  type="date"
-                  value={filterDateTo}
-                  onChange={(e) => {
-                    setFilterDateTo(e.target.value)
-                    setPage(1)
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="class">Classe</Label>
-                <Select
-                  value={filterClasse || "all"}
-                  onValueChange={(value) => {
-                    setFilterClasse(value === "all" ? null : value)
-                    setPage(1)
-                  }}
-                >
-                  <SelectTrigger id="class">
-                    <SelectValue placeholder="Toutes les classes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Toutes les classes</SelectItem>
-                    {classes.map((classe) => (
-                      <SelectItem key={classe.id} value={classe.id}>
-                        {classe.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>&nbsp;</Label>
-                <Button onClick={() => refetch()} variant="outline" className="w-full">
-                  Rafraîchir
+
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="border px-2.5 py-1 text-green-700">Présents {counts.present}</span>
+                <span className="border px-2.5 py-1 text-red-700">Absents {counts.absent}</span>
+                <span className="border px-2.5 py-1 text-amber-700">Retards {counts.late}</span>
+                <span className="border px-2.5 py-1 text-blue-700">Justifiés {counts.justified}</span>
+                <Button variant="outline" size="sm" onClick={markAllPresent} disabled={!students.length || isSaving}>
+                  Tous présents
+                </Button>
+                <Button size="sm" onClick={saveCall} disabled={!students.length || isSaving}>
+                  <Save className="mr-2 h-4 w-4" />
+                  {isSaving ? "Enregistrement…" : "Enregistrer l'appel"}
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* État de chargement */}
-        {isLoading && (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <div className="flex justify-center mb-4">
-                <div className="animate-spin rounded-full h-8 w-8 border b-2 border-gray-900"></div>
+            {students.length === 0 ? (
+              <div className="border px-6 py-12 text-center">
+                <p className="font-medium">Aucun élève trouvé dans cette classe.</p>
+                <p className="mt-1 text-sm text-slate-500">Vérifiez l'année scolaire et les inscriptions de la classe.</p>
               </div>
-              <p className="text-gray-600">Chargement des enregistrements...</p>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="overflow-x-auto border">
+                <table className="min-w-[900px] w-full text-sm">
+                  <thead className="border-b bg-slate-50">
+                    <tr>
+                      <th className="w-12 px-3 py-3 text-left font-medium text-slate-500">N°</th>
+                      <th className="px-3 py-3 text-left font-medium text-slate-700">Élève</th>
+                      <th className="w-40 px-3 py-3 text-left font-medium text-slate-700">Matricule</th>
+                      <th className="px-3 py-3 text-left font-medium text-slate-700">Présence</th>
+                      <th className="w-64 px-3 py-3 text-left font-medium text-slate-700">Motif</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredStudents.map((student, index) => {
+                      const entry = attendance[student.id] ?? { status: "present" as AttendanceStatus, reason: "" }
 
-        {/* État erreur */}
-        {error && (
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="p-4">
-              <p className="text-red-800">{error}</p>
-              <Button onClick={() => refetch()} variant="outline" size="sm" className="mt-2">
-                Réessayer
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Historique des présences */}
-        {!isLoading && !error && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Enregistrements de présence</CardTitle>
-              <CardDescription>
-                {data?.total ? `${data.total} enregistrement(s) au total` : "Aucun enregistrement"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {!data?.data || data.data.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-600">Aucun enregistrement de présence pour cette période.</p>
-                </div>
-              ) : (
-                <>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-2 px-2">Date</th>
-                          <th className="text-left py-2 px-2">Élève</th>
-                          <th className="text-left py-2 px-2">Classe</th>
-                          <th className="text-center py-2 px-2">Statut</th>
-                          <th className="text-left py-2 px-2">Motif</th>
-                          <th className="text-left py-2 px-2">Enregistré le</th>
+                      return (
+                        <tr key={student.id} className="border-b last:border-0 hover:bg-slate-50">
+                          <td className="px-3 py-3 text-slate-500">{index + 1}</td>
+                          <td className="px-3 py-3 font-medium">
+                            {student.last_name} {student.first_name}
+                          </td>
+                          <td className="px-3 py-3 text-slate-500">{student.student_number || "—"}</td>
+                          <td className="px-3 py-3">
+                            <div className="flex flex-wrap gap-1.5">
+                              {(Object.keys(statusLabels) as AttendanceStatus[]).map((status) => (
+                                <button
+                                  key={status}
+                                  type="button"
+                                  onClick={() => setStudentStatus(student.id, status)}
+                                  className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs font-medium transition ${entry.status === status ? statusClasses[status] : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                                >
+                                  {status === "present" && <Check className="h-3.5 w-3.5" />}
+                                  {status === "absent" && <X className="h-3.5 w-3.5" />}
+                                  {status === "late" && <Clock className="h-3.5 w-3.5" />}
+                                  {status === "justified" && <UserCheck className="h-3.5 w-3.5" />}
+                                  {statusLabels[status]}
+                                </button>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3">
+                            <Input
+                              value={entry.reason}
+                              onChange={(event) => setStudentReason(student.id, event.target.value)}
+                              placeholder={entry.status === "present" ? "—" : "Motif"}
+                              disabled={entry.status === "present"}
+                              className="h-8"
+                            />
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {data.data.map((record) => (
-                          <tr key={record.id} className="border-b hover:bg-gray-50">
-                            <td className="py-2 px-2 text-gray-900">
-                              {new Date(record.attendance_date).toLocaleDateString("fr-FR")}
-                            </td>
-                            <td className="py-2 px-2">
-                              <span className="font-medium">
-                                {record.first_name} {record.last_name}
-                              </span>
-                            </td>
-                            <td className="py-2 px-2">{getClassLabel(record.class_id)}</td>
-                            <td className="py-2 px-2">
-                              <div className="flex items-center justify-center gap-2">
-                                {getStatusIcon(record.status)}
-                                <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                                  {getStatusLabel(record.status)}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-2 px-2 text-gray-600">{record.reason || "-"}</td>
-                            <td className="py-2 px-2 text-gray-500 text-xs">
-                              {record.created_at ? new Date(record.created_at).toLocaleDateString("fr-FR") : "-"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Pagination */}
-                  {data && data.total_pages > 1 && (
-                    <div className="flex items-center justify-between mt-6 pt-4 border-t">
-                      <div className="text-sm text-gray-600">
-                        {Math.min((page - 1) * pageSize + 1, data.total)}–{Math.min(page * pageSize, data.total)}{" "}
-                        sur {data.total} enregistrement(s)
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPage(Math.max(1, page - 1))}
-                          disabled={page === 1}
-                        >
-                          Précédent
-                        </Button>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-600">
-                            Page {data.page} sur {data.total_pages}
-                          </span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPage(Math.min(data.total_pages, page + 1))}
-                          disabled={page === data.total_pages}
-                        >
-                          Suivant
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
-    </div>
+    </main>
   )
 }

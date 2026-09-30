@@ -1,3 +1,4 @@
+import { messageErreurFinance } from "@/lib/supabase/error-messages"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import type { Payment, PaymentSchedule, PaymentAllocation, PaymentSummary } from "@/lib/supabase/types"
 
@@ -33,7 +34,7 @@ export async function createPaymentWithAllocations(data: { enrollmentId: string;
     p_enrollment_id: data.enrollmentId, p_amount: data.amount, p_reference: data.reference || null,
     p_method: data.method, p_notes: data.notes || null, p_allocations: data.allocations,
   })
-  if (error) throw new Error("Impossible d'enregistrer le paiement.")
+  if (error) throw new Error(messageErreurFinance(error, "Impossible d’enregistrer le paiement."))
   return result as string
 }
 

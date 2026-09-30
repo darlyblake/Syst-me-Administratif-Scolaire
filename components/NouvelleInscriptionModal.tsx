@@ -17,6 +17,7 @@ import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import { useEnrollment } from "@/hooks/useEnrollment"
 import { createStudent } from "@/lib/supabase/services/student.service"
 import { supabaseBrowser } from "@/lib/supabase/client"
+import { financeService } from "@/lib/supabase/services/finance.service"
 import type { TuitionPlanInstallment, TuitionPlanWithInstallments } from "@/lib/supabase/types"
 
 interface StudentOption {
@@ -91,6 +92,8 @@ export default function NouvelleInscriptionModal({
   // ─── Paiement ───────────────────────────────────────────────────────────────
   const [selectedInstallmentIds, setSelectedInstallmentIds] = useState<Set<string>>(new Set())
   const [paySingleTuitionNow, setPaySingleTuitionNow] = useState(false)
+  const [previousYearDebts, setPreviousYearDebts] = useState<any[]>([])
+  const [loadingPreviousYearDebts, setLoadingPreviousYearDebts] = useState(false)
 
   // ─── Options ────────────────────────────────────────────────────────────────
   const [availableOptions, setAvailableOptions] = useState<StudentOption[]>([])
@@ -153,6 +156,31 @@ export default function NouvelleInscriptionModal({
   useEffect(() => {
     if (isOpen) loadOptions()
   }, [isOpen, loadOptions])
+
+  // ─── Vérification des impayés des années précédentes ─────────────────────────
+  useEffect(() => {
+    if (!isOpen || typeInscription !== "reinscription" || !studentId || !establishmentId) {
+      setPreviousYearDebts([])
+      return
+    }
+
+    let cancelled = false
+    setLoadingPreviousYearDebts(true)
+    financeService
+      .getLegacyDebts(establishmentId, activeYear?.id)
+      .then((rows) => {
+        if (cancelled) return
+        setPreviousYearDebts(rows.filter((row: any) => row.student_id === studentId))
+      })
+      .catch(() => {
+        if (!cancelled) setPreviousYearDebts([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPreviousYearDebts(false)
+      })
+
+    return () => { cancelled = true }
+  }, [isOpen, typeInscription, studentId, establishmentId, activeYear?.id])
 
   // ─── Pré-remplissage réinscription ──────────────────────────────────────────
   useEffect(() => {
@@ -369,6 +397,46 @@ export default function NouvelleInscriptionModal({
                 <p className="text-xs bg-slate-50 border rounded px-3 py-2 text-slate-600">
                   Réinscription — les informations ci-dessous sont pré-remplies depuis le dossier existant.
                 </p>
+              )}
+              {typeInscription === "reinscription" && loadingPreviousYearDebts && (
+                <p className="text-xs bg-slate-50 border rounded px-3 py-2 text-slate-500">
+                  Vérification de la situation financière des années précédentes…
+                </p>
+              )}
+              {typeInscription === "reinscription" && !loadingPreviousYearDebts && previousYearDebts.length > 0 && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 text-amber-700">⚠</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-amber-900">Impayé d'une année précédente</p>
+                      <p className="mt-1 text-xs text-amber-800">
+                        Cet élève a encore un solde à payer avant l'année {activeYear?.name || "actuelle"}.
+                      </p>
+                      <div className="mt-2 space-y-1">
+                        {Array.from(
+                          previousYearDebts.reduce((map: Map<string, { name: string; amount: number }>, row: any) => {
+                            const key = row.academic_year_id
+                            const current = map.get(key) ?? { name: row.academic_year?.name || "Année précédente", amount: 0 }
+                            current.amount += Number(row.remaining_amount || 0)
+                            map.set(key, current)
+                            return map
+                          }, new Map()).entries(),
+                        ).map(([key, item]) => (
+                          <div key={key} className="flex justify-between gap-3 text-xs text-amber-900">
+                            <span>{item.name}</span>
+                            <span className="font-semibold">{fmt(item.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-xs font-medium text-amber-900">
+                        Total restant : {fmt(previousYearDebts.reduce((sum, row) => sum + Number(row.remaining_amount || 0), 0))}
+                      </p>
+                      <p className="mt-1 text-[11px] text-amber-700">
+                        La réinscription peut continuer. Cette dette reste rattachée à son année d'origine et pourra être encaissée depuis Finance → Scolarité → Dettes antérieures.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
               <div className="grid grid-cols-2 gap-4">
                 <div>

@@ -10,7 +10,15 @@ import { useUserContext } from "@/hooks/useUserContext"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { listStudentsPaginated } from "@/lib/supabase/services/student.service"
-import { listAttendanceForClassDate, recordAttendance } from "@/lib/supabase/services/absence.service"
+import {
+  listAttendanceForLesson,
+  listAttendanceSubjects,
+  listTeacherClassSubjects,
+  recordLessonAttendance,
+  type AttendanceSubject,
+  type TeacherClassSubject,
+} from "@/lib/supabase/services/absence.service"
+import { serviceEmploiDuTempsClasses, type CreneauEmploiDuTemps } from "@/services/emploi-du-temps-classes.service"
 
 type AttendanceStatus = "present" | "absent" | "late" | "justified"
 
@@ -40,19 +48,37 @@ const statusClasses: Record<AttendanceStatus, string> = {
   justified: "bg-blue-50 text-blue-700 border-blue-200",
 }
 
+const getDayName = (date: string): CreneauEmploiDuTemps["jour"] => {
+  const day = new Date(date + "T12:00:00").getDay()
+  return ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"][day] as CreneauEmploiDuTemps["jour"]
+}
+
+const toMinutes = (value: string) => {
+  const [hours, minutes] = value.slice(0, 5).split(":").map(Number)
+  return hours * 60 + minutes
+}
+
 export default function RegistreAppelPage() {
-  const { primaryEstablishment } = useUserContext()
+  const { primaryEstablishment, utilisateur } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
+  const establishmentRole = primaryEstablishment?.role ?? null
   const { data: academicStructure } = useAcademicStructure(establishmentId)
   const { data: academicYears, selectedYear, activeYear, selectYear, isLoading: isYearLoading } = useAcademicYears(establishmentId)
 
   const academicYear = selectedYear ?? activeYear
+  const canManageAll = ["owner", "admin", "director", "supervisor"].includes(establishmentRole ?? "")
+  const isTeacher = utilisateur?.role === "enseignant"
+
   const [selectedClassId, setSelectedClassId] = useState("")
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [lessons, setLessons] = useState<CreneauEmploiDuTemps[]>([])
+  const [selectedLessonKey, setSelectedLessonKey] = useState("")
+  const [teacherAssignments, setTeacherAssignments] = useState<TeacherClassSubject[]>([])
+  const [subjects, setSubjects] = useState<AttendanceSubject[]>([])
   const [students, setStudents] = useState<CallStudent[]>([])
   const [attendance, setAttendance] = useState<Record<string, AttendanceEntry>>({})
   const [search, setSearch] = useState("")
-  const [isLoadingStudents, setIsLoadingStudents] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -70,28 +96,98 @@ export default function RegistreAppelPage() {
     [academicStructure]
   )
 
-  const selectedClass = classes.find((item) => item.id === selectedClassId)
+  const teacherClassIds = useMemo(
+    () => new Set(teacherAssignments.map((item) => item.class_id)),
+    [teacherAssignments]
+  )
 
-  const loadStudents = useCallback(async () => {
-    if (!establishmentId || !academicYear?.id || !selectedClassId) {
+  const visibleClasses = useMemo(
+    () => (isTeacher && !canManageAll ? classes.filter((item) => teacherClassIds.has(item.id)) : classes),
+    [canManageAll, classes, isTeacher, teacherClassIds]
+  )
+
+  const selectedClass = visibleClasses.find((item) => item.id === selectedClassId)
+  const selectedLesson = lessons.find((lesson) => lesson.id === selectedLessonKey)
+  const selectedSubject = selectedLesson
+    ? subjects.find((subject) => subject.name.trim().toLowerCase() === selectedLesson.matiere.trim().toLowerCase())
+    : null
+
+  const loadBaseAccess = useCallback(async () => {
+    if (!establishmentId) return
+    try {
+      const [assignments, loadedSubjects] = await Promise.all([
+        listTeacherClassSubjects(establishmentId),
+        listAttendanceSubjects(establishmentId),
+      ])
+      setTeacherAssignments(assignments)
+      setSubjects(loadedSubjects)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de charger les autorisations d'appel.")
+    }
+  }, [establishmentId])
+
+  useEffect(() => {
+    if (!isYearLoading) void loadBaseAccess()
+  }, [isYearLoading, loadBaseAccess])
+
+  useEffect(() => {
+    if (!selectedClassId && visibleClasses.length) setSelectedClassId(visibleClasses[0].id)
+    if (selectedClassId && !visibleClasses.some((item) => item.id === selectedClassId)) setSelectedClassId("")
+  }, [selectedClassId, visibleClasses])
+
+  useEffect(() => {
+    if (!selectedClass) {
+      setLessons([])
+      setSelectedLessonKey("")
+      return
+    }
+
+    const day = getDayName(date)
+    const classLessons = serviceEmploiDuTempsClasses
+      .obtenirTousLesCreneaux()
+      .filter((lesson) => lesson.jour === day && lesson.classeNom.trim().toLowerCase() === selectedClass.name.trim().toLowerCase())
+      .sort((a, b) => toMinutes(a.heureDebut) - toMinutes(b.heureDebut))
+
+    const allowedLessons =
+      isTeacher && !canManageAll
+        ? classLessons.filter((lesson) =>
+            teacherAssignments.some(
+              (assignment) =>
+                assignment.class_id === selectedClass.id &&
+                assignment.subject_name.trim().toLowerCase() === lesson.matiere.trim().toLowerCase()
+            )
+          )
+        : classLessons
+
+    setLessons(allowedLessons)
+
+    const now = new Date()
+    const today = now.toISOString().slice(0, 10)
+    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+    const currentLesson = today === date
+      ? allowedLessons.find((lesson) => currentMinutes >= toMinutes(lesson.heureDebut) && currentMinutes < toMinutes(lesson.heureFin))
+      : null
+
+    setSelectedLessonKey(currentLesson?.id ?? allowedLessons[0]?.id ?? "")
+  }, [canManageAll, date, isTeacher, selectedClass, teacherAssignments])
+
+  const loadCall = useCallback(async () => {
+    if (!establishmentId || !academicYear?.id || !selectedClassId || !selectedLesson) {
       setStudents([])
       setAttendance({})
       return
     }
 
     try {
-      setIsLoadingStudents(true)
+      setIsLoading(true)
       setError(null)
-      setMessage(null)
-
       const [studentPage, records] = await Promise.all([
         listStudentsPaginated(establishmentId, 1, 1000, "", true, selectedClassId, academicYear.id),
-        listAttendanceForClassDate(selectedClassId, date),
+        listAttendanceForLesson(selectedClassId, date, selectedLesson.id),
       ])
 
       const loadedStudents = (studentPage.items ?? []) as CallStudent[]
       const nextAttendance: Record<string, AttendanceEntry> = {}
-
       loadedStudents.forEach((student) => {
         nextAttendance[student.id] = { status: "present", reason: "" }
       })
@@ -99,7 +195,7 @@ export default function RegistreAppelPage() {
       records.forEach((record) => {
         if (nextAttendance[record.student_id]) {
           nextAttendance[record.student_id] = {
-            status: (record.status as AttendanceStatus) || "present",
+            status: record.status === "excused" ? "justified" : (record.status as AttendanceStatus),
             reason: record.reason ?? "",
           }
         }
@@ -110,20 +206,19 @@ export default function RegistreAppelPage() {
     } catch (err) {
       setStudents([])
       setAttendance({})
-      setError(err instanceof Error ? err.message : "Impossible de charger les élèves de la classe.")
+      setError(err instanceof Error ? err.message : "Impossible de charger les élèves de ce cours.")
     } finally {
-      setIsLoadingStudents(false)
+      setIsLoading(false)
     }
-  }, [academicYear?.id, date, establishmentId, selectedClassId])
+  }, [academicYear?.id, date, establishmentId, selectedClassId, selectedLesson])
 
   useEffect(() => {
-    if (!isYearLoading) void loadStudents()
-  }, [isYearLoading, loadStudents])
+    void loadCall()
+  }, [loadCall])
 
   const filteredStudents = useMemo(() => {
     const value = search.trim().toLowerCase()
     if (!value) return students
-
     return students.filter((student) =>
       `${student.first_name} ${student.last_name} ${student.student_number ?? ""}`.toLowerCase().includes(value)
     )
@@ -132,35 +227,31 @@ export default function RegistreAppelPage() {
   const setStudentStatus = (studentId: string, status: AttendanceStatus) => {
     setAttendance((current) => ({
       ...current,
-      [studentId]: {
-        status,
-        reason: current[studentId]?.reason ?? "",
-      },
-    }))
-  }
-
-  const setStudentReason = (studentId: string, reason: string) => {
-    setAttendance((current) => ({
-      ...current,
-      [studentId]: {
-        status: current[studentId]?.status ?? "present",
-        reason,
-      },
+      [studentId]: { status, reason: current[studentId]?.reason ?? "" },
     }))
   }
 
   const markAllPresent = () => {
     setAttendance((current) => {
       const next = { ...current }
-      students.forEach((student) => {
-        next[student.id] = { status: "present", reason: "" }
-      })
+      students.forEach((student) => { next[student.id] = { status: "present", reason: "" } })
       return next
     })
   }
 
   const saveCall = async () => {
-    if (!establishmentId || !selectedClassId || !date || !students.length) return
+    if (!establishmentId || !selectedClassId || !selectedLesson || !selectedSubject || !students.length) return
+
+    const teacherAllowed = canManageAll || teacherAssignments.some(
+      (assignment) =>
+        assignment.class_id === selectedClassId &&
+        assignment.subject_id === selectedSubject.id
+    )
+
+    if (!teacherAllowed) {
+      setError("Vous n'êtes pas l'enseignant affecté à cette matière dans cette classe.")
+      return
+    }
 
     try {
       setIsSaving(true)
@@ -170,19 +261,21 @@ export default function RegistreAppelPage() {
       await Promise.all(
         students.map((student) => {
           const entry = attendance[student.id] ?? { status: "present", reason: "" }
-          return recordAttendance({
+          return recordLessonAttendance({
             establishmentId,
             studentId: student.id,
             classId: selectedClassId,
+            subjectId: selectedSubject.id,
             date,
+            lessonKey: selectedLesson.id,
             status: entry.status,
             reason: entry.reason || undefined,
           })
         })
       )
 
-      setMessage(`Appel enregistré pour ${students.length} élève(s).`)
-      await loadStudents()
+      setMessage(`Appel enregistré pour ${selectedClass?.name} · ${selectedLesson.matiere} · ${selectedLesson.heureDebut}–${selectedLesson.heureFin}.`)
+      await loadCall()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'enregistrer l'appel.")
     } finally {
@@ -213,7 +306,9 @@ export default function RegistreAppelPage() {
           </Button>
           <div>
             <h1 className="text-xl font-semibold">Registre d'appel</h1>
-            <p className="text-sm text-slate-500">Sélectionnez une classe pour afficher ses élèves et faire l'appel.</p>
+            <p className="text-sm text-slate-500">
+              L'appel est lié au cours prévu dans l'emploi du temps. Un enseignant ne voit que ses cours.
+            </p>
           </div>
         </div>
 
@@ -221,20 +316,10 @@ export default function RegistreAppelPage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <div>
               <label className="mb-1.5 block text-sm font-medium">Année scolaire</label>
-              <Select
-                value={academicYear?.id ?? ""}
-                onValueChange={selectYear}
-                disabled={isYearLoading || academicYears.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Année scolaire" />
-                </SelectTrigger>
+              <Select value={academicYear?.id ?? ""} onValueChange={selectYear} disabled={isYearLoading || academicYears.length === 0}>
+                <SelectTrigger><SelectValue placeholder="Année scolaire" /></SelectTrigger>
                 <SelectContent>
-                  {academicYears.map((year) => (
-                    <SelectItem key={year.id} value={year.id}>
-                      {year.name}
-                    </SelectItem>
-                  ))}
+                  {academicYears.map((year) => <SelectItem key={year.id} value={year.id}>{year.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -242,32 +327,21 @@ export default function RegistreAppelPage() {
             <div>
               <label className="mb-1.5 block text-sm font-medium">Classe</label>
               <Select value={selectedClassId} onValueChange={setSelectedClassId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choisir une classe" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Choisir une classe" /></SelectTrigger>
                 <SelectContent>
-                  {classes.map((classe) => (
-                    <SelectItem key={classe.id} value={classe.id}>
-                      {classe.name}
-                    </SelectItem>
-                  ))}
+                  {visibleClasses.map((classe) => <SelectItem key={classe.id} value={classe.id}>{classe.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Date de l'appel</label>
+              <label className="mb-1.5 block text-sm font-medium">Date</label>
               <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
             </div>
 
             <div>
               <label className="mb-1.5 block text-sm font-medium">Rechercher un élève</label>
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Nom ou matricule"
-                disabled={!selectedClassId}
-              />
+              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nom ou matricule" disabled={!selectedClassId} />
             </div>
           </div>
         </section>
@@ -278,41 +352,78 @@ export default function RegistreAppelPage() {
         {!selectedClassId ? (
           <div className="border px-6 py-12 text-center">
             <UserCheck className="mx-auto mb-3 h-8 w-8 text-slate-400" />
-            <p className="font-medium">Choisissez une classe</p>
-            <p className="mt-1 text-sm text-slate-500">Les élèves inscrits dans cette classe seront chargés automatiquement.</p>
+            <p className="font-medium">{isTeacher ? "Aucune classe ne vous est affectée" : "Choisissez une classe"}</p>
+            <p className="mt-1 text-sm text-slate-500">
+              {isTeacher ? "Les appels sont limités aux classes et matières qui vous sont affectées." : "Les cours de la journée apparaîtront ici."}
+            </p>
           </div>
-        ) : isLoadingStudents ? (
-          <div className="border px-6 py-12 text-center text-sm text-slate-500">Chargement des élèves de {selectedClass?.name ?? "la classe"}…</div>
+        ) : lessons.length === 0 ? (
+          <div className="border px-6 py-12 text-center">
+            <Clock className="mx-auto mb-3 h-8 w-8 text-slate-400" />
+            <p className="font-medium">Aucun cours prévu pour cette classe ce jour</p>
+            <p className="mt-1 text-sm text-slate-500">
+              L'appel n'est disponible que lorsqu'un cours existe dans l'emploi du temps.
+            </p>
+          </div>
         ) : (
           <>
+            <section className="mb-5 border-b pb-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <h2 className="font-semibold">{selectedClass?.name}</h2>
+                  <p className="text-sm text-slate-500">Cours du {new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</p>
+                </div>
+                <span className="text-sm text-slate-500">{lessons.length} cours</span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <div className="flex min-w-max gap-2">
+                  {lessons.map((lesson) => {
+                    const active = lesson.id === selectedLessonKey
+                    return (
+                      <button
+                        key={lesson.id}
+                        type="button"
+                        onClick={() => setSelectedLessonKey(lesson.id)}
+                        className={`min-w-[180px] border px-3 py-2 text-left ${active ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+                      >
+                        <div className="text-xs opacity-70">{lesson.heureDebut}–{lesson.heureFin}</div>
+                        <div className="mt-1 font-medium">{lesson.matiere || "Cours"}</div>
+                        <div className="text-xs opacity-70">{lesson.enseignantNom || "Enseignant non renseigné"}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </section>
+
             <div className="mb-4 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="font-semibold">{selectedClass?.name}</h2>
+                <h2 className="font-semibold">Appel · {selectedLesson?.matiere}</h2>
                 <p className="text-sm text-slate-500">
-                  {date ? new Date(`${date}T12:00:00`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : ""}
+                  {selectedLesson?.heureDebut}–{selectedLesson?.heureFin}{selectedLesson?.salle ? ` · ${selectedLesson.salle}` : ""}
                   {" · "}{counts.total} élève(s)
                 </p>
               </div>
-
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span className="border px-2.5 py-1 text-green-700">Présents {counts.present}</span>
                 <span className="border px-2.5 py-1 text-red-700">Absents {counts.absent}</span>
                 <span className="border px-2.5 py-1 text-amber-700">Retards {counts.late}</span>
                 <span className="border px-2.5 py-1 text-blue-700">Justifiés {counts.justified}</span>
-                <Button variant="outline" size="sm" onClick={markAllPresent} disabled={!students.length || isSaving}>
-                  Tous présents
-                </Button>
-                <Button size="sm" onClick={saveCall} disabled={!students.length || isSaving}>
+                <Button variant="outline" size="sm" onClick={markAllPresent} disabled={!students.length || isSaving}>Tous présents</Button>
+                <Button size="sm" onClick={saveCall} disabled={!students.length || isSaving || !selectedSubject}>
                   <Save className="mr-2 h-4 w-4" />
                   {isSaving ? "Enregistrement…" : "Enregistrer l'appel"}
                 </Button>
               </div>
             </div>
 
-            {students.length === 0 ? (
+            {isLoading ? (
+              <div className="border px-6 py-12 text-center text-sm text-slate-500">Chargement des élèves…</div>
+            ) : students.length === 0 ? (
               <div className="border px-6 py-12 text-center">
                 <p className="font-medium">Aucun élève trouvé dans cette classe.</p>
-                <p className="mt-1 text-sm text-slate-500">Vérifiez l'année scolaire et les inscriptions de la classe.</p>
+                <p className="mt-1 text-sm text-slate-500">Vérifiez l'année scolaire et les inscriptions.</p>
               </div>
             ) : (
               <div className="overflow-x-auto border">
@@ -329,13 +440,10 @@ export default function RegistreAppelPage() {
                   <tbody>
                     {filteredStudents.map((student, index) => {
                       const entry = attendance[student.id] ?? { status: "present" as AttendanceStatus, reason: "" }
-
                       return (
                         <tr key={student.id} className="border-b last:border-0 hover:bg-slate-50">
                           <td className="px-3 py-3 text-slate-500">{index + 1}</td>
-                          <td className="px-3 py-3 font-medium">
-                            {student.last_name} {student.first_name}
-                          </td>
+                          <td className="px-3 py-3 font-medium">{student.last_name} {student.first_name}</td>
                           <td className="px-3 py-3 text-slate-500">{student.student_number || "—"}</td>
                           <td className="px-3 py-3">
                             <div className="flex flex-wrap gap-1.5">
@@ -344,7 +452,7 @@ export default function RegistreAppelPage() {
                                   key={status}
                                   type="button"
                                   onClick={() => setStudentStatus(student.id, status)}
-                                  className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs font-medium transition ${entry.status === status ? statusClasses[status] : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                                  className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs font-medium ${entry.status === status ? statusClasses[status] : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
                                 >
                                   {status === "present" && <Check className="h-3.5 w-3.5" />}
                                   {status === "absent" && <X className="h-3.5 w-3.5" />}
@@ -356,13 +464,7 @@ export default function RegistreAppelPage() {
                             </div>
                           </td>
                           <td className="px-3 py-3">
-                            <Input
-                              value={entry.reason}
-                              onChange={(event) => setStudentReason(student.id, event.target.value)}
-                              placeholder={entry.status === "present" ? "—" : "Motif"}
-                              disabled={entry.status === "present"}
-                              className="h-8"
-                            />
+                            <Input value={entry.reason} onChange={(event) => setAttendance((current) => ({ ...current, [student.id]: { ...entry, reason: event.target.value } }))} placeholder={entry.status === "present" ? "—" : "Motif"} disabled={entry.status === "present"} className="h-8" />
                           </td>
                         </tr>
                       )

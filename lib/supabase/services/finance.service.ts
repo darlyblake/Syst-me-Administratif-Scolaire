@@ -1,3 +1,4 @@
+import { messageErreurFinance } from "@/lib/supabase/error-messages";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { 
   FinanceStudentPaymentBoardRow, 
@@ -136,7 +137,7 @@ export const financeService = {
       p_allocations: allocations
     });
     
-    if (error) throw new Error(error.message || "Impossible d'enregistrer le paiement.");
+    if (error) throw new Error(messageErreurFinance(error, "Impossible d’enregistrer le paiement."));
     return data as string;
   }
 };

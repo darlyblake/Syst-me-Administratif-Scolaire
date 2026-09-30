@@ -78,36 +78,43 @@ export const financeService = {
 
   // 3bis. Dettes des années antérieures
   async getLegacyDebts(establishmentId: string, beforeAcademicYearId?: string | null) {
-    let query = supabaseBrowser
-      .from("v_finance_student_payment_board")
-      .select("*, student:students!student_id(first_name, last_name, student_number), class:school_classes!class_id(name), academic_year:academic_years!academic_year_id(name, start_date, end_date)")
+    let yearIds: string[] | null = null
+    let years: any[] = []
+
+    const { data: allYears, error: yearsError } = await supabaseBrowser
+      .from("academic_years")
+      .select("id, name, start_date, end_date")
       .eq("establishment_id", establishmentId)
-      .gt("remaining_amount", 0)
+      .order("start_date", { ascending: false })
+    if (yearsError) throw new Error("Impossible de charger les années académiques.")
+    years = allYears ?? []
 
     if (beforeAcademicYearId) {
-      const { data: currentYear, error: currentYearError } = await supabaseBrowser
-        .from("academic_years")
-        .select("start_date")
-        .eq("id", beforeAcademicYearId)
-        .maybeSingle()
-      if (currentYearError) throw new Error("Impossible de déterminer l'année académique sélectionnée.")
-
+      const currentYear = years.find((year) => year.id === beforeAcademicYearId)
       if (currentYear?.start_date) {
-        const { data: previousYears, error: yearsError } = await supabaseBrowser
-          .from("academic_years")
-          .select("id")
-          .eq("establishment_id", establishmentId)
-          .lt("start_date", currentYear.start_date)
-        if (yearsError) throw new Error("Impossible de charger les années antérieures.")
-        const yearIds = (previousYears ?? []).map((year) => year.id)
+        yearIds = years
+          .filter((year) => year.start_date < currentYear.start_date)
+          .map((year) => year.id)
         if (yearIds.length === 0) return []
-        query = query.in("academic_year_id", yearIds)
       }
     }
 
+    let query = supabaseBrowser
+      .from("v_finance_student_payment_board")
+      .select("*, student:students!student_id(first_name, last_name, student_number), class:school_classes!class_id(name)")
+      .eq("establishment_id", establishmentId)
+      .gt("remaining_amount", 0)
+
+    if (yearIds) query = query.in("academic_year_id", yearIds)
+
     const { data, error } = await query.order("student_id").order("academic_year_id").order("installment_number")
     if (error) throw new Error("Impossible de charger les dettes antérieures.")
-    return (data ?? []) as any[]
+
+    const yearMap = new Map(years.map((year) => [year.id, year]))
+    return (data ?? []).map((row: any) => ({
+      ...row,
+      academic_year: yearMap.get(row.academic_year_id) ?? null,
+    })) as any[]
   },
 
   // 4. Résumé financier de scolarité (RPC)

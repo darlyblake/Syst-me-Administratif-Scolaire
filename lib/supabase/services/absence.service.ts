@@ -48,6 +48,26 @@ export interface AttendanceHistoryPaginatedResponse {
   total_pages: number
 }
 
+export interface AttendanceRecordForDate {
+  id: string
+  student_id: string
+  class_id: string
+  attendance_date: string
+  status: string
+  reason?: string | null
+}
+
+export async function listAttendanceForClassDate(classId: string, date: string): Promise<AttendanceRecordForDate[]> {
+  const { data, error } = await supabaseBrowser
+    .from("attendance_records")
+    .select("id, student_id, class_id, attendance_date, status, reason")
+    .eq("class_id", classId)
+    .eq("attendance_date", date)
+
+  if (error) throw new Error("Impossible de charger l'appel de la classe.")
+  return (data ?? []) as AttendanceRecordForDate[]
+}
+
 export async function listAttendanceHistoryPaginated(params: {
   establishmentId: string
   page: number

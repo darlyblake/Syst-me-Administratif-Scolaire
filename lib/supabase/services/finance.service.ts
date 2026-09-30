@@ -254,7 +254,7 @@ export const financeService = {
     
     if (error) throw new Error(messageErreurFinance(error, "Impossible d’enregistrer le paiement."));
     return data as string;
-  }
+  },
 
   async getExpenses(establishmentId: string, from?: string, to?: string) {
     let query = supabaseBrowser.from("expenses")

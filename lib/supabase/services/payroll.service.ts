@@ -117,16 +117,31 @@ export const payrollService = {
     return data ?? []
   },
 
+  async getAdvances(establishmentId: string) {
+    const { data, error } = await db.from("payroll_advances")
+      .select("id,establishment_id,staff_type,staff_id,target_period_id,target_period_start,amount,advance_date,payment_method,reference,notes,created_at")
+      .eq("establishment_id", establishmentId)
+      .order("advance_date", { ascending: false })
+      .order("created_at", { ascending: false })
+    if (error) throw new Error(error.message || "Impossible de charger les avances.")
+    return data ?? []
+  },
+
   async createAdvance(input: any) {
-    const { data: user } = await supabaseBrowser.auth.getUser()
-    const { data, error } = await db.from("payroll_advances").insert({
-      establishment_id: input.establishmentId, staff_type: input.staffType, staff_id: input.staffId,
-      target_period_id: input.targetPeriodId || null, amount: Number(input.amount),
-      advance_date: input.advanceDate, payment_method: input.paymentMethod,
-      reference: input.reference || null, notes: input.notes || null, created_by: user.user?.id || null,
-    }).select().single()
+    const { data, error } = await db.rpc("create_payroll_advance", {
+      p_establishment_id: input.establishmentId,
+      p_staff_type: input.staffType,
+      p_staff_id: input.staffId,
+      p_target_period_id: input.targetPeriodId || null,
+      p_target_period_start: input.targetPeriodStart || null,
+      p_amount: Number(input.amount),
+      p_advance_date: input.advanceDate,
+      p_method: input.paymentMethod,
+      p_reference: input.reference || null,
+      p_notes: input.notes || null,
+    })
     if (error) throw new Error(error.message || "Impossible d'enregistrer l'avance.")
-    return data
+    return data as string
   },
 
   async createPayment(input: any) {

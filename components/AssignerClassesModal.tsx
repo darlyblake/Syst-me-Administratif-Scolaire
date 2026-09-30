@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
 import { useClasses } from "@/hooks/useClasses"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { serviceMatieres } from "@/services/matieres.service"

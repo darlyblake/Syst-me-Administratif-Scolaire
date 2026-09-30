@@ -156,6 +156,7 @@ export default function PersonnelPage() {
                 <Plus className="h-4 w-4 mr-2" />
                 Ajouter un membre
               </Button>
+              </div>
             </div>
 
             {/* Statistiques inline */}

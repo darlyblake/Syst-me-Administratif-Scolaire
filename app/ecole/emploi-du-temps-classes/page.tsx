@@ -13,6 +13,8 @@ import { serviceMatieres } from "@/services/matieres.service"
 import { serviceClasses } from "@/services/classes.service"
 import type { CreneauEmploiDuTemps } from "@/services/emploi-du-temps-classes.service"
 import type { Matiere } from "@/types/models"
+import { useUserContext } from "@/hooks/useUserContext"
+import { useAcademicYears } from "@/hooks/useAcademicYears"
 
 const jours: CreneauEmploiDuTemps["jour"][] = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"]
 
@@ -54,6 +56,10 @@ export default function EmploiDuTempsClassesPage() {
   const [classes, setClasses] = useState<any[]>([])
   const [personnel, setPersonnel] = useState<any[]>([])
   const [matieres, setMatieres] = useState<Matiere[]>([])
+  const { primaryEstablishment } = useUserContext()
+  const establishmentId = primaryEstablishment?.id ?? ""
+  const { academicYears, selectedYear, activeYear, selectYear, isLoading: isYearLoading } = useAcademicYears(establishmentId)
+  const academicYear = selectedYear ?? activeYear
   const [isLoaded, setIsLoaded] = useState(false)
   const [selectedClasse, setSelectedClasse] = useState("")
   const [selectedEnseignant, setSelectedEnseignant] = useState("")
@@ -76,12 +82,24 @@ export default function EmploiDuTempsClassesPage() {
   })
 
   useEffect(() => {
-    setCreneaux(serviceEmploiDuTempsClasses.obtenirTousLesCreneaux())
-    setClasses(serviceClasses.obtenirToutesLesClasses())
-    setPersonnel(servicePersonnel.obtenirToutLePersonnel())
-    setMatieres(serviceMatieres.obtenirToutesLesMatieres())
-    setIsLoaded(true)
-  }, [])
+    if (!establishmentId || !academicYear?.id) return
+    const load = async () => {
+      try {
+        const [schedule] = await Promise.all([
+          serviceEmploiDuTempsClasses.obtenirTousLesCreneaux(academicYear.id),
+        ])
+        setCreneaux(schedule)
+        setClasses(serviceClasses.obtenirToutesLesClasses())
+        setPersonnel(servicePersonnel.obtenirToutLePersonnel())
+        setMatieres(serviceMatieres.obtenirToutesLesMatieres())
+      } catch (error) {
+        alert(error instanceof Error ? error.message : "Impossible de charger l'emploi du temps.")
+      } finally {
+        setIsLoaded(true)
+      }
+    }
+    void load()
+  }, [establishmentId, academicYear?.id])
 
   const classesUniques = classes.map(c => ({ id: c.id, nom: c.nom }))
   const enseignantsUniques = Array.from(new Set(creneaux.map(c => c.enseignantId).filter(id => id && id !== "")))
@@ -182,29 +200,39 @@ export default function EmploiDuTempsClassesPage() {
     }
   }
 
-  const handleSaveCreneau = () => {
+  const handleSaveCreneau = async () => {
     if (!formData.classeId || !formData.enseignantId || !formData.heureDebut || !formData.heureFin) {
       alert("Veuillez remplir tous les champs obligatoires")
       return
     }
 
-    if (editingCreneau) {
-      serviceEmploiDuTempsClasses.mettreAJourCreneau(editingCreneau.id, formData)
-    } else {
-      const enseignant = personnel.find(p => p.id === formData.enseignantId)
-      serviceEmploiDuTempsClasses.ajouterCreneau({
-        classeId: formData.classeId,
-        classeNom: formData.classeNom,
-        enseignantId: formData.enseignantId,
-        enseignantNom: enseignant ? `${enseignant.prenom} ${enseignant.nom}` : "",
-        jour: formData.jour,
-        heureDebut: formData.heureDebut,
-        heureFin: formData.heureFin,
-        matiere: formData.matiere,
-        salle: formData.salle
-      })
+    if (!establishmentId || !academicYear?.id) return
+    try {
+      const assignments = await serviceEmploiDuTempsClasses.obtenirAffectationsClasse(establishmentId, formData.classeId)
+      const selected = assignments.find((a:any) =>
+        a.subject?.name === formData.matiere &&
+        (!formData.enseignantId || a.teacher_id === formData.enseignantId)
+      )
+      if (!selected) {
+        alert("Cette matière n'est pas affectée à cet enseignant dans cette classe.")
+        return
+      }
+      if (editingCreneau) {
+        await serviceEmploiDuTempsClasses.mettreAJourCreneau(editingCreneau.id, {
+          classSubjectId: selected.id, jour: formData.jour, heureDebut: formData.heureDebut,
+          heureFin: formData.heureFin, salle: formData.salle
+        })
+      } else {
+        await serviceEmploiDuTempsClasses.ajouterCreneau({
+          academicYearId: academicYear.id, establishmentId, classSubjectId: selected.id,
+          jour: formData.jour, heureDebut: formData.heureDebut, heureFin: formData.heureFin, salle: formData.salle
+        })
+      }
+      setCreneaux(await serviceEmploiDuTempsClasses.obtenirTousLesCreneaux(academicYear.id))
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Impossible d'enregistrer le créneau.")
+      return
     }
-    setCreneaux(serviceEmploiDuTempsClasses.obtenirTousLesCreneaux())
     setShowAddModal(false)
     setEditingCreneau(null)
     setEditingCell(null)
@@ -220,16 +248,21 @@ export default function EmploiDuTempsClassesPage() {
     })
   }
 
-  const handleDeleteCreneau = (id: string) => {
+  const handleDeleteCreneau = async (id: string) => {
     if (confirm("Êtes-vous sûr de vouloir supprimer ce créneau ?")) {
-      serviceEmploiDuTempsClasses.supprimerCreneau(id)
-      setCreneaux(serviceEmploiDuTempsClasses.obtenirTousLesCreneaux())
+      try {
+        await serviceEmploiDuTempsClasses.supprimerCreneau(id)
+        setCreneaux(await serviceEmploiDuTempsClasses.obtenirTousLesCreneaux(academicYear?.id))
+      } catch (error) {
+        alert(error instanceof Error ? error.message : "Impossible de supprimer le créneau.")
+        return
+      }
       setShowAddModal(false)
       setEditingCreneau(null)
     }
   }
 
-  const statistiques = serviceEmploiDuTempsClasses.genererStatistiques()
+  const statistiques = { totalCreneaux: creneaux.length, totalClasses: new Set(creneaux.map(c => c.classeId)).size, totalEnseignants: new Set(creneaux.map(c => c.enseignantId)).size, heuresTotales: creneaux.reduce((s,c) => s + (comparerHeures(c.heureFin,c.heureDebut)/60),0) }
   const conflits = creneaux.filter(detecterConflits).length
   const tauxOccupation = creneaux.length > 0 ? ((creneaux.length - conflits) / creneaux.length) * 100 : 0
 
@@ -312,6 +345,14 @@ export default function EmploiDuTempsClassesPage() {
         <Card className={`mb-6 ${darkMode ? 'bg-gray-800 border-gray-700' : ''}`}>
           <CardContent className="p-4">
             <div className="flex gap-4 flex-wrap items-center">
+            <div className="flex gap-2 items-center">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Année:</span>
+              <select className="border rounded px-3 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" value={academicYear?.id ?? ""} onChange={(e)=>selectYear(e.target.value)} disabled={isYearLoading}>
+                {academicYears.map((year:any)=><option key={year.id} value={year.id}>{year.name}</option>)}
+              </select>
+            </div>
+
+
               <div className="flex gap-2">
                 <Button
                   variant={viewMode === "classe" ? "default" : "outline"}

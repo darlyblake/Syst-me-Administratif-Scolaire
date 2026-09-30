@@ -1,8 +1,4 @@
-const safeLocalStorage = typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {}, clear: () => {} } as any;
-/**
- * Service de gestion des emplois du temps des classes
- * Permet d'attribuer des créneaux horaires, des classes et des enseignants
- */
+import { supabaseBrowser } from "@/lib/supabase/client"
 
 export interface CreneauEmploiDuTemps {
   id: string
@@ -17,6 +13,7 @@ export interface CreneauEmploiDuTemps {
   salle: string
   dateCreation: string
   dateModification: string
+  matiereId?: string
 }
 
 export interface EmploiDuTempsClasse {
@@ -31,13 +28,24 @@ class ServiceEmploiDuTempsClasses {
   /**
    * Récupère tous les créneaux d'emploi du temps
    */
-  obtenirTousLesCreneaux(): CreneauEmploiDuTemps[] {
-    try {
-      const donnees = safeLocalStorage.getItem(this.CLE_STOCKAGE)
-      return donnees ? JSON.parse(donnees) : []
-    } catch {
-      return []
-    }
+  async obtenirTousLesCreneaux(academicYearId?: string): Promise<CreneauEmploiDuTemps[]> {
+    let query = supabaseBrowser.from("timetable_slots").select(`
+      id,class_subject_id,day_of_week,starts_at,ends_at,room,created_at,updated_at,
+      class_subject:class_subjects(class_id,subject_id,teacher_id,school_class:school_classes(name),subject:subjects(name),teacher:teachers(first_name,last_name))
+    `).order("day_of_week").order("starts_at")
+    if (academicYearId) query = query.eq("academic_year_id", academicYearId)
+    const { data, error } = await query
+    if (error) throw new Error(error.message)
+    const jours = ["lundi","mardi","mercredi","jeudi","vendredi","samedi"] as const
+    return (data ?? []).map((r: any) => ({
+      id:r.id, classeId:r.class_subject?.class_id ?? "", classeNom:r.class_subject?.school_class?.name ?? "",
+      enseignantId:r.class_subject?.teacher_id ?? "",
+      enseignantNom:r.class_subject?.teacher ? r.class_subject.teacher.first_name + " " + r.class_subject.teacher.last_name : "",
+      jour:jours[Math.max(0,Math.min(5,Number(r.day_of_week)-1))],
+      heureDebut:String(r.starts_at).slice(0,5), heureFin:String(r.ends_at).slice(0,5),
+      matiere:r.class_subject?.subject?.name ?? "", matiereId:r.class_subject?.subject_id ?? "",
+      salle:r.room ?? "", dateCreation:r.created_at, dateModification:r.updated_at
+    }))
   }
 
   /**
@@ -119,57 +127,31 @@ class ServiceEmploiDuTempsClasses {
   /**
    * Ajoute un nouveau créneau d'emploi du temps
    */
-  ajouterCreneau(creneau: Omit<CreneauEmploiDuTemps, "id" | "dateCreation" | "dateModification">): CreneauEmploiDuTemps {
-    const creneaux = this.obtenirTousLesCreneaux()
-    const nouveauCreneau: CreneauEmploiDuTemps = {
-      ...creneau,
-      id: `creneau-${Date.now()}`,
-      dateCreation: new Date().toISOString(),
-      dateModification: new Date().toISOString()
-    }
-    
-    creneaux.push(nouveauCreneau)
-    this.sauvegarderCreneaux(creneaux)
-    return nouveauCreneau
+  async ajouterCreneau(creneau: any): Promise<CreneauEmploiDuTemps> {
+    const { data, error } = await supabaseBrowser.from("timetable_slots").insert({
+      establishment_id: creneau.establishmentId, academic_year_id: creneau.academicYearId, class_subject_id: creneau.classSubjectId,
+      day_of_week: ["lundi","mardi","mercredi","jeudi","vendredi","samedi"].indexOf(creneau.jour)+1,
+      starts_at: creneau.heureDebut, ends_at: creneau.heureFin, room: creneau.salle || null
+    }).select("id").single()
+    if (error) throw new Error(error.message)
+    const all=await this.obtenirTousLesCreneaux(creneau.academicYearId)
+    return all.find(x=>x.id===data.id) as CreneauEmploiDuTemps
   }
 
-  /**
-   * Met à jour un créneau existant
-   */
-  mettreAJourCreneau(id: string, donnees: Partial<CreneauEmploiDuTemps>): boolean {
-    const creneaux = this.obtenirTousLesCreneaux()
-    const index = creneaux.findIndex(c => c.id === id)
-    
-    if (index === -1) return false
-    
-    creneaux[index] = {
-      ...creneaux[index],
-      ...donnees,
-      dateModification: new Date().toISOString()
-    }
-    
-    this.sauvegarderCreneaux(creneaux)
-    return true
+  async mettreAJourCreneau(id:string, donnees:any): Promise<boolean> {
+    const p:any={}
+    if(donnees.classSubjectId)p.class_subject_id=donnees.classSubjectId
+    if(donnees.jour)p.day_of_week=["lundi","mardi","mercredi","jeudi","vendredi","samedi"].indexOf(donnees.jour)+1
+    if(donnees.heureDebut)p.starts_at=donnees.heureDebut
+    if(donnees.heureFin)p.ends_at=donnees.heureFin
+    if(donnees.salle!==undefined)p.room=donnees.salle||null
+    const {error}=await supabaseBrowser.from("timetable_slots").update(p).eq("id",id)
+    if(error)throw new Error(error.message); return true
   }
 
-  /**
-   * Supprime un créneau
-   */
-  supprimerCreneau(id: string): boolean {
-    const creneaux = this.obtenirTousLesCreneaux()
-    const nouveauxCreneaux = creneaux.filter(c => c.id !== id)
-    
-    if (nouveauxCreneaux.length === creneaux.length) return false
-    
-    this.sauvegarderCreneaux(nouveauxCreneaux)
-    return true
-  }
-
-  /**
-   * Sauvegarde les créneaux dans le localStorage
-   */
-  private sauvegarderCreneaux(creneaux: CreneauEmploiDuTemps[]): void {
-    safeLocalStorage.setItem(this.CLE_STOCKAGE, JSON.stringify(creneaux))
+  async supprimerCreneau(id:string): Promise<boolean> {
+    const {error}=await supabaseBrowser.from("timetable_slots").delete().eq("id",id)
+    if(error)throw new Error(error.message); return true
   }
 
   /**

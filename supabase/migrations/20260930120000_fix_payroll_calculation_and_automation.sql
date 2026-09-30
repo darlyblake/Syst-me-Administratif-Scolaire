@@ -145,4 +145,9 @@ begin
   return v_count;
 end;$function$;
 
-select cron.schedule('payroll-generate-daily','0 2 * * *','select private.generate_due_payroll_periods();');
+do $
+begin
+  if not exists (select 1 from cron.job where jobname='payroll-generate-daily') then
+    perform cron.schedule('payroll-generate-daily','0 2 * * *','select private.generate_due_payroll_periods();');
+  end if;
+end $;

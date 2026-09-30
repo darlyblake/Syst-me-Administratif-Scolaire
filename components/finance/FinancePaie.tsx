@@ -52,7 +52,7 @@ export function FinancePaie() {
   const [payableMonths,setPayableMonths]=useState<number[]>([])
   const [selectedMonth,setSelectedMonth]=useState("")
   const [rows,setRows]=useState<any[]>([]), [loading,setLoading]=useState(true), [generating,setGenerating]=useState(false)
-  const [selected,setSelected]=useState<any>(null), [amount,setAmount]=useState(""), [advance,setAdvance]=useState("")
+  const [selected,setSelected]=useState<any>(null), [amount,setAmount]=useState("")
   const [method,setMethod]=useState("cash"), [date,setDate]=useState(dateOnly(new Date()))
   const [config,setConfig]=useState<any>(null), [remType,setRemType]=useState("fixed"), [salary,setSalary]=useState(""), [rate,setRate]=useState("")
 

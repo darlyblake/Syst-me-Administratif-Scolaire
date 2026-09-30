@@ -45,9 +45,6 @@ export function FinanceDashboard() {
         setLoading(true)
         setError(null)
         
-        const start = academicYear.start_date ? new Date(academicYear.start_date).toISOString().split('T')[0] : new Date().getFullYear() + "-09-01"
-        const end = new Date().toISOString().split('T')[0]
-        
         const [paySum, movSum] = await Promise.all([
           financeService.getPaymentSummary(establishmentId, academicYear.id),
           financeService.getMovementSummary(establishmentId, dateRange.from, dateRange.to, direction)

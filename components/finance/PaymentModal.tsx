@@ -29,17 +29,21 @@ export function PaymentModal({ open, onClose, studentSchedules, onSuccess }: Pay
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const unpaidSchedules = useMemo(
-    () =>
-      [...studentSchedules]
-        .filter((s) => Number(s.remaining_amount || 0) > 0)
-        .sort((a, b) => {
-          const pa = a.category === "registration" ? 0 : a.category === "tuition" ? 1 : 2
-          const pb = b.category === "registration" ? 0 : b.category === "tuition" ? 1 : 2
-          return pa - pb || a.installment_number - b.installment_number
-        }),
-    [studentSchedules],
-  )
+  const unpaidSchedules = useMemo(() => {
+    const unpaid = [...studentSchedules]
+      .filter((s) => Number(s.remaining_amount || 0) > 0)
+      .sort((a, b) => {
+        const pa = a.category === "registration" ? 0 : a.category === "tuition" ? 1 : 2
+        const pb = b.category === "registration" ? 0 : b.category === "tuition" ? 1 : 2
+        return pa - pb || a.installment_number - b.installment_number
+      })
+
+    // Inscription/scolarité suivent strictement l'ordre des échéances :
+    // une échéance partiellement payée reste la seule échéance de scolarité encaissable.
+    const nextCore = unpaid.find((s) => s.category === "registration" || s.category === "tuition")
+    const options = unpaid.filter((s) => s.category === "option")
+    return nextCore ? [nextCore, ...options] : options
+  }, [studentSchedules])
 
   useEffect(() => {
     if (!open) return
@@ -126,9 +130,13 @@ export function PaymentModal({ open, onClose, studentSchedules, onSuccess }: Pay
             </select>
             {selected && (
               <p className="text-xs text-gray-500">
-                Échéance : {new Date(selected.due_date).toLocaleDateString("fr-FR")} · À payer : {Number(selected.remaining_amount).toLocaleString("fr-FR")} FCFA
+                Échéance : {new Date(selected.due_date).toLocaleDateString("fr-FR")} · Reste à payer : {Number(selected.remaining_amount).toLocaleString("fr-FR")} FCFA
+                {Number(selected.remaining_amount) < Number(selected.amount_due) && " · Cette échéance est partiellement payée."}
               </p>
             )}
+            <p className="text-xs text-gray-400">
+              Les échéances déjà soldées ne sont pas proposées. Pour la scolarité, l'échéance suivante devient disponible uniquement après paiement complet de la précédente.
+            </p>
           </div>
 
           <div className="space-y-2">

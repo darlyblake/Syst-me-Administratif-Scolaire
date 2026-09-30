@@ -53,6 +53,43 @@ function formatFCFA(amount: number) {
   return amount.toLocaleString("fr-FR") + " FCFA"
 }
 
+const MOIS_FR = [
+  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+]
+
+function dateOnly(value: string) {
+  return value.slice(0, 10)
+}
+
+function monthKey(value: string) {
+  const date = new Date(dateOnly(value) + "T00:00:00")
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+}
+
+function getBillingMonthOptions(startDate: string, endDate: string) {
+  const start = new Date(dateOnly(startDate) + "T00:00:00")
+  const end = new Date(dateOnly(endDate) + "T00:00:00")
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1)
+  const last = new Date(end.getFullYear(), end.getMonth(), 1)
+  const options: Array<{ value: string; label: string }> = []
+
+  while (cursor <= last) {
+    options.push({
+      value: `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`,
+      label: `${MOIS_FR[cursor.getMonth()]} ${cursor.getFullYear()}`,
+    })
+    cursor.setMonth(cursor.getMonth() + 1)
+  }
+
+  return options
+}
+
+function billingStartDateForMonth(month: string, academicStart: string) {
+  const academicMonth = monthKey(academicStart)
+  return month === academicMonth ? dateOnly(academicStart) : `${month}-01`
+}
+
 // ─── Modal tarif ──────────────────────────────────────────────────────────────
 
 interface TuitionModalProps {
@@ -70,6 +107,15 @@ interface TuitionModalProps {
 function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYear, establishmentId, existingPlan, defaultRegistrationFee }: TuitionModalProps) {
   const [annualAmount, setAnnualAmount] = useState(existingPlan?.annual_tuition ?? 0)
   const [paymentMode, setPaymentMode] = useState<PaymentMode>(existingPlan?.payment_mode ?? "monthly")
+  const billingMonthOptions = useMemo(
+    () => getBillingMonthOptions(academicYear.start_date, academicYear.end_date),
+    [academicYear.start_date, academicYear.end_date],
+  )
+  const [billingStartMonth, setBillingStartMonth] = useState(
+    existingPlan?.billing_start_date
+      ? monthKey(existingPlan.billing_start_date)
+      : monthKey(academicYear.start_date),
+  )
   const [lateEnrollmentPolicy, setLateEnrollmentPolicy] = useState<"full_year" | "from_enrollment">(
     (existingPlan as any)?.late_enrollment_billing_policy ?? "full_year"
   )
@@ -103,7 +149,10 @@ function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYea
         payment_mode: paymentMode,
         annual_tuition: annualAmount,
         registration_fee: existingPlan?.registration_fee ?? defaultRegistrationFee,
-        billing_start_date: academicYear.start_date,
+        billing_start_date:
+          paymentMode === "monthly"
+            ? billingStartDateForMonth(billingStartMonth, academicYear.start_date)
+            : academicYear.start_date,
         billing_end_date: academicYear.end_date,
         installments: paymentMode === "installments" ? installments.map((inst, idx) => ({ ...inst, installment_number: idx + 1 })) : [],
       }
@@ -176,12 +225,23 @@ function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYea
           </div>
 
           {paymentMode === "monthly" && (
-            <div className="space-y-2 border-t pt-4">
-              <p className="text-sm font-medium">Période de facturation</p>
-              <div className="bg-blue-50 text-blue-700 text-sm rounded px-3 py-2">
-                Les échéances seront générées automatiquement par le système sur la période de l'année scolaire :
-                <br/>
-                <strong>{academicYear.start_date ? new Date(academicYear.start_date).toLocaleDateString("fr-FR") : "Non définie"}</strong> au <strong>{academicYear.end_date ? new Date(academicYear.end_date).toLocaleDateString("fr-FR") : "Non définie"}</strong>.
+            <div className="space-y-3 border-t pt-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="billing-start-month" className="text-sm">Mois de début des paiements</Label>
+                <select
+                  id="billing-start-month"
+                  value={billingStartMonth}
+                  onChange={(e) => setBillingStartMonth(e.target.value)}
+                  className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm"
+                >
+                  {billingMonthOptions.map((month) => (
+                    <option key={month.value} value={month.value}>{month.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="rounded bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                Les mensualités seront créées de <strong>{billingMonthOptions.find((m) => m.value === billingStartMonth)?.label ?? "—"}</strong> jusqu'à <strong>{new Date(dateOnly(academicYear.end_date) + "T00:00:00").toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</strong>.
+                Le mois choisi doit rester dans l'intervalle de l'année académique.
               </div>
             </div>
           )}

@@ -1,22 +1,24 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useMemo, useState } from "react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Clock, DollarSign, CheckCircle, XCircle, Plus, Trash2 } from "lucide-react"
+import { ArrowLeft, CheckCircle, Clock, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { serviceHeuresVacataires } from "@/services/heures-vacataires.service"
 import { servicePersonnel } from "@/services/personnel.service"
 import type { HeureVacataire } from "@/services/heures-vacataires.service"
 
+const formatMontant = (value: number) => `${value.toLocaleString("fr-FR")} FCFA`
+
 export default function HeuresVacatairesPage() {
   const [heures, setHeures] = useState<HeureVacataire[]>([])
   const [personnel, setPersonnel] = useState<any[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
-  const [selectedVacataire, setSelectedVacataire] = useState<string>("")
+  const [selectedVacataire, setSelectedVacataire] = useState("")
   const [date, setDate] = useState("")
   const [heuresTravaillees, setHeuresTravaillees] = useState("")
   const [tauxHoraire, setTauxHoraire] = useState("")
@@ -25,30 +27,62 @@ export default function HeuresVacatairesPage() {
   const [matiere, setMatiere] = useState("")
   const [filterStatut, setFilterStatut] = useState("tous")
   const [filterVacataire, setFilterVacataire] = useState("tous")
+  const [filterMois, setFilterMois] = useState("tous")
+
+  const refresh = () => setHeures(serviceHeuresVacataires.obtenirToutesLesHeures())
 
   useEffect(() => {
-    setHeures(serviceHeuresVacataires.obtenirToutesLesHeures())
+    refresh()
     setPersonnel(servicePersonnel.obtenirToutLePersonnel())
   }, [])
 
-  const handleAjouterHeure = () => {
+  const filteredHeures = useMemo(() => {
+    return heures.filter((heure) => {
+      const d = new Date(heure.date)
+      const mois = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+      return (filterStatut === "tous" || heure.statut === filterStatut)
+        && (filterVacataire === "tous" || heure.vacataireId === filterVacataire)
+        && (filterMois === "tous" || mois === filterMois)
+    })
+  }, [heures, filterStatut, filterVacataire, filterMois])
+
+  const moisDisponibles = useMemo(() => {
+    return Array.from(new Set(heures.map((h) => {
+      const d = new Date(h.date)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+    }))).sort().reverse()
+  }, [heures])
+
+  const statistiques = useMemo(() => ({
+    heures: filteredHeures.reduce((sum, h) => sum + h.heuresTravaillees, 0),
+    montant: filteredHeures.reduce((sum, h) => sum + h.montant, 0),
+    attente: filteredHeures.filter((h) => h.statut === "en_attente").length,
+    validees: filteredHeures.filter((h) => h.statut === "valide").length,
+  }), [filteredHeures])
+
+  const getNom = (id: string) => {
+    const p = personnel.find((item) => item.id === id)
+    return p ? `${p.prenom} ${p.nom}` : "Vacataire inconnu"
+  }
+
+  const handleAjouter = () => {
     if (!selectedVacataire || !date || !heuresTravaillees || !tauxHoraire) {
-      alert("Veuillez remplir tous les champs obligatoires")
+      alert("Veuillez renseigner le vacataire, la date, le nombre d'heures et le taux horaire.")
       return
     }
 
     serviceHeuresVacataires.creerHeure({
       vacataireId: selectedVacataire,
       date,
-      heuresTravaillees: parseFloat(heuresTravaillees),
-      tauxHoraire: parseFloat(tauxHoraire),
+      heuresTravaillees: Number(heuresTravaillees),
+      tauxHoraire: Number(tauxHoraire),
       motif: motif || undefined,
       classe: classe || undefined,
       matiere: matiere || undefined,
-      statut: "en_attente"
+      statut: "en_attente",
     })
 
-    setHeures(serviceHeuresVacataires.obtenirToutesLesHeures())
+    refresh()
     setShowAddModal(false)
     setSelectedVacataire("")
     setDate("")
@@ -59,278 +93,137 @@ export default function HeuresVacatairesPage() {
     setMatiere("")
   }
 
-  const handleValiderHeure = (id: string) => {
-    const validePar = "Administrateur"
-    serviceHeuresVacataires.validerHeure(id, validePar)
-    setHeures(serviceHeuresVacataires.obtenirToutesLesHeures())
+  const handleValider = (id: string) => {
+    serviceHeuresVacataires.validerHeure(id, "Administrateur")
+    refresh()
   }
 
-  const handleMarquerPaye = (id: string) => {
-    serviceHeuresVacataires.marquerPaye(id)
-    setHeures(serviceHeuresVacataires.obtenirToutesLesHeures())
-  }
-
-  const handleSupprimerHeure = (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer cette heure ?")) {
+  const handleSupprimer = (id: string) => {
+    if (confirm("Supprimer cette saisie d'heures ?")) {
       serviceHeuresVacataires.supprimerHeure(id)
-      setHeures(serviceHeuresVacataires.obtenirToutesLesHeures())
+      refresh()
     }
   }
-
-  const filteredHeures = heures.filter(heure => {
-    const matchStatut = filterStatut === "tous" || heure.statut === filterStatut
-    const matchVacataire = filterVacataire === "tous" || heure.vacataireId === filterVacataire
-    return matchStatut && matchVacataire
-  })
-
-  const getVacataireNom = (vacataireId: string) => {
-    const vacataire = personnel.find(p => p.id === vacataireId)
-    return vacataire ? `${vacataire.prenom} ${vacataire.nom}` : "Vacataire inconnu"
-  }
-
-  const getStatutIcon = (statut: HeureVacataire["statut"]) => {
-    switch (statut) {
-      case "valide":
-        return <CheckCircle className="h-4 w-4 text-green-600" />
-      case "paye":
-        return <CheckCircle className="h-4 w-4 text-blue-600" />
-      default:
-        return <Clock className="h-4 w-4 text-yellow-600" />
-    }
-  }
-
-  const statistiques = serviceHeuresVacataires.obtenirStatistiques()
 
   return (
     <div className="min-h-screen p-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-6 flex items-center gap-4">
           <Button variant="outline" size="sm" asChild>
-            <Link href="/ecole/tableau-bord">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Retour
-            </Link>
+            <Link href="/ecole/personnel"><ArrowLeft className="mr-2 h-4 w-4" />Personnel</Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Clock className="h-6 w-6" />
-              Heures des Vacataires
+            <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
+              <Clock className="h-6 w-6" />Heures vacataires
             </h1>
-            <p className="text-gray-600">Gestion et calcul des heures de travail</p>
+            <p className="text-sm text-gray-600">Saisir et valider les heures effectuées par les personnels vacataires.</p>
           </div>
         </div>
 
-        {/* Statistiques */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-gray-600">Total heures</p>
-              <p className="text-2xl font-bold">{statistiques.totalHeures}h</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-gray-600">Total à payer</p>
-              <p className="text-2xl font-bold text-green-600">{statistiques.totalMontant.toLocaleString()} FCFA</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-gray-600">En attente</p>
-              <p className="text-2xl font-bold text-yellow-600">{statistiques.parStatut.en_attente || 0}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-gray-600">Payées</p>
-              <p className="text-2xl font-bold text-blue-600">{statistiques.parStatut.paye || 0}</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filtres et actions */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex gap-4">
-              <Select value={filterStatut} onValueChange={setFilterStatut}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filtrer par statut" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tous">Tous les statuts</SelectItem>
-                  <SelectItem value="en_attente">En attente</SelectItem>
-                  <SelectItem value="valide">Validé</SelectItem>
-                  <SelectItem value="paye">Payé</SelectItem>
-                </SelectContent>
-              </Select>
+        <div className="mb-5 rounded-lg border bg-white p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end">
+            <div className="w-full md:w-56">
+              <Label>Vacataire</Label>
               <Select value={filterVacataire} onValueChange={setFilterVacataire}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filtrer par vacataire" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Tous les vacataires" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="tous">Tous les vacataires</SelectItem>
-                  {personnel.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.prenom} {p.nom}</SelectItem>
-                  ))}
+                  {personnel.map((p) => <SelectItem key={p.id} value={p.id}>{p.prenom} {p.nom}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Button onClick={() => setShowAddModal(true)} className="ml-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Ajouter des heures
-              </Button>
             </div>
-          </CardContent>
-        </Card>
+            <div className="w-full md:w-48">
+              <Label>Mois</Label>
+              <Select value={filterMois} onValueChange={setFilterMois}>
+                <SelectTrigger><SelectValue placeholder="Tous les mois" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tous">Tous les mois</SelectItem>
+                  {moisDisponibles.map((mois) => <SelectItem key={mois} value={mois}>{new Date(`${mois}-01T12:00:00`).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full md:w-48">
+              <Label>Statut</Label>
+              <Select value={filterStatut} onValueChange={setFilterStatut}>
+                <SelectTrigger><SelectValue placeholder="Tous les statuts" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tous">Tous</SelectItem>
+                  <SelectItem value="en_attente">À valider</SelectItem>
+                  <SelectItem value="valide">Validées</SelectItem>
+                  <SelectItem value="paye">Payées</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button className="md:ml-auto" onClick={() => setShowAddModal(true)}>
+              <Plus className="mr-2 h-4 w-4" />Ajouter des heures
+            </Button>
+          </div>
+        </div>
 
-        {/* Liste des heures */}
+        <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <Card><CardContent className="p-4"><p className="text-sm text-gray-500">Heures affichées</p><p className="text-2xl font-bold">{statistiques.heures} h</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-sm text-gray-500">Montant correspondant</p><p className="text-xl font-bold">{formatMontant(statistiques.montant)}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-sm text-gray-500">À valider</p><p className="text-2xl font-bold">{statistiques.attente}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-sm text-gray-500">Validées</p><p className="text-2xl font-bold">{statistiques.validees}</p></CardContent></Card>
+        </div>
+
         <Card>
-          <CardHeader>
-            <CardTitle>Heures Enregistrées</CardTitle>
-            <CardDescription>{filteredHeures.length} heure(s)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {filteredHeures.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">Aucune heure enregistrée</p>
-              ) : (
-                filteredHeures.map((heure) => (
-                  <div key={heure.id} className="border rounded-lg p-4 flex justify-between items-center hover:bg-gray-50">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        {getStatutIcon(heure.statut)}
-                      </div>
-                      <div>
-                        <p className="font-semibold">{getVacataireNom(heure.vacataireId)}</p>
-                        <p className="text-sm text-gray-600">{heure.heuresTravaillees}h à {heure.tauxHoraire} FCFA/h</p>
-                        <div className="flex gap-2 mt-2">
-                          <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-800">
-                            {heure.montant.toLocaleString()} FCFA
-                          </span>
-                          <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-800">
-                            {new Date(heure.date).toLocaleDateString()}
-                          </span>
-                          {heure.classe && (
-                            <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-800">
-                              {heure.classe}
-                            </span>
-                          )}
-                          {heure.matiere && (
-                            <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">
-                              {heure.matiere}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 ml-4">
-                      {heure.statut === "en_attente" && (
-                        <Button variant="outline" size="sm" onClick={() => handleValiderHeure(heure.id)}>
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Valider
-                        </Button>
-                      )}
-                      {heure.statut === "valide" && (
-                        <Button variant="outline" size="sm" onClick={() => handleMarquerPaye(heure.id)}>
-                          <DollarSign className="h-4 w-4 mr-1" />
-                          Marquer payé
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="sm" onClick={() => handleSupprimerHeure(heure.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-sm">
+                <thead className="border-b bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Vacataire</th>
+                    <th className="px-4 py-3 text-left">Activité</th><th className="px-4 py-3 text-right">Heures</th>
+                    <th className="px-4 py-3 text-right">Taux</th><th className="px-4 py-3 text-right">Montant</th>
+                    <th className="px-4 py-3 text-left">Statut</th><th className="px-4 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filteredHeures.length === 0 ? (
+                    <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-500">Aucune heure enregistrée pour ces critères.</td></tr>
+                  ) : filteredHeures.map((heure) => (
+                    <tr key={heure.id} className="hover:bg-gray-50">
+                      <td className="whitespace-nowrap px-4 py-3">{new Date(heure.date).toLocaleDateString("fr-FR")}</td>
+                      <td className="px-4 py-3 font-medium">{getNom(heure.vacataireId)}</td>
+                      <td className="px-4 py-3">{heure.matiere || heure.motif || "—"}{heure.classe ? ` · ${heure.classe}` : ""}</td>
+                      <td className="px-4 py-3 text-right">{heure.heuresTravaillees} h</td>
+                      <td className="px-4 py-3 text-right">{formatMontant(heure.tauxHoraire)}/h</td>
+                      <td className="px-4 py-3 text-right font-medium">{formatMontant(heure.montant)}</td>
+                      <td className="px-4 py-3">
+                        {heure.statut === "en_attente" ? <span className="inline-flex items-center gap-1 text-amber-700"><Clock className="h-4 w-4" />À valider</span>
+                          : heure.statut === "valide" ? <span className="inline-flex items-center gap-1 text-green-700"><CheckCircle className="h-4 w-4" />Validée</span>
+                          : <span className="inline-flex items-center gap-1 text-blue-700"><CheckCircle className="h-4 w-4" />Payée</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {heure.statut === "en_attente" && <Button variant="outline" size="sm" onClick={() => handleValider(heure.id)}><CheckCircle className="mr-1 h-4 w-4" />Valider</Button>}
+                        {heure.statut !== "paye" && <Button variant="ghost" size="sm" onClick={() => handleSupprimer(heure.id)}><Trash2 className="h-4 w-4" /></Button>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
 
-        {/* Modal d'ajout */}
+        <p className="mt-4 text-sm text-gray-500">Les heures validées servent de base à la paie des vacataires dans le module Finance. Le paiement n'est pas effectué depuis cette page.</p>
+
         {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <h3 className="text-lg font-bold mb-4">Ajouter des Heures</h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="vacataire">Vacataire *</Label>
-                  <Select value={selectedVacataire} onValueChange={setSelectedVacataire}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {personnel.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.prenom} {p.nom}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="date">Date *</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="heures">Heures travaillées *</Label>
-                  <Input
-                    id="heures"
-                    type="number"
-                    step="0.5"
-                    value={heuresTravaillees}
-                    onChange={(e) => setHeuresTravaillees(e.target.value)}
-                    placeholder="2"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="taux">Taux horaire (FCFA) *</Label>
-                  <Input
-                    id="taux"
-                    type="number"
-                    value={tauxHoraire}
-                    onChange={(e) => setTauxHoraire(e.target.value)}
-                    placeholder="5000"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="classe">Classe (optionnel)</Label>
-                  <Input
-                    id="classe"
-                    value={classe}
-                    onChange={(e) => setClasse(e.target.value)}
-                    placeholder="CM1"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="matiere">Matière (optionnel)</Label>
-                  <Input
-                    id="matiere"
-                    value={matiere}
-                    onChange={(e) => setMatiere(e.target.value)}
-                    placeholder="Mathématiques"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="motif">Motif (optionnel)</Label>
-                  <Input
-                    id="motif"
-                    value={motif}
-                    onChange={(e) => setMotif(e.target.value)}
-                    placeholder="Remplacement"
-                  />
-                </div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+              <h2 className="mb-1 text-lg font-semibold">Ajouter des heures</h2>
+              <p className="mb-5 text-sm text-gray-500">Enregistrez une prestation réalisée par un vacataire.</p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2 md:col-span-2"><Label>Vacataire *</Label><Select value={selectedVacataire} onValueChange={setSelectedVacataire}><SelectTrigger><SelectValue placeholder="Sélectionner un vacataire" /></SelectTrigger><SelectContent>{personnel.map((p) => <SelectItem key={p.id} value={p.id}>{p.prenom} {p.nom}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-2"><Label>Date *</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+                <div className="space-y-2"><Label>Heures effectuées *</Label><Input type="number" min="0.5" step="0.5" value={heuresTravaillees} onChange={(e) => setHeuresTravaillees(e.target.value)} placeholder="2" /></div>
+                <div className="space-y-2"><Label>Taux horaire (FCFA) *</Label><Input type="number" min="0" value={tauxHoraire} onChange={(e) => setTauxHoraire(e.target.value)} placeholder="5000" /></div>
+                <div className="space-y-2"><Label>Classe</Label><Input value={classe} onChange={(e) => setClasse(e.target.value)} placeholder="6e A" /></div>
+                <div className="space-y-2 md:col-span-2"><Label>Matière ou activité</Label><Input value={matiere} onChange={(e) => setMatiere(e.target.value)} placeholder="Mathématiques" /></div>
+                <div className="space-y-2 md:col-span-2"><Label>Motif</Label><Input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Remplacement, cours supplémentaire..." /></div>
               </div>
-              <div className="flex gap-2 mt-6">
-                <Button onClick={handleAjouterHeure} className="flex-1">
-                  Ajouter
-                </Button>
-                <Button variant="outline" onClick={() => setShowAddModal(false)} className="flex-1">
-                  Annuler
-                </Button>
-              </div>
+              <div className="mt-6 flex justify-end gap-2"><Button variant="outline" onClick={() => setShowAddModal(false)}>Annuler</Button><Button onClick={handleAjouter}>Enregistrer</Button></div>
             </div>
           </div>
         )}

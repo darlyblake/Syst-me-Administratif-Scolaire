@@ -189,56 +189,104 @@ export default function MatieresPage() {
   }
 
   return (
-    <div className="min-h-screen p-3 sm:p-4">
-      <div className="mx-auto w-full max-w-7xl space-y-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <Button variant="outline" size="sm" asChild className="w-fit">
-            <Link href="/ecole/tableau-bord"><ArrowLeft className="mr-2 h-4 w-4" />Retour</Link>
-          </Button>
-          <div>
-            <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl"><BookOpen className="h-6 w-6" />Gestion des matières</h1>
-            <p className="text-sm text-muted-foreground">Les niveaux affichés suivent la configuration de l'établissement.</p>
+    <div className="min-h-screen bg-white">
+      <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:p-6">
+        <header className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/ecole/tableau-bord"><ArrowLeft className="mr-2 h-4 w-4" />Retour</Link>
+            </Button>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Matières</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Gérez les matières et leur niveau d'enseignement.</p>
+            </div>
           </div>
-        </div>
+          <Button onClick={ouvrirAjout} disabled={loading || gradeLevels.length === 0}>
+            <Plus className="mr-2 h-4 w-4" />Ajouter une matière
+          </Button>
+        </header>
 
-        {error && <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>}
+        {error && (
+          <div role="alert" className="border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            {error}
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Total matières</p><p className="text-2xl font-bold">{statistiques.total}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Niveaux couverts</p><p className="text-2xl font-bold">{statistiques.levels}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Coefficient moyen</p><p className="text-2xl font-bold">{statistiques.average.toFixed(2)}</p></CardContent></Card>
-        </div>
+        <section className="flex flex-col gap-3 border-b pb-4 lg:flex-row lg:items-center">
+          <Input
+            className="min-w-0 flex-1"
+            placeholder="Rechercher par nom ou code"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label="Rechercher une matière"
+          />
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            <Button variant={selectedScope === "all" ? "default" : "outline"} size="sm" onClick={() => setSelectedScope("all")}>Tous</Button>
+            {scopes.map((scope) => (
+              <Button key={scope} variant={selectedScope === scope ? "default" : "outline"} size="sm" onClick={() => setSelectedScope(scope)} className="shrink-0">
+                {SCOPE_LABELS[scope]}
+              </Button>
+            ))}
+          </div>
+        </section>
 
-        <Card>
-          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row">
-            <Input className="min-w-0 flex-1" placeholder="Rechercher une matière..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-            <Button onClick={ouvrirAjout} disabled={loading || gradeLevels.length === 0} className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" />Ajouter</Button>
-          </CardContent>
-        </Card>
+        <section aria-label="Liste des matières" className="overflow-hidden border">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-sm">
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium">Code</th>
+                  <th className="px-4 py-3 text-left font-medium">Matière</th>
+                  <th className="px-4 py-3 text-left font-medium">Niveau</th>
+                  <th className="px-4 py-3 text-left font-medium">Catégorie</th>
+                  <th className="px-4 py-3 text-left font-medium">Coefficient</th>
+                  <th className="px-4 py-3 text-right font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {loading ? (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Chargement des matières…</td></tr>
+                ) : filteredMatieres.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                      {gradeLevels.length === 0 ? "Aucun niveau activé dans les paramètres de l'établissement." : "Aucune matière trouvée."}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredMatieres.map((matiere) => {
+                    const level = levelsById.get(matiere.niveau[0])
+                    return (
+                      <tr key={matiere.id} className="hover:bg-muted/30">
+                        <td className="px-4 py-3 font-medium">{matiere.code}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium">{matiere.nom}</div>
+                          {matiere.description && <div className="mt-0.5 max-w-md truncate text-xs text-muted-foreground">{matiere.description}</div>}
+                        </td>
+                        <td className="px-4 py-3">{level?.name ?? "—"}</td>
+                        <td className="px-4 py-3">{level?.scope ? SCOPE_LABELS[level.scope] : "—"}</td>
+                        <td className="px-4 py-3">{matiere.coefficient}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="outline" size="sm" onClick={() => ouvrirEdition(matiere)}>
+                              <Edit className="mr-1.5 h-4 w-4" />Modifier
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => void supprimer(matiere.id)} aria-label={`Archiver ${matiere.nom}`}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          <Button variant={selectedScope === "all" ? "default" : "outline"} size="sm" onClick={() => setSelectedScope("all")}>Tous</Button>
-          {scopes.map((scope) => <Button key={scope} variant={selectedScope === scope ? "default" : "outline"} size="sm" onClick={() => setSelectedScope(scope)} className="shrink-0">{SCOPE_LABELS[scope]}</Button>)}
-        </div>
-
-        <Card>
-          <CardHeader><CardTitle>Liste des matières</CardTitle><CardDescription>{loading ? "Chargement..." : `${filteredMatieres.length} matière(s)`}</CardDescription></CardHeader>
-          <CardContent>
-            {filteredMatieres.length === 0 && !loading ? <p className="py-10 text-center text-sm text-muted-foreground">{gradeLevels.length === 0 ? "Aucun niveau activé dans les paramètres de l'établissement." : "Aucune matière trouvée."}</p> :
-              <div className="space-y-2">
-                {filteredMatieres.map((matiere) => {
-                  const level = levelsById.get(matiere.niveau[0])
-                  return <div key={matiere.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{matiere.code}</div>
-                      <div className="min-w-0"><p className="font-semibold truncate">{matiere.nom}</p><p className="text-sm text-muted-foreground">{level?.name ?? "Niveau"} · Coefficient {matiere.coefficient}</p>{matiere.description && <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{matiere.description}</p>}</div>
-                    </div>
-                    <div className="flex w-full gap-2 sm:w-auto"><Button variant="outline" size="sm" onClick={() => ouvrirEdition(matiere)} className="flex-1 sm:flex-none"><Edit className="mr-1 h-4 w-4" />Modifier</Button><Button variant="ghost" size="sm" onClick={() => void supprimer(matiere.id)} aria-label={`Archiver ${matiere.nom}`}><Trash2 className="h-4 w-4" /></Button></div>
-                  </div>
-                })}
-              </div>}
-          </CardContent>
-        </Card>
+        {!loading && filteredMatieres.length > 0 && (
+          <p className="text-sm text-muted-foreground">{filteredMatieres.length} matière(s) affichée(s) sur {matieres.length}.</p>
+        )}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -260,4 +308,5 @@ export default function MatieresPage() {
       </Dialog>
     </div>
   )
+
 }

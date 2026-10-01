@@ -136,19 +136,26 @@ export default function RegistreAppelPage() {
   }, [selectedClassId, visibleClasses])
 
   useEffect(() => {
-    if (!selectedClass) {
-      setLessons([])
-      setSelectedLessonKey("")
-      return
-    }
+    let cancelled = false
 
-    const day = getDayName(date)
-    const allLessons = await serviceEmploiDuTempsClasses.obtenirTousLesCreneaux(academicYear?.id)
-    const classLessons = allLessons
-      .filter((lesson) => lesson.jour === day && lesson.classeId === selectedClass.id)
-      .sort((a, b) => toMinutes(a.heureDebut) - toMinutes(b.heureDebut))
+    const loadLessons = async () => {
+      if (!selectedClass) {
+        setLessons([])
+        setSelectedLessonKey("")
+        return
+      }
 
-    const allowedLessons =
+      try {
+        setError(null)
+        const day = getDayName(date)
+        const allLessons = await serviceEmploiDuTempsClasses.obtenirTousLesCreneaux(academicYear?.id)
+        if (cancelled) return
+
+        const classLessons = allLessons
+          .filter((lesson) => lesson.jour === day && lesson.classeId === selectedClass.id)
+          .sort((a, b) => toMinutes(a.heureDebut) - toMinutes(b.heureDebut))
+
+        const allowedLessons =
       isTeacher && !canManageAll
         ? classLessons.filter((lesson) =>
             teacherAssignments.some(
@@ -159,17 +166,30 @@ export default function RegistreAppelPage() {
           )
         : classLessons
 
-    setLessons(allowedLessons)
+        setLessons(allowedLessons)
 
-    const now = new Date()
+        const now = new Date()
     const today = now.toISOString().slice(0, 10)
     const currentMinutes = now.getHours() * 60 + now.getMinutes()
     const currentLesson = today === date
       ? allowedLessons.find((lesson) => currentMinutes >= toMinutes(lesson.heureDebut) && currentMinutes < toMinutes(lesson.heureFin))
       : null
 
-    setSelectedLessonKey(currentLesson?.id ?? allowedLessons[0]?.id ?? "")
-  }, [canManageAll, date, isTeacher, selectedClass, teacherAssignments])
+        setSelectedLessonKey(currentLesson?.id ?? allowedLessons[0]?.id ?? "")
+      } catch (err) {
+        if (!cancelled) {
+          setLessons([])
+          setSelectedLessonKey("")
+          setError(err instanceof Error ? err.message : "Impossible de charger l'emploi du temps.")
+        }
+      }
+    }
+
+    void loadLessons()
+    return () => {
+      cancelled = true
+    }
+  }, [academicYear?.id, canManageAll, date, isTeacher, selectedClass, teacherAssignments])
 
   const loadCall = useCallback(async () => {
     if (!establishmentId || !academicYear?.id || !selectedClassId || !selectedLesson) {

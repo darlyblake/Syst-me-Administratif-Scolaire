@@ -50,7 +50,7 @@ begin
 end;
 $function$;
 
-revoke all on function public.teacher_create_profile(text,text,text,text,text,text) from public;
+revoke all on function public.teacher_create_profile(text,text,text,text,text,text) from public, anon;
 grant execute on function public.teacher_create_profile(text,text,text,text,text,text) to authenticated;
 
 create or replace function public.approve_teacher_establishment_request(
@@ -108,7 +108,7 @@ begin
 end;
 $function$;
 
-revoke all on function public.approve_teacher_establishment_request(uuid,text) from public;
+revoke all on function public.approve_teacher_establishment_request(uuid,text) from public, anon;
 grant execute on function public.approve_teacher_establishment_request(uuid,text) to authenticated;
 
 create or replace function public.reject_teacher_establishment_request(
@@ -137,5 +137,5 @@ begin
 end;
 $function$;
 
-revoke all on function public.reject_teacher_establishment_request(uuid,text) from public;
+revoke all on function public.reject_teacher_establishment_request(uuid,text) from public, anon;
 grant execute on function public.reject_teacher_establishment_request(uuid,text) to authenticated;

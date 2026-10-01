@@ -41,7 +41,7 @@ export default function EnseignantPointagePage() {
   const [teacherId, setTeacherId] = useState<string | null>(null)
   const [academicYearId, setAcademicYearId] = useState<string | null>(null)
   const [schedule, setSchedule] = useState<TeacherLessonSlot[]>([])
-  const [pointages, setPointages] = useState<TeacherLessonPointage[]>([])
+  const [pointages, setPointages] = useState<TeacherLessonPointage[]>([])\n  const [weekly, setWeekly] = useState<any>(null)
   const [date, setDate] = useState(localDate)
   const [loading, setLoading] = useState(true)
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -64,12 +64,12 @@ export default function EnseignantPointagePage() {
       setTeacherId(context.teacher_id)
       setAcademicYearId(year.id)
 
-      const [slots, records] = await Promise.all([
+      const weekStartDate = new Date(`${date}T12:00:00`)\n      const day = weekStartDate.getDay() === 0 ? 7 : weekStartDate.getDay()\n      weekStartDate.setDate(weekStartDate.getDate() - day + 1)\n      const weekStart = weekStartDate.toISOString().slice(0, 10)\n      const [slots, records, weeklySummary] = await Promise.all([
         enseignantPointageService.getSchedule(establishmentId, year.id, context.teacher_id),
         enseignantPointageService.getPointages(establishmentId, context.teacher_id, date, date),
       ])
       setSchedule(slots)
-      setPointages(records)
+      setPointages(records)\n      setWeekly(weeklySummary)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Impossible de charger le pointage.")
     } finally {
@@ -168,6 +168,13 @@ export default function EnseignantPointagePage() {
           <Button variant="outline" size="sm" className="ml-auto" onClick={() => void load()} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />Actualiser
           </Button>
+        </div>
+
+        <div className="mb-5 grid gap-3 sm:grid-cols-4">
+          <div className="border bg-white px-4 py-3"><p className="text-xs text-muted-foreground">Semaine prévue</p><p className="mt-1 text-lg font-semibold">{weekly?.planned_hours ?? 0} h</p></div>
+          <div className="border bg-white px-4 py-3"><p className="text-xs text-muted-foreground">Semaine pointée</p><p className="mt-1 text-lg font-semibold">{weekly?.counted_hours ?? 0} h</p></div>
+          <div className="border bg-white px-4 py-3"><p className="text-xs text-muted-foreground">Cours pointés</p><p className="mt-1 text-lg font-semibold">{weekly?.pointed_courses ?? 0} / {weekly?.scheduled_courses ?? 0}</p></div>
+          <div className="border bg-white px-4 py-3"><p className="text-xs text-muted-foreground">Heures non pointées</p><p className="mt-1 text-lg font-semibold">{weekly?.missing_courses ?? 0} cours</p></div>
         </div>
 
         <div className="mb-5 flex flex-wrap items-end gap-3">

@@ -83,7 +83,7 @@ export default function EnseignantsPageRefactored() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" asChild><Link href="/ecole/enseignants/demandes"><ClipboardList className="h-4 w-4 mr-2" />Demandes</Link></Button>
-            <Button variant="outline" asChild><Link href="/tableau-bord"><ArrowLeft className="h-4 w-4 mr-2" />Retour</Link></Button>
+            <Button variant="outline" asChild><Link href="/ecole/tableau-bord"><ArrowLeft className="h-4 w-4 mr-2" />Retour</Link></Button>
             {permissions.canCreate && <Button onClick={handleCreateTeacher}><Plus className="h-4 w-4 mr-2" />Ajouter</Button>}
           </div>
         </header>

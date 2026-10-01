@@ -69,10 +69,13 @@ const getDayName = (date: string): CreneauEmploiDuTemps["jour"] | null => {
   return names[day] ?? null
 }
 
-const toMinutes = (value: string) => {
-  const [hours, minutes] = value.slice(0, 5).split(":").map(Number)
-  return hours * 60 + minutes
+const toSeconds = (value: string) => {
+  const [hours, minutes, seconds = 0] = value.slice(0, 8).split(":").map(Number)
+  return hours * 3600 + minutes * 60 + seconds
 }
+
+const getCurrentSeconds = (date: Date) =>
+  date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds()
 
 export default function RegistreAppelPage() {
   const { primaryEstablishment, utilisateur } = useUserContext()
@@ -136,10 +139,10 @@ export default function RegistreAppelPage() {
 
   const selectedLessonIsCurrent = useMemo(() => {
     if (!selectedLesson || date !== getLocalDateString(currentTime)) return false
-    const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
+    const nowSeconds = getCurrentSeconds(currentTime)
     return (
-      currentMinutes >= toMinutes(selectedLesson.heureDebut) &&
-      currentMinutes < toMinutes(selectedLesson.heureFin)
+      nowSeconds >= toSeconds(selectedLesson.heureDebut) &&
+      nowSeconds < toSeconds(selectedLesson.heureFin)
     )
   }, [currentTime, date, selectedLesson])
 
@@ -196,7 +199,7 @@ export default function RegistreAppelPage() {
 
         const classLessons = allLessons
           .filter((lesson) => lesson.jour === day && lesson.classeId === selectedClass.id)
-          .sort((a, b) => toMinutes(a.heureDebut) - toMinutes(b.heureDebut))
+          .sort((a, b) => toSeconds(a.heureDebut) - toSeconds(b.heureDebut))
 
         const allowedLessons =
           isTeacher && !canManageAll
@@ -215,13 +218,13 @@ export default function RegistreAppelPage() {
         const selectCurrentLesson = () => {
           const now = new Date()
           const today = getLocalDateString(now)
-          const currentMinutes = now.getHours() * 60 + now.getMinutes()
+          const nowSeconds = getCurrentSeconds(now)
           const currentLesson =
             today === date
               ? allowedLessons.find(
                   (lesson) =>
-                    currentMinutes >= toMinutes(lesson.heureDebut) &&
-                    currentMinutes < toMinutes(lesson.heureFin)
+                    nowSeconds >= toSeconds(lesson.heureDebut) &&
+                    nowSeconds < toSeconds(lesson.heureFin)
                 )
               : null
 
@@ -482,11 +485,11 @@ export default function RegistreAppelPage() {
                         key={lesson.id}
                         type="button"
                         onClick={() => setSelectedLessonKey(lesson.id)}
-                        className={`min-w-[180px] border px-3 py-2 text-left ${active ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white hover:bg-slate-50"} ${date === getLocalDateString(currentTime) && currentTime.getHours() * 60 + currentTime.getMinutes() >= toMinutes(lesson.heureDebut) && currentTime.getHours() * 60 + currentTime.getMinutes() < toMinutes(lesson.heureFin) ? "ring-2 ring-green-500 ring-offset-1" : ""}`}
+                        className={`min-w-[180px] border px-3 py-2 text-left ${active ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white hover:bg-slate-50"} ${date === getLocalDateString(currentTime) && getCurrentSeconds(currentTime) >= toSeconds(lesson.heureDebut) && getCurrentSeconds(currentTime) < toSeconds(lesson.heureFin) ? "ring-2 ring-green-500 ring-offset-1" : ""}`}
                       >
                         <div className="flex items-center justify-between gap-2 text-xs opacity-70">
                           <span>{lesson.heureDebut}–{lesson.heureFin}</span>
-                          {date === getLocalDateString(currentTime) && currentTime.getHours() * 60 + currentTime.getMinutes() >= toMinutes(lesson.heureDebut) && currentTime.getHours() * 60 + currentTime.getMinutes() < toMinutes(lesson.heureFin) && <span className="font-semibold">EN COURS</span>}
+                          {date === getLocalDateString(currentTime) && getCurrentSeconds(currentTime) >= toSeconds(lesson.heureDebut) && getCurrentSeconds(currentTime) < toSeconds(lesson.heureFin) && <span className="font-semibold">EN COURS</span>}
                         </div>
                         <div className="mt-1 font-medium">{lesson.matiere || "Cours"}</div>
                         <div className="text-xs opacity-70">{lesson.enseignantNom || "Enseignant non renseigné"}</div>

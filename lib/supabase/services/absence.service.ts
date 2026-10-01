@@ -38,6 +38,16 @@ export interface AttendanceHistory {
   created_at?: string
   first_name?: string
   last_name?: string
+  class_name?: string
+  subject_id?: string | null
+  subject_name?: string | null
+  timetable_slot_id?: string | null
+  starts_at?: string | null
+  ends_at?: string | null
+  room?: string | null
+  teacher_id?: string | null
+  teacher_first_name?: string | null
+  teacher_last_name?: string | null
 }
 
 export interface AttendanceHistoryPaginatedResponse {

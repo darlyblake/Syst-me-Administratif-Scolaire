@@ -82,7 +82,12 @@ export default function RegistreAppelPage() {
   const { data: academicYears, selectedYear, activeYear, selectYear, isLoading: isYearLoading } = useAcademicYears(establishmentId)
 
   const academicYear = selectedYear ?? activeYear
-  const canManageAll = ["owner", "admin", "director", "supervisor"].includes(establishmentRole ?? "")
+  const establishmentPermissions = primaryEstablishment?.permissions ?? []
+  const canManageAll =
+    utilisateur?.role !== "enseignant" &&
+    (["owner", "admin", "director", "supervisor"].includes(establishmentRole ?? "") ||
+      establishmentPermissions.includes("attendance") ||
+      establishmentPermissions.includes("attendance.manage"))
   const isTeacher = utilisateur?.role === "enseignant"
 
   const [selectedClassId, setSelectedClassId] = useState("")
@@ -94,6 +99,7 @@ export default function RegistreAppelPage() {
   const [students, setStudents] = useState<CallStudent[]>([])
   const [attendance, setAttendance] = useState<Record<string, AttendanceEntry>>({})
   const [search, setSearch] = useState("")
+  const [currentTime, setCurrentTime] = useState(() => new Date())
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -129,14 +135,13 @@ export default function RegistreAppelPage() {
     : null
 
   const selectedLessonIsCurrent = useMemo(() => {
-    if (!selectedLesson || date !== getLocalDateString()) return false
-    const now = new Date()
-    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+    if (!selectedLesson || date !== getLocalDateString(currentTime)) return false
+    const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
     return (
       currentMinutes >= toMinutes(selectedLesson.heureDebut) &&
       currentMinutes < toMinutes(selectedLesson.heureFin)
     )
-  }, [date, selectedLesson])
+  }, [currentTime, date, selectedLesson])
 
   const loadBaseAccess = useCallback(async () => {
     if (!establishmentId) return
@@ -155,6 +160,11 @@ export default function RegistreAppelPage() {
   useEffect(() => {
     if (!isYearLoading) void loadBaseAccess()
   }, [isYearLoading, loadBaseAccess])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(new Date()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     if (!selectedClassId && visibleClasses.length) setSelectedClassId(visibleClasses[0].id)
@@ -239,7 +249,7 @@ export default function RegistreAppelPage() {
       cancelled = true
       if (clock) window.clearInterval(clock)
     }
-  }, [academicYear?.id, canManageAll, date, isTeacher, selectedClass, teacherAssignments])
+  }, [academicYear?.id, canManageAll, currentTime, date, isTeacher, selectedClass, teacherAssignments])
 
   const loadCall = useCallback(async () => {
     if (!establishmentId || !academicYear?.id || !selectedClassId || !selectedLesson) {
@@ -414,6 +424,13 @@ export default function RegistreAppelPage() {
               <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
             </div>
 
+            <div className="flex items-end">
+              <div className="w-full border bg-slate-50 px-3 py-2">
+                <div className="text-xs text-slate-500">Heure locale</div>
+                <div className="font-semibold tabular-nums">{currentTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</div>
+              </div>
+            </div>
+
             <div>
               <label className="mb-1.5 block text-sm font-medium">Rechercher un élève</label>
               <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nom ou matricule" disabled={!selectedClassId} />
@@ -460,9 +477,12 @@ export default function RegistreAppelPage() {
                         key={lesson.id}
                         type="button"
                         onClick={() => setSelectedLessonKey(lesson.id)}
-                        className={`min-w-[180px] border px-3 py-2 text-left ${active ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+                        className={`min-w-[180px] border px-3 py-2 text-left ${active ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white hover:bg-slate-50"} ${date === getLocalDateString(currentTime) && currentTime.getHours() * 60 + currentTime.getMinutes() >= toMinutes(lesson.heureDebut) && currentTime.getHours() * 60 + currentTime.getMinutes() < toMinutes(lesson.heureFin) ? "ring-2 ring-green-500 ring-offset-1" : ""}`}
                       >
-                        <div className="text-xs opacity-70">{lesson.heureDebut}–{lesson.heureFin}</div>
+                        <div className="flex items-center justify-between gap-2 text-xs opacity-70">
+                          <span>{lesson.heureDebut}–{lesson.heureFin}</span>
+                          {date === getLocalDateString(currentTime) && currentTime.getHours() * 60 + currentTime.getMinutes() >= toMinutes(lesson.heureDebut) && currentTime.getHours() * 60 + currentTime.getMinutes() < toMinutes(lesson.heureFin) && <span className="font-semibold">EN COURS</span>}
+                        </div>
                         <div className="mt-1 font-medium">{lesson.matiere || "Cours"}</div>
                         <div className="text-xs opacity-70">{lesson.enseignantNom || "Enseignant non renseigné"}</div>
                       </button>

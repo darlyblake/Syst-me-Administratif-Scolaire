@@ -1,19 +1,13 @@
 import { createClient } from "@supabase/supabase-js"
+import { supabaseBrowser } from "@/lib/supabase/client"
 
 const defaultUrl = "https://placeholder-project.supabase.co"
 const defaultAnonKey = "placeholder-anon-key"
 
 export function getSupabaseBrowserClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? defaultUrl
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? defaultAnonKey
-
-  return createClient(url, anonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-  })
+  // Réutilise l'unique client navigateur partagé par l'application.
+  // Cela évite plusieurs GoTrueClient avec la même clé de stockage.
+  return supabaseBrowser
 }
 
 export function getSupabaseServerClient() {
@@ -35,4 +29,4 @@ export function getSupabaseServerClient() {
   })
 }
 
-export const supabase = getSupabaseBrowserClient()
+export const supabase = supabaseBrowser

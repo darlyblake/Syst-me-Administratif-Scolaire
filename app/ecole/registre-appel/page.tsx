@@ -143,9 +143,9 @@ export default function RegistreAppelPage() {
     }
 
     const day = getDayName(date)
-    const classLessons = serviceEmploiDuTempsClasses
-      .obtenirTousLesCreneaux()
-      .filter((lesson) => lesson.jour === day && lesson.classeNom.trim().toLowerCase() === selectedClass.name.trim().toLowerCase())
+    const allLessons = await serviceEmploiDuTempsClasses.obtenirTousLesCreneaux(academicYear?.id)
+    const classLessons = allLessons
+      .filter((lesson) => lesson.jour === day && lesson.classeId === selectedClass.id)
       .sort((a, b) => toMinutes(a.heureDebut) - toMinutes(b.heureDebut))
 
     const allowedLessons =

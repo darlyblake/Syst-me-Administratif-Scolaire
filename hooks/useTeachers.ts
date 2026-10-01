@@ -116,7 +116,7 @@ export function useTeachers(): UseTeachersReturn {
   const updateTeacher = useCallback(async (id: string, updates: Partial<DonneesEnseignant>) => {
     if (!permissions.canEdit) return false
     try {
-      await modifierEnseignantSupabase(id, updates)
+      await modifierEnseignantSupabase(id, updates, establishmentId)
       await loadTeachers()
       const current = getCurrentUser(); auditService.logTeacherUpdate(current.id, current.role, id, updates)
       return true
@@ -129,7 +129,7 @@ export function useTeachers(): UseTeachersReturn {
 
   const deactivateTeacher = useCallback(async (id: string) => {
     if (!permissions.canEdit) return false
-    try { await archiverEnseignantSupabase(id); await loadTeachers(); return true }
+    try { await archiverEnseignantSupabase(id, establishmentId); await loadTeachers(); return true }
     catch (error) { setState(prev => ({ ...prev, error: error instanceof Error ? error.message : "Impossible de désactiver l'enseignant" })); return false }
   }, [loadTeachers, permissions.canEdit])
 

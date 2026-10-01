@@ -95,12 +95,6 @@ export function GestionSalairesModal({ isOpen, onClose, enseignant, onSuccess }:
       onSuccess()
       onClose()
 
-      if (succes) {
-        onSuccess()
-        onClose()
-      } else {
-        alert("Erreur lors de la mise à jour des informations salariales")
-      }
     } catch (error) {
       console.error("Erreur:", error)
       alert("Une erreur est survenue")

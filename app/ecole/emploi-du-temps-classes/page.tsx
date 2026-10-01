@@ -78,10 +78,11 @@ export default function EmploiDuTempsClassesPage() {
     if (!establishmentId || !academicYear?.id) return
     const load = async () => {
       try {
-        const [schedule, scheduleClasses] = await Promise.all([
+        const [scheduleResult, scheduleClasses] = await Promise.all([
           serviceEmploiDuTempsClasses.obtenirTousLesCreneaux(academicYear.id),
           serviceEmploiDuTempsClasses.obtenirClasses(establishmentId),
         ])
+        const schedule = Array.isArray(scheduleResult) ? scheduleResult : []
         setCreneaux(schedule)
         setClasses(scheduleClasses)
       } catch (error) {

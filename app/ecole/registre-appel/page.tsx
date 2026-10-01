@@ -249,7 +249,7 @@ export default function RegistreAppelPage() {
       cancelled = true
       if (clock) window.clearInterval(clock)
     }
-  }, [academicYear?.id, canManageAll, currentTime, date, isTeacher, selectedClass, teacherAssignments])
+  }, [academicYear?.id, canManageAll, date, isTeacher, selectedClass, teacherAssignments])
 
   const loadCall = useCallback(async () => {
     if (!establishmentId || !academicYear?.id || !selectedClassId || !selectedLesson) {

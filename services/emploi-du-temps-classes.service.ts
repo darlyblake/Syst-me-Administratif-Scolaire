@@ -26,9 +26,6 @@ export interface EmploiDuTempsClasse {
 class ServiceEmploiDuTempsClasses {
   private readonly CLE_STOCKAGE = "emploi_du_temps_classes"
 
-  /**
-   * Récupère tous les créneaux d'emploi du temps
-   */
   async obtenirTousLesCreneaux(academicYearId?: string): Promise<CreneauEmploiDuTemps[]> {
     let query = supabaseBrowser.from("timetable_slots").select(`
       id,class_subject_id,day_of_week,starts_at,ends_at,room,created_at,updated_at,
@@ -49,9 +46,6 @@ class ServiceEmploiDuTempsClasses {
     }))
   }
 
-  /**
-   * Récupère les créneaux pour une classe spécifique
-   */
   async obtenirCreneauxParClasse(classeId: string, academicYearId?: string): Promise<CreneauEmploiDuTemps[]> {
     const creneaux = await this.obtenirTousLesCreneaux(academicYearId)
     return creneaux.filter(c => c.classeId === classeId)
@@ -100,37 +94,27 @@ class ServiceEmploiDuTempsClasses {
     return data ?? []
   }
 
-  /**
-   * Calcule le nombre total d'heures prévues pour un enseignant dans une période
-   */
   async calculerHeuresPrevuesEnseignant(enseignantId: string, debut: string, fin: string, academicYearId?: string): Promise<number> {
     const creneaux = await this.obtenirCreneauxParEnseignant(enseignantId, academicYearId)
     const debutDate = new Date(debut)
     const finDate = new Date(fin)
-    
+
     let totalHeures = 0
-    
-    // Parcourir chaque jour de la période
+
     for (let date = new Date(debutDate); date <= finDate; date.setDate(date.getDate() + 1)) {
       const jourSemaine = this.obtenirJourSemaine(date)
-      
-      // Trouver les créneaux pour ce jour
       const creneauxJour = creneaux.filter(c => c.jour === jourSemaine)
-      
-      // Calculer les heures pour ce jour
+
       creneauxJour.forEach(creneau => {
         const debutMinutes = this.convertirHeureEnMinutes(creneau.heureDebut)
         const finMinutes = this.convertirHeureEnMinutes(creneau.heureFin)
         totalHeures += (finMinutes - debutMinutes) / 60
       })
     }
-    
-    return Math.round(totalHeures * 10) / 10 // Arrondir à 1 décimale
+
+    return Math.round(totalHeures * 10) / 10
   }
 
-  /**
-   * Ajoute un nouveau créneau d'emploi du temps
-   */
   async ajouterCreneau(creneau: any): Promise<CreneauEmploiDuTemps> {
     const { data, error } = await supabaseBrowser.from("timetable_slots").insert({
       establishment_id: creneau.establishmentId, academic_year_id: creneau.academicYearId, class_subject_id: creneau.classSubjectId,
@@ -158,44 +142,34 @@ class ServiceEmploiDuTempsClasses {
     if(error)throw new Error(error.message); return true
   }
 
-  /**
-   * Convertit une date en jour de la semaine
-   */
   private obtenirJourSemaine(date: Date): CreneauEmploiDuTemps["jour"] {
     const jours: CreneauEmploiDuTemps["jour"][] = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"]
     const dayIndex = date.getDay()
-    // Dimanche (0) est traité comme lundi pour les emplois du temps scolaires
     return jours[dayIndex === 0 ? 0 : dayIndex - 1] || "lundi"
   }
 
-  /**
-   * Convertit une heure HH:MM en minutes depuis minuit
-   */
   private convertirHeureEnMinutes(heure: string): number {
     const [heures, minutes] = heure.split(':').map(Number)
     return heures * 60 + minutes
   }
 
-  /**
-   * Génère les statistiques des emplois du temps
-   */
   async genererStatistiques(academicYearId?: string): Promise<{
     totalCreneaux: number
     totalClasses: number
     totalEnseignants: number
     heuresTotales: number
-  } {
+  }> {
     const creneaux = await this.obtenirTousLesCreneaux(academicYearId)
     const classesUniques = new Set(creneaux.map(c => c.classeId))
     const enseignantsUniques = new Set(creneaux.map(c => c.enseignantId))
-    
+
     let heuresTotales = 0
     creneaux.forEach(creneau => {
       const debutMinutes = this.convertirHeureEnMinutes(creneau.heureDebut)
       const finMinutes = this.convertirHeureEnMinutes(creneau.heureFin)
       heuresTotales += (finMinutes - debutMinutes) / 60
     })
-    
+
     return {
       totalCreneaux: creneaux.length,
       totalClasses: classesUniques.size,
@@ -205,5 +179,4 @@ class ServiceEmploiDuTempsClasses {
   }
 }
 
-// Instance singleton du service
 export const serviceEmploiDuTempsClasses = new ServiceEmploiDuTempsClasses()

@@ -72,6 +72,7 @@ export default function PersonnelDocumentsPage() {
   const [message, setMessage] = useState("")
   const [saving, setSaving] = useState(false)
   const [reviewing, setReviewing] = useState<Request | null>(null)
+  const [reviewingDoc, setReviewingDoc] = useState<Doc | null>(null)
   const [rejectionReason, setRejectionReason] = useState("")
 
   const load = async () => {
@@ -204,6 +205,34 @@ export default function PersonnelDocumentsPage() {
     }
   }
 
+  const reviewDocument = async (doc: Doc, status: "approved" | "rejected") => {
+    if (status === "rejected" && !rejectionReason.trim()) return
+    const { error } = await supabaseBrowser
+      .from("documents")
+      .update({
+        status,
+        rejection_reason: status === "rejected" ? rejectionReason.trim() : null,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", doc.id)
+
+    if (!error) {
+      if (status === "approved" || status === "rejected") {
+        await supabaseBrowser
+          .from("document_requests")
+          .update({
+            status,
+            rejection_reason: status === "rejected" ? rejectionReason.trim() : null,
+            reviewed_at: new Date().toISOString(),
+          })
+          .eq("submitted_document_id", doc.id)
+      }
+      setReviewingDoc(null)
+      setRejectionReason("")
+      await load()
+    }
+  }
+
   const openDocument = async (doc: Doc) => {
     const { data, error } = await supabaseBrowser.storage
       .from("school-documents")
@@ -292,6 +321,7 @@ export default function PersonnelDocumentsPage() {
                         <th className="px-4 py-3 text-left">Document</th>
                         <th className="px-4 py-3 text-left">Type</th>
                         <th className="px-4 py-3 text-left">Date</th>
+                        <th className="px-4 py-3 text-left">État</th>
                         <th className="px-4 py-3 text-right">Fichier</th>
                       </tr>
                     </thead>
@@ -299,12 +329,15 @@ export default function PersonnelDocumentsPage() {
                       {loading ? (
                         <tr><td colSpan={4} className="p-8 text-center text-gray-500">Chargement…</td></tr>
                       ) : employeeDocs.length === 0 ? (
-                        <tr><td colSpan={4} className="p-8 text-center text-gray-500">Aucun document reçu.</td></tr>
+                        <tr><td colSpan={5} className="p-8 text-center text-gray-500">Aucun document reçu.</td></tr>
                       ) : employeeDocs.map((doc) => (
                         <tr key={doc.id}>
                           <td className="px-4 py-3 font-medium">{doc.name}</td>
                           <td className="px-4 py-3">{doc.document_type}</td>
                           <td className="px-4 py-3">{new Date(doc.created_at).toLocaleDateString("fr-FR")}</td>
+                          <td className="px-4 py-3">
+                            <button onClick={() => setReviewingDoc(doc)} className="mr-3 text-sm underline underline-offset-2">{doc.status === "approved" ? "Validé" : doc.status === "rejected" ? "Rejeté" : "À vérifier"}</button>
+                          </td>
                           <td className="px-4 py-3 text-right">
                             <button onClick={() => openDocument(doc)} className="inline-flex items-center gap-1 text-terre hover:underline">
                               <ExternalLink className="h-4 w-4" /> Ouvrir
@@ -396,6 +429,22 @@ export default function PersonnelDocumentsPage() {
               <button disabled={saving || !documentName.trim()} onClick={createRequest} className="rounded-md bg-terre px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
                 {saving ? "Envoi..." : "Envoyer la demande"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reviewingDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-lg bg-white p-5">
+            <h2 className="text-lg font-semibold">Vérifier le document</h2>
+            <p className="mt-1 text-sm text-gray-500">{reviewingDoc.name}</p>
+            <p className="mt-4 text-sm">Ce document a été envoyé par l’employé. Vous pouvez le valider ou le rejeter.</p>
+            <textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} placeholder="Motif si vous rejetez le document..." className="mt-4 min-h-24 w-full rounded-md border p-3 text-sm" />
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setReviewingDoc(null)} className="rounded-md border px-4 py-2 text-sm">Annuler</button>
+              <button onClick={() => reviewDocument(reviewingDoc, "rejected")} className="rounded-md border border-red-200 px-4 py-2 text-sm text-red-700">Rejeter</button>
+              <button onClick={() => reviewDocument(reviewingDoc, "approved")} className="rounded-md bg-terre px-4 py-2 text-sm font-medium text-white">Valider</button>
             </div>
           </div>
         </div>

@@ -382,7 +382,8 @@ export default function RegistreAppelPage() {
   return (
     <main translate="no" className="min-h-screen bg-white text-slate-900">
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
-        <div className="mb-6 flex items-center gap-3 border-b pb-5">
+        <div className="mb-6 flex items-center justify-between gap-3 border-b pb-5">
+          <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" asChild>
             <Link href="/ecole/tableau-bord">
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -395,6 +396,9 @@ export default function RegistreAppelPage() {
               L'appel est lié au cours prévu dans l'emploi du temps. Un enseignant ne voit que ses cours.
             </p>
           </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/ecole/registre-appel/historique">Historique des présences</Link>
+          </Button>
         </div>
 
         <section className="mb-5 border-b pb-5">

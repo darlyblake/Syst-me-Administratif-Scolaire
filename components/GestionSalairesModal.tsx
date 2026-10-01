@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calculator, Clock, DollarSign, AlertCircle } from "lucide-react"
-import { serviceEnseignants } from "@/services/enseignants.service"
 import type { DonneesEnseignant } from "@/types/models"
 
 interface GestionSalairesModalProps {
@@ -32,20 +31,28 @@ export function GestionSalairesModal({ isOpen, onClose, enseignant, onSuccess }:
     details: string
   } | null>(null)
 
-  // Charger les informations actuelles de l'enseignant
+  // Les enseignants affichés ici viennent de Supabase. Les informations salariales
+  // sont conservées séparément côté frontend jusqu'à leur intégration dans le module paie.
   useEffect(() => {
-    if (enseignant && isOpen) {
+    if (!enseignant || !isOpen) return
+    try {
+      const raw = localStorage.getItem("enseignant_salaires")
+      const saved = raw ? JSON.parse(raw) as Record<string, { typeContrat?: string; salaireMensuel?: number; tauxHoraire?: number }> : {}
+      const current = saved[enseignant.id]
+      const contrat = (current?.typeContrat ?? enseignant.typeContrat ?? "cdi") as "cdi" | "cdd" | "vacataire" | "consultant"
+      const fixe = current?.salaireMensuel ?? enseignant.salaireMensuel
+      const taux = current?.tauxHoraire ?? enseignant.tauxHoraire
+      setTypeContrat(contrat)
+      setSalaireFixe(fixe != null ? String(fixe) : "")
+      setTauxHoraire(taux != null ? String(taux) : "")
+      setHeuresTravaillees(0)
+      setCalculSalaire(null)
+    } catch {
       setTypeContrat(enseignant.typeContrat || "cdi")
       setSalaireFixe(enseignant.salaireMensuel?.toString() || "")
       setTauxHoraire(enseignant.tauxHoraire?.toString() || "")
-
-      // Calculer les heures travaillées depuis l'emploi du temps
-      const heures = serviceEnseignants.calculerHeuresEnseignement(enseignant.id)
-      setHeuresTravaillees(heures)
-
-      // Calculer le salaire actuel
-      const calcul = serviceEnseignants.calculerSalaireEnseignant(enseignant.id)
-      setCalculSalaire(calcul)
+      setHeuresTravaillees(0)
+      setCalculSalaire(null)
     }
   }, [enseignant, isOpen])
 
@@ -58,10 +65,10 @@ export function GestionSalairesModal({ isOpen, onClose, enseignant, onSuccess }:
     if (typeContrat === "vacataire") {
       const taux = parseFloat(tauxHoraire) || 0
       salaireBase = heuresTravaillees * taux
-      details = `${heuresTravaillees}h × ${taux}€/h = ${salaireBase.toFixed(2)}€`
+      details = `${heuresTravaillees}h × ${taux.toLocaleString("fr-FR")} FCFA/h = ${salaireBase.toLocaleString("fr-FR")} FCFA`
     } else if (typeContrat === "cdi") {
       salaireBase = parseFloat(salaireFixe) || 0
-      details = `Salaire fixe: ${salaireBase.toFixed(2)}€`
+      details = `Salaire fixe: ${salaireBase.toLocaleString("fr-FR")} FCFA`
     }
 
     setCalculSalaire({
@@ -77,11 +84,16 @@ export function GestionSalairesModal({ isOpen, onClose, enseignant, onSuccess }:
 
     setLoading(true)
     try {
-      const succes = serviceEnseignants.mettreAJourInformationsSalariales(enseignant.id, {
+      const raw = localStorage.getItem("enseignant_salaires")
+      const saved = raw ? JSON.parse(raw) as Record<string, unknown> : {}
+      saved[enseignant.id] = {
         typeContrat,
-        salaireMensuel: typeContrat === "cdi" ? parseFloat(salaireFixe) : undefined,
-        tauxHoraire: typeContrat === "vacataire" ? parseFloat(tauxHoraire) : undefined,
-      })
+        salaireMensuel: typeContrat === "cdi" ? parseFloat(salaireFixe) || 0 : undefined,
+        tauxHoraire: typeContrat === "vacataire" ? parseFloat(tauxHoraire) || 0 : undefined,
+      }
+      localStorage.setItem("enseignant_salaires", JSON.stringify(saved))
+      onSuccess()
+      onClose()
 
       if (succes) {
         onSuccess()
@@ -132,7 +144,7 @@ export function GestionSalairesModal({ isOpen, onClose, enseignant, onSuccess }:
                     <Calculator className="h-4 w-4 text-blue-600" />
                     <span className="font-medium text-blue-900">Salaire actuel</span>
                   </div>
-                  <p className="text-blue-800 font-semibold">{calculSalaire.salaireBase.toFixed(2)}€</p>
+                  <p className="text-blue-800 font-semibold">{calculSalaire.salaireBase.toLocaleString("fr-FR")} FCFA</p>
                   <p className="text-blue-600 text-sm">{calculSalaire.details}</p>
                 </div>
               )}
@@ -224,8 +236,8 @@ export function GestionSalairesModal({ isOpen, onClose, enseignant, onSuccess }:
             <div>
               <p className="text-yellow-800 font-medium">Information importante</p>
               <p className="text-yellow-700 text-sm">
-                Les modifications salariales seront enregistrées dans l'historique des affectations.
-                Pour les contrats vacataires, les heures sont calculées automatiquement depuis l'emploi du temps.
+                La configuration salariale est conservée pour cet enseignant dans l'interface.
+                Les heures d'enseignement seront reliées au planning lors de l'intégration du module paie.
               </p>
             </div>
           </div>

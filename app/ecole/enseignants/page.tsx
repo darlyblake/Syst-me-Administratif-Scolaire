@@ -4,7 +4,6 @@ import { useMemo, useState } from "react"
 import { useTeachers } from "@/hooks/useTeachers"
 import { usePermissions } from "@/hooks/usePermissions"
 import { useNotifications } from "@/hooks/useNotifications"
-import { DashboardSummary } from "@/components/DashboardSummary"
 import { TeacherTable } from "@/components/TeacherTable"
 import { TeacherFilters } from "@/components/TeacherFilters"
 import { TeacherDetailsModal } from "@/components/TeacherDetailsModal"
@@ -74,13 +73,13 @@ export default function EnseignantsPageRefactored() {
   }
 
   return (
-    <main className="min-h-screen bg-muted/30">
-      <div className="container mx-auto max-w-7xl p-4 md:p-6 space-y-5 md:space-y-6">
+    <main className="min-h-screen bg-white">
+      <div className="mx-auto max-w-7xl p-4 md:p-6 space-y-5">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm text-muted-foreground">Personnel / Enseignants</p>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Enseignants</h1>
-            <p className="text-sm md:text-base text-muted-foreground mt-1">Consultez les dossiers, affectations et suivis dont vous avez besoin.</p>
+            <h1 className="text-2xl font-semibold tracking-tight">Enseignants</h1>
+            <p className="text-sm md:text-base text-muted-foreground mt-1">Gérez les enseignants, leurs affectations et leurs dossiers.</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" asChild><Link href="/tableau-bord"><ArrowLeft className="h-4 w-4 mr-2" />Retour</Link></Button>
@@ -88,7 +87,6 @@ export default function EnseignantsPageRefactored() {
           </div>
         </header>
 
-        <DashboardSummary stats={stats} uniqueSubjects={uniqueSubjects} teachers={teachers} />
         <TeacherFilters
           searchQuery={filters.searchQuery}
           subjectFilter={filters.subjectFilter}

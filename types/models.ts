@@ -88,7 +88,7 @@ export interface OptionPersonnalisee { id: string; nom: string; prix: number }
 export interface ParametresPaiement { tranchesPaiement: { nombre: number; pourcentage: number; dateDebut: string; dateFin: string; numero: number }[] }
 export interface StatistiquesTableauBord { totalEleves: number; totalEnseignants: number; totalRecettes: number; classesActives: number; elevesImpayes: number; enseignantsPresents: number; tauxPresenceEnseignants: number }
 export interface Matiere { id: string; code: string; nom: string; niveau: string[]; coefficient: number; couleur?: string; description?: string }
-export interface Classe { id: string; nom: string; niveau: string; typeEcole?: string; capacite: number; fraisScolarite: number }
+export interface Classe { id: string; nom: string; niveau: string; /** Identifiant du niveau scolaire utilisé pour filtrer les matières compatibles. */ gradeLevelId?: string; typeEcole?: string; capacite: number; fraisScolarite: number }
 export interface Absence { id: string; eleveId: string; date: string; statut: "absent" | "justifie" | "non_justifie" | "retard"; motif?: string; justificatif?: string; dateCreation: string }
 export interface Notification { id: string; titre: string; message: string; destinataireType: "eleve" | "tous_eleves" | "classe" | "enseignant" | "tous_enseignants"; destinataireIds: string[]; classeId?: string; creePar: string; priorite: "normale" | "importante" | "urgente"; typeNotification: "information" | "alerte" | "rappel"; dateEnvoi?: string; dateCreation: string; statut: "brouillon" | "envoye" | "archive" }
 export interface HistoriqueNotification { id: string; notificationId: string; destinataireId: string; destinataireType: "eleve" | "enseignant"; dateReception: string; statut: "lu" | "non_lu" }

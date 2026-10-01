@@ -211,12 +211,15 @@ export default function HistoriqueAppelPage() {
           </div>
         ) : (
           <div className="overflow-x-auto border">
-            <table className="min-w-[900px] w-full text-sm">
+            <table className="min-w-[1200px] w-full text-sm">
               <thead className="border-b bg-slate-50">
                 <tr>
                   <th className="px-3 py-3 text-left font-medium">Date</th>
                   <th className="px-3 py-3 text-left font-medium">Élève</th>
                   <th className="px-3 py-3 text-left font-medium">Classe</th>
+                  <th className="px-3 py-3 text-left font-medium">Cours</th>
+                  <th className="px-3 py-3 text-left font-medium">Horaire</th>
+                  <th className="px-3 py-3 text-left font-medium">Enseignant</th>
                   <th className="px-3 py-3 text-left font-medium">Statut</th>
                   <th className="px-3 py-3 text-left font-medium">Motif</th>
                   {canCorrect && <th className="px-3 py-3 text-right font-medium">Action</th>}
@@ -229,7 +232,10 @@ export default function HistoriqueAppelPage() {
                     <tr key={row.id} className="border-b last:border-0 hover:bg-slate-50">
                       <td className="px-3 py-3">{new Date(row.attendance_date + "T12:00:00").toLocaleDateString("fr-FR")}</td>
                       <td className="px-3 py-3 font-medium">{row.last_name ?? "—"} {row.first_name ?? ""}</td>
-                      <td className="px-3 py-3">{classOptions.find((item) => item.id === row.class_id)?.name ?? row.class_id}</td>
+                      <td className="px-3 py-3">{row.class_name ?? classOptions.find((item) => item.id === row.class_id)?.name ?? row.class_id}</td>
+                      <td className="px-3 py-3">{row.subject_name ?? "—"}</td>
+                      <td className="px-3 py-3 whitespace-nowrap">{row.starts_at && row.ends_at ? `${row.starts_at.slice(0,5)} – ${row.ends_at.slice(0,5)}` : "—"}</td>
+                      <td className="px-3 py-3">{row.teacher_last_name || row.teacher_first_name ? `${row.teacher_last_name ?? ""} ${row.teacher_first_name ?? ""}`.trim() : "—"}</td>
                       <td className="px-3 py-3"><span className={`inline-flex border px-2 py-1 text-xs font-medium ${classes[status]}`}>{labels[status]}</span></td>
                       <td className="px-3 py-3 text-slate-600">{row.reason || "—"}</td>
                       {canCorrect && (

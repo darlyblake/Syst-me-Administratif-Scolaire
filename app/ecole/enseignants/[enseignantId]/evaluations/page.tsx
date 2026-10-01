@@ -32,7 +32,7 @@ export default function EvaluationsEnseignantPage() {
   const enregistrer = () => {
     const valeur = Number(note)
     if (!Number.isFinite(valeur) || valeur < 0 || valeur > 10) return
-    serviceEvaluation.ajouterEvaluation({
+    serviceEvaluation.creerEvaluation({
       personnelId: enseignantId,
       type: "administration",
       date: new Date().toISOString().slice(0, 10),

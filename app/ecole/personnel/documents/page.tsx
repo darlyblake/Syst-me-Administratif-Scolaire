@@ -174,6 +174,20 @@ export default function PersonnelDocumentsPage() {
 
   const reviewRequest = async (request: Request, status: "approved" | "rejected") => {
     if (status === "rejected" && !rejectionReason.trim()) return
+
+    if (request.submitted_document_id) {
+      const { error: documentError } = await supabaseBrowser
+        .from("documents")
+        .update({
+          status,
+          rejection_reason: status === "rejected" ? rejectionReason.trim() : null,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq("id", request.submitted_document_id)
+
+      if (documentError) return
+    }
+
     const { error } = await supabaseBrowser
       .from("document_requests")
       .update({

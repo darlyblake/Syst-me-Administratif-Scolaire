@@ -65,7 +65,7 @@ export default function EnseignantPointagePage() {
       setAcademicYearId(year.id)
 
       const [slots, records] = await Promise.all([
-        enseignantPointageService.getSchedule(establishmentId, year.id),
+        enseignantPointageService.getSchedule(establishmentId, year.id, context.teacher_id),
         enseignantPointageService.getPointages(establishmentId, context.teacher_id, date, date),
       ])
       setSchedule(slots)

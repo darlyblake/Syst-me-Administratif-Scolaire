@@ -53,7 +53,7 @@ export default function DemandesRattachementPage() {
     } finally {
       setLoading(false)
     }
-  }, [canManage, establishmentId, error])
+  }, [canManage, establishmentId])
 
   useEffect(() => { void load() }, [load])
 

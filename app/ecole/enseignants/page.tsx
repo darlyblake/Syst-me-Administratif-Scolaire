@@ -8,7 +8,7 @@ import { TeacherTable } from "@/components/TeacherTable"
 import { TeacherFilters } from "@/components/TeacherFilters"
 import { TeacherDetailsModal } from "@/components/TeacherDetailsModal"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus } from "lucide-react"
+import { ArrowLeft, Plus, ClipboardList } from "lucide-react"
 import Link from "next/link"
 import { CreerEnseignantModal } from "@/components/CreerEnseignantModal"
 import { AssignerClassesModal } from "@/components/AssignerClassesModal"
@@ -82,7 +82,9 @@ export default function EnseignantsPageRefactored() {
             <p className="text-sm md:text-base text-muted-foreground mt-1">Gérez les enseignants, leurs affectations et leurs dossiers.</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" asChild><Link href="/tableau-bord"><ArrowLeft className="h-4 w-4 mr-2" />Retour</Link></Button>
+              <Button variant="outline" asChild><Link href="/ecole/enseignants/demandes"><ClipboardList className="h-4 w-4 mr-2" />Demandes</Link></Button>
+              <Button variant="outline" asChild><Link href="/tableau-bord"><ArrowLeft className="h-4 w-4 mr-2" />Retour</Link></Button>
+            </div>
             {permissions.canCreate && <Button onClick={handleCreateTeacher}><Plus className="h-4 w-4 mr-2" />Ajouter</Button>}
           </div>
         </header>

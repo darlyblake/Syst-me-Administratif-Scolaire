@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, BookOpen, Edit, Plus, Trash2 } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ArrowLeft, Edit, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -71,16 +70,6 @@ export default function MatieresPage() {
       return matchesScope && matchesSearch
     })
   }, [matieres, searchTerm, selectedScope, levelsById])
-
-  const statistiques = useMemo(() => {
-    const total = matieres.length
-    const coefficients = matieres.map((m) => Number(m.coefficient) || 0)
-    return {
-      total,
-      levels: new Set(matieres.flatMap((m) => m.niveau)).size,
-      average: total ? coefficients.reduce((sum, value) => sum + value, 0) / total : 0,
-    }
-  }, [matieres])
 
   async function resolveEstablishmentId() {
     const { data: { user } } = await supabaseBrowser.auth.getUser()

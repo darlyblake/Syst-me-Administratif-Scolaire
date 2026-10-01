@@ -41,7 +41,8 @@ export default function EnseignantPointagePage() {
   const [teacherId, setTeacherId] = useState<string | null>(null)
   const [academicYearId, setAcademicYearId] = useState<string | null>(null)
   const [schedule, setSchedule] = useState<TeacherLessonSlot[]>([])
-  const [pointages, setPointages] = useState<TeacherLessonPointage[]>([])\n  const [weekly, setWeekly] = useState<any>(null)
+  const [pointages, setPointages] = useState<TeacherLessonPointage[]>([])
+  const [weekly, setWeekly] = useState<any>(null)
   const [date, setDate] = useState(localDate)
   const [loading, setLoading] = useState(true)
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -64,12 +65,18 @@ export default function EnseignantPointagePage() {
       setTeacherId(context.teacher_id)
       setAcademicYearId(year.id)
 
-      const weekStartDate = new Date(`${date}T12:00:00`)\n      const day = weekStartDate.getDay() === 0 ? 7 : weekStartDate.getDay()\n      weekStartDate.setDate(weekStartDate.getDate() - day + 1)\n      const weekStart = weekStartDate.toISOString().slice(0, 10)\n      const [slots, records, weeklySummary] = await Promise.all([
+      const weekStartDate = new Date(`${date}T12:00:00`)
+      const day = weekStartDate.getDay() === 0 ? 7 : weekStartDate.getDay()
+      weekStartDate.setDate(weekStartDate.getDate() - day + 1)
+      const weekStart = weekStartDate.toISOString().slice(0, 10)
+      const [slots, records, weeklySummary] = await Promise.all([
         enseignantPointageService.getTeacherSchedule(establishmentId),
         enseignantPointageService.getPointages(establishmentId, context.teacher_id, date, date),
+        enseignantPointageService.getWeeklySummary(establishmentId, context.teacher_id, weekStart),
       ])
       setSchedule(slots)
-      setPointages(records)\n      setWeekly(weeklySummary)
+      setPointages(records)
+      setWeekly(weeklySummary)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Impossible de charger le pointage.")
     } finally {

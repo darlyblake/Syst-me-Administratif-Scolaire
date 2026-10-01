@@ -7,6 +7,7 @@ import { ProviderAuthentification } from "@/providers/authentification.provider"
 import { Suspense } from "react"
 import { Toaster } from "@/components/ui/toaster"
 import { PWARegister } from "@/components/pwa/PWARegister"
+import { ChunkLoadRecovery } from "@/components/system/ChunkLoadRecovery"
 import "./globals.css"
 import "@/styles/login-book.css"
 
@@ -51,6 +52,7 @@ export default function RootLayout({
         <Suspense fallback={<div>Loading...</div>}>
           <ProviderAuthentification>{children}</ProviderAuthentification>
         </Suspense>
+        <ChunkLoadRecovery />
         <PWARegister />
         <Toaster />
         <Analytics />

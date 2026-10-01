@@ -148,7 +148,7 @@ export function FinancePaie() {
     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div><h1 className="text-xl font-semibold">Paie et salaires</h1><p className="text-sm text-gray-500 mt-1">État de salaire de tout le personnel, avances, paiements et arriérés.</p></div>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Link href="/ecole/finance/avances"><Button variant="outline">Avances sur salaire</Button></Link>
+        <Link href="/ecole/finance/paie/configuration"><Button variant="outline"><Settings2 className="h-4 w-4 mr-2"/>Configurer les salaires</Button></Link>\n        <Link href="/ecole/finance/avances"><Button variant="outline">Avances sur salaire</Button></Link>
         <Button onClick={generate} disabled={generating} className="bg-gray-900 text-white hover:bg-gray-800"><FileText className="h-4 w-4 mr-2"/>{generating?"Génération...":"Générer l'état"}</Button>
       </div>
     </div>

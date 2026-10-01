@@ -235,17 +235,13 @@ export async function recordAbsence(data: Partial<Absence>): Promise<Absence> {
 }
 
 export async function updateAbsence(absenceId: string, data: Partial<Absence>): Promise<Absence> {
-  const { data: result, error } = await supabaseBrowser
-    .from("attendance_records")
-    .update({
-      status: data.status,
-      reason: data.reason,
-    })
-    .eq("id", absenceId)
-    .select("*")
-    .single()
+  const { data: result, error } = await supabaseBrowser.rpc("correct_attendance_record", {
+    p_attendance_id: absenceId,
+    p_status: data.status || "present",
+    p_reason: data.reason || null,
+  })
 
-  if (error) throw new Error("Impossible de modifier l'absence.")
+  if (error) throw new Error(error.message || "Impossible de modifier la présence.")
   return toAbsence(result)
 }
 

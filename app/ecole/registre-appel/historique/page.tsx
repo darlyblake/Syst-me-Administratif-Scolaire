@@ -126,13 +126,19 @@ export default function HistoriqueAppelPage() {
   const saveCorrection = async () => {
     if (!editing) return
 
+    const reason = editReason.trim()
+    if (!reason) {
+      setError("Le motif est obligatoire pour toute correction.")
+      return
+    }
+
     try {
       setSavingId(editing.id)
       setError(null)
       setMessage(null)
       await updateAbsence(editing.id, {
         status: editStatus,
-        reason: editReason,
+        reason,
       })
       setEditing(null)
       setMessage("Présence corrigée.")
@@ -282,13 +288,14 @@ export default function HistoriqueAppelPage() {
                   </Select>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium">Motif</label>
-                  <Input value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="Motif de la correction" />
+                  <label className="mb-1.5 block text-sm font-medium">Motif <span className="text-red-600">*</span></label>
+                  <Input value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="Pourquoi cette présence est corrigée ?" />
+                  <p className="mt-1 text-xs text-slate-500">Cette correction sera enregistrée dans l'historique avec votre identité, l'ancien statut et le nouveau.</p>
                 </div>
               </div>
               <div className="mt-5 flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setEditing(null)} disabled={!!savingId}>Annuler</Button>
-                <Button onClick={saveCorrection} disabled={!!savingId}>
+                <Button onClick={saveCorrection} disabled={!!savingId || !editReason.trim()}>
                   <Check className="mr-2 h-4 w-4" />
                   {savingId ? "Enregistrement…" : "Enregistrer"}
                 </Button>

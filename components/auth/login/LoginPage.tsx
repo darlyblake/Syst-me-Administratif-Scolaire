@@ -43,6 +43,7 @@ export function LoginPage() {
     const params = new URLSearchParams(window.location.search)
     const nextEspace = (params.get("espace") as Espace | null) || "ecole"
     setEspace(nextEspace in espaceLabels ? nextEspace : "ecole")
+    setRegisterAsTeacher(nextEspace === "enseignant")
     setRedirectTo(safeRedirect(params.get("redirectTo")))
     const timer = window.setTimeout(() => setIntroFinished(true), 1250)
     return () => window.clearTimeout(timer)
@@ -200,10 +201,13 @@ export function LoginPage() {
                   <button type="button" className={styles.textButton} onClick={() => router.push(`/auth/mot-de-passe-oublie?espace=${encodeURIComponent(espace)}`)}><KeyRound size={15} /> Mot de passe oublié ?</button>
                 </form>
               </> : <>
-                <span className={styles.eyebrow}>Nouveau compte</span><h2>Inscription</h2><p className={styles.formIntro}>{registerAsTeacher ? "Créez votre compte enseignant. Votre accès à une école sera validé séparément." : "Créez votre accès à l’espace de gestion scolaire."}</p>\n                <div className={styles.twoColumns}><button type="button" className={registerAsTeacher ? styles.primaryButton : styles.secondaryAction} onClick={() => setRegisterAsTeacher(true)}>Je suis enseignant</button><button type="button" className={!registerAsTeacher ? styles.primaryButton : styles.secondaryAction} onClick={() => setRegisterAsTeacher(false)}>Autre utilisateur</button></div>
+                <span className={styles.eyebrow}>Nouveau compte</span><h2>Inscription</h2><p className={styles.formIntro}>{registerAsTeacher ? "Créez votre compte enseignant. Votre accès à une école sera validé séparément." : "Créez votre accès à l’espace de gestion scolaire."}</p>
+                <div className={styles.twoColumns}><button type="button" className={registerAsTeacher ? styles.primaryButton : styles.secondaryAction} onClick={() => setRegisterAsTeacher(true)}>Je suis enseignant</button><button type="button" className={!registerAsTeacher ? styles.primaryButton : styles.secondaryAction} onClick={() => setRegisterAsTeacher(false)}>Autre utilisateur</button></div>
                 <form onSubmit={handleRegisterSubmit} className={styles.form} noValidate>
                   <div className={styles.twoColumns}><label>Prénom<input value={registerData.firstName} onChange={e => setRegisterData(v => ({ ...v, firstName: e.target.value }))} autoComplete="given-name" /></label><label>Nom<input value={registerData.lastName} onChange={e => setRegisterData(v => ({ ...v, lastName: e.target.value }))} autoComplete="family-name" /></label></div>
-                  <label>Téléphone<input value={registerData.phone} onChange={e => setRegisterData(v => ({ ...v, phone: e.target.value }))} autoComplete="tel" /></label>\n                  {registerAsTeacher && <label>Matière principale<input value={registerData.specialty} onChange={e => setRegisterData(v => ({ ...v, specialty: e.target.value }))} placeholder="Mathématiques" /></label>}\n                  <label>Adresse email<input type="email" value={registerData.email} onChange={e => setRegisterData(v => ({ ...v, email: e.target.value }))} autoComplete="email" /></label>
+                  <label>Téléphone<input value={registerData.phone} onChange={e => setRegisterData(v => ({ ...v, phone: e.target.value }))} autoComplete="tel" /></label>
+                  {registerAsTeacher && <label>Matière principale<input value={registerData.specialty} onChange={e => setRegisterData(v => ({ ...v, specialty: e.target.value }))} placeholder="Mathématiques" /></label>}
+                  <label>Adresse email<input type="email" value={registerData.email} onChange={e => setRegisterData(v => ({ ...v, email: e.target.value }))} autoComplete="email" /></label>
                   <label>Mot de passe<span className={styles.password}><input type={showRegisterPassword ? "text" : "password"} value={registerData.password} onChange={e => setRegisterData(v => ({ ...v, password: e.target.value }))} autoComplete="new-password" /><button type="button" onClick={() => setShowRegisterPassword(v => !v)} aria-label="Afficher ou masquer le mot de passe">{showRegisterPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
                   {registerError && <p className={styles.error} role="alert">{registerError}</p>}
                   {registerMessage && <p className={styles.notice} role="status">{registerMessage}</p>}

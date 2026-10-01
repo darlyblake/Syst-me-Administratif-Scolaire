@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Search,
   Users,
+  FileText,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,7 +29,7 @@ import {
 } from "@/services/enseignant-portal.service"
 
 const jours = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
-type Onglet = "aperçu" | "classes" | "élèves" | "emploi-du-temps"
+type Onglet = "aperçu" | "classes" | "élèves" | "emploi-du-temps" | "documents"
 
 export default function EspaceEtablissementEnseignantPage() {
   const params = useParams<{ id: string }>()
@@ -112,6 +113,7 @@ export default function EspaceEtablissementEnseignantPage() {
             ["classes", "Mes classes", BookOpen],
             ["élèves", "Mes élèves", Users],
             ["emploi-du-temps", "Emploi du temps", CalendarDays],
+            ["documents", "Mes documents", FileText],
           ] as const).map(([value, label, Icon]) => (
             <button key={value} type="button" onClick={() => setOnglet(value)} className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors ${onglet === value ? "border-terre text-terre" : "border-transparent text-muted-foreground hover:text-foreground"}`}><Icon className="h-4 w-4" />{label}</button>
           ))}
@@ -124,6 +126,8 @@ export default function EspaceEtablissementEnseignantPage() {
         {onglet === "classes" && <section className="py-7"><div className="mb-5"><h2 className="text-xl font-semibold">Mes classes</h2><p className="mt-1 text-sm text-muted-foreground">Vos affectations pédagogiques dans cet établissement.</p></div><Card><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="border-b bg-muted/30 text-left text-muted-foreground"><tr><th className="px-5 py-3 font-medium">Classe</th><th className="px-5 py-3 font-medium">Matière</th><th className="px-5 py-3 font-medium">Volume</th></tr></thead><tbody className="divide-y">{classes.map((item) => <tr key={`${item.class_id}-${item.subject_id}`}><td className="px-5 py-3 font-medium">{item.class_name}</td><td className="px-5 py-3">{item.subject_name}</td><td className="px-5 py-3 text-muted-foreground">{item.weekly_hours != null ? `${item.weekly_hours} h/sem.` : "—"}</td></tr>)}</tbody></table></div>{classes.length === 0 && <Empty text="Aucune classe ne vous est encore affectée." />}</CardContent></Card></section>}
 
         {onglet === "élèves" && <section className="py-7"><div className="mb-5 flex flex-wrap items-end justify-between gap-4"><div><h2 className="text-xl font-semibold">Mes élèves</h2><p className="mt-1 text-sm text-muted-foreground">Uniquement les élèves des classes qui vous sont affectées.</p></div><div className="relative w-full sm:w-80"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher un élève…" /></div></div><Card><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="border-b bg-muted/30 text-left text-muted-foreground"><tr><th className="px-5 py-3 font-medium">Élève</th><th className="px-5 py-3 font-medium">Matricule</th><th className="px-5 py-3 font-medium">Classe</th></tr></thead><tbody className="divide-y">{filteredStudents.map((student) => <tr key={student.student_id}><td className="px-5 py-3 font-medium">{student.last_name} {student.first_name}</td><td className="px-5 py-3 text-muted-foreground">{student.student_number ?? "—"}</td><td className="px-5 py-3">{student.class_name}</td></tr>)}</tbody></table></div>{filteredStudents.length === 0 && <Empty text={search ? "Aucun élève ne correspond à votre recherche." : "Aucun élève dans vos classes."} />}</CardContent></Card></section>}
+
+        {onglet === "documents" && <section className="py-7"><div className="mb-5 flex items-end justify-between gap-4"><div><h2 className="text-xl font-semibold">Mes documents</h2><p className="mt-1 text-sm text-muted-foreground">Envoyez vos pièces et répondez aux demandes de l’établissement.</p></div><Button variant="outline" size="sm" onClick={() => router.push(`/enseignant/etablissement/${establishmentId}/documents`)}><FileText className="mr-2 h-4 w-4" />Ouvrir le dossier</Button></div></section>}
 
         {onglet === "emploi-du-temps" && <section className="py-7"><div className="mb-5"><h2 className="text-xl font-semibold">Emploi du temps</h2><p className="mt-1 text-sm text-muted-foreground">Vos horaires dans cet établissement.</p></div><Card><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-sm"><thead className="border-b bg-muted/30 text-left text-muted-foreground"><tr><th className="px-5 py-3 font-medium">Jour</th><th className="px-5 py-3 font-medium">Horaire</th><th className="px-5 py-3 font-medium">Classe</th><th className="px-5 py-3 font-medium">Matière</th><th className="px-5 py-3 font-medium">Salle</th></tr></thead><tbody className="divide-y">{schedule.map((slot) => <tr key={slot.slot_id}><td className="px-5 py-3 font-medium">{jours[slot.day_of_week - 1] ?? "—"}</td><td className="px-5 py-3">{slot.starts_at.slice(0, 5)} – {slot.ends_at.slice(0, 5)}</td><td className="px-5 py-3">{slot.class_name}</td><td className="px-5 py-3">{slot.subject_name}</td><td className="px-5 py-3 text-muted-foreground">{slot.room ?? "—"}</td></tr>)}</tbody></table></div>{schedule.length === 0 && <Empty text="Aucun horaire disponible." />}</CardContent></Card></section>}
       </div>

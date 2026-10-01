@@ -65,7 +65,7 @@ export default function EnseignantPointagePage() {
       setAcademicYearId(year.id)
 
       const weekStartDate = new Date(`${date}T12:00:00`)\n      const day = weekStartDate.getDay() === 0 ? 7 : weekStartDate.getDay()\n      weekStartDate.setDate(weekStartDate.getDate() - day + 1)\n      const weekStart = weekStartDate.toISOString().slice(0, 10)\n      const [slots, records, weeklySummary] = await Promise.all([
-        enseignantPointageService.getSchedule(establishmentId, year.id, context.teacher_id),
+        enseignantPointageService.getTeacherSchedule(establishmentId),
         enseignantPointageService.getPointages(establishmentId, context.teacher_id, date, date),
       ])
       setSchedule(slots)

@@ -31,7 +31,7 @@ const db = supabaseBrowser as any
 const POINTAGE_SELECT = "id,timetable_slot_id,attendance_date,started_time,ended_time,scheduled_hours,counted_hours,status,exception_reason"
 
 export const enseignantPointageService = {\n  async getContext(establishmentId: string) {\n    const { data, error } = await db.rpc("teacher_context", { p_establishment_id: establishmentId })\n    if (error) throw new Error(error.message)\n    return data ?? []\n  },
-  async getSchedule(establishmentId: string, academicYearId: string) {
+  async getSchedule(establishmentId: string, academicYearId: string, teacherId?: string) {
     const { data, error } = await db
       .from("timetable_slots")
       .select(`

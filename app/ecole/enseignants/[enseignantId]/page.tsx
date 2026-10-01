@@ -139,7 +139,7 @@ export default function EnseignantProfilePage({ params }: EnseignantProfilePageP
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                onClick={() => router.push(`/enseignants/${enseignant.id}/modifier`)}
+                onClick={() => router.push(`/ecole/enseignants/${enseignant.id}/modifier`)}
               >
                 <Edit className="h-4 w-4 mr-2" />
                 Modifier
@@ -272,7 +272,7 @@ export default function EnseignantProfilePage({ params }: EnseignantProfilePageP
               <CardContent>
                 <Button
                   variant="outline"
-                  onClick={() => router.push(`/enseignants/${enseignant.id}/emploi-du-temps`)}
+                  onClick={() => router.push(`/ecole/enseignants/${enseignant.id}/emploi-du-temps`)}
                 >
                   Voir l'emploi du temps détaillé
                 </Button>
@@ -343,7 +343,7 @@ export default function EnseignantProfilePage({ params }: EnseignantProfilePageP
               <CardContent>
                 <Button
                   variant="outline"
-                  onClick={() => router.push(`/enseignants/${enseignant.id}/contacter`)}
+                  onClick={() => router.push(`/ecole/enseignants/${enseignant.id}/contacter`)}
                 >
                   Contacter cet enseignant
                 </Button>
@@ -362,7 +362,7 @@ export default function EnseignantProfilePage({ params }: EnseignantProfilePageP
               <CardContent>
                 <Button
                   variant="outline"
-                  onClick={() => router.push(`/enseignants/${enseignant.id}/historique`)}
+                  onClick={() => router.push(`/ecole/enseignants/${enseignant.id}/historique`)}
                 >
                   Voir l'historique complet
                 </Button>

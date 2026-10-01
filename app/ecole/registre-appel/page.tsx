@@ -153,6 +153,7 @@ export default function RegistreAppelPage() {
 
   useEffect(() => {
     let cancelled = false
+    let clock: number | undefined
 
     const loadLessons = async () => {
       if (!selectedClass) {
@@ -213,7 +214,7 @@ export default function RegistreAppelPage() {
 
         // L'heure du navigateur peut changer pendant que la page reste ouverte.
         // On recalcule donc le cours en cours toutes les 30 secondes.
-        const clock = window.setInterval(selectCurrentLesson, 30_000)
+        clock = window.setInterval(selectCurrentLesson, 30_000)
       } catch (err) {
         if (!cancelled) {
           setLessons([])
@@ -226,7 +227,7 @@ export default function RegistreAppelPage() {
     void loadLessons()
     return () => {
       cancelled = true
-      window.clearInterval(clock)
+      if (clock) window.clearInterval(clock)
     }
   }, [academicYear?.id, canManageAll, date, isTeacher, selectedClass, teacherAssignments])
 

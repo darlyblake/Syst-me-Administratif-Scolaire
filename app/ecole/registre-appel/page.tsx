@@ -191,21 +191,29 @@ export default function RegistreAppelPage() {
         if (cancelled) return
         setLessons(allowedLessons)
 
-        const now = new Date()
-        const today = getLocalDateString(now)
-        const currentMinutes = now.getHours() * 60 + now.getMinutes()
-        const currentLesson =
-          today === date
-            ? allowedLessons.find(
-                (lesson) =>
-                  currentMinutes >= toMinutes(lesson.heureDebut) &&
-                  currentMinutes < toMinutes(lesson.heureFin)
-              )
-            : null
+        const selectCurrentLesson = () => {
+          const now = new Date()
+          const today = getLocalDateString(now)
+          const currentMinutes = now.getHours() * 60 + now.getMinutes()
+          const currentLesson =
+            today === date
+              ? allowedLessons.find(
+                  (lesson) =>
+                    currentMinutes >= toMinutes(lesson.heureDebut) &&
+                    currentMinutes < toMinutes(lesson.heureFin)
+                )
+              : null
 
-        // Aucun cours n'est sélectionné automatiquement si aucun créneau
-        // n'est en cours. Les autres cours restent sélectionnables manuellement.
-        setSelectedLessonKey(currentLesson?.id ?? "")
+          // Aucun cours n'est sélectionné automatiquement si aucun créneau
+          // n'est en cours. Les autres cours restent sélectionnables manuellement.
+          setSelectedLessonKey(currentLesson?.id ?? "")
+        }
+
+        selectCurrentLesson()
+
+        // L'heure du navigateur peut changer pendant que la page reste ouverte.
+        // On recalcule donc le cours en cours toutes les 30 secondes.
+        const clock = window.setInterval(selectCurrentLesson, 30_000)
       } catch (err) {
         if (!cancelled) {
           setLessons([])
@@ -218,6 +226,7 @@ export default function RegistreAppelPage() {
     void loadLessons()
     return () => {
       cancelled = true
+      window.clearInterval(clock)
     }
   }, [academicYear?.id, canManageAll, date, isTeacher, selectedClass, teacherAssignments])
 

@@ -399,6 +399,7 @@ export default function RegistreAppelPage() {
           <Button variant="outline" size="sm" asChild>
             <Link href="/ecole/registre-appel/historique">Historique des présences</Link>
           </Button>
+          </div>
         </div>
 
         <section className="mb-5 border-b pb-5">

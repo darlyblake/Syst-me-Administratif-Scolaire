@@ -76,6 +76,23 @@ export const enseignantPointageService = {\n  async getContext(establishmentId: 
     return data
   },
 
+  async getWeeklySummary(establishmentId: string, teacherId: string, weekStart: string) {
+    const { data, error } = await db.rpc("get_teacher_weekly_pointage", {
+      p_establishment_id: establishmentId,
+      p_teacher_id: teacherId,
+      p_week_start: weekStart,
+    })
+    if (error) throw new Error(error.message)
+    return data?.[0] ?? {
+      planned_hours: 0,
+      counted_hours: 0,
+      pointed_courses: 0,
+      scheduled_courses: 0,
+      missing_courses: 0,
+      difference_hours: 0,
+    }
+  },
+
   async getPointages(establishmentId: string, teacherId: string, from: string, to: string) {
     const { data, error } = await db
       .from("teacher_lesson_attendance")

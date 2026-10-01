@@ -33,6 +33,8 @@ type Doc = {
   name: string
   storage_path: string
   mime_type: string | null
+  status: string
+  rejection_reason: string | null
   created_at: string
 }
 

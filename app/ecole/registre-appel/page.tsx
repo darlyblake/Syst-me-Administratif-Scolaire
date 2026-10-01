@@ -48,6 +48,13 @@ const statusClasses: Record<AttendanceStatus, string> = {
   justified: "bg-blue-50 text-blue-700 border-blue-200",
 }
 
+const getLocalDateString = (date = new Date()) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return year + "-" + month + "-" + day
+}
+
 const getDayName = (date: string): CreneauEmploiDuTemps["jour"] | null => {
   const day = new Date(date + "T12:00:00").getDay()
   const names: Array<CreneauEmploiDuTemps["jour"] | null> = [
@@ -79,7 +86,7 @@ export default function RegistreAppelPage() {
   const isTeacher = utilisateur?.role === "enseignant"
 
   const [selectedClassId, setSelectedClassId] = useState("")
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(() => getLocalDateString())
   const [lessons, setLessons] = useState<CreneauEmploiDuTemps[]>([])
   const [selectedLessonKey, setSelectedLessonKey] = useState("")
   const [teacherAssignments, setTeacherAssignments] = useState<TeacherClassSubject[]>([])
@@ -185,7 +192,7 @@ export default function RegistreAppelPage() {
         setLessons(allowedLessons)
 
         const now = new Date()
-        const today = now.toISOString().slice(0, 10)
+        const today = getLocalDateString(now)
         const currentMinutes = now.getHours() * 60 + now.getMinutes()
         const currentLesson =
           today === date
@@ -196,7 +203,9 @@ export default function RegistreAppelPage() {
               )
             : null
 
-        setSelectedLessonKey(currentLesson?.id ?? allowedLessons[0]?.id ?? "")
+        // Aucun cours n'est sélectionné automatiquement si aucun créneau
+        // n'est en cours. Les autres cours restent sélectionnables manuellement.
+        setSelectedLessonKey(currentLesson?.id ?? "")
       } catch (err) {
         if (!cancelled) {
           setLessons([])

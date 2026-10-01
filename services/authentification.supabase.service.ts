@@ -2,7 +2,22 @@ import type { Utilisateur, Role } from "@/types/models"
 import { supabaseBrowser } from "@/lib/supabase/client"
 
 export type AccountType = "platform_admin" | "parent" | "teacher" | "school_member"
-export interface AuthContext { authenticated: boolean; user_id?: string; account_type?: AccountType; first_name?: string | null; last_name?: string | null; email?: string | null; establishments?: Array<{ id: string; name: string; role?: string }> }
+export interface AuthEstablishment {
+  id: string
+  name: string
+  role?: string
+  role_id?: string | null
+  permissions?: string[]
+}
+export interface AuthContext {
+  authenticated: boolean
+  user_id?: string
+  account_type?: AccountType
+  first_name?: string | null
+  last_name?: string | null
+  email?: string | null
+  establishments?: AuthEstablishment[]
+}
 
 const roleFromAccount = (type: AccountType): Role => ({ platform_admin: "admin", parent: "parent", teacher: "enseignant", school_member: "ecole" }[type])
 

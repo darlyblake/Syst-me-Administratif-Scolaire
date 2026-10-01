@@ -1,0 +1,27 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { Check, X, Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { useUserContext } from "@/hooks/useUserContext"
+import { supabaseBrowser } from "@/lib/supabase/client"
+import { toast } from "sonner"
+
+type Staff={id:string;first_name:string;last_name:string}
+type Leave={id:string;staff_id:string;starts_on:string;ends_on:string;leave_type:string;reason:string|null;status:string}
+
+export default function PersonnelCongesPage(){
+ const {primaryEstablishment}=useUserContext(); const establishmentId=primaryEstablishment?.id??null
+ const [staff,setStaff]=useState<Staff[]>([]); const [rows,setRows]=useState<Leave[]>([]); const [loading,setLoading]=useState(true)
+ const [staffId,setStaffId]=useState(""); const [starts,setStarts]=useState(""); const [ends,setEnds]=useState(""); const [type,setType]=useState("congé"); const [reason,setReason]=useState(""); const [saving,setSaving]=useState(false)
+ const load=async()=>{if(!establishmentId)return;setLoading(true);const [s,l]=await Promise.all([supabaseBrowser.from("staff_members").select("id,first_name,last_name").eq("establishment_id",establishmentId).eq("active",true).order("last_name"),supabaseBrowser.from("leave_requests").select("id,staff_id,starts_on,ends_on,leave_type,reason,status").eq("establishment_id",establishmentId).order("starts_on",{ascending:false})]);if(s.error||l.error)toast.error((s.error||l.error)?.message||"Erreur");setStaff(s.data??[]);setRows(l.data??[]);setLoading(false)}
+ useEffect(()=>{void load()},[establishmentId])
+ const create=async()=>{if(!establishmentId||!staffId||!starts||!ends){toast.error("Sélectionnez le personnel et les dates.");return}if(ends<starts){toast.error("La date de fin doit être après la date de début.");return}setSaving(true);const {error}=await supabaseBrowser.from("leave_requests").insert({establishment_id:establishmentId,staff_type:"staff",staff_id:staffId,starts_on:starts,ends_on:ends,leave_type:type,reason:reason||null,status:"pending"});setSaving(false);if(error){toast.error(error.message);return}toast.success("Demande de congé créée.");setStaffId("");setStarts("");setEnds("");setReason("");await load()}
+ const decide=async(id:string,status:"approved"|"rejected")=>{const {error}=await supabaseBrowser.from("leave_requests").update({status}).eq("id",id).eq("establishment_id",establishmentId);if(error)toast.error(error.message);else{toast.success(status==="approved"?"Congé validé.":"Demande refusée.");await load()}}
+ return <div className="min-h-screen p-4"><div className="max-w-7xl mx-auto"><div className="flex justify-between items-start gap-3 mb-6"><div><Link href="/ecole/personnel" className="text-sm text-gray-500">← Personnel</Link><h1 className="text-2xl font-bold mt-1">Congés & absences</h1><p className="text-sm text-gray-500 mt-1">Demandes, validation et historique des congés.</p></div></div>
+ <section className="bg-white border rounded-lg p-4 mb-5"><div className="flex items-center gap-2 mb-4"><Plus className="h-4 w-4"/><h2 className="font-semibold">Nouvelle demande</h2></div><div className="grid md:grid-cols-5 gap-3"><select className="border rounded-md px-3 py-2 bg-white" value={staffId} onChange={e=>setStaffId(e.target.value)}><option value="">Personnel…</option>{staff.map(s=><option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>)}</select><Input type="date" value={starts} onChange={e=>setStarts(e.target.value)}/><Input type="date" value={ends} onChange={e=>setEnds(e.target.value)}/><Input value={type} onChange={e=>setType(e.target.value)} placeholder="Type de congé"/><Button onClick={create} disabled={saving}>{saving?"Enregistrement…":"Créer la demande"}</Button></div><Input className="mt-3" value={reason} onChange={e=>setReason(e.target.value)} placeholder="Motif (facultatif)"/></section>
+ <div className="bg-white border rounded-lg overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-sm"><thead className="bg-gray-50 border-b"><tr><th className="text-left px-4 py-3">Personnel</th><th className="text-left px-4 py-3">Période</th><th className="text-left px-4 py-3">Type</th><th className="text-left px-4 py-3">Motif</th><th className="text-left px-4 py-3">Statut</th><th className="text-right px-4 py-3">Action</th></tr></thead><tbody className="divide-y">{loading?<tr><td colSpan={6} className="p-8 text-center text-gray-500">Chargement…</td></tr>:rows.map(r=>{const p=staff.find(s=>s.id===r.staff_id);return <tr key={r.id}><td className="px-4 py-3 font-medium">{p?(`${p.first_name} ${p.last_name}`):"Personnel"}</td><td className="px-4 py-3">{new Date(r.starts_on).toLocaleDateString("fr-FR")} → {new Date(r.ends_on).toLocaleDateString("fr-FR")}</td><td className="px-4 py-3">{r.leave_type}</td><td className="px-4 py-3 text-gray-600">{r.reason||"—"}</td><td className="px-4 py-3">{r.status}</td><td className="px-4 py-3 text-right">{r.status==="pending"&&<span className="inline-flex gap-1"><Button variant="outline" size="sm" onClick={()=>decide(r.id,"approved")}><Check className="h-4 w-4 mr-1"/>Valider</Button><Button variant="outline" size="sm" onClick={()=>decide(r.id,"rejected")}><X className="h-4 w-4 mr-1"/>Refuser</Button></span>}</td></tr>})}</tbody></table></div></div>
+ </div></div>
+}

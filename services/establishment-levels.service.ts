@@ -7,10 +7,29 @@ export interface GradeLevel { id: string; cycle_id: string; name: string; code: 
 
 const SUPPORTED_SCOPES: EstablishmentLevelScope[] = ["pre_primary", "primary", "secondary", "high_school", "university", "center"]
 
+/**
+ * Source de vérité de la structure scolaire :
+ * Paramètres > Structure académique enregistre les cycles dans education_cycles
+ * et leurs niveaux dans grade_levels.
+ *
+ * establishment_enabled_levels est conservée pour compatibilité avec les
+ * anciennes configurations, mais ne doit pas masquer une structure active.
+ */
 export async function getEnabledEstablishmentScopes(establishmentId: string): Promise<EstablishmentLevelScope[]> {
-  const { data, error } = await supabaseBrowser.from("establishment_enabled_levels").select("level_scope, enabled").eq("establishment_id", establishmentId).eq("enabled", true)
-  if (error) throw new Error(`Impossible de charger les niveaux activés: ${error.message}`)
-  return (data ?? []).map(row => row.level_scope as EstablishmentLevelScope).filter(scope => SUPPORTED_SCOPES.includes(scope))
+  const { data, error } = await supabaseBrowser
+    .from("education_cycles")
+    .select("name, code, active")
+    .eq("establishment_id", establishmentId)
+    .eq("active", true)
+    .order("display_order")
+
+  if (error) throw new Error(`Impossible de charger les cycles activés: ${error.message}`)
+
+  return [...new Set(
+    (data ?? [])
+      .map((cycle) => inferScope(cycle.code, cycle.name))
+      .filter((scope) => SUPPORTED_SCOPES.includes(scope))
+  )]
 }
 
 export async function saveEnabledEstablishmentScopes(establishmentId: string, scopes: EstablishmentLevelScope[]): Promise<void> {
@@ -23,19 +42,45 @@ export async function saveEnabledEstablishmentScopes(establishmentId: string, sc
 }
 
 export async function getEnabledGradeLevels(establishmentId: string): Promise<GradeLevel[]> {
-  const scopes = await getEnabledEstablishmentScopes(establishmentId)
-  if (scopes.length === 0) return []
-  const { data, error } = await supabaseBrowser.from("grade_levels").select("id,cycle_id,name,code,display_order,active").eq("active", true).order("display_order")
-  if (error) throw new Error(`Impossible de charger les niveaux: ${error.message}`)
-  return (data ?? []).filter(level => scopes.includes(inferScope(level.code, level.name))).map(level => ({ ...level, scope: inferScope(level.code, level.name) }))
+  const { data: cycles, error: cyclesError } = await supabaseBrowser
+    .from("education_cycles")
+    .select("id, name, code, active, display_order")
+    .eq("establishment_id", establishmentId)
+    .eq("active", true)
+    .order("display_order")
+
+  if (cyclesError) throw new Error(`Impossible de charger les cycles activés: ${cyclesError.message}`)
+  if (!cycles?.length) return []
+
+  const cycleIds = cycles.map((cycle) => cycle.id)
+  const { data: levels, error: levelsError } = await supabaseBrowser
+    .from("grade_levels")
+    .select("id,cycle_id,name,code,display_order,active")
+    .in("cycle_id", cycleIds)
+    .eq("active", true)
+    .order("display_order")
+
+  if (levelsError) throw new Error(`Impossible de charger les niveaux: ${levelsError.message}`)
+
+  const scopeByCycleId = new Map(
+    cycles.map((cycle) => [cycle.id, inferScope(cycle.code, cycle.name)])
+  )
+
+  return (levels ?? [])
+    .map((level) => {
+      const scope = scopeByCycleId.get(level.cycle_id)
+      return scope ? { ...level, scope } : null
+    })
+    .filter((level): level is GradeLevel => level !== null)
 }
 
-function inferScope(code: string, name: string): EstablishmentLevelScope {
-  const value = `${code} ${name}`.toLowerCase()
+function inferScope(code: string | null, name: string): EstablishmentLevelScope {
+  const value = `${code ?? ""} ${name}`.toLowerCase()
+
   if (value.includes("matern")) return "pre_primary"
-  if (value.includes("cp") || value.includes("ce") || value.includes("primaire")) return "primary"
-  if (value.includes("6") || value.includes("5") || value.includes("4") || value.includes("3") || value.includes("secondaire")) return "secondary"
-  if (value.includes("2") || value.includes("1") || value.includes("tle") || value.includes("lycée")) return "high_school"
+  if (value.includes("primaire")) return "primary"
+  if (value.includes("collège") || value.includes("college") || value.includes("secondaire")) return "secondary"
+  if (value.includes("lycée") || value.includes("lycee")) return "high_school"
   if (value.includes("univers")) return "university"
   return "center"
 }

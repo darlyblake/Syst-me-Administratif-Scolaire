@@ -107,19 +107,6 @@ export default function EnseignantPointagePage() {
     [pointages],
   )
 
-  const weeklyStart = useMemo(() => {
-    const d = new Date(`${date}T12:00:00`)
-    const day = d.getDay() === 0 ? 7 : d.getDay()
-    d.setDate(d.getDate() - day + 1)
-    return d.toISOString().slice(0, 10)
-  }, [date])
-
-  const weeklyEnd = useMemo(() => {
-    const d = new Date(`${weeklyStart}T12:00:00`)
-    d.setDate(d.getDate() + 6)
-    return d.toISOString().slice(0, 10)
-  }, [weeklyStart])
-
   const plannedToday = todaysSlots.reduce((sum, slot) => sum + scheduledHours(slot), 0)
   const countedToday = pointages.reduce((sum, item) => sum + Number(item.counted_hours || 0), 0)
 

@@ -125,8 +125,18 @@ export default function RegistreAppelPage() {
   const selectedClass = visibleClasses.find((item) => item.id === selectedClassId)
   const selectedLesson = lessons.find((lesson) => lesson.id === selectedLessonKey)
   const selectedSubject = selectedLesson
-    ? subjects.find((subject) => subject.name.trim().toLowerCase() === selectedLesson.matiere.trim().toLowerCase())
+    ? subjects.find((subject) => subject.id === selectedLesson.matiereId)
     : null
+
+  const selectedLessonIsCurrent = useMemo(() => {
+    if (!selectedLesson || date !== getLocalDateString()) return false
+    const now = new Date()
+    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+    return (
+      currentMinutes >= toMinutes(selectedLesson.heureDebut) &&
+      currentMinutes < toMinutes(selectedLesson.heureFin)
+    )
+  }, [date, selectedLesson])
 
   const loadBaseAccess = useCallback(async () => {
     if (!establishmentId) return
@@ -302,6 +312,11 @@ export default function RegistreAppelPage() {
   const saveCall = async () => {
     if (!establishmentId || !selectedClassId || !selectedLesson || !selectedSubject || !students.length) return
 
+    if (!selectedLessonIsCurrent) {
+      setError("L'appel est disponible uniquement pendant le créneau de cours en cours.")
+      return
+    }
+
     const teacherAllowed = canManageAll || teacherAssignments.some(
       (assignment) =>
         assignment.class_id === selectedClassId &&
@@ -464,6 +479,11 @@ export default function RegistreAppelPage() {
                   {selectedLesson?.heureDebut}–{selectedLesson?.heureFin}{selectedLesson?.salle ? ` · ${selectedLesson.salle}` : ""}
                   {" · "}{counts.total} élève(s)
                 </p>
+                {!selectedLessonIsCurrent && (
+                  <p className="mt-1 text-xs text-amber-700">
+                    L'appel sera disponible lorsque ce cours sera en cours.
+                  </p>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span className="border px-2.5 py-1 text-green-700">Présents {counts.present}</span>
@@ -471,7 +491,7 @@ export default function RegistreAppelPage() {
                 <span className="border px-2.5 py-1 text-amber-700">Retards {counts.late}</span>
                 <span className="border px-2.5 py-1 text-blue-700">Justifiés {counts.justified}</span>
                 <Button variant="outline" size="sm" onClick={markAllPresent} disabled={!students.length || isSaving}>Tous présents</Button>
-                <Button size="sm" onClick={saveCall} disabled={!students.length || isSaving || !selectedSubject}>
+                <Button size="sm" onClick={saveCall} disabled={!students.length || isSaving || !selectedSubject || !selectedLessonIsCurrent}>
                   <Save className="mr-2 h-4 w-4" />
                   {isSaving ? "Enregistrement…" : "Enregistrer l'appel"}
                 </Button>

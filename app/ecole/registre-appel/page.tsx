@@ -48,9 +48,18 @@ const statusClasses: Record<AttendanceStatus, string> = {
   justified: "bg-blue-50 text-blue-700 border-blue-200",
 }
 
-const getDayName = (date: string): CreneauEmploiDuTemps["jour"] => {
+const getDayName = (date: string): CreneauEmploiDuTemps["jour"] | null => {
   const day = new Date(date + "T12:00:00").getDay()
-  return ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"][day] as CreneauEmploiDuTemps["jour"]
+  const names: Array<CreneauEmploiDuTemps["jour"] | null> = [
+    null,
+    "lundi",
+    "mardi",
+    "mercredi",
+    "jeudi",
+    "vendredi",
+    "samedi",
+  ]
+  return names[day] ?? null
 }
 
 const toMinutes = (value: string) => {
@@ -148,6 +157,12 @@ export default function RegistreAppelPage() {
       try {
         setError(null)
         const day = getDayName(date)
+        if (!day) {
+          setLessons([])
+          setSelectedLessonKey("")
+          return
+        }
+
         const allLessons = await serviceEmploiDuTempsClasses.obtenirTousLesCreneaux(academicYear?.id)
         if (cancelled) return
 
@@ -156,24 +171,30 @@ export default function RegistreAppelPage() {
           .sort((a, b) => toMinutes(a.heureDebut) - toMinutes(b.heureDebut))
 
         const allowedLessons =
-      isTeacher && !canManageAll
-        ? classLessons.filter((lesson) =>
-            teacherAssignments.some(
-              (assignment) =>
-                assignment.class_id === selectedClass.id &&
-                assignment.subject_name.trim().toLowerCase() === lesson.matiere.trim().toLowerCase()
-            )
-          )
-        : classLessons
+          isTeacher && !canManageAll
+            ? classLessons.filter((lesson) =>
+                teacherAssignments.some(
+                  (assignment) =>
+                    assignment.class_id === selectedClass.id &&
+                    assignment.subject_id === lesson.matiereId
+                )
+              )
+            : classLessons
 
+        if (cancelled) return
         setLessons(allowedLessons)
 
         const now = new Date()
-    const today = now.toISOString().slice(0, 10)
-    const currentMinutes = now.getHours() * 60 + now.getMinutes()
-    const currentLesson = today === date
-      ? allowedLessons.find((lesson) => currentMinutes >= toMinutes(lesson.heureDebut) && currentMinutes < toMinutes(lesson.heureFin))
-      : null
+        const today = now.toISOString().slice(0, 10)
+        const currentMinutes = now.getHours() * 60 + now.getMinutes()
+        const currentLesson =
+          today === date
+            ? allowedLessons.find(
+                (lesson) =>
+                  currentMinutes >= toMinutes(lesson.heureDebut) &&
+                  currentMinutes < toMinutes(lesson.heureFin)
+              )
+            : null
 
         setSelectedLessonKey(currentLesson?.id ?? allowedLessons[0]?.id ?? "")
       } catch (err) {
@@ -315,7 +336,7 @@ export default function RegistreAppelPage() {
   }, [attendance, students])
 
   return (
-    <main className="min-h-screen bg-white text-slate-900">
+    <main translate="no" className="min-h-screen bg-white text-slate-900">
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
         <div className="mb-6 flex items-center gap-3 border-b pb-5">
           <Button variant="ghost" size="sm" asChild>

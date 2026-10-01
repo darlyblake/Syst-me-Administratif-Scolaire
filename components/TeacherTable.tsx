@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -63,26 +62,10 @@ export function TeacherTable({ teachers, loading, currentPage, totalPages, onPag
     suspendu: "bg-orange-100 text-orange-800",
   }
 
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader><CardTitle>Enseignants</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          {[1, 2, 3, 4, 5].map((item) => <div key={item} className="h-12 rounded-md bg-muted animate-pulse" />)}
-        </CardContent>
-      </Card>
-    )
-  }
+  if (loading) return <div className="border-y py-10 text-center text-sm text-muted-foreground">Chargement des enseignants…</div>
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Users className="h-5 w-5" aria-hidden="true" />
-          Enseignants <span className="text-muted-foreground font-normal">({teachers.length})</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <section aria-label="Liste des enseignants">
         {sortedTeachers.length === 0 ? (
           <div className="rounded-lg border border-dashed py-12 text-center">
             <Users className="h-10 w-10 mx-auto mb-3 text-muted-foreground" aria-hidden="true" />
@@ -161,7 +144,6 @@ export function TeacherTable({ teachers, loading, currentPage, totalPages, onPag
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+    </section>
   )
 }

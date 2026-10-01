@@ -20,12 +20,12 @@ function generateEmployeeNumber(firstName: string, lastName: string) {
 
 export async function obtenirEnseignantsSupabase(etablissementId: string): Promise<DonneesEnseignant[]> {
   if (!etablissementId) return []
-  const { data, error } = await supabaseBrowser.from("teachers").select(TEACHER_SELECT).eq("establishment_id", etablissementId).order("last_name").order("first_name")
+  const { data, error } = await supabaseBrowser.from("teacher_establishments").select("teacher_id").eq("establishment_id", etablissementId).eq("status", "active")
   if (error) throw new Error(`Impossible de charger les enseignants: ${error.message}`)
   const rows = (data ?? []) as TeacherRow[]
   if (!rows.length) return []
   const ids = rows.map(row => row.id)
-  const { data: assignmentData, error: assignmentError } = await supabaseBrowser.from("class_subjects").select("class_id,subject_id,teacher_id,school_classes(name),subjects(name)").in("teacher_id", ids)
+  const { data: assignmentData, error: assignmentError } = await supabaseBrowser.from("class_subjects").select("class_id,subject_id,teacher_id,school_classes!inner(name,establishment_id),subjects(name)").in("teacher_id", ids).eq("school_classes.establishment_id", etablissementId)
   if (assignmentError) throw new Error(`Impossible de charger les affectations: ${assignmentError.message}`)
   const grouped = new Map<string, AssignmentRow[]>()
   for (const assignment of (assignmentData ?? []) as AssignmentRow[]) {
@@ -58,7 +58,7 @@ export async function creerEnseignantSupabase(etablissementId: string, input: Om
   return toTeacher(teacher)
 }
 
-export async function modifierEnseignantSupabase(id: string, changes: Partial<DonneesEnseignant>): Promise<boolean> {
+export async function modifierEnseignantSupabase(id: string, changes: Partial<DonneesEnseignant>, etablissementId?: string): Promise<boolean> {
   const payload: Record<string, unknown> = {}
   if (changes.nom !== undefined) payload.last_name = changes.nom.trim()
   if (changes.prenom !== undefined) payload.first_name = changes.prenom.trim()
@@ -71,16 +71,16 @@ export async function modifierEnseignantSupabase(id: string, changes: Partial<Do
   const { error } = await supabaseBrowser.from("teachers").update(payload).eq("id", id)
   if (error) throw new Error(`Impossible de modifier l'enseignant: ${error.message}`)
   if (changes.statut !== undefined) {
-    const { error: membershipError } = await supabaseBrowser.from("teacher_establishments").update({ status: changes.statut === "actif" ? "active" : "inactive" }).eq("teacher_id", id)
+    const { error: membershipError } = await supabaseBrowser.from("teacher_establishments").update({ status: changes.statut === "actif" ? "active" : "inactive" }).eq("teacher_id", id).eq("establishment_id", etablissementId ?? "")
     if (membershipError) throw new Error(`Impossible de mettre à jour le statut d'établissement: ${membershipError.message}`)
   }
   return true
 }
 
-export async function archiverEnseignantSupabase(id: string): Promise<boolean> {
+export async function archiverEnseignantSupabase(id: string, etablissementId?: string): Promise<boolean> {
   const { error } = await supabaseBrowser.from("teachers").update({ active: false }).eq("id", id)
   if (error) throw new Error(`Impossible de désactiver l'enseignant: ${error.message}`)
-  const { error: membershipError } = await supabaseBrowser.from("teacher_establishments").update({ status: "inactive" }).eq("teacher_id", id)
+  const { error: membershipError } = await supabaseBrowser.from("teacher_establishments").update({ status: "inactive" }).eq("teacher_id", id).eq("establishment_id", etablissementId ?? "")
   if (membershipError) throw new Error(`Impossible de désactiver l'accès établissement: ${membershipError.message}`)
   return true
 }

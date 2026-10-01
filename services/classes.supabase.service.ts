@@ -16,6 +16,7 @@ const toClasse = (row: SchoolClassRecord): Classe => ({
   id: row.id,
   nom: row.name,
   niveau: row.grade_levels?.name || row.grade_level_id,
+  gradeLevelId: row.grade_level_id,
   effectif: 0,
   capacite: row.capacity ?? 0,
   fraisScolarite: 0,

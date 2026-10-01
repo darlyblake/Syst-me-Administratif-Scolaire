@@ -81,18 +81,17 @@ export default function PersonnelDocumentsPage() {
     if (!establishmentId) return
     setLoading(true)
 
-    const [staffResult, teacherResult, docsResult, requestsResult] = await Promise.all([
+    const [staffResult, teacherLinksResult, docsResult, requestsResult] = await Promise.all([
       supabaseBrowser
         .from("staff_members")
         .select("id,first_name,last_name,position,profile_id")
         .eq("establishment_id", establishmentId)
         .order("last_name"),
       supabaseBrowser
-        .from("teachers")
-        .select("id,first_name,last_name,specialty,profile_id")
+        .from("teacher_establishments")
+        .select("teacher_id")
         .eq("establishment_id", establishmentId)
-        .eq("active", true)
-        .order("last_name"),
+        .eq("status", "active"),
       supabaseBrowser
         .from("documents")
         .select("id,owner_type,owner_id,document_type,name,storage_path,mime_type,status,rejection_reason,created_at")
@@ -105,6 +104,15 @@ export default function PersonnelDocumentsPage() {
         .eq("establishment_id", establishmentId)
         .order("created_at", { ascending: false }),
     ])
+
+    const teacherIds = (teacherLinksResult.data ?? []).map((row: any) => row.teacher_id)
+    const teacherResult = teacherIds.length
+      ? await supabaseBrowser
+          .from("teachers")
+          .select("id,first_name,last_name,specialty,profile_id")
+          .in("id", teacherIds)
+          .eq("active", true)
+      : { data: [] as any[] }
 
     const staff: Employee[] = (staffResult.data ?? []).map((row: any) => ({
       id: row.id,

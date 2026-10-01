@@ -81,10 +81,9 @@ export default function EnseignantsPageRefactored() {
             <h1 className="text-2xl font-semibold tracking-tight">Enseignants</h1>
             <p className="text-sm md:text-base text-muted-foreground mt-1">Gérez les enseignants, leurs affectations et leurs dossiers.</p>
           </div>
-          <div className="flex gap-2">
-              <Button variant="outline" asChild><Link href="/ecole/enseignants/demandes"><ClipboardList className="h-4 w-4 mr-2" />Demandes</Link></Button>
-              <Button variant="outline" asChild><Link href="/tableau-bord"><ArrowLeft className="h-4 w-4 mr-2" />Retour</Link></Button>
-            </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild><Link href="/ecole/enseignants/demandes"><ClipboardList className="h-4 w-4 mr-2" />Demandes</Link></Button>
+            <Button variant="outline" asChild><Link href="/tableau-bord"><ArrowLeft className="h-4 w-4 mr-2" />Retour</Link></Button>
             {permissions.canCreate && <Button onClick={handleCreateTeacher}><Plus className="h-4 w-4 mr-2" />Ajouter</Button>}
           </div>
         </header>

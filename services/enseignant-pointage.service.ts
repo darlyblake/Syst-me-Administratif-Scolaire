@@ -31,6 +31,26 @@ const db = supabaseBrowser as any
 const POINTAGE_SELECT = "id,timetable_slot_id,attendance_date,started_time,ended_time,scheduled_hours,counted_hours,status,exception_reason"
 
 export const enseignantPointageService = {\n  async getContext(establishmentId: string) {\n    const { data, error } = await db.rpc("teacher_context", { p_establishment_id: establishmentId })\n    if (error) throw new Error(error.message)\n    return data ?? []\n  },
+  async getTeacherSchedule(establishmentId: string) {
+    const { data, error } = await db.rpc("teacher_schedule", {
+      p_establishment_id: establishmentId,
+    })
+    if (error) throw new Error(error.message)
+    return (data ?? []).map((row: any): TeacherLessonSlot => ({
+      slot_id: row.slot_id,
+      establishment_id: row.establishment_id,
+      academic_year_id: row.academic_year_id,
+      class_id: row.class_id,
+      class_name: row.class_name ?? "Classe",
+      subject_id: row.subject_id,
+      subject_name: row.subject_name ?? "Matière",
+      day_of_week: Number(row.day_of_week),
+      starts_at: String(row.starts_at).slice(0, 5),
+      ends_at: String(row.ends_at).slice(0, 5),
+      room: row.room ?? null,
+    }))
+  },
+
   async getSchedule(establishmentId: string, academicYearId: string, teacherId?: string) {
     const { data, error } = await db
       .from("timetable_slots")

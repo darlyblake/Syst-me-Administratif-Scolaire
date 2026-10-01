@@ -39,7 +39,7 @@ export default function TeacherAttachmentPage() {
     setTeacherId(teacher.id)
 
     const [{ data: schools, error: schoolsError }, { data: pending, error: requestsError }] = await Promise.all([
-      supabase.from("establishments").select("id,name,short_name,city,code").eq("status", "active").order("name"),
+      supabase.rpc("list_active_establishments_for_teacher"),
       supabase.from("teacher_establishment_requests").select("id,establishment_id,status,created_at,establishment:establishments(id,name,short_name,city,code)").eq("teacher_id", teacher.id).order("created_at", { ascending: false }),
     ])
 

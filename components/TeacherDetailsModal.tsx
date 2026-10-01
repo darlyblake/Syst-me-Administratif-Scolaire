@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { BookOpen, Calendar, Mail, Phone, Clock, FileText, Bell, DollarSign, Star, UserX, Edit, MapPin, CalendarDays, Briefcase } from "lucide-react"
+import { BookOpen, Calendar, Mail, Phone, Clock, FileText, Bell, Star, UserX, Edit, MapPin, CalendarDays, Briefcase } from "lucide-react"
 import Link from "next/link"
 import type { DonneesEnseignant } from "@/types/models"
 
@@ -16,7 +16,6 @@ interface TeacherActions {
   onViewHistory?: () => void
   onManageDocuments?: () => void
   onAssignNotifications?: () => void
-  onManageSalary?: () => void
   onViewEvaluations?: () => void
 }
 
@@ -108,7 +107,6 @@ export function TeacherDetailsModal({ teacher, isOpen, onClose, actions }: Teach
               <Button variant="outline" className="h-auto min-h-20 p-3 flex flex-col items-center gap-2" asChild><Link href={`${basePath}/pointage`}><Clock className="h-5 w-5" /><span className="text-center text-sm">Présence / pointage</span></Link></Button>
               {actions?.onManageDocuments && <Button variant="outline" className="h-auto min-h-20 p-3 flex flex-col items-center gap-2" onClick={actions.onManageDocuments}><FileText className="h-5 w-5" /><span className="text-center text-sm">Documents</span></Button>}
               {actions?.onAssignNotifications && <Button variant="outline" className="h-auto min-h-20 p-3 flex flex-col items-center gap-2" onClick={actions.onAssignNotifications}><Bell className="h-5 w-5" /><span className="text-center text-sm">Notifications</span></Button>}
-              {actions?.onManageSalary && <Button variant="outline" className="h-auto min-h-20 p-3 flex flex-col items-center gap-2" onClick={actions.onManageSalary}><DollarSign className="h-5 w-5" /><span className="text-center text-sm">Salaires</span></Button>}
               <Button variant="outline" className="h-auto min-h-20 p-3 flex flex-col items-center gap-2" asChild><Link href={`${basePath}/evaluations`}><Star className="h-5 w-5" /><span className="text-center text-sm">Évaluations</span></Link></Button>
               {actions?.onDelete && <Button variant="outline" className="h-auto min-h-20 p-3 flex flex-col items-center gap-2 text-destructive border-destructive/30" onClick={() => actions.onDelete?.(teacher.id)}><UserX className="h-5 w-5" /><span className="text-center text-sm">Désactiver</span></Button>}
               <Button variant="outline" className="h-auto min-h-20 p-3 flex flex-col items-center gap-2" asChild><Link href={`${basePath}/modifier`}><Edit className="h-5 w-5" /><span className="text-center text-sm">Modifier</span></Link></Button>

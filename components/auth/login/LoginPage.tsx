@@ -34,7 +34,8 @@ export function LoginPage() {
   const [registerMessage, setRegisterMessage] = useState("")
   const [registerError, setRegisterError] = useState("")
   const [registerLoading, setRegisterLoading] = useState(false)
-  const [registerData, setRegisterData] = useState({ firstName: "", lastName: "", email: "", password: "" })
+  const [registerData, setRegisterData] = useState({ firstName: "", lastName: "", email: "", password: "", phone: "", specialty: "" })
+  const [registerAsTeacher, setRegisterAsTeacher] = useState(espace === "enseignant")
 
   const bookOpen = view !== "closed"
 
@@ -129,14 +130,29 @@ export function LoginPage() {
       // Ne jamais attribuer ici un rôle ou un établissement : cette décision reste
       // entièrement contrôlée par le système d'autorisation existant.
       if (data.session) {
+        if (registerAsTeacher) {
+          const { error: profileError } = await supabase.rpc("teacher_create_profile", {
+            p_first_name: firstName,
+            p_last_name: lastName,
+            p_phone: registerData.phone.trim() || null,
+            p_email: email,
+            p_employee_number: null,
+            p_specialty: registerData.specialty.trim() || null,
+          })
+          if (profileError) {
+            setRegisterError("Le compte a été créé, mais le profil enseignant n'a pas pu être finalisé. Vous pourrez réessayer après connexion.")
+            await supabase.auth.signOut()
+            return
+          }
+        }
         // Lorsque Supabase autorise la session immédiatement, on la ferme afin que
         // l'utilisateur ne soit pas redirigé automatiquement vers un espace protégé
         // avant que son rôle/établissement soit correctement défini.
         await supabase.auth.signOut()
         setLoginEmail(email)
         setLoginPassword("")
-        setRegisterData({ firstName: "", lastName: "", email: "", password: "" })
-        setRegisterMessage("Compte créé avec succès. Vous pouvez maintenant vous connecter.")
+        setRegisterData({ firstName: "", lastName: "", email: "", password: "", phone: "", specialty: "" })
+        setRegisterMessage(registerAsTeacher ? "Compte enseignant créé. Connectez-vous ensuite pour demander le rattachement à votre établissement." : "Compte créé avec succès. Vous pouvez maintenant vous connecter.")
         setView("login")
       } else {
         setRegisterMessage("Compte créé. Consultez votre email pour confirmer votre adresse avant de vous connecter.")
@@ -184,10 +200,10 @@ export function LoginPage() {
                   <button type="button" className={styles.textButton} onClick={() => router.push(`/auth/mot-de-passe-oublie?espace=${encodeURIComponent(espace)}`)}><KeyRound size={15} /> Mot de passe oublié ?</button>
                 </form>
               </> : <>
-                <span className={styles.eyebrow}>Nouveau compte</span><h2>Inscription</h2><p className={styles.formIntro}>Créez votre accès à l’espace de gestion scolaire.</p>
+                <span className={styles.eyebrow}>Nouveau compte</span><h2>Inscription</h2><p className={styles.formIntro}>{registerAsTeacher ? "Créez votre compte enseignant. Votre accès à une école sera validé séparément." : "Créez votre accès à l’espace de gestion scolaire."}</p>\n                <div className={styles.twoColumns}><button type="button" className={registerAsTeacher ? styles.primaryButton : styles.secondaryAction} onClick={() => setRegisterAsTeacher(true)}>Je suis enseignant</button><button type="button" className={!registerAsTeacher ? styles.primaryButton : styles.secondaryAction} onClick={() => setRegisterAsTeacher(false)}>Autre utilisateur</button></div>
                 <form onSubmit={handleRegisterSubmit} className={styles.form} noValidate>
                   <div className={styles.twoColumns}><label>Prénom<input value={registerData.firstName} onChange={e => setRegisterData(v => ({ ...v, firstName: e.target.value }))} autoComplete="given-name" /></label><label>Nom<input value={registerData.lastName} onChange={e => setRegisterData(v => ({ ...v, lastName: e.target.value }))} autoComplete="family-name" /></label></div>
-                  <label>Adresse email<input type="email" value={registerData.email} onChange={e => setRegisterData(v => ({ ...v, email: e.target.value }))} autoComplete="email" /></label>
+                  <label>Téléphone<input value={registerData.phone} onChange={e => setRegisterData(v => ({ ...v, phone: e.target.value }))} autoComplete="tel" /></label>\n                  {registerAsTeacher && <label>Matière principale<input value={registerData.specialty} onChange={e => setRegisterData(v => ({ ...v, specialty: e.target.value }))} placeholder="Mathématiques" /></label>}\n                  <label>Adresse email<input type="email" value={registerData.email} onChange={e => setRegisterData(v => ({ ...v, email: e.target.value }))} autoComplete="email" /></label>
                   <label>Mot de passe<span className={styles.password}><input type={showRegisterPassword ? "text" : "password"} value={registerData.password} onChange={e => setRegisterData(v => ({ ...v, password: e.target.value }))} autoComplete="new-password" /><button type="button" onClick={() => setShowRegisterPassword(v => !v)} aria-label="Afficher ou masquer le mot de passe">{showRegisterPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
                   {registerError && <p className={styles.error} role="alert">{registerError}</p>}
                   {registerMessage && <p className={styles.notice} role="status">{registerMessage}</p>}

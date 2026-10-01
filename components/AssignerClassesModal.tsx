@@ -23,7 +23,7 @@ export function AssignerClassesModal({ isOpen, onClose, enseignant, onSuccess }:
   const [selected, setSelected] = useState<string[]>([])
   const [subjectByClass, setSubjectByClass] = useState<Record<string, string>>({})
   const [weeklyHoursByClass, setWeeklyHoursByClass] = useState<Record<string, string>>({})
-  const [subjects, setSubjects] = useState<Array<{id:string;name:string}>>([])
+  const [subjects, setSubjects] = useState<Array<{id:string;name:string;gradeLevelId:string | null}>>([])
   const [assignments, setAssignments] = useState<AffectationEnseignant[]>([])
   const { etablissementActif } = useAuthentification()
   const [loading, setLoading] = useState(false)
@@ -40,7 +40,7 @@ export function AssignerClassesModal({ isOpen, onClose, enseignant, onSuccess }:
           serviceAffectationsEnseignants.obtenir(enseignant.id, etablissementActif.id),
         ])
         if (cancelled) return
-        setSubjects(allSubjects.filter((s: any) => s.id && s.nom).map((s: any) => ({ id: s.id, name: s.nom })))
+        setSubjects(allSubjects.filter((s) => s.id && s.nom).map((s) => ({ id: s.id, name: s.nom, gradeLevelId: s.niveau[0] ?? null })))
         setAssignments(currentAssignments)
         setSelected([...new Set(currentAssignments.map((a) => a.classId))])
         const nextSubjects: Record<string,string> = {}
@@ -70,7 +70,13 @@ export function AssignerClassesModal({ isOpen, onClose, enseignant, onSuccess }:
       const currentByClass = new Map(assignments.map((a) => [a.classId, a]))
       for (const classId of selected) {
         const subjectId = subjectByClass[classId]
-        if (!subjectId) throw new Error("Chaque classe sélectionnée doit avoir une matière.")
+        const classe = classes.find((item) => item.id === classId)
+        const subject = subjects.find((item) => item.id === subjectId)
+        if (!classe) throw new Error("La classe sélectionnée est introuvable.")
+        if (!subjectId) throw new Error(`Choisissez une matière pour ${classe.nom}.`)
+        if (!subject || subject.gradeLevelId !== classe.gradeLevelId) {
+          throw new Error(`La matière choisie pour ${classe.nom} ne correspond pas à son niveau scolaire.`)
+        }
         const existing = currentByClass.get(classId)
         const weeklyHours = weeklyHoursByClass[classId] ? Number(weeklyHoursByClass[classId]) : null
         if (!existing) {
@@ -117,6 +123,7 @@ export function AssignerClassesModal({ isOpen, onClose, enseignant, onSuccess }:
             <div className="space-y-2" role="group" aria-label="Classes et matières">
               {classes.map((classe) => {
                 const active = selected.includes(classe.id)
+                const compatibleSubjects = subjects.filter((subject) => subject.gradeLevelId === classe.gradeLevelId)
                 return (
                   <div key={classe.id} className="rounded-md border p-3 space-y-3">
                     <div className="flex items-center gap-3">
@@ -131,8 +138,13 @@ export function AssignerClassesModal({ isOpen, onClose, enseignant, onSuccess }:
                           onChange={(e) => setSubjectByClass((v) => ({...v, [classe.id]: e.target.value}))}
                         >
                           <option value="">Choisir une matière</option>
-                          {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+                          {compatibleSubjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
                         </select>
+                        {compatibleSubjects.length === 0 ? (
+                          <p className="text-xs text-amber-600 sm:col-span-2">
+                            Aucune matière n’est configurée pour le niveau « {classe.niveau} ».
+                          </p>
+                        ) : null}
                         <input
                           type="number" min="0" step="0.5" placeholder="Heures / semaine"
                           className="border rounded px-3 py-2 bg-background"

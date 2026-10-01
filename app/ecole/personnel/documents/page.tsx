@@ -95,7 +95,7 @@ export default function PersonnelDocumentsPage() {
         .order("last_name"),
       supabaseBrowser
         .from("documents")
-        .select("id,owner_type,owner_id,document_type,name,storage_path,mime_type,created_at")
+        .select("id,owner_type,owner_id,document_type,name,storage_path,mime_type,status,rejection_reason,created_at")
         .eq("establishment_id", establishmentId)
         .in("owner_type", ["staff", "teacher"])
         .order("created_at", { ascending: false }),

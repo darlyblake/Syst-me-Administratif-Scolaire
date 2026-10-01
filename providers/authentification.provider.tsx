@@ -3,13 +3,13 @@
 import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 import type { Utilisateur } from "@/types/models"
-import { serviceAuthentification, type AuthContext } from "@/services/authentification.supabase.service"
+import { serviceAuthentification, type AuthContext, type AuthEstablishment } from "@/services/authentification.supabase.service"
 import { supabaseBrowser } from "@/lib/supabase/client"
 
 interface ContexteAuthentification {
   utilisateur: Utilisateur | null
   contexte: AuthContext | null
-  etablissementActif: { id: string; name: string; role?: string } | null
+  etablissementActif: AuthEstablishment | null
   estConnecte: boolean
   estEnCoursDeChargement: boolean
   connecter: (email: string, motDePasse: string) => Promise<{ succes: boolean; erreur?: string }>
@@ -35,7 +35,7 @@ function roleUtilisateurPourEtablissement(accountType: AuthContext["account_type
 function construireUtilisateur(
   base: Utilisateur,
   accountType: AuthContext["account_type"],
-  establishment?: { id: string; name: string; role?: string },
+  establishment?: AuthEstablishment,
 ): UtilisateurAvecRoleEtablissement {
   return {
     ...base,
@@ -45,7 +45,7 @@ function construireUtilisateur(
   }
 }
 
-function lireEtablissementPersisté(etablissements: AuthContext["establishments"] = []) {
+function lireEtablissementPersisté(etablissements: AuthEstablishment[] = []) {
   if (typeof window === "undefined" || !etablissements.length) return undefined
   try {
     const id = window.localStorage.getItem(CLE_ETABLISSEMENT_ACTIF)

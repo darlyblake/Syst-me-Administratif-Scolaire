@@ -111,8 +111,20 @@ export default function PointageEnseignantPage() {
           <Button variant="outline" size="sm" className="ml-auto" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />Actualiser</Button>
         </div>
 
+        <div className="border bg-muted/20 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-terre">Suivi administratif</p>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <label className="text-sm font-medium">Enseignant
+              <select className="ml-2 border bg-white px-3 py-2 font-normal" value={enseignantId} onChange={(e) => router.push(`/ecole/enseignants/${e.target.value}/pointage`)}>
+                {teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.prenom} {teacher.nom}</option>)}
+              </select>
+            </label>
+            <span className="text-sm text-muted-foreground">Les heures insuffisantes sont signalées pour suivi, sans retenue automatique.</span>
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setDate(shiftWeek(date, -1))}>Semaine précédente</Button>
+          <Button variant="outline" size="sm" onClick={() => setDate(shiftWeek(date, -1))}>
           <div className="min-w-64 border px-4 py-2 text-center text-sm font-medium">{formatWeek(weekStart(date))}</div>
           <Button variant="outline" size="sm" onClick={() => setDate(shiftWeek(date, 1))}>Semaine suivante</Button>
           <input type="date" className="border px-3 py-2 text-sm" value={date} onChange={(e) => setDate(e.target.value)} />

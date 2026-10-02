@@ -8,6 +8,7 @@ import {
   BookOpen,
   CalendarDays,
   ClipboardList,
+  Clock3,
   GraduationCap,
   Loader2,
   LogOut,
@@ -113,6 +114,7 @@ export default function EspaceEtablissementEnseignantPage() {
             ["classes", "Mes classes", BookOpen],
             ["élèves", "Mes élèves", Users],
             ["emploi-du-temps", "Emploi du temps", CalendarDays],
+            ["pointage", "Pointage", Clock3],
             ["documents", "Mes documents", FileText],
           ] as const).map(([value, label, Icon]) => (
             <button key={value} type="button" onClick={() => setOnglet(value)} className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors ${onglet === value ? "border-terre text-terre" : "border-transparent text-muted-foreground hover:text-foreground"}`}><Icon className="h-4 w-4" />{label}</button>

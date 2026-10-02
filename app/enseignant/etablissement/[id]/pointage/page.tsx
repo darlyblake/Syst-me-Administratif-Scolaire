@@ -107,6 +107,13 @@ export default function EnseignantPointagePage() {
   const pointageBySlot = useMemo(() => new Map(pointages.map((item) => [item.timetable_slot_id, item])), [pointages])
   const plannedToday = todaySlots.reduce((sum, slot) => sum + volume(slot), 0)
   const countedToday = pointages.reduce((sum, item) => sum + Number(item.counted_hours || 0), 0)
+  const activeLesson = todaySlots.find((slot) => {
+    const record = pointageBySlot.get(slot.slot_id)
+    const current = minutes(now)
+    return (current >= minutes(slot.starts_at) && current <= minutes(slot.ends_at)) || record?.status === "in_progress"
+  })
+  const nextLesson = todaySlots.find((slot) => minutes(slot.starts_at) > minutes(now))
+  const activeRecord = activeLesson ? pointageBySlot.get(activeLesson.slot_id) : undefined
 
   const canStart = (slot: TeacherLessonSlot) => {
     const current = minutes(now)
@@ -162,6 +169,47 @@ export default function EnseignantPointagePage() {
           <div><p className="text-xs font-medium uppercase tracking-wide text-terre">Pointage enseignant</p><h1 className="text-2xl font-semibold">{establishment.name}</h1></div>
           <Button variant="outline" size="sm" className="ml-auto" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />Actualiser</Button>
         </header>
+
+        <section className="mb-5 border bg-white">
+          <div className="border-b px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-terre">Ma journée</p>
+            <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-muted-foreground">{formatDate(date)}</p>
+              <span className="text-sm font-medium">Heure actuelle : {now}</span>
+            </div>
+          </div>
+          <div className="grid divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+            <div className="p-5">
+              {activeLesson ? (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Cours en cours</p>
+                  <p className="mt-2 text-xl font-semibold">{activeLesson.subject_name}</p>
+                  <p className="text-sm text-muted-foreground">{activeLesson.class_name} · {activeLesson.starts_at} – {activeLesson.ends_at}{activeLesson.room ? " · Salle " + activeLesson.room : ""}</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {!activeRecord && <Button onClick={() => void start(activeLesson)} disabled={savingId === activeLesson.slot_id}><LogIn className="mr-2 h-4 w-4" />Pointer mon début</Button>}
+                    {activeRecord?.status === "in_progress" && <Button variant="outline" onClick={() => void end(activeRecord)} disabled={savingId === activeRecord.id}><LogOut className="mr-2 h-4 w-4" />Pointer ma fin</Button>}
+                  </div>
+                </div>
+              ) : nextLesson ? (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-terre">Prochain cours</p>
+                  <p className="mt-2 text-xl font-semibold">{nextLesson.subject_name}</p>
+                  <p className="text-sm text-muted-foreground">{nextLesson.class_name} · {nextLesson.starts_at} – {nextLesson.ends_at}</p>
+                  <p className="mt-4 text-sm">Le bouton de pointage apparaîtra à l’approche du cours.</p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fin de journée</p>
+                  <p className="mt-2 text-lg font-semibold">Aucun autre cours prévu aujourd’hui</p>
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 divide-x">
+              <Metric label="Prévu aujourd’hui" value={`${plannedToday} h`} />
+              <Metric label="Pointé aujourd’hui" value={`${countedToday} h`} />
+            </div>
+          </div>
+        </section>
 
         <section className="mb-5 border-y bg-white">
           <div className="grid divide-y sm:grid-cols-5 sm:divide-x sm:divide-y-0">

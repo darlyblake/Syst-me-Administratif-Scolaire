@@ -124,7 +124,7 @@ export default function PointageEnseignantPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setDate(shiftWeek(date, -1))}>
+          <Button variant="outline" size="sm" onClick={() => setDate(shiftWeek(date, -1))}>Semaine précédente</Button>
           <div className="min-w-64 border px-4 py-2 text-center text-sm font-medium">{formatWeek(weekStart(date))}</div>
           <Button variant="outline" size="sm" onClick={() => setDate(shiftWeek(date, 1))}>Semaine suivante</Button>
           <input type="date" className="border px-3 py-2 text-sm" value={date} onChange={(e) => setDate(e.target.value)} />

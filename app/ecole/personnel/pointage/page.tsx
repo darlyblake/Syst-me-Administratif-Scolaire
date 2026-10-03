@@ -18,6 +18,7 @@ import {
   Printer,
 } from "lucide-react"
 import Link from "next/link"
+import { supabaseBrowser } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -114,6 +115,16 @@ type PersonRow = {
   position?: string | null
 }
 
+type WorkDaySchedule = {
+  enabled: boolean
+  start: string
+  end: string
+}
+
+type PointageSettingsWithSchedule = PointageSettings & {
+  work_schedule?: Record<string, WorkDaySchedule> | null
+}
+
 const localDate = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
@@ -171,7 +182,7 @@ export default function PersonnelPointagePage() {
   const [lessonRows, setLessonRows] = useState<LessonRow[]>([])
   const [historyRows, setHistoryRows] = useState<HistoryRow[]>([])
   const [people, setPeople] = useState<PersonRow[]>([])
-  const [settings, setSettings] = useState<PointageSettings | null>(null)
+  const [settings, setSettings] = useState<PointageSettingsWithSchedule | null>(null)
   const [academicYearId, setAcademicYearId] = useState("")
   const [academicYear, setAcademicYear] = useState<any>(null)
   const [selectedMonth, setSelectedMonth] = useState(today.slice(0, 7))
@@ -294,23 +305,31 @@ export default function PersonnelPointagePage() {
     if (!establishmentId || !academicYearId) return
     setSavingSettings(true)
     try {
-      await servicePointage.enregistrerParametres({
-        establishmentId,
-        academicYearId,
-        earlyArrivalToleranceMinutes: settings?.early_arrival_tolerance_minutes ?? 15,
-        fullCreditThresholdMinutes: settings?.full_credit_threshold_minutes ?? 40,
-        fullCreditHours: settings?.full_credit_hours ?? 2,
-        partialCreditHours: settings?.partial_credit_hours ?? 1,
-        allowTeacherClose: settings?.allow_teacher_close ?? true,
-        requireAdminClosureAfterScheduleEnd: settings?.require_admin_closure_after_schedule_end ?? true,
-        alertMissingLessonAfterMinutes: settings?.alert_missing_lesson_after_minutes ?? 10,
-        alertsEnabled: settings?.alerts_enabled ?? true,
-        codeEnabled: settings?.code_enabled ?? true,
-        qrEnabled: settings?.qr_enabled ?? true,
-        workStartTime: settings?.work_start_time ?? "07:00",
-        workEndTime: settings?.work_end_time ?? "15:00",
-        workDays: settings?.work_days ?? [1, 2, 3, 4, 5],
+      const schedule = settings?.work_schedule ?? {}
+      const enabledDays = [1, 2, 3, 4, 5, 6, 7].filter(day => schedule[String(day)]?.enabled)
+      const firstConfiguredDay = [1, 2, 3, 4, 5, 6, 7].find(day => schedule[String(day)]?.enabled) ?? 1
+      const fallback = schedule[String(firstConfiguredDay)] ?? { enabled: true, start: "07:00", end: "15:00" }
+
+      const { error } = await supabaseBrowser.rpc("pointage_upsert_settings", {
+        p_establishment_id: establishmentId,
+        p_academic_year_id: academicYearId,
+        p_early_arrival_tolerance_minutes: settings?.early_arrival_tolerance_minutes ?? 15,
+        p_full_credit_threshold_minutes: settings?.full_credit_threshold_minutes ?? 40,
+        p_full_credit_hours: settings?.full_credit_hours ?? 2,
+        p_partial_credit_hours: settings?.partial_credit_hours ?? 1,
+        p_allow_teacher_close: settings?.allow_teacher_close ?? true,
+        p_require_admin_closure_after_schedule_end: settings?.require_admin_closure_after_schedule_end ?? true,
+        p_alert_missing_lesson_after_minutes: settings?.alert_missing_lesson_after_minutes ?? 10,
+        p_alerts_enabled: settings?.alerts_enabled ?? true,
+        p_code_enabled: settings?.code_enabled ?? true,
+        p_qr_enabled: settings?.qr_enabled ?? true,
+        p_work_start_time: fallback.start,
+        p_work_end_time: fallback.end,
+        p_work_days: enabledDays,
+        p_work_schedule: schedule,
       })
+      if (error) throw error
+
       toast.success("Paramètres de pointage enregistrés.")
       await loadMonitoring()
     } catch (error) {
@@ -362,8 +381,39 @@ export default function PersonnelPointagePage() {
     if (section === "fiches") void loadFiche()
   }, [section, loadFiche])
 
-  const updateSetting = <K extends keyof PointageSettings>(key: K, value: PointageSettings[K]) => {
+  const updateSetting = <K extends keyof PointageSettingsWithSchedule>(key: K, value: PointageSettingsWithSchedule[K]) => {
     setSettings(current => current ? { ...current, [key]: value } : current)
+  }
+
+  const dayNames = [
+    [1, "Lundi"],
+    [2, "Mardi"],
+    [3, "Mercredi"],
+    [4, "Jeudi"],
+    [5, "Vendredi"],
+    [6, "Samedi"],
+    [7, "Dimanche"],
+  ] as const
+
+  const updateWorkDay = (day: number, patch: Partial<WorkDaySchedule>) => {
+    setSettings(current => {
+      if (!current) return current
+      const currentSchedule = current.work_schedule ?? {}
+      const currentDay = currentSchedule[String(day)] ?? { enabled: false, start: "07:00", end: "15:00" }
+      return {
+        ...current,
+        work_schedule: {
+          ...currentSchedule,
+          [String(day)]: { ...currentDay, ...patch },
+        },
+      }
+    })
+  }
+
+  const scheduleForDate = (date: string) => {
+    const day = new Date(date + "T12:00:00").getDay()
+    const isoDay = day === 0 ? 7 : day
+    return settings?.work_schedule?.[String(isoDay)] ?? null
   }
 
   const absents = useMemo(() => {
@@ -638,7 +688,9 @@ export default function PersonnelPointagePage() {
                   {retardTab === "personnel" && staffRows.filter(row => row.staff_type === "staff" && row.check_in && settings?.work_start_time).map(row => {
                     const person = people.find(p => p.staff_type === "staff" && p.id === row.staff_id)
                     if (!person) return null
-                    const expected = new Date(selectedDate + "T" + settings!.work_start_time.slice(0,5) + ":00")
+                    const daySchedule = scheduleForDate(selectedDate)
+                    if (!daySchedule?.enabled) return null
+                    const expected = new Date(selectedDate + "T" + daySchedule.start.slice(0,5) + ":00")
                     const actual = new Date(row.check_in!)
                     const late = Math.max(0, Math.round((actual.getTime() - expected.getTime()) / 60000))
                     if (!late) return null
@@ -646,13 +698,18 @@ export default function PersonnelPointagePage() {
                       <td className="px-4 py-3">{new Date(selectedDate + "T12:00:00").toLocaleDateString("fr-FR")}</td>
                       <td className="px-4 py-3">{personLabel("staff", person.id)}</td>
                       <td className="px-4 py-3">{person.position ?? "Personnel"}</td>
-                      <td className="px-4 py-3">{settings!.work_start_time.slice(0,5)}</td>
+                      <td className="px-4 py-3">{daySchedule.start.slice(0,5)}</td>
                       <td className="px-4 py-3">{actual.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</td>
                       <td className="px-4 py-3">{late} min</td>
                     </tr>
                   })}
                   {retardTab === "enseignants" && !lateAlerts.length && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucun retard enseignant pour cette date.</td></tr>}
-                  {retardTab === "personnel" && !staffRows.some(row => row.staff_type === "staff" && row.check_in && settings?.work_start_time && Math.max(0, Math.round((new Date(row.check_in!).getTime() - new Date(selectedDate + "T" + settings!.work_start_time.slice(0,5) + ":00").getTime()) / 60000)) > 0) && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucun retard du personnel pour cette date.</td></tr>}
+                  {retardTab === "personnel" && !staffRows.some(row => {
+                    if (row.staff_type !== "staff" || !row.check_in) return false
+                    const daySchedule = scheduleForDate(selectedDate)
+                    if (!daySchedule?.enabled) return false
+                    return Math.max(0, Math.round((new Date(row.check_in!).getTime() - new Date(selectedDate + "T" + daySchedule.start.slice(0,5) + ":00").getTime()) / 60000)) > 0
+                  }) && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucun retard du personnel pour cette date.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -712,27 +769,45 @@ export default function PersonnelPointagePage() {
               <p className="mt-1 text-sm text-muted-foreground">Exemple : un cours de 08h00 à 09h40 peut compter 2 h jusqu'au seuil configuré, puis 1 h après ce seuil.</p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-md border bg-muted/20 p-3 sm:col-span-2">
-                <p className="font-medium">Horaires généraux de l'établissement — personnel non enseignant</p>
-                <p className="mt-1 text-xs text-muted-foreground">Ces horaires servent au calcul quotidien des retards, heures travaillées et heures supplémentaires du personnel administratif. Les enseignants restent calculés selon leur emploi du temps.</p>
+            <div className="space-y-5">
+              <div className="rounded-md border bg-muted/20 p-3">
+                <p className="font-medium">Jours ouvrables de l'établissement — personnel non enseignant</p>
+                <p className="mt-1 text-xs text-muted-foreground">Chaque jour possède son propre horaire. Le système utilise automatiquement l'horaire du jour concerné pour calculer les retards, heures prévues, heures travaillées et heures supplémentaires. Le samedi peut donc avoir un horaire différent des autres jours.</p>
               </div>
-              <div><Label>Début de journée</Label><Input className="mt-1" type="time" value={settings?.work_start_time ?? "07:00"} onChange={e => updateSetting("work_start_time", e.target.value)} /></div>
-              <div><Label>Fin de journée</Label><Input className="mt-1" type="time" value={settings?.work_end_time ?? "15:00"} onChange={e => updateSetting("work_end_time", e.target.value)} /></div>
-              <div className="sm:col-span-2">
-                <Label>Jours travaillés</Label>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {[[1,"Lun"],[2,"Mar"],[3,"Mer"],[4,"Jeu"],[5,"Ven"],[6,"Sam"],[7,"Dim"]].map(([day,label]) => {
-                    const active = (settings?.work_days ?? [1,2,3,4,5]).includes(Number(day))
-                    return <button type="button" key={day} onClick={() => updateSetting("work_days", active ? (settings?.work_days ?? []).filter(d => d !== Number(day)) : [...(settings?.work_days ?? []), Number(day)].sort())} className={`rounded-md border px-3 py-1.5 text-sm ${active ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "text-muted-foreground"}`}>{label}</button>
-                  })}
-                </div>
+
+              <div className="overflow-x-auto rounded-md border">
+                <table className="w-full min-w-[760px] text-sm">
+                  <thead className="border-b bg-muted/40">
+                    <tr>
+                      <th className="px-4 py-3 text-left">Jour ouvrable</th>
+                      <th className="px-4 py-3 text-left">Début</th>
+                      <th className="px-4 py-3 text-left">Fin</th>
+                      <th className="px-4 py-3 text-left">Actif</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {dayNames.map(([day, label]) => {
+                      const value = settings?.work_schedule?.[String(day)] ?? { enabled: false, start: "07:00", end: "15:00" }
+                      return (
+                        <tr key={day}>
+                          <td className="px-4 py-3 font-medium">{label}</td>
+                          <td className="px-4 py-3"><Input type="time" value={value.start} disabled={!value.enabled} onChange={e => updateWorkDay(day, { start: e.target.value })} className="w-[150px]" /></td>
+                          <td className="px-4 py-3"><Input type="time" value={value.end} disabled={!value.enabled} onChange={e => updateWorkDay(day, { end: e.target.value })} className="w-[150px]" /></td>
+                          <td className="px-4 py-3"><Switch checked={value.enabled} onCheckedChange={enabled => updateWorkDay(day, { enabled })} /></td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
-              <div><Label>Tolérance avant le début (minutes)</Label><Input className="mt-1" type="number" min="0" value={settings?.early_arrival_tolerance_minutes ?? 15} onChange={e => updateSetting("early_arrival_tolerance_minutes", Number(e.target.value))} /></div>
-              <div><Label>Seuil pour les heures complètes (minutes)</Label><Input className="mt-1" type="number" min="0" value={settings?.full_credit_threshold_minutes ?? 40} onChange={e => updateSetting("full_credit_threshold_minutes", Number(e.target.value))} /></div>
-              <div><Label>Heures retenues avant le seuil</Label><Input className="mt-1" type="number" min="0" step="0.25" value={settings?.full_credit_hours ?? 2} onChange={e => updateSetting("full_credit_hours", Number(e.target.value))} /></div>
-              <div><Label>Heures retenues après le seuil</Label><Input className="mt-1" type="number" min="0" step="0.25" value={settings?.partial_credit_hours ?? 1} onChange={e => updateSetting("partial_credit_hours", Number(e.target.value))} /></div>
-              <div><Label>Délai avant alerte cours non pointé (minutes)</Label><Input className="mt-1" type="number" min="0" value={settings?.alert_missing_lesson_after_minutes ?? 10} onChange={e => updateSetting("alert_missing_lesson_after_minutes", Number(e.target.value))} /></div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div><Label>Tolérance avant le début (minutes)</Label><Input className="mt-1" type="number" min="0" value={settings?.early_arrival_tolerance_minutes ?? 15} onChange={e => updateSetting("early_arrival_tolerance_minutes", Number(e.target.value))} /></div>
+                <div><Label>Seuil pour les heures complètes (minutes)</Label><Input className="mt-1" type="number" min="0" value={settings?.full_credit_threshold_minutes ?? 40} onChange={e => updateSetting("full_credit_threshold_minutes", Number(e.target.value))} /></div>
+                <div><Label>Heures retenues avant le seuil</Label><Input className="mt-1" type="number" min="0" step="0.5" value={settings?.full_credit_hours ?? 2} onChange={e => updateSetting("full_credit_hours", Number(e.target.value))} /></div>
+                <div><Label>Heures retenues après le seuil</Label><Input className="mt-1" type="number" min="0" step="0.5" value={settings?.partial_credit_hours ?? 1} onChange={e => updateSetting("partial_credit_hours", Number(e.target.value))} /></div>
+                <div><Label>Délai avant alerte cours non pointé (minutes)</Label><Input className="mt-1" type="number" min="0" value={settings?.alert_missing_lesson_after_minutes ?? 10} onChange={e => updateSetting("alert_missing_lesson_after_minutes", Number(e.target.value))} /></div>
+              </div>
             </div>
 
             <div className="space-y-3 border-t pt-4">

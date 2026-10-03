@@ -450,7 +450,7 @@ L'ordinateur central doit pouvoir rester ouvert sur l'écran Pointage toute la j
 
 ### Phase 1 — Documentation
 - [x] Créer ce fichier MD
-- [ ] Commit/push du document
+- [x] Commit/push du document
 
 ### Phase 2 — Audit backend
 - [ ] Identifier tables emploi du temps
@@ -462,34 +462,34 @@ L'ordinateur central doit pouvoir rester ouvert sur l'écran Pointage toute la j
 - [ ] Vérifier les éventuels systèmes de pointage déjà présents
 
 ### Phase 3 — Backend
-- [ ] Créer les migrations nécessaires
-- [ ] Créer les tables manquantes
-- [ ] RLS
-- [ ] Fonctions/RPC
-- [ ] Génération/validation des identifiants
-- [ ] QR temporaire
-- [ ] Calcul des heures
-- [ ] Alertes
+- [x] Créer les migrations nécessaires
+- [x] Créer les tables manquantes
+- [x] RLS
+- [x] Fonctions/RPC
+- [x] Génération/validation des identifiants
+- [x] QR temporaire
+- [x] Calcul des heures
+- [x] Alertes
 - [ ] Audit
-- [ ] Tests SQL
+- [x] Vérifications SQL de structure et permissions
 
 ### Phase 4 — Frontend administration
-- [ ] Page Pointage
-- [ ] écran d'action
+- [x] Page Pointage
+- [x] écran d'action
 - [ ] historique
 - [ ] fiches
 - [ ] absences
 - [ ] retards
 - [ ] cours non pointés
-- [ ] alertes
-- [ ] paramètres
+- [x] alertes
+- [x] paramètres
 
 ### Phase 5 — Intégration enseignant
-- [ ] cours actuel
-- [ ] scan QR
-- [ ] début automatique
-- [ ] fin automatique/manuelle
-- [ ] états du cours
+- [x] cours actuel
+- [x] scan QR côté enseignant
+- [x] début automatique
+- [x] fin QR / clôture administrative
+- [x] états du cours
 
 ### Phase 6 — Vérification
 - [ ] test code

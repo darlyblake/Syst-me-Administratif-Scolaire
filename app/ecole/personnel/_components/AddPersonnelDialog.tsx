@@ -66,20 +66,6 @@ export function AddPersonnelDialog({ establishmentId, roles, onClose, onSuccess 
         active: statusMap[form.statut] ?? true,
       })
 
-      // Le code de pointage est attribué dès la création du personnel,
-      // indépendamment du poste ou de la création d'un compte de connexion.
-      // Le code n'est jamais stocké en clair côté base.
-      try {
-        await supabaseBrowser.rpc("pointage_issue_code", {
-          p_establishment_id: establishmentId,
-          p_staff_type: "staff",
-          p_staff_id: newStaffId,
-        })
-      } catch {
-        // La création du personnel ne doit pas échouer si l'émission du code
-        // est indisponible momentanément. Le code pourra être régénéré depuis le pointage.
-      }
-
       let temporaryPassword: string | undefined
 
       if (form.creerCompte && form.email && form.roleId) {

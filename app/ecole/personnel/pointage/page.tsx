@@ -686,7 +686,7 @@ export default function PersonnelPointagePage() {
                 <div className="mt-2 flex flex-wrap gap-2">
                   {[[1,"Lun"],[2,"Mar"],[3,"Mer"],[4,"Jeu"],[5,"Ven"],[6,"Sam"],[7,"Dim"]].map(([day,label]) => {
                     const active = (settings?.work_days ?? [1,2,3,4,5]).includes(Number(day))
-                    return <button type="button" key={day} onClick={() => updateSetting("work_days", active ? (settings?.work_days ?? []).filter(d => d !== Number(day)) : [...(settings?.work_days ?? []), Number(day)].sort())} className={\`rounded-md border px-3 py-1.5 text-sm \${active ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "text-muted-foreground"}\`}>{label}</button>
+                    return <button type="button" key={day} onClick={() => updateSetting("work_days", active ? (settings?.work_days ?? []).filter(d => d !== Number(day)) : [...(settings?.work_days ?? []), Number(day)].sort())} className={`rounded-md border px-3 py-1.5 text-sm ${active ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "text-muted-foreground"}`}>{label}</button>
                   })}
                 </div>
               </div>

@@ -172,6 +172,7 @@ export default function PersonnelPointagePage() {
   const [historyRows, setHistoryRows] = useState<HistoryRow[]>([])
   const [people, setPeople] = useState<PersonRow[]>([])
   const [settings, setSettings] = useState<PointageSettings | null>(null)
+  const [academicYearId, setAcademicYearId] = useState("")
   const [academicYear, setAcademicYear] = useState<any>(null)
   const [selectedMonth, setSelectedMonth] = useState(today.slice(0, 7))
   const [ficheRows, setFicheRows] = useState<DailyReportRow[]>([])

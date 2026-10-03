@@ -15,6 +15,7 @@ import {
   Settings2,
   Square,
   Users,
+  Printer,
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -120,6 +121,10 @@ export default function PersonnelPointagePage() {
   const today = localDate()
 
   const [section, setSection] = useState<Section>("pointage")
+  const [selectedDate, setSelectedDate] = useState(today)
+  const [historyFilter, setHistoryFilter] = useState("all")
+  const [peopleFilter, setPeopleFilter] = useState("")
+  const [alertFilter, setAlertFilter] = useState("all")
   const [mode, setMode] = useState<Mode>("arrival")
   const [code, setCode] = useState("")
   const [busy, setBusy] = useState(false)
@@ -152,12 +157,12 @@ export default function PersonnelPointagePage() {
     if (!establishmentId) return
     setRefreshing(true)
     try {
-      await servicePointage.rafraichirAlertes(establishmentId, today)
+      await servicePointage.rafraichirAlertes(establishmentId, selectedDate)
       const [nextAlerts, nextStaff, nextLessons, nextHistory, nextPeople, years] = await Promise.all([
-        servicePointage.obtenirAlertes(establishmentId, today),
-        servicePointage.obtenirPointagesPersonnel(establishmentId, today),
-        servicePointage.obtenirCoursPointes(establishmentId, today),
-        servicePointage.obtenirHistorique(establishmentId, today),
+        servicePointage.obtenirAlertes(establishmentId, selectedDate),
+        servicePointage.obtenirPointagesPersonnel(establishmentId, selectedDate),
+        servicePointage.obtenirCoursPointes(establishmentId, selectedDate),
+        servicePointage.obtenirHistorique(establishmentId, selectedDate),
         servicePointage.obtenirPersonnelActif(establishmentId),
         getAcademicYears(establishmentId),
       ])
@@ -279,6 +284,9 @@ export default function PersonnelPointagePage() {
   const missingLessons = alerts.filter(alert => alert.alert_type === "missing_lesson")
   const lessonsToClose = alerts.filter(alert => alert.alert_type === "lesson_to_close")
 
+  const filteredHistory = historyRows.filter(row => historyFilter === "all" || row.event_type === historyFilter)
+  const filteredPeople = people.filter(person => { const q = peopleFilter.trim().toLowerCase(); return !q || personLabel(person.staff_type, person.id).toLowerCase().includes(q) || (person.employee_number ?? "").toLowerCase().includes(q) })
+  const filteredAlerts = alerts.filter(alert => alertFilter === "all" || alert.alert_type === alertFilter)
   const counts = {
     present: staffRows.filter(row => row.status === "present" || row.status === "late").length,
     late: lateAlerts.length,
@@ -301,16 +309,18 @@ export default function PersonnelPointagePage() {
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">Pointage</h1>
             <p className="text-sm text-muted-foreground">Pointage centralisé du personnel et suivi des cours enseignants.</p>
           </div>
-          <div className="flex flex-wrap gap-2 text-sm">
+          <div className="flex flex-wrap items-end gap-2 text-sm print:hidden">
+            <div><Label htmlFor="pointage-date">Date consultée</Label><Input id="pointage-date" type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} className="mt-1 w-[170px]" /></div>
             <span className="rounded-md border bg-background px-3 py-2"><Users className="mr-1 inline h-4 w-4" />{counts.present} présent(s)</span>
             <span className="rounded-md border bg-background px-3 py-2"><AlertTriangle className="mr-1 inline h-4 w-4" />{alerts.length} alerte(s)</span>
+            <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" /> Imprimer</Button>
             <Button variant="outline" size="sm" onClick={() => void loadMonitoring()} disabled={refreshing}>
               <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Actualiser
             </Button>
           </div>
         </header>
 
-        <nav className="flex gap-1 overflow-x-auto border-b bg-background px-1">
+        <nav className="flex gap-1 overflow-x-auto border-b bg-background px-1 print:hidden">
           {SECTIONS.map(item => {
             const Icon = item.icon
             return (
@@ -387,12 +397,12 @@ export default function PersonnelPointagePage() {
           <section className="overflow-x-auto rounded-lg border bg-background">
             <table className="w-full min-w-[900px] text-sm">
               <thead className="border-b bg-muted/40">
-                <tr><th className="px-4 py-3 text-left">Heure</th><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Événement</th><th className="px-4 py-3 text-left">Méthode</th><th className="px-4 py-3 text-left">Cours</th></tr>
+                <tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Heure</th><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Événement</th><th className="px-4 py-3 text-left">Méthode</th><th className="px-4 py-3 text-left">Cours</th></tr>
               </thead>
               <tbody className="divide-y">
-                {historyRows.map(row => (
+                {filteredHistory.map(row => (
                   <tr key={row.id}>
-                    <td className="px-4 py-3">{new Date(row.event_time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</td>
+                    <td className="px-4 py-3">{new Date(row.event_time).toLocaleDateString("fr-FR")}</td><td className="px-4 py-3">{new Date(row.event_time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</td>
                     <td className="px-4 py-3">{personLabel(row.staff_type, row.staff_id)}</td>
                     <td className="px-4 py-3">{eventLabel(row.event_type)}</td>
                     <td className="px-4 py-3">{methodLabel(row.method)}</td>
@@ -407,20 +417,21 @@ export default function PersonnelPointagePage() {
 
         {section === "fiches" && (
           <section className="space-y-4">
+            <div className="flex flex-wrap items-end gap-2 print:hidden"><div><Label htmlFor="people-filter">Filtrer le personnel</Label><Input id="people-filter" value={peopleFilter} onChange={event => setPeopleFilter(event.target.value)} placeholder="Nom ou matricule" className="mt-1 w-[240px]" /></div></div>
             <div className="overflow-x-auto rounded-lg border bg-background">
               <table className="w-full min-w-[1100px] text-sm">
                 <thead className="border-b bg-muted/40">
-                  <tr><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Arrivée</th><th className="px-4 py-3 text-left">Départ</th><th className="px-4 py-3 text-left">Cours</th><th className="px-4 py-3 text-left">Heures réelles</th><th className="px-4 py-3 text-left">Heures retenues</th></tr>
+                  <tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Arrivée</th><th className="px-4 py-3 text-left">Départ</th><th className="px-4 py-3 text-left">Cours</th><th className="px-4 py-3 text-left">Heures réelles</th><th className="px-4 py-3 text-left">Heures retenues</th></tr>
                 </thead>
                 <tbody className="divide-y">
-                  {people.map(person => {
+                  {filteredPeople.map(person => {
                     const attendance = staffRows.find(row => row.staff_type === person.staff_type && row.staff_id === person.id)
                     const lessons = lessonRows.filter(row => row.teacher_id === person.id)
                     const actualMinutes = lessons.reduce((sum, row) => sum + (row.actual_duration_minutes ?? 0), 0)
                     const credited = lessons.reduce((sum, row) => sum + Number(row.counted_hours ?? 0), 0)
                     return (
                       <tr key={`${person.staff_type}:${person.id}`}>
-                        <td className="px-4 py-3">{personLabel(person.staff_type, person.id)}</td>
+                        <td className="px-4 py-3">{new Date(selectedDate + "T12:00:00").toLocaleDateString("fr-FR")}</td><td className="px-4 py-3">{personLabel(person.staff_type, person.id)}</td>
                         <td className="px-4 py-3">{person.position ?? "—"}</td>
                         <td className="px-4 py-3">{attendance?.check_in ? new Date(attendance.check_in).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—"}</td>
                         <td className="px-4 py-3">{attendance?.check_out ? new Date(attendance.check_out).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—"}</td>
@@ -430,7 +441,7 @@ export default function PersonnelPointagePage() {
                       </tr>
                     )
                   })}
-                  {!people.length && <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Aucun personnel actif.</td></tr>}
+                  {!people.length && <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Aucun personnel actif.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -441,7 +452,7 @@ export default function PersonnelPointagePage() {
           <section className="overflow-x-auto rounded-lg border bg-background">
             <table className="w-full min-w-[700px] text-sm">
               <thead className="border-b bg-muted/40">
-                <tr><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Identifiant</th><th className="px-4 py-3 text-left">État</th></tr>
+                <tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Identifiant</th><th className="px-4 py-3 text-left">État</th></tr>
               </thead>
               <tbody className="divide-y">
                 {absents.map(person => (
@@ -452,7 +463,7 @@ export default function PersonnelPointagePage() {
                     <td className="px-4 py-3 text-red-600">Aucune arrivée enregistrée</td>
                   </tr>
                 ))}
-                {!absents.length && <tr><td colSpan={4} className="p-8 text-center text-emerald-700">Aucun absent détecté selon les pointages d'arrivée.</td></tr>}
+                {!absents.length && <tr><td colSpan={5} className="p-8 text-center text-emerald-700">Aucun absent détecté selon les pointages d'arrivée.</td></tr>}
               </tbody>
             </table>
           </section>
@@ -461,14 +472,14 @@ export default function PersonnelPointagePage() {
         {section === "retards" && (
           <section className="overflow-x-auto rounded-lg border bg-background">
             <table className="w-full min-w-[800px] text-sm">
-              <thead className="border-b bg-muted/40"><tr><th className="px-4 py-3 text-left">Enseignant</th><th className="px-4 py-3 text-left">Début prévu</th><th className="px-4 py-3 text-left">Retard</th><th className="px-4 py-3 text-left">Heures retenues</th></tr></thead>
+              <thead className="border-b bg-muted/40"><tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Enseignant</th><th className="px-4 py-3 text-left">Début prévu</th><th className="px-4 py-3 text-left">Retard</th><th className="px-4 py-3 text-left">Heures retenues</th></tr></thead>
               <tbody className="divide-y">
                 {lateAlerts.map(alert => {
                   const teacher = people.find(person => person.id === alert.teacher_id && person.staff_type === "teacher")
                   const lesson = lessonRows.find(row => row.id === alert.lesson_attendance_id)
-                  return <tr key={`${alert.teacher_id}-${alert.timetable_slot_id}`}><td className="px-4 py-3">{teacher ? personLabel("teacher", teacher.id) : alert.teacher_id}</td><td className="px-4 py-3">{alert.scheduled_start?.slice(0,5)}</td><td className="px-4 py-3">{alert.late_minutes} min</td><td className="px-4 py-3">{lesson?.counted_hours ?? "selon paramètres"} h</td></tr>
+                  return <tr key={`${alert.teacher_id}-${alert.timetable_slot_id}`}><td className="px-4 py-3">{new Date(selectedDate + "T12:00:00").toLocaleDateString("fr-FR")}</td><td className="px-4 py-3">{teacher ? personLabel("teacher", teacher.id) : alert.teacher_id}</td><td className="px-4 py-3">{alert.scheduled_start?.slice(0,5)}</td><td className="px-4 py-3">{alert.late_minutes} min</td><td className="px-4 py-3">{lesson?.counted_hours ?? "selon paramètres"} h</td></tr>
                 })}
-                {!lateAlerts.length && <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">Aucun retard détecté.</td></tr>}
+                {!lateAlerts.length && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Aucun retard détecté pour cette date.</td></tr>}
               </tbody>
             </table>
           </section>
@@ -477,10 +488,10 @@ export default function PersonnelPointagePage() {
         {section === "cours" && (
           <section className="overflow-x-auto rounded-lg border bg-background">
             <table className="w-full min-w-[800px] text-sm">
-              <thead className="border-b bg-muted/40"><tr><th className="px-4 py-3 text-left">Enseignant</th><th className="px-4 py-3 text-left">Début</th><th className="px-4 py-3 text-left">Fin prévue</th><th className="px-4 py-3 text-left">État</th></tr></thead>
+              <thead className="border-b bg-muted/40"><tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Enseignant</th><th className="px-4 py-3 text-left">Début</th><th className="px-4 py-3 text-left">Fin prévue</th><th className="px-4 py-3 text-left">État</th></tr></thead>
               <tbody className="divide-y">
-                {missingLessons.map(alert => <tr key={`${alert.teacher_id}-${alert.timetable_slot_id}`}><td className="px-4 py-3">{personLabel("teacher", alert.teacher_id)}</td><td className="px-4 py-3">{alert.scheduled_start?.slice(0,5)}</td><td className="px-4 py-3">{alert.scheduled_end?.slice(0,5)}</td><td className="px-4 py-3 text-red-600">Non pointé</td></tr>)}
-                {!missingLessons.length && <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">Aucun cours non pointé détecté.</td></tr>}
+                {missingLessons.map(alert => <tr key={`${alert.teacher_id}-${alert.timetable_slot_id}`}><td className="px-4 py-3">{new Date(selectedDate + "T12:00:00").toLocaleDateString("fr-FR")}</td><td className="px-4 py-3">{personLabel("teacher", alert.teacher_id)}</td><td className="px-4 py-3">{alert.scheduled_start?.slice(0,5)}</td><td className="px-4 py-3">{alert.scheduled_end?.slice(0,5)}</td><td className="px-4 py-3 text-red-600">Non pointé</td></tr>)}
+                {!missingLessons.length && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Aucun cours non pointé détecté pour cette date.</td></tr>}
               </tbody>
             </table>
           </section>
@@ -488,7 +499,8 @@ export default function PersonnelPointagePage() {
 
         {section === "alertes" && (
           <section className="space-y-3">
-            {alerts.map((alert, index) => (
+            <div className="flex flex-wrap items-end gap-2 print:hidden"><div><Label htmlFor="alert-filter">Filtrer les alertes</Label><select id="alert-filter" value={alertFilter} onChange={event => setAlertFilter(event.target.value)} className="mt-1 h-10 rounded-md border bg-background px-3 text-sm"><option value="all">Toutes</option><option value="late">Retards</option><option value="missing_lesson">Cours non pointés</option><option value="lesson_to_close">Cours à clôturer</option></select></div></div>
+            {filteredAlerts.map((alert, index) => (
               <div key={`${alert.alert_type}-${alert.teacher_id}-${alert.timetable_slot_id}-${index}`} className="flex flex-wrap items-start gap-3 rounded-lg border bg-background p-4">
                 <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600" />
                 <div className="min-w-0 flex-1">
@@ -515,7 +527,7 @@ export default function PersonnelPointagePage() {
                 )}
               </div>
             ))}
-            {!alerts.length && <div className="rounded-lg border bg-background p-10 text-center text-muted-foreground"><CheckCircle2 className="mx-auto mb-3 h-8 w-8 text-emerald-600" />Aucune alerte actuellement.</div>}
+            {!alerts.length && <div className="rounded-lg border bg-background p-10 text-center text-muted-foreground"><CheckCircle2 className="mx-auto mb-3 h-8 w-8 text-emerald-600" />Aucune alerte pour cette date.</div>}
           </section>
         )}
 
@@ -548,6 +560,7 @@ export default function PersonnelPointagePage() {
           </section>
         )}
       </div>
+      <style jsx global>{`@media print { body { background: white !important; } @page { margin: 10mm; } }`}</style>
     </main>
   )
 }

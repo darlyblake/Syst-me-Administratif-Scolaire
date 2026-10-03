@@ -16,6 +16,9 @@ export type PointageSettings = {
   alerts_enabled: boolean
   code_enabled: boolean
   qr_enabled: boolean
+  work_start_time: string
+  work_end_time: string
+  work_days: number[]
 }
 
 export type PointageAlert = {
@@ -170,6 +173,9 @@ class ServicePointage {
     alertsEnabled: boolean
     codeEnabled: boolean
     qrEnabled: boolean
+    workStartTime: string
+    workEndTime: string
+    workDays: number[]
   }): Promise<string> {
     const { data, error } = await supabaseBrowser.rpc("pointage_upsert_settings", {
       p_establishment_id: input.establishmentId,
@@ -184,9 +190,48 @@ class ServicePointage {
       p_alerts_enabled: input.alertsEnabled,
       p_code_enabled: input.codeEnabled,
       p_qr_enabled: input.qrEnabled,
+      p_work_start_time: input.workStartTime,
+      p_work_end_time: input.workEndTime,
+      p_work_days: input.workDays,
     })
     if (error) throw error
     return data as string
+  }
+
+  async garantirCodesPointage(establishmentId: string): Promise<number> {
+    const { data, error } = await supabaseBrowser.rpc("pointage_ensure_access_codes", {
+      p_establishment_id: establishmentId,
+    })
+    if (error) throw error
+    return Number(data ?? 0)
+  }
+
+  async obtenirFichePointage(
+    establishmentId: string,
+    startDate: string,
+    endDate: string,
+  ) {
+    const { data, error } = await supabaseBrowser.rpc("pointage_daily_report", {
+      p_establishment_id: establishmentId,
+      p_start_date: startDate,
+      p_end_date: endDate,
+    })
+    if (error) throw error
+    return data ?? []
+  }
+
+  async obtenirSynthesePointage(
+    establishmentId: string,
+    startDate: string,
+    endDate: string,
+  ) {
+    const { data, error } = await supabaseBrowser.rpc("pointage_period_summary", {
+      p_establishment_id: establishmentId,
+      p_start_date: startDate,
+      p_end_date: endDate,
+    })
+    if (error) throw error
+    return data ?? []
   }
 
   async genererCode(

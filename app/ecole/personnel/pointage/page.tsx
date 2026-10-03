@@ -1,85 +1,317 @@
 "use client"
-import { useEffect, useMemo, useState } from "react"
+
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, History, LogIn, LogOut, Play, Settings2, Square, Users } from "lucide-react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { useUserContext } from "@/hooks/useUserContext"
-import { payrollService } from "@/lib/supabase/services/payroll.service"
+import { getAcademicYears } from "@/lib/supabase/services/academic-year.service"
 import { supabaseBrowser } from "@/lib/supabase/client"
-import { Save, Clock3 } from "lucide-react"
-import Link from "next/link"
+import { servicePointage, type PointageAction, type PointageAlert, type PointageSettings } from "@/services/pointage.service"
 import { toast } from "sonner"
 
-type StaffRow = { staff_id: string; staff_type: string; first_name: string; last_name: string; position?: string | null; remuneration_type?: "fixed" | "hourly" | null; hourly_rate?: number | null }
-type Entry = { id?: string; staff_id: string; staff_type: string; check_in: string; check_out: string; status: "present" | "late" | "absent" | "excused"; notes: string }
+type Mode = "arrival" | "departure" | "course_start" | "course_end"
+type Section = "pointage" | "historique" | "fiches" | "absents" | "retards" | "cours" | "alertes" | "parametres"
+
+type AttendanceRow = {
+  id: string
+  staff_id: string
+  staff_type: string
+  attendance_date: string
+  check_in: string | null
+  check_out: string | null
+  status: string
+  notes: string | null
+}
+
+type LessonRow = {
+  id: string
+  teacher_id: string
+  timetable_slot_id: string
+  attendance_date: string
+  started_time: string | null
+  ended_time: string | null
+  status: string
+  scheduled_hours: number | null
+  counted_hours: number | null
+  credited_minutes: number | null
+  late_minutes: number
+  start_method: string | null
+  end_method: string | null
+  actual_duration_minutes: number | null
+}
+
+const ACTIONS: { id: Mode; label: string; description: string; icon: typeof LogIn }[] = [
+  { id: "arrival", label: "Arrivée à l'établissement", description: "Enregistrer le début de journée.", icon: LogIn },
+  { id: "departure", label: "Départ de l'établissement", description: "Enregistrer la fin de journée.", icon: LogOut },
+  { id: "course_start", label: "Début de cours", description: "Le cours est déterminé automatiquement par l'emploi du temps.", icon: Play },
+  { id: "course_end", label: "Fin de cours", description: "Clôturer le cours actuellement en cours.", icon: Square },
+]
+
+const SECTIONS: { id: Section; label: string }[] = [
+  { id: "pointage", label: "Effectuer un pointage" },
+  { id: "historique", label: "Historique" },
+  { id: "fiches", label: "Fiches de pointage" },
+  { id: "absents", label: "Absents" },
+  { id: "retards", label: "Retards" },
+  { id: "cours", label: "Cours non pointés" },
+  { id: "alertes", label: "Alertes" },
+  { id: "parametres", label: "Paramètres" },
+]
 
 export default function PersonnelPointagePage() {
-  const { primaryEstablishment } = useUserContext()
+  const { primaryEstablishment, estEnCoursDeChargement } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-  const [staff, setStaff] = useState<StaffRow[]>([])
-  const [entries, setEntries] = useState<Record<string, Entry>>({})
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const today = new Date().toISOString().slice(0, 10)
 
-  const load = async () => {
+  const [section, setSection] = useState<Section>("pointage")
+  const [mode, setMode] = useState<Mode>("arrival")
+  const [code, setCode] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [alerts, setAlerts] = useState<PointageAlert[]>([])
+  const [staffRows, setStaffRows] = useState<AttendanceRow[]>([])
+  const [lessonRows, setLessonRows] = useState<LessonRow[]>([])
+  const [settings, setSettings] = useState<PointageSettings | null>(null)
+  const [academicYearId, setAcademicYearId] = useState("")
+  const [savingSettings, setSavingSettings] = useState(false)
+
+  const loadMonitoring = useCallback(async () => {
     if (!establishmentId) return
-    setLoading(true)
     try {
-      const rows = (await payrollService.getStaff(establishmentId)) as StaffRow[]
-      setStaff(rows)
-      const { data, error } = await supabaseBrowser.from("staff_attendance").select("id,staff_id,staff_type,check_in,check_out,status,notes").eq("establishment_id", establishmentId).eq("attendance_date", date)
-      if (error) throw error
-      const next: Record<string, Entry> = {}
-      for (const row of data ?? []) next[row.staff_id] = { id: row.id, staff_id: row.staff_id, staff_type: row.staff_type, check_in: row.check_in ? String(row.check_in).slice(0, 5) : "", check_out: row.check_out ? String(row.check_out).slice(0, 5) : "", status: row.status, notes: row.notes ?? "" }
-      setEntries(next)
-    } catch (e: any) { toast.error(e.message || "Impossible de charger le pointage.") }
-    finally { setLoading(false) }
-  }
-
-  useEffect(() => { void load() }, [establishmentId, date])
-
-  const update = (person: StaffRow, patch: Partial<Entry>) => setEntries(prev => ({ ...prev, [person.staff_id]: { staff_id: person.staff_id, staff_type: person.staff_type, check_in: prev[person.staff_id]?.check_in ?? "", check_out: prev[person.staff_id]?.check_out ?? "", status: prev[person.staff_id]?.status ?? "present", notes: prev[person.staff_id]?.notes ?? "", ...patch } }))
-
-  const save = async () => {
-    if (!establishmentId) return
-    setSaving(true)
-    try {
-      for (const person of staff) {
-        const e = entries[person.staff_id]
-        if (!e) continue
-        const payload = { establishment_id: establishmentId, staff_type: person.staff_type, staff_id: person.staff_id, attendance_date: date, check_in: e.check_in ? e.check_in + ":00" : null, check_out: e.check_out ? e.check_out + ":00" : null, status: e.status, notes: e.notes || null }
-        const result = e.id ? await supabaseBrowser.from("staff_attendance").update(payload).eq("id", e.id).eq("establishment_id", establishmentId) : await supabaseBrowser.from("staff_attendance").upsert(payload, { onConflict: "establishment_id,staff_type,staff_id,attendance_date" })
-        if (result.error) throw result.error
+      const [nextAlerts, nextStaff, nextLessons, years] = await Promise.all([
+        servicePointage.obtenirAlertes(establishmentId, today),
+        servicePointage.obtenirPointagesPersonnel(establishmentId, today),
+        servicePointage.obtenirCoursPointes(establishmentId, today),
+        getAcademicYears(establishmentId),
+      ])
+      setAlerts(nextAlerts)
+      setStaffRows(nextStaff as AttendanceRow[])
+      setLessonRows(nextLessons as LessonRow[])
+      const activeYear = years.find((year: any) => year.status === "active")
+      if (activeYear) {
+        setAcademicYearId(activeYear.id)
+        const nextSettings = await servicePointage.obtenirParametres(establishmentId, activeYear.id)
+        setSettings(nextSettings)
       }
-      toast.success("Pointage enregistré.")
-      await load()
-    } catch (e: any) { toast.error(e.message || "Impossible d'enregistrer le pointage.") }
-    finally { setSaving(false) }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible de charger le pointage.")
+    }
+  }, [establishmentId, today])
+
+  useEffect(() => {
+    void loadMonitoring()
+  }, [loadMonitoring])
+
+  const submitPointage = async () => {
+    if (!establishmentId || !code.trim()) {
+      setMessage("Saisissez le code personnel.")
+      return
+    }
+
+    setBusy(true)
+    setMessage(null)
+    try {
+      const result = await servicePointage.enregistrerParCode(establishmentId, mode as PointageAction, code)
+      const label = mode === "arrival" ? "Arrivée enregistrée" : mode === "departure" ? "Départ enregistré" : mode === "course_start" ? "Début de cours validé" : "Fin de cours validée"
+      const detail = result.scheduled_start && result.scheduled_end
+        ? `${result.scheduled_start.slice(0, 5)} → ${result.scheduled_end.slice(0, 5)} · ${result.late_minutes ?? 0} min de retard · ${result.credited_hours ?? 0} h retenue(s)`
+        : "L'événement a été enregistré."
+      setMessage(`${label}. ${detail}`)
+      setCode("")
+      await loadMonitoring()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Pointage refusé.")
+    } finally {
+      setBusy(false)
+    }
   }
 
-  const hours = useMemo(() => Object.values(entries).reduce((total, e) => {
-    if (!e.check_in || !e.check_out) return total
-    const [ih, im] = e.check_in.split(":").map(Number), [oh, om] = e.check_out.split(":").map(Number)
-    return total + Math.max(0, (oh * 60 + om - ih * 60 - im) / 60)
-  }, 0), [entries])
+  const saveSettings = async () => {
+    if (!establishmentId || !academicYearId) return
+    setSavingSettings(true)
+    try {
+      await servicePointage.enregistrerParametres({
+        establishmentId,
+        academicYearId,
+        earlyArrivalToleranceMinutes: settings?.early_arrival_tolerance_minutes ?? 15,
+        fullCreditThresholdMinutes: settings?.full_credit_threshold_minutes ?? 40,
+        fullCreditHours: settings?.full_credit_hours ?? 2,
+        partialCreditHours: settings?.partial_credit_hours ?? 1,
+        allowTeacherClose: settings?.allow_teacher_close ?? true,
+        requireAdminClosureAfterScheduleEnd: settings?.require_admin_closure_after_schedule_end ?? true,
+        alertMissingLessonAfterMinutes: settings?.alert_missing_lesson_after_minutes ?? 10,
+        alertsEnabled: settings?.alerts_enabled ?? true,
+        codeEnabled: settings?.code_enabled ?? true,
+        qrEnabled: settings?.qr_enabled ?? true,
+      })
+      toast.success("Paramètres de pointage enregistrés.")
+      await loadMonitoring()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible d'enregistrer les paramètres.")
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  const updateSetting = <K extends keyof PointageSettings>(key: K, value: PointageSettings[K]) => {
+    setSettings(current => current ? { ...current, [key]: value } : current)
+  }
+
+  const counts = useMemo(() => ({
+    present: staffRows.filter(row => row.status === "present" || row.status === "late").length,
+    late: alerts.filter(alert => alert.alert_type === "late").length,
+    missingCourses: alerts.filter(alert => alert.alert_type === "missing_lesson").length,
+    toClose: alerts.filter(alert => alert.alert_type === "lesson_to_close").length,
+  }), [staffRows, alerts])
+
+  if (estEnCoursDeChargement) {
+    return <main className="min-h-screen p-6 text-sm text-muted-foreground">Chargement du pointage…</main>
+  }
 
   return (
-    <div className="min-h-screen p-4"><div className="max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
-        <div><Link href="/ecole/personnel" className="text-sm text-gray-500 hover:text-gray-900">← Personnel</Link><h1 className="text-2xl font-bold text-gray-900 mt-1">Pointage du personnel</h1><p className="text-sm text-gray-500">Les heures enregistrées servent au calcul des salaires horaires.</p></div>
-        <div className="flex items-center gap-3"><Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-auto bg-white" /><Button onClick={save} disabled={saving || loading}><Save className="h-4 w-4 mr-2" />{saving ? "Enregistrement…" : "Enregistrer"}</Button></div>
+    <main className="min-h-screen bg-muted/20 p-3 sm:p-4 md:p-6">
+      <div className="mx-auto max-w-7xl space-y-5">
+        <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <Link href="/ecole/personnel" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Personnel</Link>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight">Pointage</h1>
+            <p className="text-sm text-muted-foreground">Pointage centralisé du personnel et suivi des cours enseignants.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-sm">
+            <span className="rounded-md border bg-background px-3 py-2"><Users className="mr-1 inline h-4 w-4" />{counts.present} présent(s)</span>
+            <span className="rounded-md border bg-background px-3 py-2"><AlertTriangle className="mr-1 inline h-4 w-4" />{alerts.length} alerte(s)</span>
+          </div>
+        </header>
+
+        <nav className="flex gap-1 overflow-x-auto border-b bg-background px-1">
+          {SECTIONS.map(item => (
+            <button key={item.id} onClick={() => setSection(item.id)} className={`whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium ${section === item.id ? "border-emerald-600 text-emerald-700" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        {section === "pointage" && (
+          <section className="space-y-5">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {ACTIONS.map(action => {
+                const Icon = action.icon
+                const selected = mode === action.id
+                return (
+                  <button key={action.id} onClick={() => { setMode(action.id); setMessage(null) }} className={`rounded-lg border bg-background p-4 text-left transition ${selected ? "border-emerald-600 ring-1 ring-emerald-600" : "hover:border-gray-300"}`}>
+                    <Icon className="mb-3 h-5 w-5" />
+                    <div className="font-medium">{action.label}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{action.description}</div>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="mx-auto max-w-xl rounded-xl border bg-background p-5 shadow-sm">
+              <div className="mb-5">
+                <h2 className="text-lg font-semibold">{ACTIONS.find(action => action.id === mode)?.label}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Le code identifie automatiquement la personne. Pour un enseignant, le cours est recherché dans l'emploi du temps actuel.</p>
+              </div>
+              <Label htmlFor="pointage-code">Code personnel</Label>
+              <Input id="pointage-code" inputMode="text" autoComplete="off" value={code} onChange={event => setCode(event.target.value.toUpperCase())} onKeyDown={event => { if (event.key === "Enter") void submitPointage() }} placeholder="Ex. A1B2C3D4" className="mt-2 h-12 text-center text-lg tracking-[0.25em]" maxLength={8} />
+              <Button onClick={() => void submitPointage()} disabled={busy || !code.trim()} className="mt-4 w-full h-11">
+                {busy ? "Vérification…" : "Valider le pointage"}
+              </Button>
+              {message && <div className="mt-4 rounded-md border bg-muted/30 p-3 text-sm">{message}</div>}
+
+              <div className="mt-5 border-t pt-4 text-xs text-muted-foreground">
+                <p className="font-medium text-foreground">QR téléphone</p>
+                <p className="mt-1">Le backend accepte déjà les sessions QR temporaires. Le scanner doit transmettre le jeton temporaire à l'RPC de début/fin de cours.</p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {section === "historique" && (
+          <section className="space-y-5">
+            <div className="overflow-x-auto rounded-lg border bg-background">
+              <table className="w-full min-w-[800px] text-sm">
+                <thead className="border-b bg-muted/40"><tr><th className="px-4 py-3 text-left">Type</th><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Arrivée / début</th><th className="px-4 py-3 text-left">Départ / fin</th><th className="px-4 py-3 text-left">Statut</th></tr></thead>
+                <tbody className="divide-y">
+                  {staffRows.map(row => <tr key={`staff-${row.id}`}><td className="px-4 py-3">Personnel</td><td className="px-4 py-3">{row.staff_id}</td><td className="px-4 py-3">{row.check_in ? String(row.check_in).slice(11,16) : "—"}</td><td className="px-4 py-3">{row.check_out ? String(row.check_out).slice(11,16) : "—"}</td><td className="px-4 py-3">{row.status}</td></tr>)}
+                  {lessonRows.map(row => <tr key={`lesson-${row.id}`}><td className="px-4 py-3">Cours</td><td className="px-4 py-3">{row.teacher_id}</td><td className="px-4 py-3">{row.started_time?.slice(0,5) ?? "—"}</td><td className="px-4 py-3">{row.ended_time?.slice(0,5) ?? "—"}</td><td className="px-4 py-3">{row.status}</td></tr>)}
+                  {staffRows.length === 0 && lessonRows.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Aucun pointage enregistré aujourd'hui.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {section === "fiches" && (
+          <section className="rounded-lg border bg-background p-5">
+            <h2 className="font-semibold">Fiches de pointage</h2>
+            <p className="mt-1 text-sm text-muted-foreground">La base de données conserve maintenant les heures réelles, les heures retenues et les méthodes de pointage. L'impression/export détaillé sera branché sur ces données.</p>
+          </section>
+        )}
+
+        {section === "absents" && (
+          <section className="rounded-lg border bg-background p-5">
+            <h2 className="font-semibold">Absents</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Les absences seront déterminées à partir des événements attendus et des règles de tolérance, sans saisie manuelle du cours.</p>
+          </section>
+        )}
+
+        {section === "retards" && (
+          <section className="overflow-x-auto rounded-lg border bg-background">
+            <table className="w-full min-w-[700px] text-sm">
+              <thead className="border-b bg-muted/40"><tr><th className="px-4 py-3 text-left">Enseignant</th><th className="px-4 py-3 text-left">Début prévu</th><th className="px-4 py-3 text-left">Retard</th><th className="px-4 py-3 text-left">Heures retenues</th></tr></thead>
+              <tbody className="divide-y">{alerts.filter(alert => alert.alert_type === "late").map(alert => <tr key={`${alert.teacher_id}-${alert.timetable_slot_id}`}><td className="px-4 py-3">{alert.teacher_id}</td><td className="px-4 py-3">{alert.scheduled_start?.slice(0,5)}</td><td className="px-4 py-3">{alert.late_minutes} min</td><td className="px-4 py-3">selon paramètres</td></tr>)}{alerts.filter(alert => alert.alert_type === "late").length === 0 && <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">Aucun retard détecté.</td></tr>}</tbody>
+            </table>
+          </section>
+        )}
+
+        {section === "cours" && (
+          <section className="overflow-x-auto rounded-lg border bg-background">
+            <table className="w-full min-w-[800px] text-sm">
+              <thead className="border-b bg-muted/40"><tr><th className="px-4 py-3 text-left">Enseignant</th><th className="px-4 py-3 text-left">Début</th><th className="px-4 py-3 text-left">Fin prévue</th><th className="px-4 py-3 text-left">État</th></tr></thead>
+              <tbody className="divide-y">{alerts.filter(alert => alert.alert_type === "missing_lesson").map(alert => <tr key={`${alert.teacher_id}-${alert.timetable_slot_id}`}><td className="px-4 py-3">{alert.teacher_id}</td><td className="px-4 py-3">{alert.scheduled_start?.slice(0,5)}</td><td className="px-4 py-3">{alert.scheduled_end?.slice(0,5)}</td><td className="px-4 py-3 text-red-600">Non pointé</td></tr>)}{alerts.filter(alert => alert.alert_type === "missing_lesson").length === 0 && <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">Aucun cours non pointé détecté.</td></tr>}</tbody>
+            </table>
+          </section>
+        )}
+
+        {section === "alertes" && (
+          <section className="space-y-3">
+            {alerts.map((alert, index) => (
+              <div key={`${alert.alert_type}-${alert.teacher_id}-${alert.timetable_slot_id}-${index}`} className="flex items-start gap-3 rounded-lg border bg-background p-4">
+                <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600" />
+                <div><div className="font-medium">{alert.alert_type === "missing_lesson" ? "Cours non pointé" : alert.alert_type === "lesson_to_close" ? "Cours à clôturer" : "Retard"}</div><div className="text-sm text-muted-foreground">Enseignant {alert.teacher_id} · {alert.scheduled_start?.slice(0,5)} → {alert.scheduled_end?.slice(0,5)}{alert.late_minutes ? ` · ${alert.late_minutes} min` : ""}</div></div>
+                {alert.lesson_attendance_id && alert.alert_type === "lesson_to_close" && <Button size="sm" variant="outline" className="ml-auto" onClick={async () => { try { await servicePointage.cloturerCours(alert.lesson_attendance_id!); toast.success("Cours clôturé."); await loadMonitoring() } catch (error) { toast.error(error instanceof Error ? error.message : "Clôture impossible.") } }}>Clôturer</Button>}
+              </div>
+            ))}
+            {alerts.length === 0 && <div className="rounded-lg border bg-background p-10 text-center text-muted-foreground"><CheckCircle2 className="mx-auto mb-3 h-8 w-8 text-emerald-600" />Aucune alerte actuellement.</div>}
+          </section>
+        )}
+
+        {section === "parametres" && (
+          <section className="max-w-3xl rounded-lg border bg-background p-5 space-y-5">
+            <div><h2 className="flex items-center gap-2 font-semibold"><Settings2 className="h-5 w-5" /> Calcul des heures et règles de pointage</h2><p className="mt-1 text-sm text-muted-foreground">Exemple par défaut : un cours de 1h40 peut compter 2h jusqu'au seuil de 40 minutes de retard, puis 1h.</p></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div><Label>Tolérance avant le début (minutes)</Label><Input className="mt-1" type="number" min="0" value={settings?.early_arrival_tolerance_minutes ?? 15} onChange={e => updateSetting("early_arrival_tolerance_minutes", Number(e.target.value))} /></div>
+              <div><Label>Seuil pour les heures complètes (minutes)</Label><Input className="mt-1" type="number" min="0" value={settings?.full_credit_threshold_minutes ?? 40} onChange={e => updateSetting("full_credit_threshold_minutes", Number(e.target.value))} /></div>
+              <div><Label>Heures retenues avant le seuil</Label><Input className="mt-1" type="number" min="0" step="0.25" value={settings?.full_credit_hours ?? 2} onChange={e => updateSetting("full_credit_hours", Number(e.target.value))} /></div>
+              <div><Label>Heures retenues après le seuil</Label><Input className="mt-1" type="number" min="0" step="0.25" value={settings?.partial_credit_hours ?? 1} onChange={e => updateSetting("partial_credit_hours", Number(e.target.value))} /></div>
+              <div><Label>Délai avant alerte cours non pointé (minutes)</Label><Input className="mt-1" type="number" min="0" value={settings?.alert_missing_lesson_after_minutes ?? 10} onChange={e => updateSetting("alert_missing_lesson_after_minutes", Number(e.target.value))} /></div>
+            </div>
+            <div className="space-y-3 border-t pt-4">
+              <label className="flex items-center justify-between gap-4 text-sm"><span>Autoriser l'enseignant à clôturer depuis son téléphone</span><Switch checked={settings?.allow_teacher_close ?? true} onCheckedChange={value => updateSetting("allow_teacher_close", value)} /></label>
+              <label className="flex items-center justify-between gap-4 text-sm"><span>Alerter l'administration lorsqu'un cours arrive à sa fin sans clôture</span><Switch checked={settings?.require_admin_closure_after_schedule_end ?? true} onCheckedChange={value => updateSetting("require_admin_closure_after_schedule_end", value)} /></label>
+              <label className="flex items-center justify-between gap-4 text-sm"><span>Activer les alertes</span><Switch checked={settings?.alerts_enabled ?? true} onCheckedChange={value => updateSetting("alerts_enabled", value)} /></label>
+              <label className="flex items-center justify-between gap-4 text-sm"><span>Autoriser l'identification par code</span><Switch checked={settings?.code_enabled ?? true} onCheckedChange={value => updateSetting("code_enabled", value)} /></label>
+              <label className="flex items-center justify-between gap-4 text-sm"><span>Autoriser l'identification par QR</span><Switch checked={settings?.qr_enabled ?? true} onCheckedChange={value => updateSetting("qr_enabled", value)} /></label>
+            </div>
+            <Button onClick={() => void saveSettings()} disabled={savingSettings || !academicYearId}>{savingSettings ? "Enregistrement…" : "Enregistrer les paramètres"}</Button>
+          </section>
+        )}
       </div>
-      <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
-        <div className="px-4 py-3 border-b flex items-center justify-between"><span className="text-sm text-gray-600">{staff.length} membre(s)</span><span className="text-sm font-medium"><Clock3 className="inline h-4 w-4 mr-1" />{hours.toFixed(2)} h saisies</span></div>
-        <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-sm"><thead className="bg-gray-50 border-b"><tr><th className="text-left px-4 py-3">Personnel</th><th className="text-left px-4 py-3">Fonction</th><th className="text-left px-4 py-3">Rémunération</th><th className="text-left px-4 py-3">Arrivée</th><th className="text-left px-4 py-3">Départ</th><th className="text-left px-4 py-3">Statut</th><th className="text-left px-4 py-3">Note</th></tr></thead>
-          <tbody className="divide-y">{loading ? <tr><td colSpan={7} className="p-8 text-center text-gray-500">Chargement…</td></tr> : staff.map(person => { const e = entries[person.staff_id]; return <tr key={person.staff_id} className="hover:bg-gray-50">
-            <td className="px-4 py-3 font-medium">{person.first_name} {person.last_name}</td><td className="px-4 py-3 text-gray-600">{person.position || "—"}</td><td className="px-4 py-3">{person.remuneration_type === "hourly" ? (Number(person.hourly_rate || 0).toLocaleString("fr-FR") + " FCFA/h") : "Fixe"}</td>
-            <td className="px-4 py-3"><Input type="time" value={e?.check_in || ""} onChange={x => update(person, { check_in: x.target.value })} className="w-32" /></td><td className="px-4 py-3"><Input type="time" value={e?.check_out || ""} onChange={x => update(person, { check_out: x.target.value })} className="w-32" /></td>
-            <td className="px-4 py-3"><select className="border rounded-md px-2 py-2 bg-white" value={e?.status || "present"} onChange={x => update(person, { status: x.target.value as Entry["status"] })}><option value="present">Présent</option><option value="late">En retard</option><option value="absent">Absent</option><option value="excused">Excusé</option></select></td>
-            <td className="px-4 py-3"><Input value={e?.notes || ""} onChange={x => update(person, { notes: x.target.value })} placeholder="Note…" /></td>
-          </tr> })}</tbody>
-        </table></div>
-      </div>
-    </div></div>
+    </main>
   )
 }

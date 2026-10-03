@@ -457,6 +457,7 @@ export default function PersonnelPointagePage() {
               <tbody className="divide-y">
                 {absents.map(person => (
                   <tr key={`${person.staff_type}:${person.id}`}>
+                    <td className="px-4 py-3">{new Date(selectedDate + "T12:00:00").toLocaleDateString("fr-FR")}</td>
                     <td className="px-4 py-3">{personLabel(person.staff_type, person.id)}</td>
                     <td className="px-4 py-3">{person.position ?? "—"}</td>
                     <td className="px-4 py-3">{person.employee_number ?? "—"}</td>

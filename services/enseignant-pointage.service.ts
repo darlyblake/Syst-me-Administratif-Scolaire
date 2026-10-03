@@ -114,24 +114,20 @@ export const enseignantPointageService = {
     return (data ?? []) as TeacherLessonPointage[]
   },
 
-  async startLesson(input: { establishmentId: string; academicYearId: string; timetableSlotId: string; teacherId: string; attendanceDate: string; startedTime: string }) {
-    const { data: userData } = await supabaseBrowser.auth.getUser()
-    const { data, error } = await db.from("teacher_lesson_attendance").insert({
-      establishment_id: input.establishmentId,
-      academic_year_id: input.academicYearId,
-      timetable_slot_id: input.timetableSlotId,
-      teacher_id: input.teacherId,
-      attendance_date: input.attendanceDate,
-      started_time: input.startedTime,
-      status: "in_progress",
-      recorded_by: userData.user?.id ?? null,
-    }).select(POINTAGE_SELECT).single()
+  async startLesson(input: { establishmentId: string }) {
+    const { data, error } = await db.rpc("pointage_start_teacher_course", {
+      p_establishment_id: input.establishmentId,
+      p_method: "qr",
+    })
     if (error) throw new Error(error.message)
     return data as TeacherLessonPointage
   },
 
-  async endLesson(id: string, endedTime: string) {
-    const { data, error } = await db.from("teacher_lesson_attendance").update({ ended_time: endedTime, status: "completed" }).eq("id", id).select(POINTAGE_SELECT).single()
+  async endLesson(input: { establishmentId: string }) {
+    const { data, error } = await db.rpc("pointage_finish_teacher_course", {
+      p_establishment_id: input.establishmentId,
+      p_method: "qr",
+    })
     if (error) throw new Error(error.message)
     return data as TeacherLessonPointage
   },

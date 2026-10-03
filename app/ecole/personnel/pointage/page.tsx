@@ -233,7 +233,34 @@ export default function PersonnelPointagePage() {
       if (activeYear) {
         setAcademicYearId(activeYear.id)
         setAcademicYear(activeYear)
-        setSettings(await servicePointage.obtenirParametres(establishmentId, activeYear.id))
+        const loadedSettings = await servicePointage.obtenirParametres(establishmentId, activeYear.id)
+        setSettings(loadedSettings ?? {
+          id: "",
+          establishment_id: establishmentId,
+          academic_year_id: activeYear.id,
+          early_arrival_tolerance_minutes: 15,
+          full_credit_threshold_minutes: 40,
+          full_credit_hours: 2,
+          partial_credit_hours: 1,
+          allow_teacher_close: true,
+          require_admin_closure_after_schedule_end: true,
+          alert_missing_lesson_after_minutes: 10,
+          alerts_enabled: true,
+          code_enabled: true,
+          qr_enabled: true,
+          work_start_time: "07:00",
+          work_end_time: "15:00",
+          work_days: [1, 2, 3, 4, 5],
+          work_schedule: {
+            "1": { enabled: true, start: "07:00", end: "15:00" },
+            "2": { enabled: true, start: "07:00", end: "15:00" },
+            "3": { enabled: true, start: "07:00", end: "15:00" },
+            "4": { enabled: true, start: "07:00", end: "15:00" },
+            "5": { enabled: true, start: "07:00", end: "15:00" },
+            "6": { enabled: false, start: "07:00", end: "15:00" },
+            "7": { enabled: false, start: "07:00", end: "15:00" },
+          },
+        })
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Impossible de charger le pointage.")

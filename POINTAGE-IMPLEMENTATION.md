@@ -1,3 +1,8 @@
+> **État d'implémentation — 03/10/2026**
+> Le backend pointage existant a été audité puis renforcé. La migration `20261003130044_pointage_course_lifecycle_and_audit.sql` ajoute l'historique des quatre événements, corrige la fenêtre de détection automatique du cours, sécurise le démarrage contre la réouverture d'un cours déjà terminé, et matérialise les alertes. La phase frontend reste à finaliser.
+
+---
+
 # PLAN — Module Pointage (Backend + Frontend)
 
 ## Objectif

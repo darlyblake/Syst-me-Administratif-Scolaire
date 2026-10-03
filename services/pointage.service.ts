@@ -203,6 +203,19 @@ class ServicePointage {
     return data as string
   }
 
+  async obtenirPersonnelActif(establishmentId: string) {
+    const [{ data: teachers, error: teacherError }, { data: staff, error: staffError }] = await Promise.all([
+      supabaseBrowser.from("teachers").select("id,first_name,last_name,employee_number,active").eq("active", true),
+      supabaseBrowser.from("staff_members").select("id,first_name,last_name,employee_number,position,active").eq("establishment_id", establishmentId).eq("active", true),
+    ])
+    if (teacherError) throw teacherError
+    if (staffError) throw staffError
+    return [
+      ...(teachers ?? []).map(row => ({ ...row, staff_type: "teacher" as const, position: "Enseignant" })),
+      ...(staff ?? []).map(row => ({ ...row, staff_type: "staff" as const })),
+    ]
+  }
+
   async obtenirPointagesPersonnel(establishmentId: string, date: string) {
     const { data, error } = await supabaseBrowser
       .from("staff_attendance")

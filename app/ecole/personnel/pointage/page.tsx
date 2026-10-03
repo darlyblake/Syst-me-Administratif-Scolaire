@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, History, LogIn, LogOut, Play, Settings2, Square, Users } from "lucide-react"
+import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, LogIn, LogOut, Play, QrCode, Settings2, Square, Users } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -78,6 +78,10 @@ export default function PersonnelPointagePage() {
   const [settings, setSettings] = useState<PointageSettings | null>(null)
   const [academicYearId, setAcademicYearId] = useState("")
   const [savingSettings, setSavingSettings] = useState(false)
+  const [qrToken, setQrToken] = useState<string | null>(null)
+  const [qrExpiresAt, setQrExpiresAt] = useState<string | null>(null)
+  const [qrSvg, setQrSvg] = useState("")
+  const [qrBusy, setQrBusy] = useState(false)
 
   const loadMonitoring = useCallback(async () => {
     if (!establishmentId) return
@@ -105,6 +109,31 @@ export default function PersonnelPointagePage() {
   useEffect(() => {
     void loadMonitoring()
   }, [loadMonitoring])
+
+  const createQrSession = async () => {
+    if (!establishmentId) return
+    setQrBusy(true)
+    try {
+      const session = await servicePointage.creerSessionQr(establishmentId, "Ordinateur central", 60)
+      const { qrcode } = await import("@/lib/qrcode-generator.mjs")
+      const qr = qrcode(0, "M")
+      qr.addData(session.token)
+      qr.make()
+      setQrToken(session.token)
+      setQrExpiresAt(session.expires_at)
+      setQrSvg(qr.createSvgTag({ cellSize: 6, margin: 4, scalable: true }))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible de générer le QR de pointage.")
+    } finally {
+      setQrBusy(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!qrToken) return
+    const timer = window.setInterval(() => void createQrSession(), 50000)
+    return () => window.clearInterval(timer)
+  }, [qrToken, establishmentId])
 
   const submitPointage = async () => {
     if (!establishmentId || !code.trim()) {
@@ -223,9 +252,23 @@ export default function PersonnelPointagePage() {
               </Button>
               {message && <div className="mt-4 rounded-md border bg-muted/30 p-3 text-sm">{message}</div>}
 
-              <div className="mt-5 border-t pt-4 text-xs text-muted-foreground">
-                <p className="font-medium text-foreground">QR téléphone</p>
-                <p className="mt-1">Le backend accepte déjà les sessions QR temporaires. Le scanner doit transmettre le jeton temporaire à l'RPC de début/fin de cours.</p>
+              <div className="mt-5 border-t pt-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-foreground">Pointage par QR</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Le QR est temporaire et se renouvelle automatiquement. L'enseignant le scanne depuis son téléphone.</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => void createQrSession()} disabled={qrBusy}>
+                    <QrCode className="mr-2 h-4 w-4" />{qrBusy ? "Génération…" : "Afficher le QR"}
+                  </Button>
+                </div>
+                {qrSvg && (
+                  <div className="mt-4 flex flex-col items-center gap-3 rounded-lg border bg-white p-4">
+                    <div className="h-64 w-64" dangerouslySetInnerHTML={{ __html: qrSvg }} />
+                    <p className="text-xs text-muted-foreground">Valide jusqu'à {qrExpiresAt ? new Date(qrExpiresAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}</p>
+                    <p className="max-w-full break-all text-center font-mono text-[10px] text-muted-foreground">{qrToken}</p>
+                  </div>
+                )}
               </div>
             </div>
           </section>

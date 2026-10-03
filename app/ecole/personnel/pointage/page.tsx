@@ -603,8 +603,8 @@ export default function PersonnelPointagePage() {
         {section === "retards" && (
           <section className="space-y-4">
             <div className="flex gap-2 print:hidden">
-              <button onClick={() => setRetardTab("enseignants")} className={\`rounded-md border px-3 py-2 text-sm \${retardTab === "enseignants" ? "border-emerald-600 bg-emerald-50 text-emerald-700 font-medium" : "text-muted-foreground"}\`}>Retards enseignants</button>
-              <button onClick={() => setRetardTab("personnel")} className={\`rounded-md border px-3 py-2 text-sm \${retardTab === "personnel" ? "border-emerald-600 bg-emerald-50 text-emerald-700 font-medium" : "text-muted-foreground"}\`}>Retards du personnel</button>
+              <button onClick={() => setRetardTab("enseignants")} className={`rounded-md border px-3 py-2 text-sm ${retardTab === "enseignants" ? "border-emerald-600 bg-emerald-50 text-emerald-700 font-medium" : "text-muted-foreground"}`}>Retards enseignants</button>
+              <button onClick={() => setRetardTab("personnel")} className={`rounded-md border px-3 py-2 text-sm ${retardTab === "personnel" ? "border-emerald-600 bg-emerald-50 text-emerald-700 font-medium" : "text-muted-foreground"}`}>Retards du personnel</button>
             </div>
             <div className="rounded-md border bg-background p-3 text-sm text-muted-foreground">
               {retardTab === "enseignants"

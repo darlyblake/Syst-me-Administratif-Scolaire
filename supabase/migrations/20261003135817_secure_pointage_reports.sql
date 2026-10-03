@@ -1,0 +1,1 @@
+-- Les fonctions de rapport sont sécurisées et finalisées par la migration suivante.

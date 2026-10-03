@@ -69,7 +69,43 @@ type HistoryRow = {
   metadata: Record<string, unknown>
 }
 
-type PersonRow = {
+type DailyReportRow = {
+  attendance_date: string
+  staff_type: "teacher" | "staff"
+  staff_id: string
+  employee_number: string | null
+  first_name: string
+  last_name: string
+  job_title: string | null
+  planned_minutes: number
+  worked_minutes: number
+  credited_minutes: number
+  late_minutes: number
+  early_departure_minutes: number
+  overtime_minutes: number
+  status: string
+  check_in: string | null
+  check_out: string | null
+}
+
+type PeriodSummaryRow = {
+  staff_type: "teacher" | "staff"
+  staff_id: string
+  employee_number: string | null
+  first_name: string
+  last_name: string
+  job_title: string | null
+  planned_hours: number
+  worked_hours: number
+  credited_hours: number
+  late_minutes: number
+  early_departure_minutes: number
+  overtime_hours: number
+  absent_days: number
+  incomplete_days: number
+}
+
+
   id: string
   staff_type: "teacher" | "staff"
   first_name: string
@@ -135,7 +171,12 @@ export default function PersonnelPointagePage() {
   const [historyRows, setHistoryRows] = useState<HistoryRow[]>([])
   const [people, setPeople] = useState<PersonRow[]>([])
   const [settings, setSettings] = useState<PointageSettings | null>(null)
-  const [academicYearId, setAcademicYearId] = useState("")
+  const [academicYear, setAcademicYear] = useState<any>(null)
+  const [selectedMonth, setSelectedMonth] = useState(today.slice(0, 7))
+  const [ficheRows, setFicheRows] = useState<DailyReportRow[]>([])
+  const [summaryRows, setSummaryRows] = useState<PeriodSummaryRow[]>([])
+  const [ficheLoading, setFicheLoading] = useState(false)
+
   const [savingSettings, setSavingSettings] = useState(false)
   const [qrToken, setQrToken] = useState<string | null>(null)
   const [qrExpiresAt, setQrExpiresAt] = useState<string | null>(null)
@@ -172,10 +213,12 @@ export default function PersonnelPointagePage() {
       setLessonRows(nextLessons as LessonRow[])
       setHistoryRows(nextHistory as HistoryRow[])
       setPeople(nextPeople as PersonRow[])
+      await servicePointage.garantirCodesPointage(establishmentId)
 
       const activeYear = years.find((year: any) => year.status === "active")
       if (activeYear) {
         setAcademicYearId(activeYear.id)
+        setAcademicYear(activeYear)
         setSettings(await servicePointage.obtenirParametres(establishmentId, activeYear.id))
       }
     } catch (error) {
@@ -183,7 +226,7 @@ export default function PersonnelPointagePage() {
     } finally {
       setRefreshing(false)
     }
-  }, [establishmentId, today])
+  }, [establishmentId, selectedDate])
 
   useEffect(() => {
     void loadMonitoring()
@@ -261,6 +304,9 @@ export default function PersonnelPointagePage() {
         alertsEnabled: settings?.alerts_enabled ?? true,
         codeEnabled: settings?.code_enabled ?? true,
         qrEnabled: settings?.qr_enabled ?? true,
+        workStartTime: settings?.work_start_time ?? "07:00",
+        workEndTime: settings?.work_end_time ?? "15:00",
+        workDays: settings?.work_days ?? [1, 2, 3, 4, 5],
       })
       toast.success("Paramètres de pointage enregistrés.")
       await loadMonitoring()
@@ -270,6 +316,33 @@ export default function PersonnelPointagePage() {
       setSavingSettings(false)
     }
   }
+
+  const loadFiche = useCallback(async () => {
+    if (!establishmentId || !selectedMonth) return
+    setFicheLoading(true)
+    try {
+      const parts = selectedMonth.split("-").map(Number)
+      const year = parts[0]
+      const month = parts[1]
+      const startDate = selectedMonth + "-01"
+      const lastDay = new Date(year, month, 0).getDate()
+      const endDate = selectedMonth + "-" + String(lastDay).padStart(2, "0")
+      const [daily, summary] = await Promise.all([
+        servicePointage.obtenirFichePointage(establishmentId, startDate, endDate),
+        servicePointage.obtenirSynthesePointage(establishmentId, startDate, endDate),
+      ])
+      setFicheRows(daily as DailyReportRow[])
+      setSummaryRows(summary as PeriodSummaryRow[])
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible de générer la fiche de pointage.")
+    } finally {
+      setFicheLoading(false)
+    }
+  }, [establishmentId, selectedMonth])
+
+  useEffect(() => {
+    if (section === "fiches") void loadFiche()
+  }, [section, loadFiche])
 
   const updateSetting = <K extends keyof PointageSettings>(key: K, value: PointageSettings[K]) => {
     setSettings(current => current ? { ...current, [key]: value } : current)
@@ -416,32 +489,67 @@ export default function PersonnelPointagePage() {
         )}
 
         {section === "fiches" && (
-          <section className="space-y-4">
-            <div className="flex flex-wrap items-end gap-2 print:hidden"><div><Label htmlFor="people-filter">Filtrer le personnel</Label><Input id="people-filter" value={peopleFilter} onChange={event => setPeopleFilter(event.target.value)} placeholder="Nom ou matricule" className="mt-1 w-[240px]" /></div></div>
+          <section className="space-y-5">
+            <div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
+              <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <Label htmlFor="fiche-month">Mois de la fiche</Label>
+                  <Input id="fiche-month" type="month" value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)} className="mt-1 w-[180px]" />
+                </div>
+                <div>
+                  <Label htmlFor="fiche-person-filter">Personnel</Label>
+                  <Input id="fiche-person-filter" value={peopleFilter} onChange={event => setPeopleFilter(event.target.value)} placeholder="Nom ou matricule" className="mt-1 w-[240px]" />
+                </div>
+              </div>
+              <Button variant="outline" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" /> Imprimer / PDF</Button>
+            </div>
+
+            <div className="rounded-lg border bg-background p-4">
+              <h2 className="font-semibold">Fiche de pointage — {new Date(selectedMonth + "-01T12:00:00").toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Le pointage calcule les heures prévues, travaillées et supplémentaires. Finance décide ensuite des primes, retenues et règles de paie.</p>
+              {ficheLoading && <p className="mt-2 text-sm text-muted-foreground">Génération de la fiche…</p>}
+            </div>
+
             <div className="overflow-x-auto rounded-lg border bg-background">
               <table className="w-full min-w-[1100px] text-sm">
                 <thead className="border-b bg-muted/40">
-                  <tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Arrivée</th><th className="px-4 py-3 text-left">Départ</th><th className="px-4 py-3 text-left">Cours</th><th className="px-4 py-3 text-left">Heures réelles</th><th className="px-4 py-3 text-left">Heures retenues</th></tr>
+                  <tr><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Heures prévues</th><th className="px-4 py-3 text-left">Heures travaillées</th><th className="px-4 py-3 text-left">Heures créditées</th><th className="px-4 py-3 text-left">Retards</th><th className="px-4 py-3 text-left">Heures sup.</th><th className="px-4 py-3 text-left">Absences</th></tr>
                 </thead>
                 <tbody className="divide-y">
-                  {filteredPeople.map(person => {
-                    const attendance = staffRows.find(row => row.staff_type === person.staff_type && row.staff_id === person.id)
-                    const lessons = lessonRows.filter(row => row.teacher_id === person.id)
-                    const actualMinutes = lessons.reduce((sum, row) => sum + (row.actual_duration_minutes ?? 0), 0)
-                    const credited = lessons.reduce((sum, row) => sum + Number(row.counted_hours ?? 0), 0)
-                    return (
-                      <tr key={`${person.staff_type}:${person.id}`}>
-                        <td className="px-4 py-3">{new Date(selectedDate + "T12:00:00").toLocaleDateString("fr-FR")}</td><td className="px-4 py-3">{personLabel(person.staff_type, person.id)}</td>
-                        <td className="px-4 py-3">{person.position ?? "—"}</td>
-                        <td className="px-4 py-3">{attendance?.check_in ? new Date(attendance.check_in).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—"}</td>
-                        <td className="px-4 py-3">{attendance?.check_out ? new Date(attendance.check_out).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—"}</td>
-                        <td className="px-4 py-3">{lessons.length}</td>
-                        <td className="px-4 py-3">{(actualMinutes / 60).toFixed(2)} h</td>
-                        <td className="px-4 py-3">{credited.toFixed(2)} h</td>
-                      </tr>
-                    )
-                  })}
-                  {!people.length && <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Aucun personnel actif.</td></tr>}
+                  {summaryRows.filter(row => {
+                    const q = peopleFilter.trim().toLowerCase()
+                    return !q || (row.first_name + " " + row.last_name).toLowerCase().includes(q) || (row.employee_number ?? "").toLowerCase().includes(q)
+                  }).map(row => (
+                    <tr key={row.staff_type + ":" + row.staff_id}>
+                      <td className="px-4 py-3">{row.first_name} {row.last_name}</td><td className="px-4 py-3">{row.job_title ?? "—"}</td>
+                      <td className="px-4 py-3">{Number(row.planned_hours).toFixed(2)} h</td><td className="px-4 py-3">{Number(row.worked_hours).toFixed(2)} h</td>
+                      <td className="px-4 py-3">{Number(row.credited_hours).toFixed(2)} h</td><td className="px-4 py-3">{row.late_minutes} min</td>
+                      <td className="px-4 py-3">{Number(row.overtime_hours).toFixed(2)} h</td><td className="px-4 py-3">{row.absent_days}</td>
+                    </tr>
+                  ))}
+                  {!summaryRows.length && <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Aucune donnée pour ce mois.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border bg-background">
+              <table className="w-full min-w-[1300px] text-sm">
+                <thead className="border-b bg-muted/40">
+                  <tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Prévu</th><th className="px-4 py-3 text-left">Travaillé</th><th className="px-4 py-3 text-left">Crédité</th><th className="px-4 py-3 text-left">Retard</th><th className="px-4 py-3 text-left">Départ anticipé</th><th className="px-4 py-3 text-left">Heures sup.</th><th className="px-4 py-3 text-left">État</th></tr>
+                </thead>
+                <tbody className="divide-y">
+                  {ficheRows.filter(row => {
+                    const q = peopleFilter.trim().toLowerCase()
+                    return !q || (row.first_name + " " + row.last_name).toLowerCase().includes(q) || (row.employee_number ?? "").toLowerCase().includes(q)
+                  }).map(row => (
+                    <tr key={row.attendance_date + ":" + row.staff_type + ":" + row.staff_id}>
+                      <td className="px-4 py-3">{new Date(row.attendance_date + "T12:00:00").toLocaleDateString("fr-FR")}</td><td className="px-4 py-3">{row.first_name} {row.last_name}</td><td className="px-4 py-3">{row.job_title ?? "—"}</td>
+                      <td className="px-4 py-3">{(row.planned_minutes / 60).toFixed(2)} h</td><td className="px-4 py-3">{(row.worked_minutes / 60).toFixed(2)} h</td>
+                      <td className="px-4 py-3">{(row.credited_minutes / 60).toFixed(2)} h</td><td className="px-4 py-3">{row.late_minutes} min</td>
+                      <td className="px-4 py-3">{row.early_departure_minutes} min</td><td className="px-4 py-3">{(row.overtime_minutes / 60).toFixed(2)} h</td><td className="px-4 py-3">{row.status}</td>
+                    </tr>
+                  ))}
+                  {!ficheRows.length && <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">Aucune journée enregistrée pour ce mois.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -471,18 +579,45 @@ export default function PersonnelPointagePage() {
         )}
 
         {section === "retards" && (
-          <section className="overflow-x-auto rounded-lg border bg-background">
-            <table className="w-full min-w-[800px] text-sm">
-              <thead className="border-b bg-muted/40"><tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Enseignant</th><th className="px-4 py-3 text-left">Début prévu</th><th className="px-4 py-3 text-left">Retard</th><th className="px-4 py-3 text-left">Heures retenues</th></tr></thead>
-              <tbody className="divide-y">
-                {lateAlerts.map(alert => {
-                  const teacher = people.find(person => person.id === alert.teacher_id && person.staff_type === "teacher")
-                  const lesson = lessonRows.find(row => row.id === alert.lesson_attendance_id)
-                  return <tr key={`${alert.teacher_id}-${alert.timetable_slot_id}`}><td className="px-4 py-3">{new Date(selectedDate + "T12:00:00").toLocaleDateString("fr-FR")}</td><td className="px-4 py-3">{teacher ? personLabel("teacher", teacher.id) : alert.teacher_id}</td><td className="px-4 py-3">{alert.scheduled_start?.slice(0,5)}</td><td className="px-4 py-3">{alert.late_minutes} min</td><td className="px-4 py-3">{lesson?.counted_hours ?? "selon paramètres"} h</td></tr>
-                })}
-                {!lateAlerts.length && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Aucun retard détecté pour cette date.</td></tr>}
-              </tbody>
-            </table>
+          <section className="space-y-4">
+            <div className="rounded-md border bg-background p-3 text-sm text-muted-foreground">
+              <strong className="text-foreground">Retards enseignants :</strong> calculés selon l'heure de début de chaque cours. <strong className="text-foreground">Retards du personnel :</strong> calculés selon l'horaire général configuré dans Paramètres.
+            </div>
+            <div className="overflow-x-auto rounded-lg border bg-background">
+              <table className="w-full min-w-[900px] text-sm">
+                <thead className="border-b bg-muted/40"><tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Début prévu</th><th className="px-4 py-3 text-left">Arrivée / cours</th><th className="px-4 py-3 text-left">Retard</th></tr></thead>
+                <tbody className="divide-y">
+                  {lateAlerts.map(alert => {
+                    const teacher = people.find(person => person.id === alert.teacher_id && person.staff_type === "teacher")
+                    return <tr key={alert.teacher_id + "-" + alert.timetable_slot_id}>
+                      <td className="px-4 py-3">{new Date(selectedDate + "T12:00:00").toLocaleDateString("fr-FR")}</td>
+                      <td className="px-4 py-3">{teacher ? personLabel("teacher", teacher.id) : alert.teacher_id}</td>
+                      <td className="px-4 py-3">Enseignant</td>
+                      <td className="px-4 py-3">{alert.scheduled_start?.slice(0,5)}</td>
+                      <td className="px-4 py-3">Cours</td>
+                      <td className="px-4 py-3">{alert.late_minutes} min</td>
+                    </tr>
+                  })}
+                  {staffRows.filter(row => row.staff_type === "staff" && row.check_in && settings?.work_start_time).map(row => {
+                    const person = people.find(p => p.staff_type === "staff" && p.id === row.staff_id)
+                    if (!person) return null
+                    const expected = new Date(selectedDate + "T" + settings!.work_start_time.slice(0,5) + ":00")
+                    const actual = new Date(row.check_in!)
+                    const late = Math.max(0, Math.round((actual.getTime() - expected.getTime()) / 60000))
+                    if (!late) return null
+                    return <tr key={"staff-late-" + row.id}>
+                      <td className="px-4 py-3">{new Date(selectedDate + "T12:00:00").toLocaleDateString("fr-FR")}</td>
+                      <td className="px-4 py-3">{personLabel("staff", person.id)}</td>
+                      <td className="px-4 py-3">{person.position ?? "Personnel"}</td>
+                      <td className="px-4 py-3">{settings!.work_start_time.slice(0,5)}</td>
+                      <td className="px-4 py-3">{actual.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</td>
+                      <td className="px-4 py-3">{late} min</td>
+                    </tr>
+                  })}
+                  {!lateAlerts.length && !staffRows.some(row => row.staff_type === "staff" && row.check_in && settings?.work_start_time) && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucun retard détecté pour cette date.</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </section>
         )}
 
@@ -540,6 +675,21 @@ export default function PersonnelPointagePage() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-md border bg-muted/20 p-3 sm:col-span-2">
+                <p className="font-medium">Horaires généraux de l'établissement — personnel non enseignant</p>
+                <p className="mt-1 text-xs text-muted-foreground">Ces horaires servent au calcul quotidien des retards, heures travaillées et heures supplémentaires du personnel administratif. Les enseignants restent calculés selon leur emploi du temps.</p>
+              </div>
+              <div><Label>Début de journée</Label><Input className="mt-1" type="time" value={settings?.work_start_time ?? "07:00"} onChange={e => updateSetting("work_start_time", e.target.value)} /></div>
+              <div><Label>Fin de journée</Label><Input className="mt-1" type="time" value={settings?.work_end_time ?? "15:00"} onChange={e => updateSetting("work_end_time", e.target.value)} /></div>
+              <div className="sm:col-span-2">
+                <Label>Jours travaillés</Label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[[1,"Lun"],[2,"Mar"],[3,"Mer"],[4,"Jeu"],[5,"Ven"],[6,"Sam"],[7,"Dim"]].map(([day,label]) => {
+                    const active = (settings?.work_days ?? [1,2,3,4,5]).includes(Number(day))
+                    return <button type="button" key={day} onClick={() => updateSetting("work_days", active ? (settings?.work_days ?? []).filter(d => d !== Number(day)) : [...(settings?.work_days ?? []), Number(day)].sort())} className={\`rounded-md border px-3 py-1.5 text-sm \${active ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "text-muted-foreground"}\`}>{label}</button>
+                  })}
+                </div>
+              </div>
               <div><Label>Tolérance avant le début (minutes)</Label><Input className="mt-1" type="number" min="0" value={settings?.early_arrival_tolerance_minutes ?? 15} onChange={e => updateSetting("early_arrival_tolerance_minutes", Number(e.target.value))} /></div>
               <div><Label>Seuil pour les heures complètes (minutes)</Label><Input className="mt-1" type="number" min="0" value={settings?.full_credit_threshold_minutes ?? 40} onChange={e => updateSetting("full_credit_threshold_minutes", Number(e.target.value))} /></div>
               <div><Label>Heures retenues avant le seuil</Label><Input className="mt-1" type="number" min="0" step="0.25" value={settings?.full_credit_hours ?? 2} onChange={e => updateSetting("full_credit_hours", Number(e.target.value))} /></div>

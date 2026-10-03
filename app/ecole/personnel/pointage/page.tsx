@@ -161,6 +161,7 @@ export default function PersonnelPointagePage() {
   const [historyFilter, setHistoryFilter] = useState("all")
   const [peopleFilter, setPeopleFilter] = useState("")
   const [alertFilter, setAlertFilter] = useState("all")
+  const [retardTab, setRetardTab] = useState<"enseignants" | "personnel">("enseignants")
   const [mode, setMode] = useState<Mode>("arrival")
   const [code, setCode] = useState("")
   const [busy, setBusy] = useState(false)
@@ -316,6 +317,21 @@ export default function PersonnelPointagePage() {
       setSavingSettings(false)
     }
   }
+
+  const monthOptions = useMemo(() => {
+    const start = academicYear?.start_date ?? academicYear?.starts_on
+    const end = academicYear?.end_date ?? academicYear?.ends_on
+    if (!start || !end) return [selectedMonth]
+    const options: string[] = []
+    const cursor = new Date(start + "T12:00:00")
+    const limit = new Date(end + "T12:00:00")
+    cursor.setDate(1)
+    while (cursor <= limit) {
+      options.push(cursor.getFullYear() + "-" + String(cursor.getMonth() + 1).padStart(2, "0"))
+      cursor.setMonth(cursor.getMonth() + 1)
+    }
+    return options.length ? options : [selectedMonth]
+  }, [academicYear, selectedMonth])
 
   const loadFiche = useCallback(async () => {
     if (!establishmentId || !selectedMonth) return
@@ -494,7 +510,13 @@ export default function PersonnelPointagePage() {
               <div className="flex flex-wrap items-end gap-3">
                 <div>
                   <Label htmlFor="fiche-month">Mois de la fiche</Label>
-                  <Input id="fiche-month" type="month" value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)} className="mt-1 w-[180px]" />
+                  <select id="fiche-month" value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)} className="mt-1 h-10 w-[220px] rounded-md border bg-background px-3 text-sm">
+                    {monthOptions.map(month => (
+                      <option key={month} value={month}>
+                        {new Date(month + "-01T12:00:00").toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <Label htmlFor="fiche-person-filter">Personnel</Label>
@@ -580,14 +602,20 @@ export default function PersonnelPointagePage() {
 
         {section === "retards" && (
           <section className="space-y-4">
+            <div className="flex gap-2 print:hidden">
+              <button onClick={() => setRetardTab("enseignants")} className={\`rounded-md border px-3 py-2 text-sm \${retardTab === "enseignants" ? "border-emerald-600 bg-emerald-50 text-emerald-700 font-medium" : "text-muted-foreground"}\`}>Retards enseignants</button>
+              <button onClick={() => setRetardTab("personnel")} className={\`rounded-md border px-3 py-2 text-sm \${retardTab === "personnel" ? "border-emerald-600 bg-emerald-50 text-emerald-700 font-medium" : "text-muted-foreground"}\`}>Retards du personnel</button>
+            </div>
             <div className="rounded-md border bg-background p-3 text-sm text-muted-foreground">
-              <strong className="text-foreground">Retards enseignants :</strong> calculés selon l'heure de début de chaque cours. <strong className="text-foreground">Retards du personnel :</strong> calculés selon l'horaire général configuré dans Paramètres.
+              {retardTab === "enseignants"
+                ? "Les retards enseignants sont calculés sur l'heure de début de chaque cours."
+                : "Les retards du personnel sont calculés sur l'horaire général configuré dans Paramètres."}
             </div>
             <div className="overflow-x-auto rounded-lg border bg-background">
               <table className="w-full min-w-[900px] text-sm">
                 <thead className="border-b bg-muted/40"><tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Début prévu</th><th className="px-4 py-3 text-left">Arrivée / cours</th><th className="px-4 py-3 text-left">Retard</th></tr></thead>
                 <tbody className="divide-y">
-                  {lateAlerts.map(alert => {
+                  {retardTab === "enseignants" && lateAlerts.map(alert => {
                     const teacher = people.find(person => person.id === alert.teacher_id && person.staff_type === "teacher")
                     return <tr key={alert.teacher_id + "-" + alert.timetable_slot_id}>
                       <td className="px-4 py-3">{new Date(selectedDate + "T12:00:00").toLocaleDateString("fr-FR")}</td>
@@ -598,7 +626,7 @@ export default function PersonnelPointagePage() {
                       <td className="px-4 py-3">{alert.late_minutes} min</td>
                     </tr>
                   })}
-                  {staffRows.filter(row => row.staff_type === "staff" && row.check_in && settings?.work_start_time).map(row => {
+                  {retardTab === "personnel" && staffRows.filter(row => row.staff_type === "staff" && row.check_in && settings?.work_start_time).map(row => {
                     const person = people.find(p => p.staff_type === "staff" && p.id === row.staff_id)
                     if (!person) return null
                     const expected = new Date(selectedDate + "T" + settings!.work_start_time.slice(0,5) + ":00")
@@ -614,7 +642,8 @@ export default function PersonnelPointagePage() {
                       <td className="px-4 py-3">{late} min</td>
                     </tr>
                   })}
-                  {!lateAlerts.length && !staffRows.some(row => row.staff_type === "staff" && row.check_in && settings?.work_start_time) && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucun retard détecté pour cette date.</td></tr>}
+                  {retardTab === "enseignants" && !lateAlerts.length && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucun retard enseignant pour cette date.</td></tr>}
+                  {retardTab === "personnel" && !staffRows.some(row => row.staff_type === "staff" && row.check_in && settings?.work_start_time && Math.max(0, Math.round((new Date(row.check_in!).getTime() - new Date(selectedDate + "T" + settings!.work_start_time.slice(0,5) + ":00").getTime()) / 60000)) > 0) && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucun retard du personnel pour cette date.</td></tr>}
                 </tbody>
               </table>
             </div>

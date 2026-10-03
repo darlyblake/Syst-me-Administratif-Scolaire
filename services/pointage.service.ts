@@ -206,6 +206,14 @@ class ServicePointage {
     return Number(data ?? 0)
   }
 
+  async obtenirFichePaieGeneree(periodId: string) {
+    const { data, error } = await supabaseBrowser.rpc("pointage_get_payroll_fiche", {
+      p_period_id: periodId,
+    })
+    if (error) throw error
+    return data
+  }
+
   async obtenirFichePointage(
     establishmentId: string,
     startDate: string,

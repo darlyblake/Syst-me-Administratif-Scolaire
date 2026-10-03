@@ -45,6 +45,7 @@ export type PointageResult = {
   ended_time?: string
   actual_duration_minutes?: number
   status?: string
+  already_started?: boolean
 }
 
 class ServicePointage {
@@ -85,6 +86,14 @@ class ServicePointage {
     return Array.isArray(data) ? data[0] ?? null : data
   }
 
+  async obtenirCoursActifEnseignant(establishmentId: string) {
+    const { data, error } = await supabaseBrowser.rpc("pointage_teacher_active_course", {
+      p_establishment_id: establishmentId,
+    })
+    if (error) throw error
+    return Array.isArray(data) ? data[0] ?? null : data
+  }
+
   async commencerCoursParQr(token: string): Promise<PointageResult> {
     const { data, error } = await supabaseBrowser.rpc("pointage_start_teacher_course_by_qr", {
       p_qr_token: token,
@@ -99,6 +108,15 @@ class ServicePointage {
     })
     if (error) throw error
     return data as PointageResult
+  }
+
+  async rafraichirAlertes(establishmentId: string, date?: string) {
+    const { data, error } = await supabaseBrowser.rpc("pointage_refresh_alerts", {
+      p_establishment_id: establishmentId,
+      p_date: date ?? null,
+    })
+    if (error) throw error
+    return Number(data ?? 0)
   }
 
   async obtenirAlertes(establishmentId: string, date?: string): Promise<PointageAlert[]> {
@@ -192,6 +210,20 @@ class ServicePointage {
       .eq("establishment_id", establishmentId)
       .eq("attendance_date", date)
       .order("check_in", { ascending: true })
+    if (error) throw error
+    return data ?? []
+  }
+
+  async obtenirHistorique(establishmentId: string, date?: string) {
+    let query = supabaseBrowser
+      .from("pointage_event_history")
+      .select("id,staff_type,staff_id,event_type,event_time,method,attendance_id,metadata,created_at")
+      .eq("establishment_id", establishmentId)
+      .order("event_time", { ascending: false })
+    if (date) {
+      query = query.gte("event_time", date + "T00:00:00").lt("event_time", date + "T23:59:59.999")
+    }
+    const { data, error } = await query
     if (error) throw error
     return data ?? []
   }

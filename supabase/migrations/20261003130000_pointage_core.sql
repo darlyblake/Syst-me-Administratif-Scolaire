@@ -636,7 +636,7 @@ as $$
       ts.starts_at,
       ts.ends_at,
       cs.teacher_id,
-      c.class_id,
+      cs.class_id,
       (select local_date from context) as local_date,
       (select timezone from context) as timezone
     from public.timetable_slots ts

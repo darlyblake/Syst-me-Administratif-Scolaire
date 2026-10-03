@@ -105,7 +105,7 @@ type PeriodSummaryRow = {
   incomplete_days: number
 }
 
-
+type PersonRow = {
   id: string
   staff_type: "teacher" | "staff"
   first_name: string

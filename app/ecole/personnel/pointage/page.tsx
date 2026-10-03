@@ -178,6 +178,7 @@ export default function PersonnelPointagePage() {
   const [ficheRows, setFicheRows] = useState<DailyReportRow[]>([])
   const [summaryRows, setSummaryRows] = useState<PeriodSummaryRow[]>([])
   const [ficheLoading, setFicheLoading] = useState(false)
+  const [ficheTab, setFicheTab] = useState<"recapitulatif" | "detail">("recapitulatif")
 
   const [savingSettings, setSavingSettings] = useState(false)
   const [qrToken, setQrToken] = useState<string | null>(null)
@@ -533,49 +534,56 @@ export default function PersonnelPointagePage() {
               {ficheLoading && <p className="mt-2 text-sm text-muted-foreground">Génération de la fiche…</p>}
             </div>
 
-            <div className="overflow-x-auto rounded-lg border bg-background">
-              <table className="w-full min-w-[1100px] text-sm">
-                <thead className="border-b bg-muted/40">
-                  <tr><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Heures prévues</th><th className="px-4 py-3 text-left">Heures travaillées</th><th className="px-4 py-3 text-left">Heures créditées</th><th className="px-4 py-3 text-left">Retards</th><th className="px-4 py-3 text-left">Heures sup.</th><th className="px-4 py-3 text-left">Absences</th></tr>
-                </thead>
-                <tbody className="divide-y">
-                  {summaryRows.filter(row => {
-                    const q = peopleFilter.trim().toLowerCase()
-                    return !q || (row.first_name + " " + row.last_name).toLowerCase().includes(q) || (row.employee_number ?? "").toLowerCase().includes(q)
-                  }).map(row => (
-                    <tr key={row.staff_type + ":" + row.staff_id}>
-                      <td className="px-4 py-3">{row.first_name} {row.last_name}</td><td className="px-4 py-3">{row.job_title ?? "—"}</td>
-                      <td className="px-4 py-3">{Number(row.planned_hours).toFixed(2)} h</td><td className="px-4 py-3">{Number(row.worked_hours).toFixed(2)} h</td>
-                      <td className="px-4 py-3">{Number(row.credited_hours).toFixed(2)} h</td><td className="px-4 py-3">{row.late_minutes} min</td>
-                      <td className="px-4 py-3">{Number(row.overtime_hours).toFixed(2)} h</td><td className="px-4 py-3">{row.absent_days}</td>
-                    </tr>
-                  ))}
-                  {!summaryRows.length && <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Aucune donnée pour ce mois.</td></tr>}
-                </tbody>
-              </table>
+            <div className="flex flex-wrap items-center gap-2 border-b print:hidden">
+              <button type="button" onClick={() => setFicheTab("recapitulatif")} className={`rounded-md border px-3 py-2 text-sm font-medium ${ficheTab === "recapitulatif" ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "text-muted-foreground hover:text-foreground"}`}>Récapitulatif</button>
+              <button type="button" onClick={() => setFicheTab("detail")} className={`rounded-md border px-3 py-2 text-sm font-medium ${ficheTab === "detail" ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "text-muted-foreground hover:text-foreground"}`}>Détail des pointages</button>
             </div>
 
-            <div className="overflow-x-auto rounded-lg border bg-background">
-              <table className="w-full min-w-[1300px] text-sm">
-                <thead className="border-b bg-muted/40">
-                  <tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Prévu</th><th className="px-4 py-3 text-left">Travaillé</th><th className="px-4 py-3 text-left">Crédité</th><th className="px-4 py-3 text-left">Retard</th><th className="px-4 py-3 text-left">Départ anticipé</th><th className="px-4 py-3 text-left">Heures sup.</th><th className="px-4 py-3 text-left">État</th></tr>
-                </thead>
-                <tbody className="divide-y">
-                  {ficheRows.filter(row => {
-                    const q = peopleFilter.trim().toLowerCase()
-                    return !q || (row.first_name + " " + row.last_name).toLowerCase().includes(q) || (row.employee_number ?? "").toLowerCase().includes(q)
-                  }).map(row => (
-                    <tr key={row.attendance_date + ":" + row.staff_type + ":" + row.staff_id}>
-                      <td className="px-4 py-3">{new Date(row.attendance_date + "T12:00:00").toLocaleDateString("fr-FR")}</td><td className="px-4 py-3">{row.first_name} {row.last_name}</td><td className="px-4 py-3">{row.job_title ?? "—"}</td>
-                      <td className="px-4 py-3">{(row.planned_minutes / 60).toFixed(2)} h</td><td className="px-4 py-3">{(row.worked_minutes / 60).toFixed(2)} h</td>
-                      <td className="px-4 py-3">{(row.credited_minutes / 60).toFixed(2)} h</td><td className="px-4 py-3">{row.late_minutes} min</td>
-                      <td className="px-4 py-3">{row.early_departure_minutes} min</td><td className="px-4 py-3">{(row.overtime_minutes / 60).toFixed(2)} h</td><td className="px-4 py-3">{row.status}</td>
-                    </tr>
-                  ))}
-                  {!ficheRows.length && <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">Aucune journée enregistrée pour ce mois.</td></tr>}
-                </tbody>
-              </table>
-            </div>
+            {ficheTab === "recapitulatif" ? (
+              <div className="overflow-x-auto rounded-lg border bg-background">
+                <table className="w-full min-w-[1100px] text-sm">
+                  <thead className="border-b bg-muted/40">
+                    <tr><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Heures prévues</th><th className="px-4 py-3 text-left">Heures travaillées</th><th className="px-4 py-3 text-left">Heures créditées</th><th className="px-4 py-3 text-left">Retards</th><th className="px-4 py-3 text-left">Heures sup.</th><th className="px-4 py-3 text-left">Absences</th></tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {summaryRows.filter(row => {
+                      const q = peopleFilter.trim().toLowerCase()
+                      return !q || (row.first_name + " " + row.last_name).toLowerCase().includes(q) || (row.employee_number ?? "").toLowerCase().includes(q)
+                    }).map(row => (
+                      <tr key={row.staff_type + ":" + row.staff_id}>
+                        <td className="px-4 py-3">{row.first_name} {row.last_name}</td><td className="px-4 py-3">{row.job_title ?? "—"}</td>
+                        <td className="px-4 py-3">{Number(row.planned_hours).toFixed(2)} h</td><td className="px-4 py-3">{Number(row.worked_hours).toFixed(2)} h</td>
+                        <td className="px-4 py-3">{Number(row.credited_hours).toFixed(2)} h</td><td className="px-4 py-3">{row.late_minutes} min</td>
+                        <td className="px-4 py-3">{Number(row.overtime_hours).toFixed(2)} h</td><td className="px-4 py-3">{row.absent_days}</td>
+                      </tr>
+                    ))}
+                    {!summaryRows.length && <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Aucune donnée pour ce mois.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border bg-background">
+                <table className="w-full min-w-[1300px] text-sm">
+                  <thead className="border-b bg-muted/40">
+                    <tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Prévu</th><th className="px-4 py-3 text-left">Travaillé</th><th className="px-4 py-3 text-left">Crédité</th><th className="px-4 py-3 text-left">Retard</th><th className="px-4 py-3 text-left">Départ anticipé</th><th className="px-4 py-3 text-left">Heures sup.</th><th className="px-4 py-3 text-left">État</th></tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {ficheRows.filter(row => {
+                      const q = peopleFilter.trim().toLowerCase()
+                      return !q || (row.first_name + " " + row.last_name).toLowerCase().includes(q) || (row.employee_number ?? "").toLowerCase().includes(q)
+                    }).map(row => (
+                      <tr key={row.attendance_date + ":" + row.staff_type + ":" + row.staff_id}>
+                        <td className="px-4 py-3">{new Date(row.attendance_date + "T12:00:00").toLocaleDateString("fr-FR")}</td><td className="px-4 py-3">{row.first_name} {row.last_name}</td><td className="px-4 py-3">{row.job_title ?? "—"}</td>
+                        <td className="px-4 py-3">{(row.planned_minutes / 60).toFixed(2)} h</td><td className="px-4 py-3">{(row.worked_minutes / 60).toFixed(2)} h</td>
+                        <td className="px-4 py-3">{(row.credited_minutes / 60).toFixed(2)} h</td><td className="px-4 py-3">{row.late_minutes} min</td>
+                        <td className="px-4 py-3">{row.early_departure_minutes} min</td><td className="px-4 py-3">{(row.overtime_minutes / 60).toFixed(2)} h</td><td className="px-4 py-3">{row.status}</td>
+                      </tr>
+                    ))}
+                    {!ficheRows.length && <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">Aucune journée enregistrée pour ce mois.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         )}
 

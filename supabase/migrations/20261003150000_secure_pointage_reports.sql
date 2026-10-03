@@ -1,0 +1,2 @@
+-- Sécurisation des fonctions de lecture des fiches horaires.
+-- La définition complète est maintenue par la migration de correction suivante.

@@ -679,26 +679,216 @@ $$;
 revoke execute on function public.pointage_get_alerts(uuid,date) from public, anon;
 grant execute on function public.pointage_get_alerts(uuid,date) to authenticated;
 
-drop view if exists public.v_pointage_alerts;
-create view public.v_pointage_alerts
-with (security_invoker=true)
-as
-select
-  a.*,
-  t.first_name as teacher_first_name,
-  t.last_name as teacher_last_name,
-  sc.name as class_name,
-  s.name as subject_name
-from public.pointage_get_alerts(nullif(null::uuid, null), null) a
-join public.teachers t on t.id=a.teacher_id
-left join public.timetable_slots ts on ts.id=a.timetable_slot_id
-left join public.class_subjects cs on cs.id=ts.class_subject_id
-left join public.school_classes sc on sc.id=cs.class_id
-left join public.subjects s on s.id=cs.subject_id
-where false;
 
-revoke all on public.v_pointage_alerts from anon,authenticated;
+create or replace function public.pointage_start_teacher_course_by_qr(
+  p_qr_token text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_establishment_id uuid;
+begin
+  if (select auth.uid()) is null then raise exception 'Authentification requise'; end if;
 
--- The parameterized RPC above is the authoritative alert source; the placeholder
--- view is intentionally not exposed until a stable establishment-scoped view
--- contract is implemented in the frontend phase.
+  select q.establishment_id into v_establishment_id
+  from public.pointage_qr_sessions q
+  where q.token_digest=encode(extensions.digest(p_qr_token,'sha256'),'hex')
+    and q.active=true
+    and q.expires_at>now()
+  limit 1;
+
+  if v_establishment_id is null then
+    raise exception 'QR de pointage expiré ou invalide';
+  end if;
+
+  return public.pointage_start_teacher_course(v_establishment_id,'qr');
+end;
+$$;
+
+revoke execute on function public.pointage_start_teacher_course_by_qr(text) from public, anon;
+grant execute on function public.pointage_start_teacher_course_by_qr(text) to authenticated;
+
+create or replace function public.pointage_finish_teacher_course_by_qr(
+  p_qr_token text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_establishment_id uuid;
+begin
+  if (select auth.uid()) is null then raise exception 'Authentification requise'; end if;
+
+  select q.establishment_id into v_establishment_id
+  from public.pointage_qr_sessions q
+  where q.token_digest=encode(extensions.digest(p_qr_token,'sha256'),'hex')
+    and q.active=true
+    and q.expires_at>now()
+  limit 1;
+
+  if v_establishment_id is null then
+    raise exception 'QR de pointage expiré ou invalide';
+  end if;
+
+  return public.pointage_finish_teacher_course(v_establishment_id,'qr');
+end;
+$$;
+
+revoke execute on function public.pointage_finish_teacher_course_by_qr(text) from public, anon;
+grant execute on function public.pointage_finish_teacher_course_by_qr(text) to authenticated;
+
+create or replace function public.pointage_record_by_code(
+  p_establishment_id uuid,
+  p_event_type text,
+  p_code text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_code public.pointage_access_codes%rowtype;
+  v_teacher_id uuid;
+  v_staff_id uuid;
+  v_attendance_id uuid;
+  v_started jsonb;
+  v_timezone text;
+  v_local timestamp;
+  v_date date;
+  v_lesson public.teacher_lesson_attendance%rowtype;
+begin
+  if (select auth.uid()) is null then raise exception 'Authentification requise'; end if;
+  if not private.has_permission(p_establishment_id,'attendance.manage') then raise exception 'Non autorisé'; end if;
+  if p_event_type not in ('arrival','departure','course_start','course_end') then raise exception 'Événement invalide'; end if;
+
+  select * into v_code
+  from public.pointage_access_codes
+  where establishment_id=p_establishment_id
+    and active=true
+    and code_digest=encode(extensions.digest(upper(trim(p_code)),'sha256'),'hex')
+  limit 1;
+
+  if v_code.id is null then raise exception 'Code de pointage invalide'; end if;
+
+  if not extensions.crypt(upper(trim(p_code)),v_code.code_hash)=v_code.code_hash then
+    raise exception 'Code de pointage invalide';
+  end if;
+
+  if p_event_type in ('arrival','departure') then
+    v_attendance_id := public.pointage_record_staff_event(
+      p_establishment_id,v_code.staff_type,v_code.staff_id,
+      case when p_event_type='arrival' then 'arrival' else 'departure' end,'code'
+    );
+    return jsonb_build_object(
+      'event_type',p_event_type,
+      'staff_type',v_code.staff_type,
+      'staff_id',v_code.staff_id,
+      'attendance_id',v_attendance_id
+    );
+  end if;
+
+  if v_code.staff_type <> 'teacher' then
+    raise exception 'Seul un enseignant peut pointer un début ou une fin de cours';
+  end if;
+
+  v_teacher_id := v_code.staff_id;
+  select e.timezone into v_timezone from public.establishments e where e.id=p_establishment_id;
+  v_local := now() at time zone v_timezone;
+  v_date := v_local::date;
+
+  if p_event_type='course_start' then
+    declare
+      v_lesson record;
+      v_settings record;
+      v_credited numeric;
+      v_id uuid;
+    begin
+      select * into v_lesson
+      from public.pointage_find_current_lesson(v_teacher_id,p_establishment_id,now());
+
+      if v_lesson.timetable_slot_id is null then
+        raise exception 'Aucun cours correspondant à l''emploi du temps actuellement';
+      end if;
+
+      select * into v_settings
+      from public.pointage_settings ps
+      where ps.establishment_id=p_establishment_id
+        and (ps.academic_year_id is null or ps.academic_year_id=v_lesson.academic_year_id)
+      order by ps.academic_year_id desc nulls last
+      limit 1;
+
+      v_credited := case
+        when v_lesson.late_minutes <= coalesce(v_settings.full_credit_threshold_minutes,40)
+          then coalesce(v_settings.full_credit_hours,2)
+        else coalesce(v_settings.partial_credit_hours,1)
+      end;
+
+      insert into public.teacher_lesson_attendance(
+        establishment_id,academic_year_id,timetable_slot_id,teacher_id,attendance_date,
+        started_time,scheduled_hours,counted_hours,credited_minutes,late_minutes,status,start_method,recorded_by
+      )
+      values(
+        p_establishment_id,v_lesson.academic_year_id,v_lesson.timetable_slot_id,v_teacher_id,v_date,
+        v_local::time,
+        extract(epoch from (v_lesson.scheduled_end-v_lesson.scheduled_start))/3600,
+        v_credited,round(v_credited*60),v_lesson.late_minutes,'in_progress','code',(select auth.uid())
+      )
+      on conflict(teacher_id,timetable_slot_id,attendance_date) do update
+      set started_time=coalesce(public.teacher_lesson_attendance.started_time,excluded.started_time),
+          status='in_progress',
+          start_method=coalesce(public.teacher_lesson_attendance.start_method,excluded.start_method),
+          recorded_by=coalesce(public.teacher_lesson_attendance.recorded_by,excluded.recorded_by),
+          late_minutes=excluded.late_minutes,
+          counted_hours=excluded.counted_hours,
+          credited_minutes=excluded.credited_minutes,
+          updated_at=now()
+      returning id into v_id;
+
+      return jsonb_build_object(
+        'event_type','course_start','attendance_id',v_id,'teacher_id',v_teacher_id,
+        'timetable_slot_id',v_lesson.timetable_slot_id,'class_id',v_lesson.class_id,
+        'subject_id',v_lesson.subject_id,'scheduled_start',v_lesson.scheduled_start,
+        'scheduled_end',v_lesson.scheduled_end,'late_minutes',v_lesson.late_minutes,
+        'credited_hours',v_credited
+      );
+    end;
+  end if;
+
+  select tla.* into v_lesson
+  from public.teacher_lesson_attendance tla
+  where tla.teacher_id=v_teacher_id
+    and tla.establishment_id=p_establishment_id
+    and tla.attendance_date=v_date
+    and tla.status='in_progress'
+  order by tla.started_time desc
+  limit 1
+  for update;
+
+  if v_lesson.id is null then raise exception 'Aucun cours en cours à clôturer'; end if;
+
+  update public.teacher_lesson_attendance
+  set ended_time=v_local::time,
+      actual_duration_minutes=greatest(0,round(extract(epoch from (v_local::time-v_lesson.started_time))/60)::integer),
+      end_method='code',
+      status='completed',
+      updated_at=now()
+  where id=v_lesson.id;
+
+  return jsonb_build_object(
+    'event_type','course_end',
+    'attendance_id',v_lesson.id,
+    'teacher_id',v_teacher_id,
+    'ended_time',v_local::time,
+    'status','completed'
+  );
+end;
+$$;
+
+revoke execute on function public.pointage_record_by_code(uuid,text,text) from public, anon;
+grant execute on function public.pointage_record_by_code(uuid,text,text) to authenticated;

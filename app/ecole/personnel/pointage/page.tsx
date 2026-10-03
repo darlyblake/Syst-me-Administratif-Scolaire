@@ -793,7 +793,17 @@ export default function PersonnelPointagePage() {
                           <td className="px-4 py-3 font-medium">{label}</td>
                           <td className="px-4 py-3"><Input type="time" value={value.start} disabled={!value.enabled} onChange={e => updateWorkDay(day, { start: e.target.value })} className="w-[150px]" /></td>
                           <td className="px-4 py-3"><Input type="time" value={value.end} disabled={!value.enabled} onChange={e => updateWorkDay(day, { end: e.target.value })} className="w-[150px]" /></td>
-                          <td className="px-4 py-3"><Switch checked={value.enabled} onCheckedChange={enabled => updateWorkDay(day, { enabled })} /></td>
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={value.enabled}
+                              onClick={() => updateWorkDay(day, { enabled: !value.enabled })}
+                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${value.enabled ? "bg-primary" : "bg-muted"}`}
+                            >
+                              <span className={`pointer-events-none block h-5 w-5 rounded-full bg-background shadow-sm transition-transform ${value.enabled ? "translate-x-5" : "translate-x-0"}`} />
+                            </button>
+                          </td>
                         </tr>
                       )
                     })}

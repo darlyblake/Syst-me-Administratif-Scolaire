@@ -46,7 +46,7 @@ export default function EnseignantPointagePage() {
     setLoading(true)
     try {
       const [current, schedule, records] = await Promise.all([
-        servicePointage.obtenirCoursActuelEnseignant(establishmentId),
+        servicePointage.obtenirCoursActifEnseignant(establishmentId),
         enseignantPointageService.getTeacherSchedule(establishmentId),
         enseignantPointageService.getContext(establishmentId),
       ])
@@ -165,15 +165,21 @@ export default function EnseignantPointagePage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Cours identifié automatiquement</p>
               <h2 className="mt-2 text-2xl font-semibold">{slot.subject_name}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{slot.class_name}{slot.room ? ` · Salle ${slot.room}` : ""} · {slot.starts_at} – {slot.ends_at}</p>
+              {course.status === "in_progress" && course.started_time && (
+                <p className="mt-3 text-sm text-emerald-700">Cours commencé à {String(course.started_time).slice(0, 5)}. Vous pouvez le terminer depuis votre téléphone.</p>
+              )}
               {Number(course.late_minutes ?? 0) > 0 && <p className="mt-3 text-sm text-amber-700">Pointage après le début prévu : {course.late_minutes} min.</p>}
 
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <Button onClick={() => void openScanner("start")} disabled={working}>
-                  <Play className="mr-2 h-4 w-4" /> Commencer le cours
-                </Button>
-                <Button variant="outline" onClick={() => void openScanner("finish")} disabled={working}>
-                  <Square className="mr-2 h-4 w-4" /> Terminer le cours
-                </Button>
+              <div className="mt-5 flex flex-wrap gap-3">
+                {course.status === "in_progress" ? (
+                  <Button variant="outline" onClick={() => void openScanner("finish")} disabled={working}>
+                    <Square className="mr-2 h-4 w-4" /> Terminer le cours
+                  </Button>
+                ) : (
+                  <Button onClick={() => void openScanner("start")} disabled={working}>
+                    <Play className="mr-2 h-4 w-4" /> Commencer le cours
+                  </Button>
+                )}
               </div>
             </>
           ) : (

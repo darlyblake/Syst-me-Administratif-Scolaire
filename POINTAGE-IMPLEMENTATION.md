@@ -475,17 +475,17 @@ L'ordinateur central doit pouvoir rester ouvert sur l'écran Pointage toute la j
 - [x] QR temporaire
 - [x] Calcul des heures
 - [x] Alertes
-- [ ] Audit
+- [x] Audit
 - [x] Vérifications SQL de structure et permissions
 
 ### Phase 4 — Frontend administration
 - [x] Page Pointage
 - [x] écran d'action
-- [ ] historique
-- [ ] fiches
-- [ ] absences
-- [ ] retards
-- [ ] cours non pointés
+- [x] historique
+- [x] fiches
+- [x] absences
+- [x] retards
+- [x] cours non pointés
 - [x] alertes
 - [x] paramètres
 

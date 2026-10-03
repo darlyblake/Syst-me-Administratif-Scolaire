@@ -77,6 +77,14 @@ class ServicePointage {
     return row as { token: string; expires_at: string }
   }
 
+  async obtenirCoursActuelEnseignant(establishmentId: string) {
+    const { data, error } = await supabaseBrowser.rpc("pointage_current_teacher_course", {
+      p_establishment_id: establishmentId,
+    })
+    if (error) throw error
+    return Array.isArray(data) ? data[0] ?? null : data
+  }
+
   async commencerCoursParQr(token: string): Promise<PointageResult> {
     const { data, error } = await supabaseBrowser.rpc("pointage_start_teacher_course_by_qr", {
       p_qr_token: token,

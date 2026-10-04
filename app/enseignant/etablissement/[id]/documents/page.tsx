@@ -206,7 +206,7 @@ export default function EnseignantDocumentsPage() {
           </p>
         </div>
 
-        <section className="mt-6 rounded-md rounded-lg border border-[#e1e3eb] bg-white p-5">
+        <section className="mt-6 rounded-md rounded-md border border-[#e1e3eb] bg-white p-5">
           <div className="flex items-center gap-3">
             <Upload className="h-5 w-5 text-slate-500" />
             <div>

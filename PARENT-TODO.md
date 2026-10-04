@@ -14,25 +14,25 @@ Cette checklist suit l'avancement réel du module Parent. Une tâche n'est coch�
 - [x] États chargement / erreur / vide
 
 ## 2. Gestion des enfants
-- [ ] Liste des enfants associés
-- [ ] Ajouter un enfant
-- [ ] Scanner QR / code
-- [ ] Saisir l'identifiant manuellement
+- [x] Liste des enfants associés
+- [x] Ajouter un enfant
+- [x] Scanner QR / code
+- [x] Saisir l'identifiant manuellement
 - [ ] Vérification de l'identité de l'enfant
-- [ ] Demande d'association
-- [ ] Gestion d'une association existante
+- [x] Demande d'association
+- [x] Gestion d'une association existante
 - [x] Retirer une association
 - [x] Historique des associations
 - [x] Protection contre l'accès à un enfant non autorisé
 
 ## 3. Scolarité
-- [ ] Notes
+- [x] Notes
 - [ ] Bulletins
-- [ ] Moyennes
+- [x] Moyennes
 - [ ] Classement si autorisé
-- [ ] Matières
-- [ ] Résultats par période
-- [ ] Historique scolaire
+- [x] Matières
+- [x] Résultats par période
+- [x] Historique scolaire
 - [ ] Téléchargement des bulletins
 
 ## 4. Présence
@@ -44,13 +44,13 @@ Cette checklist suit l'avancement réel du module Parent. Une tâche n'est coch�
 - [x] Dépôt d'une justification
 
 ## 5. Paiements / scolarité
-- [ ] Situation financière
-- [ ] Montant payé
+- [x] Situation financière
+- [x] Montant payé
 - [ ] Reste à payer
-- [ ] Historique
+- [x] Historique
 - [ ] Reçus
 - [ ] Téléchargement des reçus
-- [ ] Échéances
+- [x] Échéances
 - [ ] Notifications d'échéance
 - [ ] Gestion multi-enfants / multi-établissements
 
@@ -70,7 +70,7 @@ Cette checklist suit l'avancement réel du module Parent. Une tâche n'est coch�
 - [ ] Examens
 - [ ] Réunions
 - [ ] Vacances
-- [ ] Événements
+- [x] Événements
 - [ ] Filtrage par enfant / établissement
 - [ ] Rappels
 

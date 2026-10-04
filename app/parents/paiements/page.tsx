@@ -1,43 +1,18 @@
 "use client"
-
 import { useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { CreditCard, Receipt, Wallet, RefreshCw } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
+import { Receipt } from "lucide-react"
 import { useParentPortal } from "@/hooks/use-parent-portal"
-
-const METHODS: Record<string, string> = { especes: "Espèces", cheque: "Chèque", virement: "Virement", mobile: "Mobile Money", mobile_money: "Mobile Money" }
-const money = (n: number) => new Intl.NumberFormat("fr-FR").format(n) + " FCFA"
-
-export default function ParentsPaiementsPage() {
-  const params = useSearchParams()
-  const { loading, error, refresh, children, payments } = useParentPortal()
-  const [id, setId] = useState(params.get("eleve") || "tous")
-  const allowed = useMemo(() => children.filter((child) => child.can_view_finance), [children])
-  const ids = useMemo(() => id === "tous" ? allowed.map((child) => child.id) : [id], [id, allowed])
-  const list = useMemo(() => payments.filter((payment) => {
-    const child = children.find((item) => item.enrollment_id === payment.enrollment_id)
-    return child ? ids.includes(child.id) : false
-  }), [payments, children, ids])
-  const paid = list.reduce((sum, payment) => sum + payment.amount, 0)
-
-  if (loading) return <div className="flex min-h-[50vh] items-center justify-center text-pierre"><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Chargement des paiements...</div>
-
-  return (
-    <div className="space-y-7">
-      <header className="flex flex-col gap-4 border-b border-terre/10 pb-6 sm:flex-row sm:items-end sm:justify-between">
-        <div><p className="text-sm font-medium text-terre">Scolarité</p><h1 className="mt-1 flex items-center gap-2 text-2xl font-bold text-terre"><CreditCard className="h-6 w-6" />Paiements</h1><p className="mt-1 text-sm text-pierre">Historique des paiements accessibles à votre compte.</p></div>
-        <Button variant="outline" onClick={() => void refresh()}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
-      </header>
-      {error && <Card className="border-red-200 bg-red-50"><CardContent className="flex flex-col gap-3 p-4 text-red-700 sm:flex-row sm:items-center sm:justify-between"><span>{error}</span><Button variant="outline" onClick={() => void refresh()} className="bg-white">Réessayer</Button></CardContent></Card>}
-      {allowed.length === 0 ? <Card><CardContent className="py-12 text-center text-sm text-pierre">Aucun enfant associé avec un accès financier.</CardContent></Card> : <>
-        <Select value={id} onValueChange={setId}><SelectTrigger className="w-full sm:w-[280px]"><SelectValue placeholder="Filtrer par enfant" /></SelectTrigger><SelectContent><SelectItem value="tous">Tous les enfants</SelectItem>{allowed.map((child) => <SelectItem key={child.id} value={child.id}>{child.first_name} {child.last_name}</SelectItem>)}</SelectContent></Select>
-        <div className="grid gap-4 sm:grid-cols-2"><Card className="border-terre/10 bg-papier"><CardContent className="flex items-center gap-3 p-5"><Wallet className="h-5 w-5 text-terre" /><div><p className="text-xs uppercase tracking-wide text-pierre">Total enregistré</p><p className="text-xl font-bold text-terre">{money(paid)}</p></div></CardContent></Card><Card className="border-terre/10 bg-papier"><CardContent className="flex items-center gap-3 p-5"><Receipt className="h-5 w-5 text-emerald-700" /><div><p className="text-xs uppercase tracking-wide text-pierre">Opérations</p><p className="text-xl font-bold text-terre">{list.length}</p></div></CardContent></Card></div>
-        <Card className="border-terre/10 bg-papier"><CardHeader><CardTitle className="text-base text-terre">Historique</CardTitle><CardDescription>{list.length} paiement{list.length > 1 ? "s" : ""}</CardDescription></CardHeader><CardContent className="space-y-3">{list.length === 0 ? <p className="py-8 text-center text-sm text-pierre">Aucun paiement enregistré pour cette sélection.</p> : list.map((payment) => { const child = children.find((item) => item.enrollment_id === payment.enrollment_id); return <div key={payment.id} className="flex flex-col gap-3 rounded-xl border border-terre/10 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-terre">{child ? `${child.first_name} ${child.last_name}` : "Paiement"}</p><p className="text-sm text-pierre">{new Date(payment.payment_date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}{payment.method ? ` · ${METHODS[payment.method] ?? payment.method}` : ""}</p>{payment.reference && <Badge variant="outline" className="mt-1">Réf. {payment.reference}</Badge>}</div><p className="text-lg font-bold text-emerald-700">+ {money(payment.amount)}</p></div> })}</CardContent></Card>
-      </>}
-    </div>
-  )
+import { ParentPageHeader } from "@/components/parent/ParentPageHeader"
+import { ParentChildSelect } from "@/components/parent/ParentChildSelect"
+import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
+const money=(n:number)=>new Intl.NumberFormat("fr-FR").format(n)+" FCFA"
+const methods:Record<string,string>={especes:"Espèces",cheque:"Chèque",virement:"Virement",mobile:"Mobile Money",mobile_money:"Mobile Money"}
+export default function ParentPaiements(){
+ const params=useSearchParams(),{loading,error,refresh,children,payments,paymentSchedules,paymentAllocations}=useParentPortal()
+ const allowed=useMemo(()=>children.filter(c=>c.can_view_finance),[children]); const [childId,setChildId]=useState(params.get("eleve")||"tous")
+ const enrollmentIds=new Set(allowed.filter(c=>childId==="tous"||c.id===childId).map(c=>c.enrollment_id).filter(Boolean))
+ const schedules=paymentSchedules.filter(s=>enrollmentIds.has(s.enrollment_id)),list=payments.filter(p=>enrollmentIds.has(p.enrollment_id))
+ const due=schedules.reduce((s,p)=>s+p.amount_due,0),paid=schedules.reduce((s,p)=>s+p.amount_paid,0)
+ return <div className="space-y-6"><ParentPageHeader eyebrow="Scolarité" title="Paiements" description="Suivez les versements, les échéances et le reste à payer." onRefresh={()=>void refresh()} refreshing={loading}/>{error&&<div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}{!loading&&allowed.length===0?<ParentEmptyState title="Situation financière non disponible" description="Votre compte n’a pas actuellement l’autorisation de consulter les paiements."/>:<><div className="flex flex-col gap-3 border-b border-terre/10 pb-4 sm:flex-row sm:items-center sm:justify-between"><ParentChildSelect children={allowed} value={childId} onChange={setChildId} financeOnly/><div className="flex flex-wrap gap-4 text-sm text-pierre"><span>Dû <strong className="text-terre">{money(due)}</strong></span><span>Payé <strong className="text-emerald-700">{money(paid)}</strong></span><span>Reste <strong className="text-terre">{money(Math.max(due-paid,0))}</strong></span></div></div><section className="border border-terre/10 bg-papier"><div className="border-b border-terre/10 bg-creme px-4 py-3 font-semibold text-terre">Échéances</div><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead className="border-b border-terre/10 text-left text-xs uppercase tracking-wide text-pierre"><tr><th className="px-4 py-3">Échéance</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Dû</th><th className="px-4 py-3">Payé</th><th className="px-4 py-3">Reste</th><th className="px-4 py-3">Statut</th></tr></thead><tbody className="divide-y divide-terre/10">{schedules.map(s=>{const rest=Math.max(s.amount_due-s.amount_paid,0);const status=s.status==="paid"||rest===0?"Payée":s.amount_paid>0?"Partielle":new Date(s.due_date)<new Date()?"En retard":"À venir";return <tr key={s.id}><td className="px-4 py-3 font-medium text-terre">{s.label}</td><td className="px-4 py-3">{new Date(s.due_date).toLocaleDateString("fr-FR")}</td><td className="px-4 py-3">{money(s.amount_due)}</td><td className="px-4 py-3 text-emerald-700">{money(s.amount_paid)}</td><td className="px-4 py-3 font-semibold">{money(rest)}</td><td className="px-4 py-3">{status}</td></tr>})}</tbody></table>{schedules.length===0&&<p className="px-5 py-10 text-center text-sm text-pierre">Aucune échéance disponible.</p>}</div></section><section className="border border-terre/10 bg-papier"><div className="border-b border-terre/10 bg-creme px-4 py-3 font-semibold text-terre">Historique des versements</div><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead className="border-b border-terre/10 text-left text-xs uppercase tracking-wide text-pierre"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Élève</th><th className="px-4 py-3">Mode</th><th className="px-4 py-3">Référence</th><th className="px-4 py-3 text-right">Montant</th></tr></thead><tbody className="divide-y divide-terre/10">{list.map(p=>{const c=children.find(x=>x.enrollment_id===p.enrollment_id);return <tr key={p.id}><td className="px-4 py-3">{new Date(p.payment_date).toLocaleDateString("fr-FR")}</td><td className="px-4 py-3 font-medium text-terre">{c?c.first_name+" "+c.last_name:"—"}</td><td className="px-4 py-3">{p.method?methods[p.method]??p.method:"—"}</td><td className="px-4 py-3 text-pierre">{p.reference??"—"}</td><td className="px-4 py-3 text-right font-semibold text-emerald-700">+ {money(p.amount)}</td></tr>})}</tbody></table>{list.length===0&&<p className="px-5 py-10 text-center text-sm text-pierre">Aucun paiement enregistré.</p>}</div></section>{paymentAllocations.length>0&&<p className="flex items-center gap-2 border-t border-terre/10 pt-4 text-sm text-pierre"><Receipt className="h-4 w-4"/>Les versements partiels sont répartis sur les échéances selon les allocations enregistrées.</p>}</>}</div>
 }

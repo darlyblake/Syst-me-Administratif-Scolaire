@@ -14,6 +14,8 @@ export type TeacherProfile = { profile_id: string; first_name: string | null; la
 export type TeacherAttendanceHistoryRow = { id: string; student_id: string; class_id: string; attendance_date: string; status: "present" | "absent" | "late" | "excused"; reason: string | null; recorded_by: string | null; created_at: string; first_name: string; last_name: string }
 export type TeacherAttendanceHistory = { data: TeacherAttendanceHistoryRow[]; page: number; page_size: number; total: number; total_pages: number }
 export type TeacherAttendanceStatistics = { total: number; present: number; absent: number; late: number; excused: number; presence_rate: number }
+export type TeacherLessonEntry = { id: string; establishment_id: string; academic_year_id: string; timetable_slot_id: string; teacher_id: string; lesson_date: string; class_id: string; class_name: string; subject_id: string; subject_name: string; starts_at: string; ends_at: string; room: string | null; topic: string; content: string; activities: string | null; created_at: string; updated_at: string }
+export type TeacherHomework = { id: string; timetable_slot_id: string; lesson_entry_id: string | null; class_id: string; class_name: string; subject_id: string; subject_name: string; lesson_date: string; title: string; instructions: string; due_date: string | null; active: boolean; created_at: string; updated_at: string }
 
 async function rpc<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabaseBrowser.rpc(name, args)
@@ -41,4 +43,8 @@ export const enseignantPortalService = {
   updateProfile: (firstName: string, lastName: string, phone: string) => rpc<boolean>("teacher_update_profile", { p_first_name: firstName, p_last_name: lastName, p_phone: phone }),
   getAttendanceHistory: (establishmentId: string, page = 1, pageSize = 30, classId?: string, studentId?: string, from?: string, to?: string) => rpc<TeacherAttendanceHistory>("list_attendance_history_paginated", { p_establishment_id: establishmentId, p_page: page, p_page_size: pageSize, p_class_id: classId || null, p_student_id: studentId || null, p_from: from || null, p_to: to || null }),
   getAttendanceStatistics: (establishmentId: string, from: string, to: string, classId?: string) => rpc<TeacherAttendanceStatistics>("get_attendance_statistics", { p_establishment_id: establishmentId, p_from: from, p_to: to, p_class_id: classId || null }),
+  getLessonEntries: (establishmentId: string, from?: string, to?: string) => rpc<TeacherLessonEntry[]>("teacher_lesson_entries", { p_establishment_id: establishmentId, p_from: from || null, p_to: to || null }),
+  saveLessonEntry: (establishmentId: string, slotId: string, lessonDate: string, topic: string, content: string, activities?: string) => rpc<string>("teacher_save_lesson_entry", { p_establishment_id: establishmentId, p_timetable_slot_id: slotId, p_lesson_date: lessonDate, p_topic: topic, p_content: content, p_activities: activities || null }),
+  getHomework: (establishmentId: string, from?: string, to?: string) => rpc<TeacherHomework[]>("teacher_homework", { p_establishment_id: establishmentId, p_from: from || null, p_to: to || null }),
+  saveHomework: (establishmentId: string, slotId: string, lessonEntryId: string | null, title: string, instructions: string, dueDate?: string) => rpc<string>("teacher_save_homework", { p_establishment_id: establishmentId, p_timetable_slot_id: slotId, p_lesson_entry_id: lessonEntryId, p_title: title, p_instructions: instructions, p_due_date: dueDate || null }),
 }

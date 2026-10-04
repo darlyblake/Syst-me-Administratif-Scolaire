@@ -31,6 +31,25 @@ export const enseignantPortalService = {
   getSchedule: (establishmentId: string) => rpc<TeacherScheduleSlot[]>("teacher_schedule", { p_establishment_id: establishmentId }),
   getEstablishments: () => rpc<Array<{ establishment_id: string; establishment_name: string; status: string; joined_at: string }>>("teacher_establishments_for_user"),
   getAssessments: (establishmentId: string) => rpc<TeacherAssessment[]>("teacher_assessments", { p_establishment_id: establishmentId }),
+  createAssessment: (input: {
+    establishmentId: string
+    academicYearId: string
+    classId: string
+    subjectId: string
+    title: string
+    assessmentDate: string
+    maxScore: number
+    term?: string
+  }) => rpc<string>("teacher_create_assessment", {
+    p_establishment_id: input.establishmentId,
+    p_academic_year_id: input.academicYearId,
+    p_class_id: input.classId,
+    p_subject_id: input.subjectId,
+    p_title: input.title,
+    p_assessment_date: input.assessmentDate,
+    p_max_score: input.maxScore,
+    p_term: input.term || null,
+  }),
   getAssessmentStudents: (assessmentId: string) => rpc<TeacherAssessmentStudent[]>("teacher_assessment_students", { p_assessment_id: assessmentId }),
   recordGrade: (assessmentId: string, studentId: string, score: number, comment?: string) => rpc<string>("record_grade", { p_assessment_id: assessmentId, p_student_id: studentId, p_score: score, p_comment: comment || null }),
   getAttendance: (establishmentId: string, classId: string, date: string) => rpc<TeacherAttendanceStudent[]>("teacher_attendance_for_date", { p_establishment_id: establishmentId, p_class_id: classId, p_date: date }),

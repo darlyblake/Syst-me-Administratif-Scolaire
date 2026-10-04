@@ -57,5 +57,5 @@ export default function ServiceTechniquePage() {
     </div>
   )
 
-  return establishment ? <TeacherShell establishmentId={establishment.id} establishmentName={establishment.name}>{content}</TeacherShell> : <main className="min-h-screen bg-[#f8f8fc] p-4 sm:p-6">{content}</main>
+  return establishment ? <TeacherShell establishmentId={establishment.id} establishmentName={establishment.name} active="today">{content}</TeacherShell> : <main className="min-h-screen bg-[#f8f8fc] p-4 sm:p-6">{content}</main>
 }

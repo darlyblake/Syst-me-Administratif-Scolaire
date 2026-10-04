@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Download, GraduationCap, RefreshCw } from "lucide-react"
+import { Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useParentPortal } from "@/hooks/use-parent-portal"
 import { ParentPageHeader } from "@/components/parent/ParentPageHeader"

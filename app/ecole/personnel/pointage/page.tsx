@@ -11,6 +11,7 @@ import {
   LogOut,
   Play,
   QrCode,
+  KeyRound,
   RefreshCw,
   Settings2,
   Square,
@@ -29,7 +30,7 @@ import { servicePointage, type PointageAction, type PointageAlert, type Pointage
 import { toast } from "sonner"
 
 type Mode = "arrival" | "departure" | "course_start" | "course_end"
-type Section = "pointage" | "historique" | "fiches" | "absents" | "retards" | "cours" | "alertes" | "parametres"
+type Section = "pointage" | "codes" | "historique" | "fiches" | "absents" | "retards" | "cours" | "alertes" | "parametres"
 
 type AttendanceRow = {
   id: string
@@ -139,6 +140,7 @@ const ACTIONS: { id: Mode; label: string; description: string; icon: typeof LogI
 
 const SECTIONS: { id: Section; label: string; icon: typeof History }[] = [
   { id: "pointage", label: "Effectuer un pointage", icon: FileClock },
+  { id: "codes", label: "Codes de pointage", icon: QrCode },
   { id: "historique", label: "Historique", icon: History },
   { id: "fiches", label: "Fiches de pointage", icon: FileClock },
   { id: "absents", label: "Absents", icon: Users },
@@ -197,6 +199,9 @@ export default function PersonnelPointagePage() {
   const [qrSvg, setQrSvg] = useState("")
   const [qrBusy, setQrBusy] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [revealedCode, setRevealedCode] = useState<string | null>(null)
+  const [revealedPerson, setRevealedPerson] = useState<string | null>(null)
+  const [codeBusy, setCodeBusy] = useState<string | null>(null)
 
   const personMap = useMemo(() => new Map(
     people.map(person => [`${person.staff_type}:${person.id}`, person])
@@ -297,6 +302,22 @@ export default function PersonnelPointagePage() {
     const timer = window.setInterval(() => void createQrSession(), 50000)
     return () => window.clearInterval(timer)
   }, [qrToken, establishmentId])
+
+  const generatePersonCode = async (person: PersonRow) => {
+    if (!establishmentId) return
+    const key = `${person.staff_type}:${person.id}`
+    setCodeBusy(key)
+    try {
+      const nextCode = await servicePointage.genererCode(establishmentId, person.staff_type, person.id)
+      setRevealedPerson(key)
+      setRevealedCode(nextCode)
+      toast.success(`Code de pointage généré pour ${personLabel(person.staff_type, person.id)}.`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible de générer le code de pointage.")
+    } finally {
+      setCodeBusy(null)
+    }
+  }
 
   const submitPointage = async () => {
     if (!establishmentId || !code.trim()) {
@@ -557,6 +578,59 @@ export default function PersonnelPointagePage() {
                   </div>
                 )}
               </div>
+            </div>
+          </section>
+        )}
+
+        {section === "codes" && (
+          <section className="space-y-4">
+            <div className="rounded-md border bg-background p-4">
+              <h2 className="flex items-center gap-2 font-semibold"><QrCode className="h-5 w-5" />Codes personnels de pointage</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Chaque enseignant et membre du personnel actif possède un code individuel. Le code permet de pointer sans scanner le QR de l'ordinateur.
+                Pour des raisons de sécurité, le code complet n'est affiché qu'au moment de sa génération ou de son renouvellement.
+              </p>
+            </div>
+            <div className="overflow-x-auto rounded-md border bg-background">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead className="border-b bg-muted/40">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Personne</th>
+                    <th className="px-4 py-3 text-left">Fonction</th>
+                    <th className="px-4 py-3 text-left">Identifiant</th>
+                    <th className="px-4 py-3 text-right">Code</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {people.map(person => {
+                    const key = `${person.staff_type}:${person.id}`
+                    const isBusy = codeBusy === key
+                    const isRevealed = revealedPerson === key
+                    return (
+                      <tr key={key}>
+                        <td className="px-4 py-3 font-medium">{personLabel(person.staff_type, person.id)}</td>
+                        <td className="px-4 py-3">{person.staff_type === "teacher" ? "Enseignant" : person.position ?? "Personnel"}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{person.employee_number ?? "—"}</td>
+                        <td className="px-4 py-3 text-right">
+                          {isRevealed && revealedCode ? (
+                            <span className="inline-flex items-center gap-3">
+                              <span className="rounded-md border bg-muted/30 px-3 py-1.5 font-mono font-semibold tracking-[0.2em]">{revealedCode}</span>
+                              <Button size="sm" variant="outline" onClick={() => void generatePersonCode(person)} disabled={isBusy}>
+                                Renouveler
+                              </Button>
+                            </span>
+                          ) : (
+                            <Button size="sm" variant="outline" onClick={() => void generatePersonCode(person)} disabled={isBusy}>
+                              <KeyRound className="mr-2 h-4 w-4" />{isBusy ? "Génération…" : "Générer / afficher"}
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {!people.length && <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">Aucun personnel actif.</td></tr>}
+                </tbody>
+              </table>
             </div>
           </section>
         )}

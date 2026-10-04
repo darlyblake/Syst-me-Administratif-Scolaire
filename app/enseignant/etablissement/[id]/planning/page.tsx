@@ -89,7 +89,7 @@ export default function TeacherPlanningPage() {
         <p className="mt-1 text-sm text-[#6d7280]">Emploi du temps et suivi de votre pointage.</p>
       </header>
 
-      <div className="mt-5 inline-flex rounded-lg border border-[#dfe2ec] bg-white p-1">
+      <div className="mt-5 inline-flex rounded-md border border-[#dfe2ec] bg-white p-1">
         <button type="button" onClick={() => setMode("planning")} className={"rounded-md px-4 py-2 text-sm font-semibold " + (mode === "planning" ? "bg-[#0b2b83] text-white" : "text-[#646b79]")}>Emploi du temps</button>
         <button type="button" onClick={() => setMode("pointage")} className={"rounded-md px-4 py-2 text-sm font-semibold " + (mode === "pointage" ? "bg-[#0b2b83] text-white" : "text-[#646b79]")}>Pointage personnel</button>
       </div>
@@ -106,7 +106,7 @@ export default function TeacherPlanningPage() {
               const date = new Date(weekStart)
               date.setDate(date.getDate() + index)
               const selected = date.toDateString() === new Date().toDateString()
-              return <div key={label} className={"min-w-[88px] rounded-lg border px-3 py-2 " + (selected ? "border-[#7890ef] bg-[#edf1ff]" : "border-[#e2e4eb] bg-white")}>
+              return <div key={label} className={"min-w-[88px] rounded-md border px-3 py-2 " + (selected ? "border-[#7890ef] bg-[#edf1ff]" : "border-[#e2e4eb] bg-white")}>
                 <p className="text-xs text-[#6d7280]">{label}</p><p className="mt-0.5 font-bold">{date.getDate()}</p>
               </div>
             })}
@@ -114,7 +114,7 @@ export default function TeacherPlanningPage() {
 
           <div className="mt-4 space-y-2">
             {Array.from({ length: 6 }, (_, i) => i + 1).map((day) => (
-              <section key={day} className="rounded-lg border border-[#e2e4eb] bg-white">
+              <section key={day} className="rounded-md border border-[#e2e4eb] bg-white">
                 <div className="border-b px-4 py-3"><h2 className="font-semibold">{labels[day - 1]}</h2></div>
                 <div className="divide-y">
                   {(grouped.get(day) ?? []).map((slot) => <div key={slot.slot_id} className="flex items-center gap-3 px-4 py-3">
@@ -129,14 +129,14 @@ export default function TeacherPlanningPage() {
         </>
       ) : (
         <>
-          <section className="mt-5 rounded-lg border border-[#e2e4eb] bg-white p-4">
+          <section className="mt-5 rounded-md border border-[#e2e4eb] bg-white p-4">
             <div className="flex items-center gap-3"><Clock3 className="h-5 w-5 text-[#2944a8]" /><div><p className="font-semibold">Pointage de la semaine</p><p className="text-sm text-[#6d7280]">Les heures sont calculées à partir de vos cours pointés.</p></div></div>
             <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/pointage")} className="mt-4 inline-flex items-center gap-2 rounded-md bg-[#0b2b83] px-4 py-2.5 text-sm font-semibold text-white"><QrCode className="h-4 w-4" />Ouvrir le pointage</button>
           </section>
-          <section className="mt-4 rounded-lg border border-[#e2e4eb] bg-white">
+          <section className="mt-4 rounded-md border border-[#e2e4eb] bg-white">
             <div className="border-b px-4 py-3"><h2 className="font-semibold">Historique</h2></div>
             <div className="divide-y">
-              {pointages.map((p) => <div key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"><span className="w-24 text-[#6d7280]">{new Date(p.attendance_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}</span><span className="min-w-0 flex-1 font-medium">{p.started_time?.slice(0,5) ?? "—"} → {p.ended_time?.slice(0,5) ?? "—"}</span><span className="text-[#6d7280]">{p.counted_hours} h</span><span className="rounded-full bg-[#eef0f4] px-2 py-1 text-xs">{p.status === "completed" ? "Terminé" : p.status === "in_progress" ? "En cours" : "À vérifier"}</span></div>)}
+              {pointages.map((p) => <div key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"><span className="w-24 text-[#6d7280]">{new Date(p.attendance_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}</span><span className="min-w-0 flex-1 font-medium">{p.started_time?.slice(0,5) ?? "—"} → {p.ended_time?.slice(0,5) ?? "—"}</span><span className="text-[#6d7280]">{p.counted_hours} h</span><span className="rounded-md bg-[#eef0f4] px-2 py-1 text-xs">{p.status === "completed" ? "Terminé" : p.status === "in_progress" ? "En cours" : "À vérifier"}</span></div>)}
               {!pointages.length && <p className="p-8 text-center text-sm text-[#6d7280]">Aucun pointage sur cette semaine.</p>}
             </div>
           </section>

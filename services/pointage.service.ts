@@ -242,6 +242,14 @@ class ServicePointage {
     return data ?? []
   }
 
+  async genererMonCode(establishmentId: string): Promise<string> {
+    const { data, error } = await supabaseBrowser.rpc("pointage_issue_my_code", {
+      p_establishment_id: establishmentId,
+    })
+    if (error) throw error
+    return data as string
+  }
+
   async genererCode(
     establishmentId: string,
     staffType: "teacher" | "staff",

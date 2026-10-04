@@ -89,10 +89,10 @@ export default function EspaceEtablissementEnseignantPage() {
             <button type="button" onClick={() => void load()} className="rounded-md border border-[#dfe2ec] bg-white px-3 py-2 text-sm font-medium hover:bg-[#f3f4f8]">Actualiser</button>
           </section>
 
-          {error && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+          {error && <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
           {currentSlot ? (
-            <section className="mt-5 rounded-lg border border-[#c7d0ee] bg-[#f3f5ff] p-4 sm:p-5">
+            <section className="mt-5 rounded-md border border-[#c7d0ee] bg-[#f3f5ff] p-4 sm:p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-[#2441a5]">En cours maintenant</p>
@@ -107,7 +107,7 @@ export default function EspaceEtablissementEnseignantPage() {
               </div>
             </section>
           ) : nextSlot ? (
-            <section className="mt-5 rounded-xl border border-[#e0e3ed] bg-white p-4 sm:p-5">
+            <section className="mt-5 rounded-md border border-[#e0e3ed] bg-white p-4 sm:p-5">
               <p className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">Prochain cours</p>
               <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
                 <div><h2 className="text-lg font-bold">{nextSlot.subject_name} · {nextSlot.class_name}</h2><p className="mt-1 text-sm text-[#6d7280]">{nextSlot.starts_at.slice(0, 5)}–{nextSlot.ends_at.slice(0, 5)} {nextSlot.room ? "· Salle " + nextSlot.room : ""}</p></div>
@@ -115,7 +115,7 @@ export default function EspaceEtablissementEnseignantPage() {
               </div>
             </section>
           ) : (
-            <section className="mt-5 rounded-xl border border-[#e0e3ed] bg-white p-6 text-center">
+            <section className="mt-5 rounded-md border border-[#e0e3ed] bg-white p-6 text-center">
               <CheckCircle2 className="mx-auto h-8 w-8 text-[#6d7280]" />
               <h2 className="mt-3 font-semibold">Aucun cours en cours</h2>
               <p className="mt-1 text-sm text-[#6d7280]">{todaySlots.length ? "Votre prochain créneau apparaîtra ici." : "Vous n’avez pas de cours prévu aujourd’hui."}</p>
@@ -130,14 +130,14 @@ export default function EspaceEtablissementEnseignantPage() {
                 const done = currentMinutes >= minutes(slot.ends_at)
                 const stateClass = active ? "border-[#7e95f5]" : "border-[#e3e5ed]"
                 const badgeClass = active ? "bg-[#e8edff] text-[#2441a5]" : done ? "bg-[#eef0f4] text-[#727887]" : "bg-[#f3f4f7] text-[#646b79]"
-                return <div key={slot.slot_id} className={"flex items-center gap-3 rounded-lg border bg-white p-3 " + stateClass}>
+                return <div key={slot.slot_id} className={"flex items-center gap-3 rounded-md border bg-white p-3 " + stateClass}>
                   <div className={"w-16 shrink-0 text-sm font-semibold " + (active ? "text-[#2441a5]" : "text-[#3c4353]")}>{slot.starts_at.slice(0, 5)}</div>
                   <div className={"h-10 w-0.5 " + (active ? "bg-[#3152c8]" : "bg-[#dfe2ea]")} />
                   <div className="min-w-0 flex-1"><p className="truncate font-semibold">{slot.subject_name}</p><p className="truncate text-xs text-[#6d7280]">{slot.class_name} {slot.room ? "· Salle " + slot.room : ""}</p></div>
                   <span className={"hidden shrink-0 rounded-full px-2 py-1 text-[11px] font-medium sm:inline-flex " + badgeClass}>{active ? "En cours" : done ? "Terminé" : "À venir"}</span>
                 </div>
               })}
-              {!todaySlots.length && <div className="rounded-lg border border-dashed border-[#d9dce6] bg-white p-8 text-center text-sm text-[#6d7280]">Aucun cours prévu pour aujourd’hui.</div>}
+              {!todaySlots.length && <div className="rounded-md border border-dashed border-[#d9dce6] bg-white p-8 text-center text-sm text-[#6d7280]">Aucun cours prévu pour aujourd’hui.</div>}
             </div>
           </section>
 
@@ -145,16 +145,16 @@ export default function EspaceEtablissementEnseignantPage() {
             <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/notes")} className="group flex items-center gap-3 rounded-md border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4] hover:bg-[#fafbfe]">
               <span className="border-l-2 border-[#3152c8] pl-3 text-[#2944a8]"><FileText className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Notes & évaluations</span><span className="block text-sm text-[#6d7280]">Saisir et suivre vos évaluations</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" />
             </button>
-            <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/cahier")} className="group flex items-center gap-3 rounded-lg border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]">
+            <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/cahier")} className="group flex items-center gap-3 rounded-md border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]">
               <span className="border-l-2 border-[#3152c8] pl-3 text-[#2944a8]"><BookOpenText className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Cahier de texte</span><span className="block text-sm text-[#6d7280]">Cours, activités et devoirs</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" />
             </button>
           </section>
 
           <section className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-  <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/classes")} className="group flex items-center gap-3 rounded-lg border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]"><span className="border-l-2 border-[#3152c8] pl-3 text-[#2944a8]"><BookOpenText className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Mes classes</span><span className="block text-sm text-[#6d7280]">Voir vos affectations</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" /></button>
-  <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/eleves")} className="group flex items-center gap-3 rounded-lg border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]"><span className="border-l-2 border-[#3152c8] pl-3 text-[#2944a8]"><BookOpenText className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Mes élèves</span><span className="block text-sm text-[#6d7280]">Consulter vos élèves</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" /></button>
-  <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/documents")} className="group flex items-center gap-3 rounded-lg border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]"><span className="border-l-2 border-[#3152c8] pl-3 text-[#2944a8]"><FileText className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Mon dossier</span><span className="block text-sm text-[#6d7280]">Documents de l’établissement</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" /></button>
-  <button type="button" onClick={() => router.push("/enseignant/service-technique")} className="group flex items-center gap-3 rounded-lg border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]"><span className="border-l-2 border-[#3152c8] pl-3 text-[#2944a8]"><Clock3 className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Assistance</span><span className="block text-sm text-[#6d7280]">Contacter le service technique</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" /></button>
+  <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/classes")} className="group flex items-center gap-3 rounded-md border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]"><span className="border-l-2 border-[#3152c8] pl-3 text-[#2944a8]"><BookOpenText className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Mes classes</span><span className="block text-sm text-[#6d7280]">Voir vos affectations</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" /></button>
+  <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/eleves")} className="group flex items-center gap-3 rounded-md border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]"><span className="border-l-2 border-[#3152c8] pl-3 text-[#2944a8]"><BookOpenText className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Mes élèves</span><span className="block text-sm text-[#6d7280]">Consulter vos élèves</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" /></button>
+  <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/documents")} className="group flex items-center gap-3 rounded-md border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]"><span className="border-l-2 border-[#3152c8] pl-3 text-[#2944a8]"><FileText className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Mon dossier</span><span className="block text-sm text-[#6d7280]">Documents de l’établissement</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" /></button>
+  <button type="button" onClick={() => router.push("/enseignant/service-technique")} className="group flex items-center gap-3 rounded-md border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]"><span className="border-l-2 border-[#3152c8] pl-3 text-[#2944a8]"><Clock3 className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Assistance</span><span className="block text-sm text-[#6d7280]">Contacter le service technique</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" /></button>
 </section>
 
 <section className="mt-7 border-t border-[#e2e4eb] pt-5">

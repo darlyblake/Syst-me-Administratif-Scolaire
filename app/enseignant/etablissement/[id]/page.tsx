@@ -1,70 +1,49 @@
 "use client"
 
-import type React from "react"
 import { useEffect, useMemo, useState } from "react"
+import { ArrowRight, BookOpenText, CheckCircle2, Clock3, FileText, Loader2 } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
-import {
-  ArrowLeft,
-  BookOpen,
-  CalendarDays,
-  ClipboardList,
-  Clock3,
-  GraduationCap,
-  Loader2,
-  LogOut,
-  RefreshCw,
-  Search,
-  Users,
-  FileText,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { useAuthentification } from "@/providers/authentification.provider"
-import {
-  enseignantPortalService,
-  type TeacherClass,
-  type TeacherContext,
-  type TeacherScheduleSlot,
-  type TeacherStudent,
-} from "@/services/enseignant-portal.service"
+import { enseignantPortalService, type TeacherClass, type TeacherContext, type TeacherScheduleSlot, type TeacherStudent } from "@/services/enseignant-portal.service"
+import { TeacherShell } from "@/components/enseignant/teacher-shell"
 
-const jours = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
-type Onglet = "aperçu" | "classes" | "élèves" | "emploi-du-temps" | "pointage" | "documents"
+const days = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
+
+function minutes(value: string) {
+  const parts = value.slice(0, 5).split(":").map(Number)
+  return parts[0] * 60 + parts[1]
+}
 
 export default function EspaceEtablissementEnseignantPage() {
   const params = useParams<{ id: string }>()
+  const id = params.id
   const router = useRouter()
-  const establishmentId = params.id
-  const { utilisateur, contexte, estEnCoursDeChargement, deconnecter } = useAuthentification()
-  const [onglet, setOnglet] = useState<Onglet>("aperçu")
+  const { utilisateur, contexte, estEnCoursDeChargement } = useAuthentification()
+  const establishment = contexte?.establishments?.find((item) => item.id === id)
   const [context, setContext] = useState<TeacherContext | null>(null)
   const [classes, setClasses] = useState<TeacherClass[]>([])
   const [students, setStudents] = useState<TeacherStudent[]>([])
   const [schedule, setSchedule] = useState<TeacherScheduleSlot[]>([])
-  const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const establishment = contexte?.establishments?.find((item) => item.id === establishmentId)
-
   const load = async () => {
-    if (!establishmentId) return
+    if (!id) return
     setLoading(true)
     setError(null)
     try {
-      const [teacherContext, teacherClasses, teacherStudents, teacherSchedule] = await Promise.all([
-        enseignantPortalService.getContext(establishmentId),
-        enseignantPortalService.getClasses(establishmentId),
-        enseignantPortalService.getStudents(establishmentId),
-        enseignantPortalService.getSchedule(establishmentId),
+      const result = await Promise.all([
+        enseignantPortalService.getContext(id),
+        enseignantPortalService.getClasses(id),
+        enseignantPortalService.getStudents(id),
+        enseignantPortalService.getSchedule(id),
       ])
-      setContext(teacherContext[0] ?? null)
-      setClasses(teacherClasses)
-      setStudents(teacherStudents)
-      setSchedule(teacherSchedule)
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Impossible de charger votre espace enseignant.")
+      setContext(result[0][0] ?? null)
+      setClasses(result[1])
+      setStudents(result[2])
+      setSchedule(result[3])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de charger votre espace enseignant.")
     } finally {
       setLoading(false)
     }
@@ -77,65 +56,105 @@ export default function EspaceEtablissementEnseignantPage() {
     }
     if (!estEnCoursDeChargement && establishment) void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [estEnCoursDeChargement, utilisateur, establishmentId, establishment, router])
+  }, [estEnCoursDeChargement, utilisateur, establishment, id, router])
 
-  const filteredStudents = useMemo(() => {
-    const value = search.trim().toLowerCase()
-    if (!value) return students
-    return students.filter((student) =>
-      `${student.first_name} ${student.last_name} ${student.student_number ?? ""} ${student.class_name}`.toLowerCase().includes(value),
-    )
-  }, [students, search])
-
-  const classCount = classes.length
-  const studentCount = students.length
-  const subjectCount = new Set(classes.map((item) => item.subject_id)).size
+  const today = new Date()
+  const todayNumber = today.getDay()
+  const todaySlots = useMemo(
+    () => schedule.filter((slot) => slot.day_of_week === todayNumber).sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
+    [schedule, todayNumber],
+  )
+  const currentMinutes = today.getHours() * 60 + today.getMinutes()
+  const currentSlot = todaySlots.find((slot) => minutes(slot.starts_at) <= currentMinutes && currentMinutes < minutes(slot.ends_at))
+  const nextSlot = todaySlots.find((slot) => minutes(slot.starts_at) > currentMinutes)
+  const teacherName = context ? (context.first_name + " " + context.last_name).trim() : (contexte?.first_name || "Enseignant")
+  const firstName = context?.first_name || contexte?.first_name || ""
 
   if (estEnCoursDeChargement || !utilisateur || !establishment) {
-    return <main className="min-h-screen bg-creme flex items-center justify-center"><div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Chargement de votre espace enseignant…</div></main>
+    return <main className="min-h-screen flex items-center justify-center bg-[#f8f8fc]"><Loader2 className="h-5 w-5 animate-spin" /></main>
   }
 
   return (
-    <main className="min-h-screen bg-creme">
-      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-        <header className="border-b pb-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <Button variant="ghost" size="icon" aria-label="Retour aux établissements" onClick={() => router.push("/enseignant")}><ArrowLeft className="h-5 w-5" /></Button>
-              <div className="min-w-0"><p className="text-xs font-medium uppercase tracking-wide text-terre">Espace enseignant</p><h1 className="truncate text-2xl font-semibold tracking-tight">{establishment.name}</h1><p className="mt-1 text-sm text-muted-foreground">{context ? `${context.first_name} ${context.last_name}` : "Votre espace pédagogique"}{context?.specialty ? ` · ${context.specialty}` : ""}</p></div>
+    <TeacherShell establishmentId={id} establishmentName={establishment.name} teacherName={teacherName} active="today">
+      {loading ? (
+        <div className="flex min-h-[60vh] items-center justify-center gap-2 text-sm text-[#6d7280]"><Loader2 className="h-5 w-5 animate-spin" />Chargement de votre journée…</div>
+      ) : (
+        <>
+          <section className="flex flex-wrap items-end justify-between gap-3 border-b border-[#e5e7ef] pb-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#3152c8]">Aujourd’hui · {days[todayNumber]} {today.getDate()} {today.toLocaleDateString("fr-FR", { month: "long" })}</p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight">Bonjour {firstName}</h1>
+              <p className="mt-1 text-sm text-[#6d7280]">{context?.specialty || "Votre journée d’enseignement"} · {todaySlots.length} cours prévu{todaySlots.length > 1 ? "s" : ""}</p>
             </div>
-            <div className="flex items-center gap-2"><Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />Actualiser</Button><Button variant="outline" size="sm" onClick={async () => { await deconnecter(); router.replace("/") }}><LogOut className="mr-2 h-4 w-4" />Déconnexion</Button></div>
-          </div>
-        </header>
+            <button type="button" onClick={() => void load()} className="rounded-md border border-[#dfe2ec] bg-white px-3 py-2 text-sm font-medium hover:bg-[#f3f4f8]">Actualiser</button>
+          </section>
 
-        <nav className="mt-5 flex gap-1 overflow-x-auto border-b" aria-label="Navigation enseignant">
-          {([
-            ["aperçu", "Vue d'ensemble", GraduationCap],
-            ["classes", "Mes classes", BookOpen],
-            ["élèves", "Mes élèves", Users],
-            ["emploi-du-temps", "Emploi du temps", CalendarDays],
-            ["pointage", "Pointage", Clock3],
-            ["documents", "Mes documents", FileText],
-          ] as const).map(([value, label, Icon]) => (
-            <button key={value} type="button" onClick={() => setOnglet(value)} className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors ${onglet === value ? "border-terre text-terre" : "border-transparent text-muted-foreground hover:text-foreground"}`}><Icon className="h-4 w-4" />{label}</button>
-          ))}
-        </nav>
+          {error && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-        {error && <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rouge-terre/30 bg-rouge-terre/5 p-4 text-sm text-rouge-terre"><span>{error}</span><Button variant="outline" size="sm" onClick={() => void load()}>Réessayer</Button></div>}
+          {currentSlot ? (
+            <section className="mt-5 rounded-xl border border-[#9fb1ff] bg-[#edf1ff] p-4 sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#2441a5]">En cours maintenant</p>
+                  <h2 className="mt-1 text-lg font-bold">{currentSlot.subject_name} · {currentSlot.class_name}</h2>
+                  <p className="mt-1 text-sm text-[#555e73]">{currentSlot.starts_at.slice(0, 5)}–{currentSlot.ends_at.slice(0, 5)} {currentSlot.room ? "· Salle " + currentSlot.room : ""}</p>
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#2141a8]"><span className="h-2 w-2 rounded-full bg-[#2141a8]" />Cours actif</span>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/presences")} className="inline-flex items-center gap-2 rounded-md bg-[#0b2b83] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#09236d]">Ouvrir l’appel <ArrowRight className="h-4 w-4" /></button>
+                <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/pointage")} className="inline-flex items-center gap-2 rounded-md border border-[#cbd3ee] bg-white px-4 py-2.5 text-sm font-medium hover:bg-[#f8f9ff]"><Clock3 className="h-4 w-4" />Pointage du cours</button>
+              </div>
+            </section>
+          ) : nextSlot ? (
+            <section className="mt-5 rounded-xl border border-[#e0e3ed] bg-white p-4 sm:p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">Prochain cours</p>
+              <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+                <div><h2 className="text-lg font-bold">{nextSlot.subject_name} · {nextSlot.class_name}</h2><p className="mt-1 text-sm text-[#6d7280]">{nextSlot.starts_at.slice(0, 5)}–{nextSlot.ends_at.slice(0, 5)} {nextSlot.room ? "· Salle " + nextSlot.room : ""}</p></div>
+                <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/planning")} className="text-sm font-semibold text-[#2441a5]">Voir le planning <ArrowRight className="ml-1 inline h-4 w-4" /></button>
+              </div>
+            </section>
+          ) : (
+            <section className="mt-5 rounded-xl border border-[#e0e3ed] bg-white p-6 text-center">
+              <CheckCircle2 className="mx-auto h-8 w-8 text-[#6d7280]" />
+              <h2 className="mt-3 font-semibold">Aucun cours en cours</h2>
+              <p className="mt-1 text-sm text-[#6d7280]">{todaySlots.length ? "Votre prochain créneau apparaîtra ici." : "Vous n’avez pas de cours prévu aujourd’hui."}</p>
+            </section>
+          )}
 
-        {onglet === "aperçu" && <section className="py-7"><div className="mb-6"><h2 className="text-xl font-semibold">Vue d'ensemble</h2><p className="mt-1 text-sm text-muted-foreground">Les informations utiles pour commencer votre journée.</p></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Summary label="Classes" value={classCount} icon={<BookOpen className="h-4 w-4" />} /><Summary label="Élèves suivis" value={studentCount} icon={<Users className="h-4 w-4" />} /><Summary label="Matières" value={subjectCount} icon={<ClipboardList className="h-4 w-4" />} /><Summary label="Cours planifiés" value={schedule.length} icon={<CalendarDays className="h-4 w-4" />} /></div><div className="mt-6 grid gap-5 lg:grid-cols-[1.4fr_1fr]"><Card><CardHeader><CardTitle className="text-base">Prochains cours</CardTitle></CardHeader><CardContent>{schedule.length === 0 ? <Empty text="Aucun cours planifié pour le moment." /> : <div className="divide-y">{schedule.slice(0, 5).map((slot) => <div key={slot.slot_id} className="flex items-center justify-between gap-4 py-3"><div><p className="font-medium">{slot.subject_name}</p><p className="text-sm text-muted-foreground">{slot.class_name}{slot.room ? ` · Salle ${slot.room}` : ""}</p></div><p className="shrink-0 text-sm font-medium">{jours[slot.day_of_week - 1] ?? "Jour"} · {slot.starts_at.slice(0, 5)}</p></div>)}</div>}</CardContent></Card><Card><CardHeader><CardTitle className="text-base">Vos classes</CardTitle></CardHeader><CardContent>{classes.length === 0 ? <Empty text="Aucune affectation de classe." /> : <div className="divide-y">{classes.slice(0, 6).map((item) => <div key={`${item.class_id}-${item.subject_id}`} className="flex items-center justify-between gap-4 py-3"><div><p className="font-medium">{item.class_name}</p><p className="text-sm text-muted-foreground">{item.subject_name}</p></div>{item.weekly_hours != null && <span className="text-sm text-muted-foreground">{item.weekly_hours} h/sem.</span>}</div>)}</div>}</CardContent></Card></div></section>}
+          <section className="mt-6">
+            <div className="mb-3 flex items-center justify-between"><div><h2 className="font-bold">Votre journée</h2><p className="text-sm text-[#6d7280]">Cours prévus aujourd’hui</p></div><span className="text-xs text-[#6d7280]">{todaySlots.length} créneau{todaySlots.length > 1 ? "x" : ""}</span></div>
+            <div className="space-y-2">
+              {todaySlots.map((slot) => {
+                const active = slot === currentSlot
+                const done = currentMinutes >= minutes(slot.ends_at)
+                const stateClass = active ? "border-[#7e95f5]" : "border-[#e3e5ed]"
+                const badgeClass = active ? "bg-[#e8edff] text-[#2441a5]" : done ? "bg-[#eef0f4] text-[#727887]" : "bg-[#f3f4f7] text-[#646b79]"
+                return <div key={slot.slot_id} className={"flex items-center gap-3 rounded-lg border bg-white p-3 " + stateClass}>
+                  <div className={"w-16 shrink-0 text-sm font-semibold " + (active ? "text-[#2441a5]" : "text-[#3c4353]")}>{slot.starts_at.slice(0, 5)}</div>
+                  <div className={"h-10 w-0.5 " + (active ? "bg-[#3152c8]" : "bg-[#dfe2ea]")} />
+                  <div className="min-w-0 flex-1"><p className="truncate font-semibold">{slot.subject_name}</p><p className="truncate text-xs text-[#6d7280]">{slot.class_name} {slot.room ? "· Salle " + slot.room : ""}</p></div>
+                  <span className={"hidden shrink-0 rounded-full px-2 py-1 text-[11px] font-medium sm:inline-flex " + badgeClass}>{active ? "En cours" : done ? "Terminé" : "À venir"}</span>
+                </div>
+              })}
+              {!todaySlots.length && <div className="rounded-lg border border-dashed border-[#d9dce6] bg-white p-8 text-center text-sm text-[#6d7280]">Aucun cours prévu pour aujourd’hui.</div>}
+            </div>
+          </section>
 
-        {onglet === "classes" && <section className="py-7"><div className="mb-5"><h2 className="text-xl font-semibold">Mes classes</h2><p className="mt-1 text-sm text-muted-foreground">Vos affectations pédagogiques dans cet établissement.</p></div><Card><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="border-b bg-muted/30 text-left text-muted-foreground"><tr><th className="px-5 py-3 font-medium">Classe</th><th className="px-5 py-3 font-medium">Matière</th><th className="px-5 py-3 font-medium">Volume</th></tr></thead><tbody className="divide-y">{classes.map((item) => <tr key={`${item.class_id}-${item.subject_id}`}><td className="px-5 py-3 font-medium">{item.class_name}</td><td className="px-5 py-3">{item.subject_name}</td><td className="px-5 py-3 text-muted-foreground">{item.weekly_hours != null ? `${item.weekly_hours} h/sem.` : "—"}</td></tr>)}</tbody></table></div>{classes.length === 0 && <Empty text="Aucune classe ne vous est encore affectée." />}</CardContent></Card></section>}
+          <section className="mt-7 grid gap-3 sm:grid-cols-2">
+            <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/notes")} className="group flex items-center gap-3 rounded-lg border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]">
+              <span className="rounded-md bg-[#eef1ff] p-2.5 text-[#2944a8]"><FileText className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Notes & évaluations</span><span className="block text-sm text-[#6d7280]">Saisir et suivre vos évaluations</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" />
+            </button>
+            <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/cahier")} className="group flex items-center gap-3 rounded-lg border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]">
+              <span className="rounded-md bg-[#eef1ff] p-2.5 text-[#2944a8]"><BookOpenText className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Cahier de texte</span><span className="block text-sm text-[#6d7280]">Cours, activités et devoirs</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" />
+            </button>
+          </section>
 
-        {onglet === "élèves" && <section className="py-7"><div className="mb-5 flex flex-wrap items-end justify-between gap-4"><div><h2 className="text-xl font-semibold">Mes élèves</h2><p className="mt-1 text-sm text-muted-foreground">Uniquement les élèves des classes qui vous sont affectées.</p></div><div className="relative w-full sm:w-80"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher un élève…" /></div></div><Card><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="border-b bg-muted/30 text-left text-muted-foreground"><tr><th className="px-5 py-3 font-medium">Élève</th><th className="px-5 py-3 font-medium">Matricule</th><th className="px-5 py-3 font-medium">Classe</th></tr></thead><tbody className="divide-y">{filteredStudents.map((student) => <tr key={student.student_id}><td className="px-5 py-3 font-medium">{student.last_name} {student.first_name}</td><td className="px-5 py-3 text-muted-foreground">{student.student_number ?? "—"}</td><td className="px-5 py-3">{student.class_name}</td></tr>)}</tbody></table></div>{filteredStudents.length === 0 && <Empty text={search ? "Aucun élève ne correspond à votre recherche." : "Aucun élève dans vos classes."} />}</CardContent></Card></section>}
-
-        {onglet === "pointage" && <section className="py-7"><div className="mb-5"><h2 className="text-xl font-semibold">Pointage</h2><p className="mt-1 text-sm text-muted-foreground">Commencez et terminez chaque cours prévu dans votre emploi du temps.</p></div><Button onClick={() => router.push(`/enseignant/etablissement/${establishmentId}/pointage`)}><Clock3 className="mr-2 h-4 w-4" />Ouvrir le pointage</Button></section>}\n\n        {onglet === "documents" && <section className="py-7"><div className="mb-5 flex items-end justify-between gap-4"><div><h2 className="text-xl font-semibold">Mes documents</h2><p className="mt-1 text-sm text-muted-foreground">Envoyez vos pièces et répondez aux demandes de l’établissement.</p></div><Button variant="outline" size="sm" onClick={() => router.push(`/enseignant/etablissement/${establishmentId}/documents`)}><FileText className="mr-2 h-4 w-4" />Ouvrir le dossier</Button></div></section>}
-
-        {onglet === "emploi-du-temps" && <section className="py-7"><div className="mb-5"><h2 className="text-xl font-semibold">Emploi du temps</h2><p className="mt-1 text-sm text-muted-foreground">Vos horaires dans cet établissement.</p></div><Card><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-sm"><thead className="border-b bg-muted/30 text-left text-muted-foreground"><tr><th className="px-5 py-3 font-medium">Jour</th><th className="px-5 py-3 font-medium">Horaire</th><th className="px-5 py-3 font-medium">Classe</th><th className="px-5 py-3 font-medium">Matière</th><th className="px-5 py-3 font-medium">Salle</th></tr></thead><tbody className="divide-y">{schedule.map((slot) => <tr key={slot.slot_id}><td className="px-5 py-3 font-medium">{jours[slot.day_of_week - 1] ?? "—"}</td><td className="px-5 py-3">{slot.starts_at.slice(0, 5)} – {slot.ends_at.slice(0, 5)}</td><td className="px-5 py-3">{slot.class_name}</td><td className="px-5 py-3">{slot.subject_name}</td><td className="px-5 py-3 text-muted-foreground">{slot.room ?? "—"}</td></tr>)}</tbody></table></div>{schedule.length === 0 && <Empty text="Aucun horaire disponible." />}</CardContent></Card></section>}
-      </div>
-    </main>
+          <section className="mt-7 border-t border-[#e2e4eb] pt-5">
+            <div className="grid grid-cols-3 gap-3 text-center"><div><p className="text-xl font-bold">{classes.length}</p><p className="text-xs text-[#737887]">Classes</p></div><div><p className="text-xl font-bold">{students.length}</p><p className="text-xs text-[#737887]">Élèves suivis</p></div><div><p className="text-xl font-bold">{new Set(classes.map((c) => c.subject_id)).size}</p><p className="text-xs text-[#737887]">Matières</p></div></div>
+          </section>
+        </>
+      )}
+    </TeacherShell>
   )
 }
-
-function Summary({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) { return <div className="rounded-lg border bg-white p-4"><div className="flex items-center gap-2 text-muted-foreground">{icon}<span className="text-sm">{label}</span></div><p className="mt-2 text-2xl font-semibold">{value}</p></div> }
-function Empty({ text }: { text: string }) { return <div className="p-8 text-center text-sm text-muted-foreground">{text}</div> }

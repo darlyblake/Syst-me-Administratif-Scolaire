@@ -566,9 +566,9 @@ export default function PersonnelPointagePage() {
                     <p className="font-medium text-foreground">Pointage par QR</p>
                     <p className="mt-1 text-xs text-muted-foreground">Le QR est temporaire et se renouvelle automatiquement. L'enseignant le scanne depuis son téléphone.</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => void createQrSession()} disabled={qrBusy}>
+                  <div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => void createQrSession()} disabled={qrBusy}>
                     <QrCode className="mr-2 h-4 w-4" />{qrBusy ? "Génération…" : "Afficher le QR"}
-                  </Button>
+                  </Button><Button variant="outline" size="sm" asChild><Link href="/ecole/personnel/pointage/lecteur" target="_blank"><QrCode className="mr-2 h-4 w-4" />Ouvrir l’écran QR</Link></Button></div>
                 </div>
 
                 {qrSvg && (

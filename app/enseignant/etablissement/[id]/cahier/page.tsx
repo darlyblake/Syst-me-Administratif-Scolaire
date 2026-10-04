@@ -382,7 +382,7 @@ export default function TeacherCahierPage() {
           </select>
           <select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)} className="h-10 border border-[#dfe2ec] bg-white px-3 text-sm">
             <option value="all">Toutes les matières</option>
-            {subjectOptions.map(([value, label]) => <option key={value} value={label}>{label}</option>)}
+            {subjectOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
           {section === "cahier" ? (
             <select value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)} className="h-10 border border-[#dfe2ec] bg-white px-3 text-sm">
@@ -428,7 +428,7 @@ export default function TeacherCahierPage() {
                       {entry.content && <p className="mt-1 max-w-md truncate text-xs text-[#6d7280]">{entry.content}</p>}
                     </td>
                     <td className="px-4 py-3">
-                      {entry.id === entry.id && homeworks.some((item) => item.lesson_entry_id === entry.id) ? (
+                      {homeworks.some((item) => item.lesson_entry_id === entry.id) ? (
                         <span className="inline-flex items-center gap-1 text-[#277047]"><FileText className="h-4 w-4" /> Rattaché</span>
                       ) : (
                         <span className="text-[#8a90a0]">Aucun</span>

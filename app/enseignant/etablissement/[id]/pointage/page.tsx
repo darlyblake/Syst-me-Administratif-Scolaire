@@ -160,7 +160,7 @@ export default function EnseignantPointagePage() {
           <Button variant="outline" size="sm" className="ml-auto" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
         </header>
 
-        <section className="rounded-xl border bg-white p-5">
+        <section className="rounded-md border bg-white p-5">
           {loading ? <p className="text-sm text-muted-foreground">Recherche du cours actuel…</p> : course && slot ? (
             <>
               <p className="text-xs font-semibold uppercase tracking-wide text-[#3152c8]">Cours identifié automatiquement</p>
@@ -193,12 +193,12 @@ export default function EnseignantPointagePage() {
         </section>
 
         {scannerOpen && (
-          <section className="rounded-xl border border-[#e1e3eb] bg-white p-5">
+          <section className="rounded-md border border-[#e1e3eb] bg-white p-5">
             <div className="flex items-center justify-between gap-3">
               <div><h2 className="font-semibold"><QrCode className="mr-2 inline h-5 w-5" />Scanner le QR de l'ordinateur</h2><p className="text-sm text-muted-foreground">Action : {scanAction === "start" ? "commencer le cours" : "terminer le cours"}.</p></div>
               <Button variant="ghost" onClick={stopScanner}>Fermer</Button>
             </div>
-            <div className="mt-4 overflow-hidden rounded-lg bg-black"><video ref={videoRef} className="aspect-video w-full object-cover" muted playsInline /></div>
+            <div className="mt-4 overflow-hidden rounded-md bg-black"><video ref={videoRef} className="aspect-video w-full object-cover" muted playsInline /></div>
             {scannerError && <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">{scannerError}</div>}
             <div className="mt-4 border-t pt-4">
               <label className="text-sm font-medium">Jeton temporaire de secours</label>
@@ -207,7 +207,7 @@ export default function EnseignantPointagePage() {
           </section>
         )}
 
-        <section className="rounded-lg border bg-background">
+        <section className="rounded-md border bg-background">
           <div className="border-b px-4 py-3"><h2 className="font-semibold">Pointages du jour</h2></div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[650px] text-sm">

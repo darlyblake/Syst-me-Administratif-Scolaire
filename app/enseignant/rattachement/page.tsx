@@ -84,7 +84,7 @@ export default function TeacherAttachmentPage() {
             <h1 className="text-2xl font-semibold tracking-tight">Choisir mon établissement</h1>
             <p className="mt-1 max-w-2xl text-sm text-[#555e73]">Demandez votre rattachement. L'établissement devra accepter votre demande avant que vous puissiez accéder à ses données.</p>
           </div>
-          <button onClick={logout} className="inline-flex items-center gap-2 self-start rounded-lg border border-[#e1e3eb] px-3 py-2 text-sm hover:bg-[#fafaff]"><LogOut className="h-4 w-4" /> Se déconnecter</button>
+          <button onClick={logout} className="inline-flex items-center gap-2 self-start rounded-md border border-[#e1e3eb] px-3 py-2 text-sm hover:bg-[#fafaff]"><LogOut className="h-4 w-4" /> Se déconnecter</button>
         </header>
 
         <section className="mt-6">

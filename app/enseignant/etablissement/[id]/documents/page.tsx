@@ -192,7 +192,7 @@ export default function EnseignantDocumentsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white text-slate-900">
+    <TeacherShell establishmentId={establishmentId} establishmentName={establishment?.name ?? "Établissement"} teacherName={teacher ? teacher.first_name + " " + teacher.last_name : undefined} active="planning">
       <div className="mx-auto max-w-6xl px-4 py-6 md:px-6">
         <button onClick={() => router.push(`/enseignant/etablissement/${establishmentId}`)} className="mb-5 inline-flex items-center gap-2 text-sm text-[#6d7280] hover:text-[#172033]">
           <ArrowLeft className="h-4 w-4" /> Retour à l'établissement
@@ -340,6 +340,6 @@ export default function EnseignantDocumentsPage() {
           </div>
         </section>
       </div>
-    </main>
+    </TeacherShell>
   )
 }

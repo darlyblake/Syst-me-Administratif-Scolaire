@@ -15,7 +15,7 @@ export default function EspaceEnseignantPage() {
   }, [utilisateur, estEnCoursDeChargement, router])
 
   if (estEnCoursDeChargement || !utilisateur) {
-    return <div className="min-h-screen flex items-center justify-center bg-white"><p className="text-sm text-muted-foreground">Chargement...</p></div>
+    return <div className="min-h-screen flex items-center justify-center bg-[#f8f8fc]"><p className="text-sm text-[#6d7280]">Chargement…</p></div>
   }
 
   const etablissements = contexte?.establishments ?? []
@@ -31,9 +31,9 @@ export default function EspaceEnseignantPage() {
   return (
     <main className="min-h-screen bg-white text-slate-900">
       <div className="mx-auto max-w-6xl px-4 py-6 md:px-6">
-        <header className="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-end lg:justify-between">
+        <header className="flex flex-col gap-4 border-b border-[#e4e6ef] pb-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm text-muted-foreground">Espace enseignant</p>
+            <p className="text-sm text-[#6d7280]">Espace enseignant</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">
               Bonjour{contexte?.first_name ? ` ${contexte.first_name}` : ""}
             </h1>
@@ -49,7 +49,7 @@ export default function EspaceEnseignantPage() {
                 <select
                   value={etablissementActif?.id ?? ""}
                   onChange={(event) => handleChangeEstablishment(event.target.value)}
-                  className="h-9 min-w-[230px] rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-slate-200"
+                  className="h-9 min-w-[230px] rounded-lg border border-[#e1e3eb] bg-white px-3 text-sm outline-none focus:border-[#7890ef]"
                 >
                   <option value="" disabled>Choisir...</option>
                   {etablissements.map((school) => (
@@ -82,7 +82,7 @@ export default function EspaceEnseignantPage() {
           {etablissements.length ? (
             <div className="mt-5 overflow-x-auto rounded-md border">
               <table className="min-w-[760px] w-full text-sm">
-                <thead className="border-b bg-slate-50 text-left">
+                <thead className="border-b bg-[#f7f8fa] text-left">
                   <tr>
                     <th className="px-4 py-3 font-medium">Établissement</th>
                     <th className="px-4 py-3 font-medium">État</th>
@@ -93,15 +93,15 @@ export default function EspaceEnseignantPage() {
                   {etablissements.map((school) => {
                     const active = etablissementActif?.id === school.id
                     return (
-                      <tr key={school.id} className={active ? "bg-slate-50" : "hover:bg-slate-50/60"}>
+                      <tr key={school.id} className={active ? "bg-slate-50" : "hover:bg-[#fafaff]"}>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <School className="h-4 w-4 text-slate-500" />
+                            <School className="h-4 w-4 text-[#6d7280]" />
                             <span className="font-medium">{school.name}</span>
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <span className={active ? "text-green-700" : "text-slate-500"}>{active ? "Sélectionné" : "Disponible"}</span>
+                          <span className={active ? "text-[#277047]" : "text-slate-500"}>{active ? "Sélectionné" : "Disponible"}</span>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="inline-flex gap-2">

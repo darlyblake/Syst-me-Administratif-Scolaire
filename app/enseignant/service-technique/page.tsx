@@ -42,11 +42,11 @@ export default function ServiceTechniquePage() {
         <p className="mt-1 text-sm text-[#6d7280]">Signalez un problème ou demandez de l'aide sur l'application.</p>
       </header>
 
-      <section className="mt-5 rounded-lg border border-[#e1e3eb] bg-white p-5">
+      <section className="mt-5 rounded-md border border-[#e1e3eb] bg-white p-5">
         <div className="flex items-center gap-3"><span className="rounded-md bg-[#eef1ff] p-2.5 text-[#2944a8]"><LifeBuoy className="h-5 w-5" /></span><div><h2 className="font-semibold">Nouvelle demande</h2><p className="text-sm text-[#6d7280]">Décrivez clairement le problème rencontré.</p></div></div>
 
-        {error && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-        {done && <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">Votre demande a bien été transmise au service technique.</div>}
+        {error && <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+        {done && <div className="mt-4 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-700">Votre demande a bien été transmise au service technique.</div>}
 
         <div className="mt-5 space-y-4">
           <label className="block text-sm font-medium">Sujet<input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Ex. Impossible d'enregistrer une note" className="mt-1.5 h-10 w-full rounded-md border border-[#dfe2ec] px-3 outline-none focus:border-[#7890ef]" /></label>

@@ -480,7 +480,8 @@ export default function TeacherCahierPage() {
       )}
 
       {showAdd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4" role="dialog" aria-modal="true">\n          <section className="max-h-[92vh] w-full max-w-5xl overflow-y-auto border border-[#dfe2eb] bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4" role="dialog" aria-modal="true">
+          <section className="max-h-[92vh] w-full max-w-5xl overflow-y-auto border border-[#dfe2eb] bg-white shadow-2xl">
           {section === "cahier" ? (
             <>
               <div className="flex items-start justify-between gap-4 border-b border-[#e5e7ee] pb-4">
@@ -596,7 +597,8 @@ export default function TeacherCahierPage() {
             </>
           )}
         </section>
-      )}
+          </div>
+        )}
 
       <div className="mt-8 border-t border-[#dfe2eb] py-6 text-xs text-[#7b8190]">
         Les données saisies ici sont rattachées à l'établissement, à l'enseignant, à la classe, à la matière, au créneau et à l'année académique active.

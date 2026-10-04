@@ -21,7 +21,7 @@ export default function NotesEnseignantPage() {
   const [assessmentTitle, setAssessmentTitle] = useState("")
   const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().slice(0, 10))
   const [assessmentMax, setAssessmentMax] = useState("20")
-  const [assessmentTerm, setAssessmentTerm] = useState("")
+  const [gradePeriods, setGradePeriods] = useState<Array<{ id: string; academic_year_id: string; period_number: number; label: string; period_type: string; start_date: string; end_date: string; entry_open: boolean; is_current: boolean }>>([])
   const [assessmentClassSubject, setAssessmentClassSubject] = useState("")
   const [programmingSaving, setProgrammingSaving] = useState(false)
   const establishment = contexte?.establishments?.find((item) => item.id === id)
@@ -30,10 +30,10 @@ export default function NotesEnseignantPage() {
   useEffect(() => {
     if (!establishment || !id) return
     setLoading(true)
-    Promise.all([enseignantPortalService.getAssessments(id), enseignantPortalService.getSchedule(id)])
-      .then(([assessmentRows, scheduleRows]) => {
+    Promise.all([enseignantPortalService.getAssessments(id), enseignantPortalService.getSchedule(id), enseignantPortalService.getGradePeriods(id)])
+      .then(([assessmentRows, scheduleRows, periodRows]) => {
         setAssessments(assessmentRows)
-        setSchedule(scheduleRows.map((s) => ({
+        setGradePeriods(periodRows)\n        setSchedule(scheduleRows.map((s) => ({
           slot_id: s.slot_id,
           academic_year_id: s.academic_year_id,
           class_id: s.class_id,
@@ -63,9 +63,9 @@ export default function NotesEnseignantPage() {
 
   const programAssessment = async () => {
     const selectedPair = classSubjects.find((item) => `${item.class_id}:${item.subject_id}` === assessmentClassSubject)
-    const maxScore = Number(assessmentMax.replace(",", "."))
-    if (!selectedPair || !assessmentTitle.trim() || !assessmentDate || !Number.isFinite(maxScore) || maxScore <= 0) {
-      setMessage("Renseignez le titre, la classe/matière, la date et un barème valide.")
+    const maxScore = Number(assessmentMax.replace(",", "."))\n    const activePeriod = gradePeriods.find((period) => period.entry_open && period.is_current) ?? gradePeriods.find((period) => period.entry_open)
+    if (!selectedPair || !assessmentTitle.trim() || !assessmentDate || !activePeriod || !Number.isFinite(maxScore) || maxScore <= 0) {
+      setMessage(!activePeriod ? "Aucune période de saisie des notes n’est ouverte par l’établissement." : "Renseignez le titre, la classe/matière, la date et un barème valide.")
       return
     }
     setProgrammingSaving(true)
@@ -79,7 +79,7 @@ export default function NotesEnseignantPage() {
         title: assessmentTitle.trim(),
         assessmentDate,
         maxScore,
-        term: assessmentTerm.trim() || undefined,
+        term: activePeriod.label,
       })
       const refreshed = await enseignantPortalService.getAssessments(id)
       setAssessments(refreshed)
@@ -108,8 +108,8 @@ export default function NotesEnseignantPage() {
       <div><label className="text-sm font-medium">Classe et matière</label><select className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm" value={assessmentClassSubject} onChange={(e) => setAssessmentClassSubject(e.target.value)}><option value="">Sélectionner</option>{classSubjects.map((item) => <option key={`${item.class_id}:${item.subject_id}`} value={`${item.class_id}:${item.subject_id}`}>{item.class_name} · {item.subject_name}</option>)}</select></div>
       <div><label className="text-sm font-medium">Date</label><Input className="mt-1" type="date" value={assessmentDate} onChange={(e) => setAssessmentDate(e.target.value)} /></div>
       <div><label className="text-sm font-medium">Barème</label><Input className="mt-1" type="number" min="0.5" step="0.5" value={assessmentMax} onChange={(e) => setAssessmentMax(e.target.value)} /></div>
-      <div><label className="text-sm font-medium">Période / trimestre (facultatif)</label><Input className="mt-1" value={assessmentTerm} onChange={(e) => setAssessmentTerm(e.target.value)} placeholder="Ex. Trimestre 1" /></div>
-      <div className="md:col-span-2 flex justify-end gap-2"><Button variant="outline" onClick={() => setProgrammingOpen(false)}>Annuler</Button><Button onClick={() => void programAssessment()} disabled={programmingSaving}>{programmingSaving ? "Programmation…" : "Programmer l'évaluation"}</Button></div>
+      <div><label className="text-sm font-medium">Période de saisie</label><div className="mt-1 flex h-10 items-center rounded-md border bg-muted/30 px-3 text-sm">{(gradePeriods.find((period) => period.entry_open && period.is_current) ?? gradePeriods.find((period) => period.entry_open))?.label ?? "Aucune période ouverte"}</div></div>
+      <div className="md:col-span-2 flex justify-end gap-2"><Button variant="outline" onClick={() => setProgrammingOpen(false)}>Annuler</Button><Button onClick={() => void programAssessment()} disabled={programmingSaving || !gradePeriods.some((period) => period.entry_open)}>{programmingSaving ? "Programmation…" : "Programmer l'évaluation"}</Button></div>
     </CardContent></Card>}
 
     {!selected ? <Card className="rounded-md"><CardHeader><CardTitle className="text-base">Choisissez une évaluation</CardTitle></CardHeader><CardContent>{loading ? <div className="flex justify-center p-10"><Loader2 className="h-5 w-5 animate-spin" /></div> : assessments.length === 0 ? <p className="p-8 text-center text-sm text-muted-foreground">Aucune évaluation disponible.</p> : <div className="divide-y">{assessments.map((a) => <button key={a.assessment_id} type="button" onClick={() => void openAssessment(a)} className="flex w-full items-center justify-between gap-4 rounded-md px-3 py-4 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2"><div className="min-w-0"><p className="font-medium">{a.title}</p><p className="truncate text-sm text-muted-foreground">{a.class_name} · {a.subject_name} · {a.term ?? "Période non précisée"}</p></div><div className="shrink-0 text-right text-sm"><p>{a.assessment_date}</p><p className="text-muted-foreground">{a.grade_count} note(s) saisie(s)</p></div></button>)}</div>}</CardContent></Card> : <div>

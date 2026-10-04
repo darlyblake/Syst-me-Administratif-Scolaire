@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { ArrowLeft, CheckCircle2, Clock3, QrCode, RefreshCw } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { TeacherShell } from "@/components/enseignant/teacher-shell"
 import { servicePointage } from "@/services/pointage.service"
@@ -229,7 +228,6 @@ export default function EnseignantPointagePage() {
             {scannerError && <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">{scannerError}</div>}
             <div className="mt-4 border-t pt-4 text-sm text-muted-foreground">
               Cadrez le QR affiché sur l’ordinateur. Dès qu’il est reconnu, le système vérifie votre emploi du temps et enregistre automatiquement le début ou la fin du cours.
-            </div>
             </div>
           </section>
         )}

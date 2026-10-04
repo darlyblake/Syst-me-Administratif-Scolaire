@@ -12,6 +12,10 @@ import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
 const money=(n:number)=>new Intl.NumberFormat("fr-FR").format(n)+" FCFA"
 const methods:Record<string,string>={especes:"Espèces",cheque:"Chèque",virement:"Virement",mobile:"Mobile Money",mobile_money:"Mobile Money"}
 
+function PaymentStatus({ amount }: { amount: number }) {
+  return <span className={amount > 0 ? "text-emerald-700" : "text-pierre"}>{amount > 0 ? "Enregistré" : "—"}</span>
+}
+
 export default function ParentPaiements() {
   const params=useSearchParams()
   const {loading,error,refresh,children,payments}=useParentPortal()
@@ -26,7 +30,7 @@ export default function ParentPaiements() {
     {!loading && allowed.length===0 ? <ParentEmptyState title="Situation financière non disponible" description="Votre compte n’a pas actuellement l’autorisation de consulter les paiements." /> :
       <>
         <div className="flex flex-col gap-3 border-b border-terre/10 pb-4 sm:flex-row sm:items-center sm:justify-between"><ParentChildSelect children={allowed} value={childId} onChange={setChildId} financeOnly /><div className="text-sm text-pierre">Total enregistré <strong className="ml-1 text-terre">{money(total)}</strong></div></div>
-        <div className="overflow-x-auto border border-terre/10 bg-papier"><table className="w-full min-w-[680px] text-sm"><thead className="border-b border-terre/10 bg-creme text-left text-xs uppercase tracking-wide text-pierre"><tr><th className="px-4 py-3">Élève</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Mode</th><th className="px-4 py-3">Référence</th><th className="px-4 py-3 text-right">Montant</th></tr></thead><tbody className="divide-y divide-terre/10">{list.map(p=>{const c=children.find(x=>x.enrollment_id===p.enrollment_id);return <tr key={p.id} className="hover:bg-creme"><td className="px-4 py-3 font-medium text-terre">{c?c.first_name+" "+c.last_name:"—"}</td><td className="px-4 py-3 text-pierre">{new Date(p.payment_date).toLocaleDateString("fr-FR")}</td><td className="px-4 py-3">{p.method?methods[p.method]??p.method:"—"}</td><td className="px-4 py-3 text-pierre">{p.reference??"—"}</td><td className="px-4 py-3 text-right font-semibold text-emerald-700">+ {money(p.amount)}</td></tr>})}</tbody></table>{list.length===0&&<p className="px-5 py-10 text-center text-sm text-pierre">Aucun paiement enregistré pour cette sélection.</p>}</div>
+        <div className="overflow-x-auto border border-terre/10 bg-papier"><table className="w-full min-w-[680px] text-sm"><thead className="border-b border-terre/10 bg-creme text-left text-xs uppercase tracking-wide text-pierre"><tr><th className="px-4 py-3">Élève</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Mode</th><th className="px-4 py-3">Référence</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3 text-right">Montant</th></tr></thead><tbody className="divide-y divide-terre/10">{list.map(p=>{const c=children.find(x=>x.enrollment_id===p.enrollment_id);return <tr key={p.id} className="hover:bg-creme"><td className="px-4 py-3 font-medium text-terre">{c?c.first_name+" "+c.last_name:"—"}</td><td className="px-4 py-3 text-pierre">{new Date(p.payment_date).toLocaleDateString("fr-FR")}</td><td className="px-4 py-3">{p.method?methods[p.method]??p.method:"—"}</td><td className="px-4 py-3 text-pierre">{p.reference??"—"}</td><td className="px-4 py-3"><PaymentStatus amount={p.amount}/></td><td className="px-4 py-3 text-right font-semibold text-emerald-700">+ {money(p.amount)}</td></tr>})}</tbody></table>{list.length===0&&<p className="px-5 py-10 text-center text-sm text-pierre">Aucun paiement enregistré pour cette sélection.</p>}</div>
         <p className="flex items-center gap-2 border-t border-terre/10 pt-4 text-sm text-pierre"><Receipt className="h-4 w-4" />Les reçus et échéanciers seront accessibles ici lorsqu’ils sont publiés par l’établissement.</p>
       </>}
   </div>

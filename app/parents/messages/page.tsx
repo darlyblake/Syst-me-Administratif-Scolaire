@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { MessageSquare, Send, AlertCircle, Building2 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { AlertCircle, Building2, MessageSquare, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useMessages } from "@/hooks/useMessages"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useNotifications } from "@/hooks/useNotifications"
+import { ParentPageHeader } from "@/components/parent/ParentPageHeader"
+import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
 
 export default function ParentsMessagesPage() {
   const { utilisateur } = useUserContext()
@@ -17,8 +18,6 @@ export default function ParentsMessagesPage() {
   const [draft, setDraft] = useState("")
   const [isSending, setIsSending] = useState(false)
 
-  // A parent may have children in more than one establishment. Passing null makes
-  // the service resolve only conversations where this authenticated user is a participant.
   const { conversations, messages, sendMessage, markConversationRead } = useMessages(null, userId, selectedId)
 
   useEffect(() => {
@@ -59,31 +58,44 @@ export default function ParentsMessagesPage() {
 
   return (
     <div className="space-y-6">
-      <header className="border-b border-terre/10 pb-6">
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-terre sm:text-3xl">
-          <MessageSquare className="h-6 w-6" />
-          Messages
-        </h1>
-        <p className="mt-1 text-sm text-pierre">Échangez avec les établissements et les enseignants auxquels vous avez accès.</p>
-      </header>
+      <ParentPageHeader
+        eyebrow="Communication"
+        title="Messages"
+        description="Échangez avec les établissements et les enseignants auxquels vous avez accès."
+      />
 
-      <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
-        <Card className="border-terre/10 bg-papier">
-          <CardHeader className="border-b border-terre/10 pb-3">
-            <CardTitle className="text-sm font-semibold text-terre">Conversations</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 p-2">
-            {conversations.isLoading ? (
-              <div className="rounded-lg bg-creme p-4 text-sm text-pierre">Chargement des conversations…</div>
-            ) : conversations.data.length ? (
-              conversations.data.map((conversation) => (
+      {conversations.error ? (
+        <div className="flex flex-col gap-3 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
+          <span className="flex items-center gap-2"><AlertCircle className="h-4 w-4 shrink-0" />{conversations.error}</span>
+          <Button variant="outline" size="sm" onClick={() => void conversations.refetch()}>Réessayer</Button>
+        </div>
+      ) : conversations.isLoading ? (
+        <div className="border-y border-terre/10 bg-papier px-5 py-8 text-sm text-pierre">Chargement des conversations…</div>
+      ) : !conversations.data.length ? (
+        <ParentEmptyState
+          title="Aucune conversation"
+          description="Les conversations apparaîtront ici lorsque l’établissement vous aura ajouté à un échange."
+        />
+      ) : (
+        <section className="grid min-h-[560px] border-y border-terre/10 bg-papier lg:grid-cols-[320px_minmax(0,1fr)]">
+          <aside className="border-b border-terre/10 lg:border-b-0 lg:border-r">
+            <div className="border-b border-terre/10 px-5 py-4">
+              <h2 className="text-sm font-semibold text-terre">Conversations</h2>
+              <p className="mt-1 text-xs text-pierre">{conversations.data.length} échange{conversations.data.length > 1 ? "s" : ""}</p>
+            </div>
+            <div className="divide-y divide-terre/10">
+              {conversations.data.map((conversation) => (
                 <button
                   key={conversation.id}
                   type="button"
                   onClick={() => setSelectedId(conversation.id)}
-                  className={`w-full rounded-lg border px-3 py-3 text-left transition ${selectedId === conversation.id ? "border-terre/20 bg-terre-soft/40" : "border-transparent hover:border-terre/10 hover:bg-creme"}`}
+                  className={`w-full border-l-2 px-5 py-4 text-left transition-colors ${
+                    selectedId === conversation.id
+                      ? "border-terre bg-terre-soft/30"
+                      : "border-transparent hover:bg-creme"
+                  }`}
                 >
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-3">
                     <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-terre" />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-terre">{conversation.title}</p>
@@ -92,51 +104,49 @@ export default function ParentsMessagesPage() {
                           <Building2 className="h-3 w-3" /> Établissement
                         </p>
                       )}
-                      <p className="mt-1 line-clamp-2 text-xs text-pierre">
+                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-pierre">
                         {conversation.last_message_preview || "Aucun message."}
                       </p>
                     </div>
                   </div>
                 </button>
-              ))
-            ) : (
-              <div className="rounded-lg border border-dashed border-terre/15 bg-creme p-4 text-sm text-pierre">
-                Aucune conversation n’est disponible pour le moment.
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              ))}
+            </div>
+          </aside>
 
-        <Card className="flex min-h-[520px] flex-col border-terre/10 bg-papier">
-          {conversations.error ? (
-            <CardContent className="flex flex-1 items-center justify-center p-6 text-center">
-              <div className="max-w-md">
-                <AlertCircle className="mx-auto h-8 w-8 text-rouge-terre" />
-                <p className="mt-4 text-sm text-pierre">{conversations.error}</p>
-                <Button className="mt-4" variant="outline" onClick={() => void conversations.refetch()}>Réessayer</Button>
-              </div>
-            </CardContent>
-          ) : selectedConversation ? (
-            <>
-              <CardHeader className="border-b border-terre/10 pb-3">
-                <CardTitle className="text-base text-terre">{selectedConversation.title}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-1 flex-col gap-4 p-4">
-                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+          <div className="flex min-h-[500px] min-w-0 flex-col">
+            {selectedConversation ? (
+              <>
+                <div className="border-b border-terre/10 px-5 py-4">
+                  <h2 className="text-base font-semibold text-terre">{selectedConversation.title}</h2>
+                  <p className="mt-1 text-xs text-pierre">Conversation sécurisée de votre espace parent.</p>
+                </div>
+
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
                   {messages.isLoading ? (
-                    <div className="text-sm text-pierre">Chargement des messages…</div>
+                    <p className="text-sm text-pierre">Chargement des messages…</p>
                   ) : messages.error ? (
-                    <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{messages.error}</div>
+                    <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{messages.error}</div>
                   ) : messages.data.length ? (
                     messages.data.map((message) => {
                       const isMine = message.sender_id === userId
                       return (
                         <div key={message.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-                          <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${isMine ? "bg-terre text-white" : "bg-creme text-terre"}`}>
+                          <div className={`max-w-[85%] border px-4 py-3 text-sm ${
+                            isMine
+                              ? "border-terre bg-terre text-white"
+                              : "border-terre/10 bg-creme text-terre"
+                          }`}>
                             {!isMine && <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-pierre">{message.sender_name || "Participant"}</p>}
-                            <p className="whitespace-pre-wrap break-words">{message.content}</p>
-                            <p className={`mt-1 text-[10px] ${isMine ? "text-white/70" : "text-pierre"}`}>
-                              {new Date(message.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            <p className="whitespace-pre-wrap break-words leading-6">{message.content}</p>
+                            <p className={`mt-2 text-[10px] ${isMine ? "text-white/70" : "text-pierre"}`}>
+                              {new Date(message.created_at).toLocaleString("fr-FR", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
                             </p>
                           </div>
                         </div>
@@ -147,36 +157,38 @@ export default function ParentsMessagesPage() {
                   )}
                 </div>
 
-                <div className="border-t border-terre/10 pt-3">
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Textarea
-                      placeholder="Écrire un message…"
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value.slice(0, 4000))}
-                      rows={3}
-                      maxLength={4000}
-                      className="min-h-[80px] resize-none"
-                    />
-                    <Button className="sm:self-end" onClick={() => void handleSend()} disabled={isSending || !draft.trim()}>
+                <div className="border-t border-terre/10 px-5 py-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <div className="min-w-0 flex-1">
+                      <Textarea
+                        placeholder="Écrire un message…"
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value.slice(0, 4000))}
+                        rows={3}
+                        maxLength={4000}
+                        className="min-h-[80px] resize-none"
+                      />
+                      <p className="mt-1 text-right text-[11px] text-pierre">{draft.length}/4000</p>
+                    </div>
+                    <Button onClick={() => void handleSend()} disabled={isSending || !draft.trim()}>
                       <Send className="mr-2 h-4 w-4" />
                       {isSending ? "Envoi…" : "Envoyer"}
                     </Button>
                   </div>
-                  <p className="mt-1 text-right text-[11px] text-pierre">{draft.length}/4000</p>
                 </div>
-              </CardContent>
-            </>
-          ) : (
-            <CardContent className="flex flex-1 items-center justify-center p-6 text-center">
-              <div>
-                <MessageSquare className="mx-auto h-9 w-9 text-terre/40" />
-                <p className="mt-3 font-medium text-terre">Sélectionnez une conversation</p>
-                <p className="mt-1 text-sm text-pierre">Les conversations sont limitées aux échanges auxquels votre compte participe.</p>
+              </>
+            ) : (
+              <div className="flex flex-1 items-center justify-center px-5 py-10 text-center">
+                <div>
+                  <MessageSquare className="mx-auto h-8 w-8 text-terre/40" />
+                  <p className="mt-3 font-medium text-terre">Sélectionnez une conversation</p>
+                  <p className="mt-1 text-sm text-pierre">Choisissez un échange dans la liste.</p>
+                </div>
               </div>
-            </CardContent>
-          )}
-        </Card>
-      </div>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   )
 }

@@ -193,7 +193,7 @@ export default function EnseignantPointagePage() {
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pointage enseignant</p>
             <h1 className="text-2xl font-semibold">{establishment.name}</h1>
           </div>
-          <Button variant="outline" size="sm" className="ml-auto" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
+          <div className="ml-auto flex flex-wrap gap-2"><Button onClick={() => void openScanner(course?.status === "in_progress" ? "finish" : "start")} disabled={working}><QrCode className="mr-2 h-4 w-4" />Scanner le QR de l’ordinateur</Button><Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button></div>
         </header>
 
         <section className="rounded-md border bg-white p-5">
@@ -208,15 +208,9 @@ export default function EnseignantPointagePage() {
               {Number(course.late_minutes ?? 0) > 0 && <p className="mt-3 text-sm text-amber-700">Pointage après le début prévu : {course.late_minutes} min.</p>}
 
               <div className="mt-5 flex flex-wrap gap-3">
-                {course.status === "in_progress" ? (
-                  <Button variant="outline" onClick={() => void openScanner("finish")} disabled={working}>
-                    <QrCode className="mr-2 h-4 w-4" /> Scanner le QR de l'ordinateur
-                  </Button>
-                ) : (
-                  <Button onClick={() => void openScanner("start")} disabled={working}>
-                    <QrCode className="mr-2 h-4 w-4" /> Scanner le QR de l'ordinateur
-                  </Button>
-                )}
+                <Button variant="outline" onClick={() => void openScanner(course.status === "in_progress" ? "finish" : "start")} disabled={working}>
+                  <QrCode className="mr-2 h-4 w-4" /> Scanner le QR de l'ordinateur
+                </Button>
               </div>
               <div className="mt-5 border-t pt-5">
                 <div className="flex items-center gap-2">

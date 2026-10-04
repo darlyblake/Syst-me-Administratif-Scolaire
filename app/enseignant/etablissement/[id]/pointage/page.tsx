@@ -174,39 +174,8 @@ export default function EnseignantPointagePage() {
                 </Button>
               </div>
               <div className="mt-5 border-t pt-5">
-                <div className="flex items-center gap-2">
-                  <KeyRound className="h-4 w-4 text-[#3152c8]" />
-                  <p className="font-medium">Pointage avec mon code personnel</p>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Utilisez votre code de pointage si vous ne souhaitez pas scanner le QR affiché sur l'ordinateur de l'école.
-                </p>
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                  <Input
-                    value={personalCode}
-                    onChange={event => setPersonalCode(event.target.value.toUpperCase())}
-                    onKeyDown={event => { if (event.key === "Enter") void submitPersonalCode() }}
-                    placeholder="Ex. A1B2C3D4"
-                    inputMode="text"
-                    autoComplete="off"
-                    maxLength={8}
-                    className="h-11 font-mono tracking-[0.2em]"
-                  />
-                  <Button variant="outline" onClick={() => void submitPersonalCode()} disabled={working || !personalCode.trim()}>
-                    Valider le code
-                  </Button>
-                </div>
-                <div className="mt-4 flex flex-wrap items-center gap-3 border-t pt-4">
-                  <span className="text-sm text-muted-foreground">Mon code personnel :</span>
-                  {myPointageCode ? (
-                    <span className="rounded-md border bg-muted/30 px-3 py-2 font-mono font-semibold tracking-[0.2em]">{myPointageCode}</span>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">non affiché</span>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => void generateMyPointageCode()} disabled={codeLoading}>
-                    <KeyRound className="mr-2 h-4 w-4" />{codeLoading ? "Génération…" : myPointageCode ? "Renouveler" : "Afficher mon code"}
-                  </Button>
-                </div>
+                <p className="text-sm font-medium">Pointage par QR</p>
+                <p className="mt-1 text-sm text-muted-foreground">Le QR affiché sur l’ordinateur de l’établissement identifie le poste. Votre compte enseignant identifie automatiquement l’enseignant, son établissement et le cours prévu à cet instant.</p>
               </div>
             </>
           ) : (

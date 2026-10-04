@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, ArrowRight, BookOpen, Loader2, Search, Users } from "lucide-react"
+import { ArrowLeft, ArrowRight, BookOpen, Loader2, Search } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { enseignantPortalService, type TeacherClass, type TeacherStudent } from "@/services/enseignant-portal.service"
@@ -63,7 +63,7 @@ export default function TeacherClassesPage() {
           <table className="min-w-[650px] w-full text-sm">
             <thead className="border-b bg-[#f7f8fa] text-left text-[#555e73]"><tr><th className="px-4 py-3 font-medium">Élève</th><th className="px-4 py-3 font-medium">Matricule</th><th className="px-4 py-3 text-right font-medium">Action</th></tr></thead>
             <tbody className="divide-y divide-[#eceef3]">
-              {selectedStudents.map((student) => <tr key={student.student_id} className="hover:bg-[#fafbfc]"><td className="px-4 py-3 font-semibold">{student.last_name} {student.first_name}</td><td className="px-4 py-3 text-[#6d7280]">{student.student_number || "—"}</td><td className="px-4 py-3 text-right"><button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/classe/" + student.class_id)} className="inline-flex items-center gap-1 text-sm font-semibold text-[#2441a5]">Voir <ArrowRight className="h-4 w-4" /></button></td></tr>)}
+              {selectedStudents.map((student) => <tr key={student.student_id} className="hover:bg-[#fafbfc]"><td className="px-4 py-3 font-semibold">{student.last_name} {student.first_name}</td><td className="px-4 py-3 text-[#6d7280]">{student.student_number || "—"}</td><td className="px-4 py-3 text-right"><button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/eleve/" + student.student_id)} className="inline-flex items-center gap-1 text-sm font-semibold text-[#2441a5]">Consulter <ArrowRight className="h-4 w-4" /></button></td></tr>)}
               {!selectedStudents.length && <tr><td colSpan={3} className="px-4 py-10 text-center text-[#6d7280]">Aucun élève dans cette classe.</td></tr>}
             </tbody>
           </table>

@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { LayoutDashboard, Users, GraduationCap, CalendarDays, BookOpen, FileText, Bell, MessageSquare, UserRound, Menu, X, LogOut, LifeBuoy, ClipboardList } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -30,6 +30,7 @@ const secondaire = [
 
 export function ParentNav() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { utilisateur, deconnecter } = useAuthentification()
   const [open, setOpen] = useState(false)
   const [unreadNotifications, setUnreadNotifications] = useState(0)
@@ -56,8 +57,7 @@ export function ParentNav() {
     return () => { mounted = false }
   }, [utilisateur?.id, pathname])
 
-  const all = [...principal, ...secondaire]
-  const isActive = (href: string) => pathname === href || pathname?.startsWith(href + "/")
+  const isActive = (href: string) => {\n    const [path, query] = href.split("?")\n    if (pathname !== path && !pathname?.startsWith(path + "/")) return false\n    if (query) {\n      const expected = new URLSearchParams(query)\n      for (const [key, value] of expected.entries()) if (searchParams.get(key) !== value) return false\n      return true\n    }\n    if (path === "/parents/cahier-de-textes" && searchParams.get("tab") === "homework") return false\n    return true\n  }
   const badge = (key?: "notifs" | "msgs") => key === "notifs" ? unreadNotifications : key === "msgs" ? unreadMessages : 0
 
   const Nav = ({ close = false }: { close?: boolean }) => (

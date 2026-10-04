@@ -38,6 +38,8 @@ export default function EnseignantPointagePage() {
   const [manualToken, setManualToken] = useState("")
   const [scanAction, setScanAction] = useState<"start" | "finish">("start")
   const [personalCode, setPersonalCode] = useState("")
+  const [myPointageCode, setMyPointageCode] = useState<string | null>(null)
+  const [codeLoading, setCodeLoading] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -103,6 +105,19 @@ export default function EnseignantPointagePage() {
       toast.error(error instanceof Error ? error.message : "QR invalide ou expiré.")
     } finally {
       setWorking(false)
+    }
+  }
+
+  const generateMyPointageCode = async () => {
+    setCodeLoading(true)
+    try {
+      const nextCode = await servicePointage.genererMonCode(establishmentId)
+      setMyPointageCode(nextCode)
+      toast.success("Votre code de pointage est prêt.")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible de générer votre code de pointage.")
+    } finally {
+      setCodeLoading(false)
     }
   }
 
@@ -224,6 +239,17 @@ export default function EnseignantPointagePage() {
                   />
                   <Button variant="outline" onClick={() => void submitPersonalCode()} disabled={working || !personalCode.trim()}>
                     Valider le code
+                  </Button>
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-3 border-t pt-4">
+                  <span className="text-sm text-muted-foreground">Mon code personnel :</span>
+                  {myPointageCode ? (
+                    <span className="rounded-md border bg-muted/30 px-3 py-2 font-mono font-semibold tracking-[0.2em]">{myPointageCode}</span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">non affiché</span>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => void generateMyPointageCode()} disabled={codeLoading}>
+                    <KeyRound className="mr-2 h-4 w-4" />{codeLoading ? "Génération…" : myPointageCode ? "Renouveler" : "Afficher mon code"}
                   </Button>
                 </div>
               </div>

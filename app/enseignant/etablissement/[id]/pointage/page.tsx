@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ArrowLeft, CheckCircle2, Clock3, Play, QrCode, RefreshCw, Square } from "lucide-react"
+import { ArrowLeft, CheckCircle2, Clock3, KeyRound, Play, QrCode, RefreshCw, Square } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,6 +37,7 @@ export default function EnseignantPointagePage() {
   const [scannerError, setScannerError] = useState<string | null>(null)
   const [manualToken, setManualToken] = useState("")
   const [scanAction, setScanAction] = useState<"start" | "finish">("start")
+  const [personalCode, setPersonalCode] = useState("")
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -100,6 +101,26 @@ export default function EnseignantPointagePage() {
       await load()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "QR invalide ou expiré.")
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  const submitPersonalCode = async () => {
+    if (!personalCode.trim() || !course) return
+    setWorking(true)
+    try {
+      const action = course.status === "in_progress" ? "course_end" : "course_start"
+      const result = await servicePointage.enregistrerParCode(establishmentId, action, personalCode)
+      toast.success(action === "course_start" ? "Début du cours validé par code." : "Fin du cours validée par code.", {
+        description: result.scheduled_start && result.scheduled_end
+          ? `${result.scheduled_start.slice(0,5)} → ${result.scheduled_end.slice(0,5)}`
+          : undefined,
+      })
+      setPersonalCode("")
+      await load()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Code de pointage invalide ou non autorisé.")
     } finally {
       setWorking(false)
     }
@@ -174,13 +195,37 @@ export default function EnseignantPointagePage() {
               <div className="mt-5 flex flex-wrap gap-3">
                 {course.status === "in_progress" ? (
                   <Button variant="outline" onClick={() => void openScanner("finish")} disabled={working}>
-                    <Square className="mr-2 h-4 w-4" /> Terminer le cours
+                    <QrCode className="mr-2 h-4 w-4" /> Scanner le QR de l'ordinateur
                   </Button>
                 ) : (
                   <Button onClick={() => void openScanner("start")} disabled={working}>
-                    <Play className="mr-2 h-4 w-4" /> Commencer le cours
+                    <QrCode className="mr-2 h-4 w-4" /> Scanner le QR de l'ordinateur
                   </Button>
                 )}
+              </div>
+              <div className="mt-5 border-t pt-5">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-[#3152c8]" />
+                  <p className="font-medium">Pointage avec mon code personnel</p>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Utilisez votre code de pointage si vous ne souhaitez pas scanner le QR affiché sur l'ordinateur de l'école.
+                </p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    value={personalCode}
+                    onChange={event => setPersonalCode(event.target.value.toUpperCase())}
+                    onKeyDown={event => { if (event.key === "Enter") void submitPersonalCode() }}
+                    placeholder="Ex. A1B2C3D4"
+                    inputMode="text"
+                    autoComplete="off"
+                    maxLength={8}
+                    className="h-11 font-mono tracking-[0.2em]"
+                  />
+                  <Button variant="outline" onClick={() => void submitPersonalCode()} disabled={working || !personalCode.trim()}>
+                    Valider le code
+                  </Button>
+                </div>
               </div>
             </>
           ) : (
@@ -198,7 +243,7 @@ export default function EnseignantPointagePage() {
               <div><h2 className="font-semibold"><QrCode className="mr-2 inline h-5 w-5" />Scanner le QR de l'ordinateur</h2><p className="text-sm text-muted-foreground">Action : {scanAction === "start" ? "commencer le cours" : "terminer le cours"}.</p></div>
               <Button variant="ghost" onClick={stopScanner}>Fermer</Button>
             </div>
-            <div className="mt-4 overflow-hidden rounded-md bg-black"><video ref={videoRef} className="aspect-video w-full object-cover" muted playsInline /></div>
+            <div className="mt-4 overflow-hidden rounded-md border bg-black"><video ref={videoRef} className="aspect-video w-full object-cover" muted playsInline /></div>
             {scannerError && <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">{scannerError}</div>}
             <div className="mt-4 border-t pt-4">
               <label className="text-sm font-medium">Jeton temporaire de secours</label>

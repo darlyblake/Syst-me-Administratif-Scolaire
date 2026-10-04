@@ -5,7 +5,8 @@ export type TeacherClass = { class_id: string; class_name: string; establishment
 export type TeacherStudent = { student_id: string; first_name: string; last_name: string; student_number: string | null; class_id: string; class_name: string; establishment_id: string; establishment_name: string }
 export type TeacherScheduleSlot = { slot_id: string; establishment_id: string; establishment_name: string; class_id: string; class_name: string; subject_id: string; subject_name: string; day_of_week: number; starts_at: string; ends_at: string; room: string | null }
 export type TeacherContext = { teacher_id: string; profile_id: string; first_name: string; last_name: string; specialty: string | null; employee_number: string | null }
-export type TeacherAssessment = { assessment_id: string; establishment_id: string; academic_year_id: string; academic_year_name: string; class_id: string; class_name: string; subject_id: string; subject_name: string; title: string; assessment_date: string; max_score: number; term: string | null; grade_count: number }\nexport type TeacherGradePeriod = { id: string; academic_year_id: string; period_number: number; label: string; period_type: string; start_date: string; end_date: string; entry_open: boolean; is_current: boolean }
+export type TeacherAssessment = { assessment_id: string; establishment_id: string; academic_year_id: string; academic_year_name: string; class_id: string; class_name: string; subject_id: string; subject_name: string; title: string; assessment_date: string; max_score: number; term: string | null; grade_count: number }
+export type TeacherGradePeriod = { id: string; academic_year_id: string; period_number: number; label: string; period_type: string; start_date: string; end_date: string; entry_open: boolean; is_current: boolean }
 export type TeacherAssessmentStudent = { student_id: string; first_name: string; last_name: string; student_number: string | null; score: number | null; comment: string | null }
 export type TeacherAttendanceStudent = { student_id: string; first_name: string; last_name: string; student_number: string | null; status: string | null; reason: string | null }
 export type TeacherClassOverview = { class_id: string; class_name: string; student_count: number; assessment_count: number; graded_count: number; average_percentage: number | null; attendance_present: number; attendance_absent: number; attendance_late: number; attendance_excused: number }
@@ -30,7 +31,8 @@ export const enseignantPortalService = {
   getStudents: (establishmentId: string) => rpc<TeacherStudent[]>("teacher_students", { p_establishment_id: establishmentId }),
   getSchedule: (establishmentId: string) => rpc<TeacherScheduleSlot[]>("teacher_schedule", { p_establishment_id: establishmentId }),
   getEstablishments: () => rpc<Array<{ establishment_id: string; establishment_name: string; status: string; joined_at: string }>>("teacher_establishments_for_user"),
-  getAssessments: (establishmentId: string) => rpc<TeacherAssessment[]>("teacher_assessments", { p_establishment_id: establishmentId }),\n  getGradePeriods: (establishmentId: string) => rpc<TeacherGradePeriod[]>("teacher_grade_periods", { p_establishment_id: establishmentId }),
+  getAssessments: (establishmentId: string) => rpc<TeacherAssessment[]>("teacher_assessments", { p_establishment_id: establishmentId }),
+  getGradePeriods: (establishmentId: string) => rpc<TeacherGradePeriod[]>("teacher_grade_periods", { p_establishment_id: establishmentId }),
   createAssessment: (input: {
     establishmentId: string
     academicYearId: string

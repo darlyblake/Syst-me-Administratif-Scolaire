@@ -1,7 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { Bell, BookOpenText, CalendarDays, ClipboardCheck, FileText, UserRound } from "lucide-react"
+import { Bell, BookOpenText, CalendarDays, ClipboardCheck, FileText, LogOut, Settings, UserRound } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuthentification } from "@/providers/authentification.provider"
 
@@ -15,7 +15,7 @@ type Props = {
 
 export function TeacherShell({ establishmentId, establishmentName, teacherName, active, children }: Props) {
   const router = useRouter()
-  const { contexte, selectionnerEtablissement } = useAuthentification()
+  const { contexte, selectionnerEtablissement, deconnecter } = useAuthentification()
 
   const go = (path: string) => router.push(`/enseignant/etablissement/${establishmentId}${path}`)
   const items = [
@@ -48,7 +48,7 @@ export function TeacherShell({ establishmentId, establishmentName, teacherName, 
               </select>
               <p className="mt-1 truncate text-xs text-[#6d7280]">{teacherName || "Espace enseignant"} · {establishmentName}</p>
             </div>
-            <button type="button" aria-label="Notifications" onClick={() => router.push("/enseignant/notifications")} className="relative rounded-md p-2 hover:bg-[#f3f4f8]">
+            <button type="button" aria-label="Paramètres" onClick={() => router.push("/enseignant/profil")} className="rounded-md p-2 hover:bg-[#f3f4f8]"><Settings className="h-5 w-5 text-[#172033]" /></button>\n            <button type="button" aria-label="Notifications" onClick={() => router.push("/enseignant/notifications")} className="relative rounded-md p-2 hover:bg-[#f3f4f8]">
               <Bell className="h-5 w-5 text-[#172033]" />
             </button>
             <button type="button" aria-label="Profil" onClick={() => router.push("/enseignant/profil")} className="rounded-md bg-[#0b2677] p-2 text-white hover:bg-[#09236d]">

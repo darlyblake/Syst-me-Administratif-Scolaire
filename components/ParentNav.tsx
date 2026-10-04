@@ -16,7 +16,9 @@ const principal = [
   { href: "/parents/notes", label: "Résultats", icon: GraduationCap },
   { href: "/parents/absences", label: "Présences", icon: CalendarDays },
   { href: "/parents/cahier-de-textes", label: "Cahier de textes", icon: BookOpen },
+  { href: "/parents/cahier-de-textes?tab=homework", label: "Devoirs", icon: ClipboardList },
   { href: "/parents/emploi-du-temps", label: "Emploi du temps", icon: CalendarDays },
+  { href: "/parents/paiements", label: "Scolarité & paiements", icon: ClipboardList },
 ]
 const secondaire = [
   { href: "/parents/documents", label: "Documents", icon: FileText },

@@ -150,7 +150,14 @@ export default function EspaceEtablissementEnseignantPage() {
             </button>
           </section>
 
-          <section className="mt-7 border-t border-[#e2e4eb] pt-5">
+          <section className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+  <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/classes")} className="group flex items-center gap-3 rounded-lg border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]"><span className="rounded-md bg-[#eef1ff] p-2.5 text-[#2944a8]"><BookOpenText className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Mes classes</span><span className="block text-sm text-[#6d7280]">Voir vos affectations</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" /></button>
+  <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/eleves")} className="group flex items-center gap-3 rounded-lg border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]"><span className="rounded-md bg-[#eef1ff] p-2.5 text-[#2944a8]"><BookOpenText className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Mes élèves</span><span className="block text-sm text-[#6d7280]">Consulter vos élèves</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" /></button>
+  <button type="button" onClick={() => router.push("/enseignant/etablissement/" + id + "/documents")} className="group flex items-center gap-3 rounded-lg border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]"><span className="rounded-md bg-[#eef1ff] p-2.5 text-[#2944a8]"><FileText className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Mon dossier</span><span className="block text-sm text-[#6d7280]">Documents de l’établissement</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" /></button>
+  <button type="button" onClick={() => router.push("/enseignant/service-technique")} className="group flex items-center gap-3 rounded-lg border border-[#e1e3eb] bg-white p-4 text-left hover:border-[#bdc8f4]"><span className="rounded-md bg-[#eef1ff] p-2.5 text-[#2944a8]"><Clock3 className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Assistance</span><span className="block text-sm text-[#6d7280]">Contacter le service technique</span></span><ArrowRight className="h-4 w-4 text-[#8a90a0]" /></button>
+</section>
+
+<section className="mt-7 border-t border-[#e2e4eb] pt-5">
             <div className="grid grid-cols-3 gap-3 text-center"><div><p className="text-xl font-bold">{classes.length}</p><p className="text-xs text-[#737887]">Classes</p></div><div><p className="text-xl font-bold">{students.length}</p><p className="text-xs text-[#737887]">Élèves suivis</p></div><div><p className="text-xl font-bold">{new Set(classes.map((c) => c.subject_id)).size}</p><p className="text-xs text-[#737887]">Matières</p></div></div>
           </section>
         </>

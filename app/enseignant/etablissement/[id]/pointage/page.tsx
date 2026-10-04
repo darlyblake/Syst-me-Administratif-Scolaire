@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ArrowLeft, CheckCircle2, Clock3, KeyRound, Play, QrCode, RefreshCw, Square } from "lucide-react"
+import { ArrowLeft, CheckCircle2, Clock3, QrCode, RefreshCw } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -35,11 +35,7 @@ export default function EnseignantPointagePage() {
   const [working, setWorking] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [scannerError, setScannerError] = useState<string | null>(null)
-  const [manualToken, setManualToken] = useState("")
   const [scanAction, setScanAction] = useState<"start" | "finish">("start")
-  const [personalCode, setPersonalCode] = useState("")
-  const [myPointageCode, setMyPointageCode] = useState<string | null>(null)
-  const [codeLoading, setCodeLoading] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -98,44 +94,10 @@ export default function EnseignantPointagePage() {
           ? `${result.scheduled_start.slice(0,5)} → ${result.scheduled_end.slice(0,5)}`
           : undefined,
       })
-      setManualToken("")
       stopScanner()
       await load()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "QR invalide ou expiré.")
-    } finally {
-      setWorking(false)
-    }
-  }
-
-  const generateMyPointageCode = async () => {
-    setCodeLoading(true)
-    try {
-      const nextCode = await servicePointage.genererMonCode(establishmentId)
-      setMyPointageCode(nextCode)
-      toast.success("Votre code de pointage est prêt.")
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Impossible de générer votre code de pointage.")
-    } finally {
-      setCodeLoading(false)
-    }
-  }
-
-  const submitPersonalCode = async () => {
-    if (!personalCode.trim() || !course) return
-    setWorking(true)
-    try {
-      const action = course.status === "in_progress" ? "course_end" : "course_start"
-      const result = await servicePointage.enregistrerParCode(establishmentId, action, personalCode)
-      toast.success(action === "course_start" ? "Début du cours validé par code." : "Fin du cours validée par code.", {
-        description: result.scheduled_start && result.scheduled_end
-          ? `${result.scheduled_start.slice(0,5)} → ${result.scheduled_end.slice(0,5)}`
-          : undefined,
-      })
-      setPersonalCode("")
-      await load()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Code de pointage invalide ou non autorisé.")
     } finally {
       setWorking(false)
     }
@@ -147,7 +109,7 @@ export default function EnseignantPointagePage() {
     setScannerOpen(true)
 
     if (!("BarcodeDetector" in globalThis)) {
-      setScannerError("La lecture QR native n'est pas disponible dans ce navigateur. Utilisez le jeton temporaire comme secours.")
+      setScannerError("La lecture QR n’est pas disponible dans ce navigateur. Ouvrez le portail enseignant avec Chrome récent sur Android et autorisez l’accès à la caméra.")
       return
     }
 
@@ -260,14 +222,14 @@ export default function EnseignantPointagePage() {
         {scannerOpen && (
           <section className="rounded-md border border-[#e1e3eb] bg-white p-5">
             <div className="flex items-center justify-between gap-3">
-              <div><h2 className="font-semibold"><QrCode className="mr-2 inline h-5 w-5" />Scanner le QR de l'ordinateur</h2><p className="text-sm text-muted-foreground">Action : {scanAction === "start" ? "commencer le cours" : "terminer le cours"}.</p></div>
+              <div><h2 className="font-semibold"><QrCode className="mr-2 inline h-5 w-5" />Scanner le QR de l'ordinateur</h2><p className="text-sm text-muted-foreground">Action automatique : {scanAction === "start" ? "démarrer le cours prévu maintenant" : "terminer le cours en cours"}.</p></div>
               <Button variant="ghost" onClick={stopScanner}>Fermer</Button>
             </div>
             <div className="mt-4 overflow-hidden rounded-md border bg-black"><video ref={videoRef} className="aspect-video w-full object-cover" muted playsInline /></div>
             {scannerError && <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">{scannerError}</div>}
-            <div className="mt-4 border-t pt-4">
-              <label className="text-sm font-medium">Jeton temporaire de secours</label>
-              <div className="mt-2 flex gap-2"><Input value={manualToken} onChange={e => setManualToken(e.target.value)} placeholder="Coller le jeton du QR" /><Button onClick={() => void submitToken(manualToken)} disabled={working || !manualToken.trim()}>Valider</Button></div>
+            <div className="mt-4 border-t pt-4 text-sm text-muted-foreground">
+              Cadrez le QR affiché sur l’ordinateur. Dès qu’il est reconnu, le système vérifie votre emploi du temps et enregistre automatiquement le début ou la fin du cours.
+            </div>
             </div>
           </section>
         )}

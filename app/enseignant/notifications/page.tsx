@@ -60,9 +60,9 @@ export default function NotificationsEnseignantPage() {
         </div>
       </header>
 
-      {error && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+      {error && <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
-      <section className="mt-5 overflow-hidden rounded-lg border border-[#e1e3eb] bg-white">
+      <section className="mt-5 overflow-hidden rounded-md border border-[#e1e3eb] bg-white">
         {loading ? <div className="p-12 text-center text-sm text-[#6d7280]"><Loader2 className="mx-auto h-5 w-5 animate-spin" /><p className="mt-2">Chargement des notifications…</p></div> :
         items.length === 0 ? <div className="p-12 text-center"><Bell className="mx-auto h-8 w-8 text-[#8a90a0]" /><p className="mt-3 font-semibold">Aucune notification</p><p className="mt-1 text-sm text-[#6d7280]">Vous êtes à jour.</p></div> :
         <div className="divide-y divide-[#eceef3]">{items.map((item) => <button type="button" key={item.id} onClick={() => !item.read_at && void markOne(item.id)} className={"block w-full px-4 py-4 text-left transition hover:bg-[#fafaff] " + (!item.read_at ? "bg-[#f7f8ff]" : "")}>

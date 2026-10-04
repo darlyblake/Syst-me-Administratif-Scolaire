@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, CheckCircle2, Clock3, FileText, Send, Upload, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { supabaseBrowser } from "@/lib/supabase/client"
+import { TeacherShell } from "@/components/enseignant/teacher-shell"
+import { useAuthentification } from "@/providers/authentification.provider"
 
 type Doc = {
   id: string
@@ -190,21 +192,21 @@ export default function EnseignantDocumentsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white text-slate-900">
+    <TeacherShell establishmentId={establishmentId} establishmentName={establishment?.name ?? "Établissement"} teacherName={teacher ? teacher.first_name + " " + teacher.last_name : undefined} active="planning">
       <div className="mx-auto max-w-6xl px-4 py-6 md:px-6">
-        <button onClick={() => router.push(`/enseignant/etablissement/${establishmentId}`)} className="mb-5 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900">
+        <button onClick={() => router.push(`/enseignant/etablissement/${establishmentId}`)} className="mb-5 inline-flex items-center gap-2 text-sm text-[#6d7280] hover:text-[#172033]">
           <ArrowLeft className="h-4 w-4" /> Retour à l'établissement
         </button>
 
-        <div className="border-b pb-5">
-          <p className="text-sm text-slate-500">Mon dossier</p>
+        <div className="border-b border-[#e4e6ef] pb-5">
+          <p className="text-sm text-[#6d7280]">Mon dossier</p>
           <h1 className="mt-1 text-2xl font-semibold">Mes documents</h1>
           <p className="mt-1 text-sm text-slate-500">
             Envoyez vos documents à l'établissement et suivez leur validation.
           </p>
         </div>
 
-        <section className="mt-6 rounded-md border p-5">
+        <section className="mt-6 rounded-md rounded-lg border border-[#e1e3eb] bg-white p-5">
           <div className="flex items-center gap-3">
             <Upload className="h-5 w-5 text-slate-500" />
             <div>
@@ -224,7 +226,7 @@ export default function EnseignantDocumentsPage() {
                   const request = requests.find((item) => item.id === id)
                   if (request) setDocumentType(request.document_type)
                 }}
-                className="mt-1 h-10 w-full rounded-md border bg-white px-3"
+                className="mt-1 h-10 w-full rounded-md border border-[#dfe2ec] bg-white px-3"
               >
                 <option value="">Document libre</option>
                 {requests.filter((item) => item.status === "requested" || item.status === "rejected").map((request) => (
@@ -338,6 +340,6 @@ export default function EnseignantDocumentsPage() {
           </div>
         </section>
       </div>
-    </main>
+    </TeacherShell>
   )
 }

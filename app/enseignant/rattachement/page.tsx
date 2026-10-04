@@ -76,21 +76,21 @@ export default function TeacherAttachmentPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white text-slate-900">
+    <main className="min-h-screen bg-[#f8f8fc] text-[#172033]">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <header className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-center sm:justify-between">
+        <header className="flex flex-col gap-4 border-b border-[#e4e6ef] pb-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm text-slate-500">Espace enseignant</p>
+            <p className="text-sm text-[#6d7280]">Espace enseignant</p>
             <h1 className="text-2xl font-semibold tracking-tight">Choisir mon établissement</h1>
-            <p className="mt-1 max-w-2xl text-sm text-slate-600">Demandez votre rattachement. L'établissement devra accepter votre demande avant que vous puissiez accéder à ses données.</p>
+            <p className="mt-1 max-w-2xl text-sm text-[#555e73]">Demandez votre rattachement. L'établissement devra accepter votre demande avant que vous puissiez accéder à ses données.</p>
           </div>
-          <button onClick={logout} className="inline-flex items-center gap-2 self-start rounded-md border px-3 py-2 text-sm hover:bg-slate-50"><LogOut className="h-4 w-4" /> Se déconnecter</button>
+          <button onClick={logout} className="inline-flex items-center gap-2 self-start rounded-lg border border-[#e1e3eb] px-3 py-2 text-sm hover:bg-[#fafaff]"><LogOut className="h-4 w-4" /> Se déconnecter</button>
         </header>
 
         <section className="mt-6">
           <div className="relative max-w-xl">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une école, une ville ou un code" className="h-10 w-full rounded-md border pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-slate-200" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une école, une ville ou un code" className="h-10 w-full rounded-md border pl-9 pr-3 text-sm outline-none focus:border-[#7890ef]" />
           </div>
 
           {error && <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
@@ -100,7 +100,7 @@ export default function TeacherAttachmentPage() {
           ) : (
             <div className="mt-5 overflow-x-auto rounded-md border">
               <table className="min-w-[720px] w-full text-sm">
-                <thead className="border-b bg-slate-50 text-left text-slate-600">
+                <thead className="border-b bg-[#f7f8fa] text-left text-slate-600">
                   <tr><th className="px-4 py-3 font-medium">Établissement</th><th className="px-4 py-3 font-medium">Ville</th><th className="px-4 py-3 font-medium">Code</th><th className="px-4 py-3 text-right font-medium">Action</th></tr>
                 </thead>
                 <tbody className="divide-y">
@@ -114,8 +114,8 @@ export default function TeacherAttachmentPage() {
                         <td className="px-4 py-3">{school.city || "—"}</td>
                         <td className="px-4 py-3">{school.code || "—"}</td>
                         <td className="px-4 py-3 text-right">
-                          {approved ? <span className="inline-flex items-center gap-1 text-green-700"><CheckCircle2 className="h-4 w-4" /> Rattaché</span> :
-                           pending ? <span className="inline-flex items-center gap-1 text-amber-700"><Clock3 className="h-4 w-4" /> En attente</span> :
+                          {approved ? <span className="inline-flex items-center gap-1 text-[#277047]"><CheckCircle2 className="h-4 w-4" /> Rattaché</span> :
+                           pending ? <span className="inline-flex items-center gap-1 text-[#9a6500]"><Clock3 className="h-4 w-4" /> En attente</span> :
                            <button disabled={sending === school.id} onClick={() => void requestAttachment(school.id)} className="inline-flex items-center gap-2 rounded-md border px-3 py-2 font-medium hover:bg-slate-50 disabled:opacity-50">{sending === school.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Demander</button>}
                         </td>
                       </tr>

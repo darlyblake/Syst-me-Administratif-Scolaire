@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAuthentification } from "@/providers/authentification.provider"
+import { TeacherShell } from "@/components/enseignant/teacher-shell"
 import { servicePointage } from "@/services/pointage.service"
 import { enseignantPointageService, type TeacherLessonSlot, type TeacherLessonPointage } from "@/services/enseignant-pointage.service"
 import { toast } from "sonner"
@@ -144,11 +145,11 @@ export default function EnseignantPointagePage() {
   }
 
   if (estEnCoursDeChargement || !utilisateur || !establishment) {
-    return <main className="min-h-screen flex items-center justify-center"><p className="text-sm text-muted-foreground">Chargement…</p></main>
+    return <main className="min-h-screen flex items-center justify-center bg-[#f8f8fc]"><p className="text-sm text-[#6d7280]">Chargement…</p></main>
   }
 
   return (
-    <main className="min-h-screen bg-white p-4 md:p-6">
+    <TeacherShell establishmentId={establishmentId} establishmentName={establishment.name} active="planning">
       <div className="mx-auto max-w-4xl space-y-5">
         <header className="flex flex-wrap items-center gap-3 border-b pb-5">
           <Button variant="ghost" size="icon" onClick={() => router.back()}><ArrowLeft className="h-5 w-5" /></Button>
@@ -159,10 +160,10 @@ export default function EnseignantPointagePage() {
           <Button variant="outline" size="sm" className="ml-auto" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
         </header>
 
-        <section className="rounded-xl border bg-muted/20 p-5">
+        <section className="rounded-xl border bg-white p-5">
           {loading ? <p className="text-sm text-muted-foreground">Recherche du cours actuel…</p> : course && slot ? (
             <>
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Cours identifié automatiquement</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#3152c8]">Cours identifié automatiquement</p>
               <h2 className="mt-2 text-2xl font-semibold">{slot.subject_name}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{slot.class_name}{slot.room ? ` · Salle ${slot.room}` : ""} · {slot.starts_at} – {slot.ends_at}</p>
               {course.status === "in_progress" && course.started_time && (
@@ -192,7 +193,7 @@ export default function EnseignantPointagePage() {
         </section>
 
         {scannerOpen && (
-          <section className="rounded-xl border bg-background p-5">
+          <section className="rounded-xl border border-[#e1e3eb] bg-white p-5">
             <div className="flex items-center justify-between gap-3">
               <div><h2 className="font-semibold"><QrCode className="mr-2 inline h-5 w-5" />Scanner le QR de l'ordinateur</h2><p className="text-sm text-muted-foreground">Action : {scanAction === "start" ? "commencer le cours" : "terminer le cours"}.</p></div>
               <Button variant="ghost" onClick={stopScanner}>Fermer</Button>
@@ -210,7 +211,7 @@ export default function EnseignantPointagePage() {
           <div className="border-b px-4 py-3"><h2 className="font-semibold">Pointages du jour</h2></div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[650px] text-sm">
-              <thead className="bg-muted/30"><tr><th className="px-4 py-3 text-left">Cours</th><th className="px-4 py-3 text-left">Début</th><th className="px-4 py-3 text-left">Fin</th><th className="px-4 py-3 text-left">Heures retenues</th><th className="px-4 py-3 text-left">État</th></tr></thead>
+              <thead className="bg-[#f4f5f8]"><tr><th className="px-4 py-3 text-left">Cours</th><th className="px-4 py-3 text-left">Début</th><th className="px-4 py-3 text-left">Fin</th><th className="px-4 py-3 text-left">Heures retenues</th><th className="px-4 py-3 text-left">État</th></tr></thead>
               <tbody className="divide-y">
                 {pointages.map(record => {
                   const item = pointages.length ? record : null
@@ -222,6 +223,6 @@ export default function EnseignantPointagePage() {
           </div>
         </section>
       </div>
-    </main>
+    </TeacherShell>
   )
 }

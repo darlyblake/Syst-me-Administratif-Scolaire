@@ -9,7 +9,6 @@ import { useParentPortal } from "@/hooks/use-parent-portal"
 import { ParentPageHeader } from "@/components/parent/ParentPageHeader"
 import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
 
-const money = (n: number) => new Intl.NumberFormat("fr-FR").format(n) + " FCFA"
 
 export default function ParentsDashboard() {
   const { utilisateur } = useAuthentification()

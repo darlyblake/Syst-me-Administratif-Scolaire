@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, Clock3, FileText, Send, Upload, XCircle } from
 import { Button } from "@/components/ui/button"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { TeacherShell } from "@/components/enseignant/teacher-shell"
+import { useAuthentification } from "@/providers/authentification.provider"
 
 type Doc = {
   id: string

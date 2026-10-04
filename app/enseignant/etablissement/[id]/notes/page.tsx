@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, CheckCircle2, Loader2, Save, Search } from "lucide-react"
+import { ArrowLeft, CalendarPlus, CheckCircle2, Loader2, Save, Search } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,10 +16,83 @@ export default function NotesEnseignantPage() {
   const [assessments, setAssessments] = useState<TeacherAssessment[]>([]); const [selected, setSelected] = useState<TeacherAssessment | null>(null)
   const [students, setStudents] = useState<TeacherAssessmentStudent[]>([]); const [scores, setScores] = useState<Record<string, string>>({}); const [comments, setComments] = useState<Record<string, string>>({}); const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true); const [saving, setSaving] = useState<string | null>(null); const [message, setMessage] = useState<string | null>(null)
+  const [schedule, setSchedule] = useState<Array<{ slot_id: string; academic_year_id: string; class_id: string; class_name: string; subject_id: string; subject_name: string }>>([])
+  const [programmingOpen, setProgrammingOpen] = useState(false)
+  const [assessmentTitle, setAssessmentTitle] = useState("")
+  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().slice(0, 10))
+  const [assessmentMax, setAssessmentMax] = useState("20")
+  const [assessmentTerm, setAssessmentTerm] = useState("")
+  const [assessmentClassSubject, setAssessmentClassSubject] = useState("")
+  const [programmingSaving, setProgrammingSaving] = useState(false)
   const establishment = contexte?.establishments?.find((item) => item.id === id)
 
   useEffect(() => { if (!estEnCoursDeChargement && (!utilisateur || utilisateur.role !== "enseignant" || !establishment)) router.replace("/enseignant") }, [estEnCoursDeChargement, utilisateur, establishment, router])
-  useEffect(() => { if (!establishment || !id) return; setLoading(true); enseignantPortalService.getAssessments(id).then(setAssessments).catch((e) => setMessage(e instanceof Error ? e.message : "Impossible de charger les évaluations.")).finally(() => setLoading(false)) }, [id, establishment])
+  useEffect(() => {
+    if (!establishment || !id) return
+    setLoading(true)
+    Promise.all([enseignantPortalService.getAssessments(id), enseignantPortalService.getSchedule(id)])
+      .then(([assessmentRows, scheduleRows]) => {
+        setAssessments(assessmentRows)
+        setSchedule(scheduleRows.map((s) => ({
+          slot_id: s.slot_id,
+          academic_year_id: s.academic_year_id,
+          class_id: s.class_id,
+          class_name: s.class_name,
+          subject_id: s.subject_id,
+          subject_name: s.subject_name,
+        })))
+      })
+      .catch((e) => setMessage(e instanceof Error ? e.message : "Impossible de charger les évaluations."))
+      .finally(() => setLoading(false))
+  }, [id, establishment])
+
+  const classSubjects = useMemo(() => {
+    const map = new Map<string, { academic_year_id: string; class_id: string; class_name: string; subject_id: string; subject_name: string }>()
+    schedule.forEach((s) => {
+      const key = `${s.class_id}:${s.subject_id}`
+      if (!map.has(key)) map.set(key, {
+        academic_year_id: s.academic_year_id,
+        class_id: s.class_id,
+        class_name: s.class_name,
+        subject_id: s.subject_id,
+        subject_name: s.subject_name,
+      })
+    })
+    return Array.from(map.values()).sort((a, b) => `${a.class_name} ${a.subject_name}`.localeCompare(`${b.class_name} ${b.subject_name}`))
+  }, [schedule])
+
+  const programAssessment = async () => {
+    const selectedPair = classSubjects.find((item) => `${item.class_id}:${item.subject_id}` === assessmentClassSubject)
+    const maxScore = Number(assessmentMax.replace(",", "."))
+    if (!selectedPair || !assessmentTitle.trim() || !assessmentDate || !Number.isFinite(maxScore) || maxScore <= 0) {
+      setMessage("Renseignez le titre, la classe/matière, la date et un barème valide.")
+      return
+    }
+    setProgrammingSaving(true)
+    setMessage(null)
+    try {
+      await enseignantPortalService.createAssessment({
+        establishmentId: id,
+        academicYearId: selectedPair.academic_year_id,
+        classId: selectedPair.class_id,
+        subjectId: selectedPair.subject_id,
+        title: assessmentTitle.trim(),
+        assessmentDate,
+        maxScore,
+        term: assessmentTerm.trim() || undefined,
+      })
+      const refreshed = await enseignantPortalService.getAssessments(id)
+      setAssessments(refreshed)
+      setProgrammingOpen(false)
+      setAssessmentTitle("")
+      setAssessmentTerm("")
+      setMessage("Évaluation programmée. Vous pouvez maintenant saisir les notes.")
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Impossible de programmer l'évaluation.")
+    } finally {
+      setProgrammingSaving(false)
+    }
+  }
 
   const openAssessment = async (assessment: TeacherAssessment) => { setSelected(assessment); setMessage(null); setSearch(""); try { const rows = await enseignantPortalService.getAssessmentStudents(assessment.assessment_id); setStudents(rows); setScores(Object.fromEntries(rows.map((r) => [r.student_id, r.score == null ? "" : String(r.score)]))); setComments(Object.fromEntries(rows.map((r) => [r.student_id, r.comment ?? ""]))) } catch (e) { setMessage(e instanceof Error ? e.message : "Impossible de charger les élèves.") } }
   const filteredStudents = useMemo(() => { const q = search.trim().toLowerCase(); if (!q) return students; return students.filter((s) => `${s.last_name} ${s.first_name} ${s.student_number ?? ""}`.toLowerCase().includes(q)) }, [students, search])
@@ -28,8 +101,17 @@ export default function NotesEnseignantPage() {
 
   if (estEnCoursDeChargement || !utilisateur || !establishment) return <main className="min-h-screen bg-creme flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin" /></main>
   return <TeacherShell establishmentId={id} establishmentName={establishment.name} active="notes"><div className="mx-auto max-w-7xl">
-    <header className="mb-6"><Button variant="ghost" size="sm" onClick={() => router.push(`/enseignant/etablissement/${id}`)}><ArrowLeft className="mr-2 h-4 w-4" />Retour à mon espace</Button><div className="mt-3"><p className="text-xs font-medium uppercase tracking-wide text-terre">Évaluation</p><h1 className="text-2xl font-semibold">Saisie des notes</h1><p className="text-sm text-muted-foreground">{establishment.name} · vos évaluations uniquement</p></div></header>
+    <header className="mb-6"><div className="flex flex-wrap items-center justify-between gap-3"><Button variant="ghost" size="sm" onClick={() => router.push(`/enseignant/etablissement/${id}`)}><ArrowLeft className="mr-2 h-4 w-4" />Retour à mon espace</Button><Button onClick={() => setProgrammingOpen((open) => !open)}><CalendarPlus className="mr-2 h-4 w-4" />Programmer une évaluation</Button></div><div className="mt-3"><p className="text-xs font-medium uppercase tracking-wide text-terre">Évaluation</p><h1 className="text-2xl font-semibold">Évaluations et notes</h1><p className="text-sm text-muted-foreground">{establishment.name} · vos évaluations uniquement</p></div></header>
     {message && <div role="status" className="mb-5 rounded-md border bg-white p-3 text-sm">{message}</div>}
+    {programmingOpen && <Card className="mb-5 rounded-md"><CardHeader><CardTitle className="text-base">Programmer une évaluation</CardTitle></CardHeader><CardContent className="grid gap-4 md:grid-cols-2">
+      <div className="md:col-span-2"><label className="text-sm font-medium">Intitulé</label><Input className="mt-1" value={assessmentTitle} onChange={(e) => setAssessmentTitle(e.target.value)} placeholder="Ex. Contrôle de mathématiques" /></div>
+      <div><label className="text-sm font-medium">Classe et matière</label><select className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm" value={assessmentClassSubject} onChange={(e) => setAssessmentClassSubject(e.target.value)}><option value="">Sélectionner</option>{classSubjects.map((item) => <option key={`${item.class_id}:${item.subject_id}`} value={`${item.class_id}:${item.subject_id}`}>{item.class_name} · {item.subject_name}</option>)}</select></div>
+      <div><label className="text-sm font-medium">Date</label><Input className="mt-1" type="date" value={assessmentDate} onChange={(e) => setAssessmentDate(e.target.value)} /></div>
+      <div><label className="text-sm font-medium">Barème</label><Input className="mt-1" type="number" min="0.5" step="0.5" value={assessmentMax} onChange={(e) => setAssessmentMax(e.target.value)} /></div>
+      <div><label className="text-sm font-medium">Période / trimestre (facultatif)</label><Input className="mt-1" value={assessmentTerm} onChange={(e) => setAssessmentTerm(e.target.value)} placeholder="Ex. Trimestre 1" /></div>
+      <div className="md:col-span-2 flex justify-end gap-2"><Button variant="outline" onClick={() => setProgrammingOpen(false)}>Annuler</Button><Button onClick={() => void programAssessment()} disabled={programmingSaving}>{programmingSaving ? "Programmation…" : "Programmer l'évaluation"}</Button></div>
+    </CardContent></Card>}
+
     {!selected ? <Card className="rounded-md"><CardHeader><CardTitle className="text-base">Choisissez une évaluation</CardTitle></CardHeader><CardContent>{loading ? <div className="flex justify-center p-10"><Loader2 className="h-5 w-5 animate-spin" /></div> : assessments.length === 0 ? <p className="p-8 text-center text-sm text-muted-foreground">Aucune évaluation disponible.</p> : <div className="divide-y">{assessments.map((a) => <button key={a.assessment_id} type="button" onClick={() => void openAssessment(a)} className="flex w-full items-center justify-between gap-4 rounded-md px-3 py-4 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2"><div className="min-w-0"><p className="font-medium">{a.title}</p><p className="truncate text-sm text-muted-foreground">{a.class_name} · {a.subject_name} · {a.term ?? "Période non précisée"}</p></div><div className="shrink-0 text-right text-sm"><p>{a.assessment_date}</p><p className="text-muted-foreground">{a.grade_count} note(s) saisie(s)</p></div></button>)}</div>}</CardContent></Card> : <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold">{selected.title}</h2><p className="text-sm text-muted-foreground">{selected.class_name} · {selected.subject_name} · note sur {selected.max_score}</p></div><Button variant="outline" onClick={() => setSelected(null)}>Changer d’évaluation</Button></div>
       <Card className="mb-5 rounded-md"><CardContent className="flex flex-wrap items-center justify-between gap-4 p-4"><div className="flex items-center gap-3"><div className="rounded-md bg-muted p-2"><CheckCircle2 className="h-4 w-4" /></div><div><p className="text-sm font-medium">Progression de la saisie</p><p className="text-xs text-muted-foreground">{completed} sur {students.length} élève(s) renseigné(s)</p></div></div><div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-terre transition-all" style={{ width: `${students.length ? Math.round(completed / students.length * 100) : 0}%` }} /></div><div className="relative w-full sm:w-72"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Rechercher un élève" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un élève…" /></div></CardContent></Card>

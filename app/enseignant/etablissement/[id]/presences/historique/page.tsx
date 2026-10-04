@@ -1,40 +1,183 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { ArrowLeft, BarChart3, ChevronLeft, ChevronRight, History, Loader2 } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { ArrowLeft, History, Loader2 } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuthentification } from "@/providers/authentification.provider"
-import { enseignantPortalService, type TeacherAttendanceHistory, type TeacherAttendanceStatistics, type TeacherClass } from "@/services/enseignant-portal.service"
+import { TeacherShell } from "@/components/enseignant/teacher-shell"
+import { enseignantPortalService, type TeacherAttendanceHistoryBySlotRow, type TeacherClass, type TeacherScheduleSlot } from "@/services/enseignant-portal.service"
 
-const dateValue = (date: Date) => date.toISOString().slice(0, 10)
-const initialFrom = () => { const d = new Date(); d.setDate(d.getDate() - 30); return dateValue(d) }
-const today = () => dateValue(new Date())
+const days: Record<number, string> = {
+  1: "Lundi", 2: "Mardi", 3: "Mercredi", 4: "Jeudi", 5: "Vendredi", 6: "Samedi", 7: "Dimanche",
+}
 
 export default function HistoriquePresencesEnseignantPage() {
-  const { id } = useParams<{ id: string }>(); const router = useRouter()
+  const { id } = useParams<{ id: string }>()
+  const router = useRouter()
   const { utilisateur, contexte, estEnCoursDeChargement } = useAuthentification()
-  const [classes, setClasses] = useState<TeacherClass[]>([]); const [classId, setClassId] = useState("")
-  const [from, setFrom] = useState(initialFrom); const [to, setTo] = useState(today)
-  const [history, setHistory] = useState<TeacherAttendanceHistory | null>(null); const [stats, setStats] = useState<TeacherAttendanceStatistics | null>(null)
-  const [page, setPage] = useState(1); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null)
+
+  const [classes, setClasses] = useState<TeacherClass[]>([])
+  const [schedule, setSchedule] = useState<TeacherScheduleSlot[]>([])
+  const [classId, setClassId] = useState("")
+  const [slotId, setSlotId] = useState("")
+  const [rows, setRows] = useState<TeacherAttendanceHistoryBySlotRow[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
   const establishment = contexte?.establishments?.find((item) => item.id === id)
 
-  useEffect(() => { if (!estEnCoursDeChargement && (!utilisateur || utilisateur.role !== "enseignant" || !establishment)) { router.replace("/enseignant"); return }; if (!establishment) return; enseignantPortalService.getClasses(id).then((rows) => { setClasses(rows); if (rows[0]) setClassId(rows[0].class_id) }).catch((e) => setError(e instanceof Error ? e.message : "Impossible de charger les classes.")) }, [id, establishment, estEnCoursDeChargement, router, utilisateur])
-  useEffect(() => { if (!establishment || !classId || from > to) return; setLoading(true); setError(null); Promise.all([enseignantPortalService.getAttendanceHistory(id, page, 30, classId, undefined, from, to), enseignantPortalService.getAttendanceStatistics(id, from, to, classId)]).then(([h, s]) => { setHistory(h); setStats(s) }).catch((e) => setError(e instanceof Error ? e.message : "Impossible de charger l'historique.")).finally(() => setLoading(false)) }, [classId, establishment, from, id, page, to])
-  const className = classes.find((c) => c.class_id === classId)?.class_name ?? "Classe"
-  const statusLabel: Record<string, string> = { present: "Présent", absent: "Absent", late: "En retard", excused: "Excusé" }
+  useEffect(() => {
+    if (!estEnCoursDeChargement && (!utilisateur || utilisateur.role !== "enseignant" || !establishment)) {
+      router.replace("/enseignant")
+    }
+  }, [estEnCoursDeChargement, utilisateur, establishment, router])
 
-  if (estEnCoursDeChargement || !utilisateur || !establishment) return <main className="min-h-screen bg-creme flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin" /></main>
-  return <main className="min-h-screen bg-creme"><div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-    <header className="mb-6"><Button variant="ghost" size="sm" onClick={() => router.push(`/enseignant/etablissement/${id}/presences`)}><ArrowLeft className="mr-2 h-4 w-4" />Retour aux présences</Button><div className="mt-4"><p className="text-xs font-medium uppercase tracking-wide text-terre">Suivi pédagogique</p><h1 className="text-2xl font-semibold">Historique des présences</h1><p className="mt-1 text-sm text-muted-foreground">{establishment.name} · {className}</p></div></header>
-    <Card className="mb-5 rounded-md"><CardContent className="grid gap-3 p-4 md:grid-cols-[1.3fr_1fr_1fr_auto]"><label className="text-sm font-medium">Classe<select className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm" value={classId} onChange={(e) => { setClassId(e.target.value); setPage(1) }}>{classes.map((c) => <option key={c.class_id} value={c.class_id}>{c.class_name} · {c.subject_name}</option>)}</select></label><label className="text-sm font-medium">Du<input type="date" className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm" value={from} max={to} onChange={(e) => { setFrom(e.target.value); setPage(1) }} /></label><label className="text-sm font-medium">Au<input type="date" className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm" value={to} min={from} max={today()} onChange={(e) => { setTo(e.target.value); setPage(1) }} /></label><div className="flex items-end"><Button variant="outline" onClick={() => { setFrom(initialFrom()); setTo(today()); setPage(1) }}>30 derniers jours</Button></div></CardContent></Card>
-    {error && <div role="alert" className="mb-5 rounded-md border p-4 text-sm text-rouge-terre">{error}</div>}
-    {stats && <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5"><Stat label="Taux de présence" value={`${stats.presence_rate}%`} /><Stat label="Enregistrements" value={stats.total} /><Stat label="Présents" value={stats.present} /><Stat label="Absents" value={stats.absent} /><Stat label="Retards" value={stats.late} /></div>}
-    <div className="grid gap-5 lg:grid-cols-[1fr_1.8fr]"><Card className="rounded-md"><CardHeader><CardTitle className="flex items-center gap-2 text-base"><BarChart3 className="h-4 w-4" />Répartition</CardTitle></CardHeader><CardContent>{stats ? <div className="space-y-4"><Bar label="Présents" value={stats.present} total={stats.total} /><Bar label="Absents" value={stats.absent} total={stats.total} /><Bar label="Retards" value={stats.late} total={stats.total} /><Bar label="Excusés" value={stats.excused} total={stats.total} /></div> : <p className="text-sm text-muted-foreground">Aucune donnée.</p>}</CardContent></Card><Card className="rounded-md"><CardHeader><CardTitle className="flex items-center gap-2 text-base"><History className="h-4 w-4" />Derniers enregistrements</CardTitle></CardHeader><CardContent className="p-0">{loading ? <div className="flex justify-center p-10"><Loader2 className="h-5 w-5 animate-spin" /></div> : !history?.data.length ? <p className="p-8 text-center text-sm text-muted-foreground">Aucun enregistrement sur cette période.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-sm"><thead className="border-b bg-muted/30 text-left text-muted-foreground"><tr><th className="px-5 py-3">Date</th><th className="px-5 py-3">Élève</th><th className="px-5 py-3">Statut</th><th className="px-5 py-3">Motif</th></tr></thead><tbody className="divide-y">{history.data.map((row) => <tr key={row.id}><td className="px-5 py-3 whitespace-nowrap">{row.attendance_date}</td><td className="px-5 py-3 font-medium">{row.last_name} {row.first_name}</td><td className="px-5 py-3">{statusLabel[row.status] ?? row.status}</td><td className="px-5 py-3 text-muted-foreground">{row.reason ?? "—"}</td></tr>)}</tbody></table></div>}
-      {history && history.total_pages > 1 && <div className="flex items-center justify-between border-t px-5 py-3"><span className="text-xs text-muted-foreground">Page {history.page} sur {history.total_pages} · {history.total} enregistrement(s)</span><div className="flex gap-2"><Button variant="outline" size="icon" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}><ChevronLeft className="h-4 w-4" /></Button><Button variant="outline" size="icon" disabled={page >= history.total_pages} onClick={() => setPage((p) => p + 1)}><ChevronRight className="h-4 w-4" /></Button></div></div>}</CardContent></Card></div>
-  </div></main>
+  useEffect(() => {
+    if (!id || !establishment) return
+    Promise.all([
+      enseignantPortalService.getClasses(id),
+      enseignantPortalService.getSchedule(id),
+    ]).then(([classRows, scheduleRows]) => {
+      setClasses(classRows)
+      setSchedule(scheduleRows)
+      const first = scheduleRows[0]
+      if (first) {
+        setSlotId(first.slot_id)
+        setClassId(first.class_id)
+      }
+    }).catch((e) => setError(e instanceof Error ? e.message : "Impossible de charger votre emploi du temps."))
+  }, [id, establishment])
+
+  const availableSlots = useMemo(
+    () => schedule.filter((slot) => !classId || slot.class_id === classId),
+    [schedule, classId],
+  )
+
+  useEffect(() => {
+    if (!availableSlots.length) {
+      setSlotId("")
+      return
+    }
+    if (!availableSlots.some((slot) => slot.slot_id === slotId)) {
+      setSlotId(availableSlots[0].slot_id)
+    }
+  }, [availableSlots, slotId])
+
+  const selectedSlot = useMemo(
+    () => schedule.find((slot) => slot.slot_id === slotId) ?? null,
+    [schedule, slotId],
+  )
+
+  useEffect(() => {
+    if (!selectedSlot || !id) return
+    setLoading(true)
+    setError(null)
+    enseignantPortalService.getAttendanceHistoryBySlot(id, selectedSlot.slot_id, classId || undefined)
+      .then(setRows)
+      .catch((e) => setError(e instanceof Error ? e.message : "Impossible de charger l'historique des appels."))
+      .finally(() => setLoading(false))
+  }, [id, selectedSlot, classId])
+
+  const classOptions = useMemo(
+    () => Array.from(new Map(classes.map((item) => [item.class_id, item])).values()),
+    [classes],
+  )
+
+  if (estEnCoursDeChargement || !utilisateur || !establishment) {
+    return <main className="min-h-screen bg-creme flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin" /></main>
+  }
+
+  return (
+    <TeacherShell establishmentId={id} establishmentName={establishment.name} active="attendance">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-6">
+          <Button variant="ghost" size="sm" onClick={() => router.push(`/enseignant/etablissement/${id}/presences`)}>
+            <ArrowLeft className="mr-2 h-4 w-4" />Retour à l'appel
+          </Button>
+          <div className="mt-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-terre">Suivi des appels</p>
+            <h1 className="text-2xl font-semibold">Historique</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Seuls les cours réellement présents dans votre emploi du temps sont proposés.</p>
+          </div>
+        </header>
+
+        {error && <div role="alert" className="mb-5 border border-rouge-terre/30 bg-white p-3 text-sm text-rouge-terre">{error}</div>}
+
+        <div className="mb-5 flex flex-col gap-3 border bg-white p-4 md:flex-row md:items-end">
+          <label className="text-sm font-medium md:w-64">
+            Classe
+            <select
+              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
+              value={classId}
+              onChange={(event) => setClassId(event.target.value)}
+            >
+              <option value="">Toutes mes classes</option>
+              {classOptions.map((item) => <option key={item.class_id} value={item.class_id}>{item.class_name}</option>)}
+            </select>
+          </label>
+
+          <label className="text-sm font-medium flex-1">
+            Période de cours
+            <select
+              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
+              value={slotId}
+              onChange={(event) => setSlotId(event.target.value)}
+              disabled={!availableSlots.length}
+            >
+              {availableSlots.map((slot) => (
+                <option key={slot.slot_id} value={slot.slot_id}>
+                  {days[slot.day_of_week]} · {slot.starts_at.slice(0, 5)}–{slot.ends_at.slice(0, 5)} · {slot.class_name} · {slot.subject_name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {selectedSlot && (
+          <div className="mb-4 flex flex-wrap gap-x-5 gap-y-1 border-b pb-3 text-sm">
+            <span className="font-medium">{selectedSlot.class_name}</span>
+            <span>{selectedSlot.subject_name}</span>
+            <span>{days[selectedSlot.day_of_week]}</span>
+            <span>{selectedSlot.starts_at.slice(0, 5)}–{selectedSlot.ends_at.slice(0, 5)}</span>
+            <span className="text-muted-foreground">{rows.length} enregistrement(s)</span>
+          </div>
+        )}
+
+        <div className="overflow-x-auto border bg-white">
+          {loading ? (
+            <div className="flex justify-center p-10"><Loader2 className="h-5 w-5 animate-spin" /></div>
+          ) : !selectedSlot ? (
+            <div className="p-10 text-center text-sm text-muted-foreground">Aucun cours n'est disponible dans votre emploi du temps.</div>
+          ) : !rows.length ? (
+            <div className="p-10 text-center">
+              <History className="mx-auto mb-3 h-5 w-5 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Aucun appel enregistré pour cette période de cours.</p>
+            </div>
+          ) : (
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="border-b bg-muted/30 text-left text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Élève</th>
+                  <th className="px-4 py-3">Statut</th>
+                  <th className="px-4 py-3">Motif</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    <td className="px-4 py-3 whitespace-nowrap">{row.attendance_date}</td>
+                    <td className="px-4 py-3 font-medium">{row.last_name} {row.first_name}</td>
+                    <td className="px-4 py-3">{row.status === "present" ? "Présent" : row.status === "absent" ? "Absent" : row.status === "late" ? "En retard" : "Excusé"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{row.reason ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </TeacherShell>
+  )
 }
-function Stat({ label, value }: { label: string; value: number | string }) { return <div className="rounded-md border bg-white p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-xl font-semibold">{value}</p></div> }
-function Bar({ label, value, total }: { label: string; value: number; total: number }) { const width = total ? Math.round(value / total * 100) : 0; return <div><div className="mb-1 flex justify-between text-sm"><span>{label}</span><span className="font-medium">{value} · {width}%</span></div><div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-terre" style={{ width: `${width}%` }} /></div></div> }

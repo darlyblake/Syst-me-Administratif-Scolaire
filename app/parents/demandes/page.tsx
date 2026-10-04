@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react"
 import { FileUp, Loader2, Paperclip, Send, X, Download, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { ParentPageHeader } from "@/components/parent/ParentPageHeader"
 import { supabaseBrowser } from "@/lib/supabase/client"
 
 type ChildLink = { student_id: string; establishment_id: string; student_name: string; student_number: string | null }
@@ -109,20 +109,66 @@ export default function ParentDemandesPage() {
   const currentChildren = links.filter((l) => l.establishment_id === establishmentId)
   const responseFor = (id: string | null) => id ? responseDocuments.find((d) => d.id === id) : undefined
 
-  return <div className="mx-auto max-w-6xl space-y-6">
-    <div><p className="text-sm font-medium text-terre">Administration</p><h1 className="text-3xl font-bold">Mes demandes</h1><p className="mt-1 text-pierre">Demandez un document à l’établissement, suivez son traitement et récupérez la version numérique lorsqu’elle est disponible.</p></div>
-    {error && <div className="rounded-lg border border-rouge-terre/30 bg-rouge-terre/5 px-4 py-3 text-sm text-rouge-terre">{error}</div>}
-    {success && <div className="rounded-lg border border-vert/30 bg-vert/5 px-4 py-3 text-sm text-vert">{success}</div>}
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_1fr]">
-      <Card><CardHeader><CardTitle>Nouvelle demande</CardTitle></CardHeader><CardContent className="space-y-4">
-        <label className="block text-sm font-medium">Établissement<select value={establishmentId} onChange={(e) => onEstablishmentChange(e.target.value)} className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm"><option value="">Sélectionner</option>{[...new Map(links.map((l) => [l.establishment_id, l.establishment_id])).keys()].map((id) => <option key={id} value={id}>{establishments[id] ?? "Établissement"}</option>)}</select></label>
-        <label className="block text-sm font-medium">Enfant<select value={studentId} onChange={(e) => setStudentId(e.target.value)} className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm"><option value="">Tous les enfants concernés</option>{currentChildren.map((child) => <option key={child.student_id} value={child.student_id}>{child.student_name}{child.student_number ? ` — ${child.student_number}` : ""}</option>)}</select></label>
-        <label className="block text-sm font-medium">Document demandé<Input value={documentType} onChange={(e) => setDocumentType(e.target.value)} className="mt-1" placeholder="Ex. certificat de scolarité" /></label>
-        <label className="block text-sm font-medium">Message (facultatif)<textarea value={message} onChange={(e) => setMessage(e.target.value)} className="mt-1 min-h-24 w-full rounded-md border bg-background p-3 text-sm" placeholder="Précisez votre demande…" /></label>
-        <div><p className="mb-2 text-sm font-medium">Pièces jointes</p><label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed p-5 text-sm text-pierre hover:bg-terre-soft/30"><FileUp className="h-5 w-5" />PDF ou image — 1 Mo maximum par fichier<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(e) => addFiles(e.target.files)} /></label>{files.length > 0 && <div className="mt-2 space-y-2">{files.map((file) => <div key={file.name} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"><Paperclip className="h-4 w-4"/><span className="min-w-0 flex-1 truncate">{file.name}</span><span className="text-xs text-pierre">{(file.size / 1024 / 1024).toFixed(2)} Mo</span><button type="button" onClick={() => setFiles(files.filter((f) => f !== file))} aria-label={`Retirer ${file.name}`}><X className="h-4 w-4"/></button></div>)}</div>}</div>
-        <Button className="w-full" onClick={() => void submit()} disabled={sending || !establishmentId || !documentType.trim()}>{sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="mr-2 h-4 w-4"/>}Envoyer la demande</Button>
-      </CardContent></Card>
-      <Card><CardHeader><CardTitle>Historique</CardTitle></CardHeader><CardContent>{loading ? <Loader2 className="mx-auto h-5 w-5 animate-spin"/> : requests.length === 0 ? <p className="py-8 text-center text-sm text-pierre">Aucune demande pour le moment.</p> : <div className="space-y-3">{requests.map((request) => { const response = responseFor(request.response_document_id); return <div key={request.id} className="rounded-xl border p-4"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-medium">{request.document_type}</p><p className="text-xs text-pierre">{establishments[request.establishment_id] ?? "Établissement"} · {new Date(request.created_at).toLocaleDateString("fr-FR")}{request.student_id ? ` · ${links.find((l) => l.student_id === request.student_id)?.student_name ?? "Enfant"}` : ""}</p></div><span className="rounded-full bg-terre-soft px-2.5 py-1 text-xs font-medium text-terre">{statusLabels[request.status] ?? request.status}</span></div>{request.message && <p className="mt-2 text-sm text-pierre">Votre message : {request.message}</p>}{request.response_message && <div className="mt-3 rounded-lg bg-terre-soft/40 p-3 text-sm"><p className="font-medium">Réponse de l’établissement</p><p className="mt-1 text-pierre">{request.response_message}</p></div>}{request.delivery_method === "pickup" && ["ready","completed"].includes(request.status) && <div className="mt-3 flex items-start gap-2 rounded-lg border border-terre/20 bg-terre-soft/30 p-3 text-sm"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-terre"/><div><p className="font-medium">Retrait sur place</p><p className="text-pierre">Le document est prêt. Vous pouvez vous rendre à l’établissement pour le récupérer.</p></div></div>}{response && <button type="button" onClick={() => void openStorageFile(response.storage_path)} className="mt-3 flex max-w-full items-center gap-2 rounded-lg bg-terre-soft/50 px-3 py-2 text-left text-sm text-terre hover:bg-terre-soft"><Download className="h-4 w-4 shrink-0"/><span className="truncate">{response.name}</span></button>}{attachments.filter((a) => a.request_id === request.id).map((a) => <button key={a.id} type="button" onClick={() => void openStorageFile(a.storage_path)} className="mt-2 flex max-w-full items-center gap-2 rounded-lg bg-terre-soft/50 px-3 py-2 text-left text-sm text-terre hover:bg-terre-soft"><Paperclip className="h-4 w-4 shrink-0"/><span className="truncate">{a.file_name}</span></button>)}</div> })}</div>}</CardContent></Card>
-    </div>
+  return <div className="space-y-6">
+    <ParentPageHeader eyebrow="Administration" title="Mes demandes" description="Demandez un document à l’établissement, suivez son traitement et récupérez la version numérique lorsqu’elle est disponible." />
+    {error && <div className="border border-rouge-terre/30 bg-rouge-terre/5 px-4 py-3 text-sm text-rouge-terre">{error}</div>}
+    {success && <div className="border border-vert/30 bg-vert/5 px-4 py-3 text-sm text-vert">{success}</div>}
+
+    <section className="grid border-y border-terre/10 bg-papier lg:grid-cols-[minmax(0,420px)_1fr]">
+      <div className="border-b border-terre/10 lg:border-b-0 lg:border-r">
+        <div className="border-b border-terre/10 px-5 py-4">
+          <h2 className="font-semibold text-terre">Nouvelle demande</h2>
+          <p className="mt-1 text-sm text-pierre">Choisissez le document et l’enfant concernés.</p>
+        </div>
+        <div className="space-y-4 px-5 py-5">
+          <label className="block text-sm font-medium text-terre">Établissement
+            <select value={establishmentId} onChange={(e) => onEstablishmentChange(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-terre/10 bg-background px-3 text-sm">
+              <option value="">Sélectionner</option>
+              {[...new Map(links.map((l) => [l.establishment_id, l.establishment_id])).keys()].map((id) => <option key={id} value={id}>{establishments[id] ?? "Établissement"}</option>)}
+            </select>
+          </label>
+          <label className="block text-sm font-medium text-terre">Enfant
+            <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-terre/10 bg-background px-3 text-sm">
+              <option value="">Tous les enfants concernés</option>
+              {currentChildren.map((child) => <option key={child.student_id} value={child.student_id}>{child.student_name}{child.student_number ? ` — ${child.student_number}` : ""}</option>)}
+            </select>
+          </label>
+          <label className="block text-sm font-medium text-terre">Document demandé
+            <Input value={documentType} onChange={(e) => setDocumentType(e.target.value)} className="mt-1" placeholder="Ex. certificat de scolarité" />
+          </label>
+          <label className="block text-sm font-medium text-terre">Message (facultatif)
+            <textarea value={message} onChange={(e) => setMessage(e.target.value)} className="mt-1 min-h-24 w-full rounded-md border border-terre/10 bg-background p-3 text-sm" placeholder="Précisez votre demande…" />
+          </label>
+          <div>
+            <p className="mb-2 text-sm font-medium text-terre">Pièces jointes</p>
+            <label className="flex cursor-pointer items-center justify-center gap-2 border border-dashed border-terre/20 p-5 text-sm text-pierre hover:bg-terre-soft/30">
+              <FileUp className="h-5 w-5" /> PDF ou image — 1 Mo maximum par fichier
+              <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(e) => addFiles(e.target.files)} />
+            </label>
+            {files.length > 0 && <div className="mt-2 divide-y divide-terre/10 border border-terre/10">{files.map((file) => <div key={file.name} className="flex items-center gap-2 px-3 py-2 text-sm"><Paperclip className="h-4 w-4" /><span className="min-w-0 flex-1 truncate">{file.name}</span><span className="text-xs text-pierre">{(file.size / 1024 / 1024).toFixed(2)} Mo</span><button type="button" onClick={() => setFiles(files.filter((f) => f !== file))} aria-label={`Retirer ${file.name}`}><X className="h-4 w-4" /></button></div>)}</div>}
+          </div>
+          <Button className="w-full" onClick={() => void submit()} disabled={sending || !establishmentId || !documentType.trim()}>{sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}Envoyer la demande</Button>
+        </div>
+      </div>
+
+      <div>
+        <div className="border-b border-terre/10 px-5 py-4"><h2 className="font-semibold text-terre">Historique des demandes</h2><p className="mt-1 text-sm text-pierre">Suivez l’état de chaque demande et récupérez les documents disponibles.</p></div>
+        {loading ? <div className="px-5 py-8"><Loader2 className="h-5 w-5 animate-spin text-terre" /></div> : requests.length === 0 ? <p className="px-5 py-10 text-sm text-pierre">Aucune demande pour le moment.</p> :
+          <div className="divide-y divide-terre/10">{requests.map((request) => {
+            const response = responseFor(request.response_document_id)
+            return <div key={request.id} className="px-5 py-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div><p className="font-medium text-terre">{request.document_type}</p><p className="mt-1 text-xs text-pierre">{establishments[request.establishment_id] ?? "Établissement"} · {new Date(request.created_at).toLocaleDateString("fr-FR")}{request.student_id ? ` · ${links.find((l) => l.student_id === request.student_id)?.student_name ?? "Enfant"}` : ""}</p></div>
+                <span className="border border-terre/15 px-2.5 py-1 text-xs font-medium text-terre">{statusLabels[request.status] ?? request.status}</span>
+              </div>
+              {request.message && <p className="mt-3 text-sm leading-6 text-pierre">Votre message : {request.message}</p>}
+              {request.response_message && <div className="mt-3 border-l-2 border-terre px-3 py-2 text-sm"><p className="font-medium text-terre">Réponse de l’établissement</p><p className="mt-1 text-pierre">{request.response_message}</p></div>}
+              {request.delivery_method === "pickup" && ["ready","completed"].includes(request.status) && <div className="mt-3 flex items-start gap-2 border border-terre/15 bg-terre-soft/30 p-3 text-sm"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-terre" /><div><p className="font-medium text-terre">Retrait sur place</p><p className="text-pierre">Le document est prêt. Vous pouvez vous rendre à l’établissement pour le récupérer.</p></div></div>}
+              {response && <button type="button" onClick={() => void openStorageFile(response.storage_path)} className="mt-3 flex max-w-full items-center gap-2 border border-terre/15 px-3 py-2 text-left text-sm text-terre hover:bg-terre-soft/40"><Download className="h-4 w-4 shrink-0" /><span className="truncate">{response.name}</span></button>}
+              {attachments.filter((a) => a.request_id === request.id).map((a) => <button key={a.id} type="button" onClick={() => void openStorageFile(a.storage_path)} className="mt-2 flex max-w-full items-center gap-2 border border-terre/15 px-3 py-2 text-left text-sm text-terre hover:bg-terre-soft/40"><Paperclip className="h-4 w-4 shrink-0" /><span className="truncate">{a.file_name}</span></button>)}
+            </div>
+          })}</div>}
+      </div>
+    </section>
   </div>
 }

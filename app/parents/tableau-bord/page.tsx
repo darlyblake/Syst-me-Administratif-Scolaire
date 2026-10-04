@@ -66,7 +66,7 @@ export default function ParentsDashboard() {
 
           <section><h2 className="mb-3 text-base font-semibold text-terre">Accès rapides</h2><div className="grid border border-terre/10 bg-papier sm:grid-cols-2 lg:grid-cols-4">{[
             ["/parents/notes","Résultats",GraduationCap],[ "/parents/absences","Présences",UserX],[ "/parents/cahier-de-textes","Cahier de textes",CalendarDays],[ "/parents/messages","Messages",CreditCard]
-          ].map(([href,label,Icon]) => <Link key={String(href)} href={String(href)} className="flex items-center gap-3 border-b border-terre/10 px-4 py-4 text-sm font-medium text-terre hover:bg-creme sm:nth-[2n]:border-l lg:border-b-0 lg:border-l first:lg:border-l-0"><Icon className="h-4 w-4" />{String(label)}</Link>)}</div></section>
+          ].map(([href,label,Icon]) => <Link key={String(href)} href={String(href)} className="flex items-center gap-3 border-b border-terre/10 px-4 py-4 text-sm font-medium text-terre hover:bg-creme sm:border-l lg:border-b-0 lg:border-l first:sm:border-l-0 first:lg:border-l-0"><Icon className="h-4 w-4" />{String(label)}</Link>)}</div></section>
         </>
       )}
     </div>

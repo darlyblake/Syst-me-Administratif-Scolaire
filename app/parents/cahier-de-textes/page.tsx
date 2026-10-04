@@ -1,6 +1,6 @@
 "use client"
 
-import { BookOpen, ClipboardList } from "lucide-react"
+import { BookOpen } from "lucide-react"
 import { ParentPageHeader } from "@/components/parent/ParentPageHeader"
 import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
 

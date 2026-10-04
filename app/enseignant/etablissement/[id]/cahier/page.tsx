@@ -480,7 +480,7 @@ export default function TeacherCahierPage() {
       )}
 
       {showAdd && (
-        <section className="mt-8 border-y border-[#dfe2eb] bg-[#fbfcff] py-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4" role="dialog" aria-modal="true">\n          <section className="max-h-[92vh] w-full max-w-5xl overflow-y-auto border border-[#dfe2eb] bg-white shadow-2xl">
           {section === "cahier" ? (
             <>
               <div className="flex items-start justify-between gap-4 border-b border-[#e5e7ee] pb-4">

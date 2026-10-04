@@ -128,24 +128,24 @@ export default function TeacherCahierPage() {
         <p className="mt-1 text-sm text-[#6d7280]">Le contenu est maintenant enregistré dans l’établissement et non plus seulement sur le téléphone.</p>
       </header>
 
-      {error && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
       {loading ? <div className="py-16 text-center text-sm text-[#6d7280]"><Loader2 className="mx-auto h-5 w-5 animate-spin" /><p className="mt-2">Chargement des cours…</p></div> : (
         <>
           <section className="mt-5">
             <div className="mb-3 flex items-center justify-between"><div><h2 className="font-bold">Séances</h2><p className="text-sm text-[#6d7280]">Choisissez le cours à renseigner.</p></div><CalendarDays className="h-5 w-5 text-[#707788]" /></div>
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {schedule.slice(0, 12).map((slot) => <button key={slot.slot_id} type="button" onClick={() => void selectSlot(slot)} className={"min-w-[190px] rounded-lg border p-3 text-left " + (selected?.slot_id === slot.slot_id ? "border-[#7890ef] bg-[#edf1ff]" : "border-[#e1e3eb] bg-white")}>
+              {schedule.slice(0, 12).map((slot) => <button key={slot.slot_id} type="button" onClick={() => void selectSlot(slot)} className={"min-w-[190px] rounded-md border p-3 text-left " + (selected?.slot_id === slot.slot_id ? "border-[#7890ef] bg-[#edf1ff]" : "border-[#e1e3eb] bg-white")}>
                 <p className="text-xs text-[#6d7280]">{["","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"][slot.day_of_week] ?? "Jour"} · {slot.starts_at.slice(0,5)}</p>
                 <p className="mt-1 font-semibold">{slot.subject_name}</p>
                 <p className="mt-0.5 text-xs text-[#6d7280]">{slot.class_name}</p>
               </button>)}
-              {!schedule.length && <div className="w-full rounded-lg border border-dashed p-6 text-center text-sm text-[#6d7280]">Aucun cours disponible dans votre emploi du temps.</div>}
+              {!schedule.length && <div className="w-full rounded-md border border-dashed p-6 text-center text-sm text-[#6d7280]">Aucun cours disponible dans votre emploi du temps.</div>}
             </div>
           </section>
 
           {selected && <section className="mt-5 grid gap-4 lg:grid-cols-[1.3fr_.7fr]">
-            <div className="rounded-lg border border-[#e1e3eb] bg-white">
+            <div className="rounded-md border border-[#e1e3eb] bg-white">
               <div className="border-b px-4 py-3"><p className="text-xs text-[#6d7280]">Séance sélectionnée · {lessonDate}</p><h2 className="font-bold">{selected.subject_name} · {selected.class_name}</h2><p className="text-sm text-[#6d7280]">{selected.starts_at.slice(0,5)}–{selected.ends_at.slice(0,5)}{selected.room ? " · Salle " + selected.room : ""}</p></div>
               <div className="space-y-4 p-4">
                 <label className="block text-sm font-medium">Thème du cours<input value={theme} onChange={(e) => setTheme(e.target.value)} className="mt-1.5 h-10 w-full rounded-md border border-[#dfe2ec] px-3 outline-none focus:border-[#7890ef]" /></label>
@@ -153,7 +153,7 @@ export default function TeacherCahierPage() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-[#e1e3eb] bg-white">
+            <div className="rounded-md border border-[#e1e3eb] bg-white">
               <div className="border-b px-4 py-3"><div className="flex items-center gap-2"><FileText className="h-4 w-4 text-[#2944a8]" /><h2 className="font-semibold">Devoir à donner</h2></div></div>
               <div className="space-y-4 p-4">
                 <label className="block text-sm font-medium">Consignes<textarea value={homework} onChange={(e) => setHomework(e.target.value)} rows={7} placeholder="Exercices, lecture, recherche ou travail à préparer…" className="mt-1.5 w-full resize-y rounded-md border border-[#dfe2ec] p-3 outline-none focus:border-[#7890ef]" /></label>
@@ -166,7 +166,7 @@ export default function TeacherCahierPage() {
             </div>
           </section>}
 
-          {!selected && <div className="mt-6 rounded-lg border border-dashed p-8 text-center text-sm text-[#6d7280]"><BookOpenText className="mx-auto h-7 w-7" /><p className="mt-2">Sélectionnez une séance pour commencer.</p></div>}
+          {!selected && <div className="mt-6 rounded-md border border-dashed p-8 text-center text-sm text-[#6d7280]"><BookOpenText className="mx-auto h-7 w-7" /><p className="mt-2">Sélectionnez une séance pour commencer.</p></div>}
         </>
       )}
     </TeacherShell>

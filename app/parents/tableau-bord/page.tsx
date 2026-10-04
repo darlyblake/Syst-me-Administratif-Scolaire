@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Bell, CalendarDays, ChevronRight, CreditCard, GraduationCap, RefreshCw, UserX, Users } from "lucide-react"
+import { Bell, CalendarDays, ChevronRight, GraduationCap, RefreshCw, UserX, Users } from "lucide-react"
 import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -9,74 +9,80 @@ import { useParentPortal } from "@/hooks/use-parent-portal"
 import { ParentPageHeader } from "@/components/parent/ParentPageHeader"
 import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
 
-const money = (n: number) => new Intl.NumberFormat("fr-FR").format(n) + " FCFA"
+const dateTime = (value: string) =>
+  new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(value))
 
 export default function ParentsDashboard() {
   const { utilisateur } = useAuthentification()
-  const { loading, error, refresh, children, grades, payments, attendance, notifications, events } = useParentPortal()
-  const academicIds = useMemo(() => new Set(children.filter((c) => c.can_view_academic).map((c) => c.id)), [children])
-  const financeIds = useMemo(() => new Set(children.filter((c) => c.can_view_finance).map((c) => c.id)), [children])
-  const visibleGrades = grades.filter((g) => academicIds.has(g.student_id))
-  const visibleAttendance = attendance.filter((a) => academicIds.has(a.student_id) && a.status !== "present")
-  const visiblePayments = payments.filter((p) => { const c = children.find((x) => x.enrollment_id === p.enrollment_id); return !!c && financeIds.has(c.id) })
-  const upcoming = events.filter((e) => Date.parse(e.starts_at) >= Date.now()).sort((a,b) => Date.parse(a.starts_at)-Date.parse(b.starts_at)).slice(0,4)
-  const unread = notifications.filter((n) => !n.read_at).length
-  const totalPaid = visiblePayments.reduce((s,p) => s+p.amount,0)
+  const { loading, error, refresh, children, grades, attendance, notifications, events } = useParentPortal()
+  const academicIds = useMemo(() => new Set(children.filter((child) => child.can_view_academic).map((child) => child.id)), [children])
+  const visibleGrades = grades.filter((grade) => academicIds.has(grade.student_id))
+  const visibleAttendance = attendance.filter((item) => academicIds.has(item.student_id) && item.status !== "present")
+  const unread = notifications.filter((item) => !item.read_at).length
+  const upcoming = events.filter((event) => Date.parse(event.starts_at) >= Date.now()).sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at)).slice(0, 3)
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center text-sm text-pierre"><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Chargement de votre espace parent…</div>
 
   return (
-    <div className="space-y-7">
-      <ParentPageHeader eyebrow="Espace parent" title={utilisateur?.nomUtilisateur ? `Bonjour, ${utilisateur.nomUtilisateur}` : "Bonjour"} description="Un aperçu simple de la scolarité de vos enfants." onRefresh={() => void refresh()} refreshing={loading} />
+    <div className="space-y-8">
+      <ParentPageHeader eyebrow="Portail familles" title={utilisateur?.nomUtilisateur ? `Bonjour, ${utilisateur.nomUtilisateur}` : "Bonjour"} description="Suivez la scolarité de vos enfants depuis un seul espace." onRefresh={() => void refresh()} refreshing={loading} />
+
       {error && <div className="flex flex-col gap-3 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between"><span>{error}</span><Button variant="outline" size="sm" onClick={() => void refresh()}>Réessayer</Button></div>}
 
       {children.length === 0 && !error ? (
-        <ParentEmptyState title="Aucun enfant associé à votre compte" description="Ajoutez un enfant depuis « Mes enfants » pour commencer à consulter son suivi scolaire." action={<Button asChild><Link href="/parents/enfants">Ajouter un enfant</Link></Button>} />
+        <ParentEmptyState title="Aucun enfant associé à votre compte" description="Associez votre enfant depuis « Mes enfants » avec le code ou le QR remis par l’établissement." action={<Button asChild><Link href="/parents/enfants">Mes enfants</Link></Button>} />
       ) : (
         <>
-          <section className="grid grid-cols-2 divide-x divide-y border-y border-terre/10 bg-papier sm:grid-cols-4 sm:divide-y-0">
-            <Summary icon={Users} label="Enfants" value={String(children.length)} href="/parents/enfants" />
-            <Summary icon={GraduationCap} label="Notes disponibles" value={String(visibleGrades.length)} href="/parents/notes" />
-            <Summary icon={UserX} label="Absences / retards" value={String(visibleAttendance.length)} href="/parents/absences" />
-            <Summary icon={Bell} label="À lire" value={String(unread)} href="/parents/notifications" />
-          </section>
-
-          <section className="border border-terre/10 bg-papier">
-            <div className="flex items-center justify-between border-b border-terre/10 px-5 py-4"><div><h2 className="font-semibold text-terre">Mes enfants</h2><p className="text-sm text-pierre">Leur situation en un coup d’œil.</p></div><Button variant="ghost" size="sm" asChild>Tout voir<ChevronRight className="ml-1 h-4 w-4" /></Button></div>
+          <section className="border-y border-terre/10 bg-papier">
+            <div className="flex flex-col gap-2 border-b border-terre/10 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+              <div><h2 className="text-base font-semibold text-terre">Mes enfants</h2><p className="text-sm text-pierre">Accédez directement à leur suivi scolaire.</p></div>
+              <Link href="/parents/enfants" className="inline-flex items-center text-sm font-medium text-terre hover:underline">Gérer les enfants<ChevronRight className="ml-1 h-4 w-4" /></Link>
+            </div>
             <div className="divide-y divide-terre/10">
               {children.map((child) => {
-                const childGrades = child.can_view_academic ? grades.filter((g) => g.student_id === child.id) : []
-                const avg = childGrades.length ? childGrades.reduce((s,g) => s+g.score,0)/childGrades.length : null
-                const issues = child.can_view_academic ? attendance.filter((a) => a.student_id === child.id && a.status !== "present").length : null
-                return <div key={child.id} className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-terre text-xs font-bold text-white">{child.first_name[0]}{child.last_name[0]}</div><div className="min-w-0"><p className="truncate font-semibold text-terre">{child.first_name} {child.last_name}</p><p className="text-sm text-pierre">{child.class_name ?? "Classe non attribuée"}</p></div></div>
-                  <div className="grid grid-cols-3 gap-6 text-sm lg:min-w-[330px]"><Metric label="Moyenne" value={avg === null ? "—" : avg.toFixed(1)+"/20"} /><Metric label="Incidents" value={issues === null ? "—" : String(issues)} /><Metric label="Accès" value={child.can_view_finance ? "Scolarité" : child.can_view_academic ? "Scolaire" : "Limité"} /></div>
-                  <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" asChild><Link href={`/parents/notes?eleve=${child.id}`}>Résultats</Link></Button>{child.can_view_finance && <Button size="sm" variant="outline" asChild><Link href={`/parents/paiements?eleve=${child.id}`}>Paiements</Link></Button>}</div>
-                </div>
+                const childGrades = child.can_view_academic ? grades.filter((grade) => grade.student_id === child.id) : []
+                const average = childGrades.length ? childGrades.reduce((sum, grade) => sum + grade.score, 0) / childGrades.length : null
+                const issues = child.can_view_academic ? attendance.filter((item) => item.student_id === child.id && item.status !== "present").length : null
+                return (
+                  <div key={child.id} className="px-5 py-5">
+                    <div className="grid gap-5 lg:grid-cols-[minmax(220px,1.5fr)_repeat(2,minmax(110px,.6fr))_auto] lg:items-center">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-terre-soft text-sm font-semibold text-terre">{child.first_name[0]}{child.last_name[0]}</div>
+                        <div className="min-w-0"><p className="truncate font-semibold text-terre">{child.first_name} {child.last_name}</p><p className="mt-0.5 text-sm text-pierre">{child.class_name ?? "Classe non attribuée"}</p></div>
+                      </div>
+                      {child.can_view_academic ? <><DataValue label="Moyenne" value={average === null ? "—" : `${average.toFixed(1)}/20`} /><DataValue label="Absences / retards" value={String(issues ?? 0)} /></> : <><DataValue label="Suivi scolaire" value="Limité" /><DataValue label="Accès" value="Restreint" /></>}
+                      <div className="flex flex-wrap gap-2 lg:justify-end">{child.can_view_academic && <Button variant="outline" size="sm" asChild><Link href={`/parents/notes?eleve=${child.id}`}>Résultats</Link></Button>}<Button variant="ghost" size="sm" asChild><Link href={`/parents/enfants?eleve=${child.id}`}>Voir</Link></Button></div>
+                    </div>
+                  </div>
+                )
               })}
             </div>
           </section>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <InfoList title="Notifications récentes" href="/parents/notifications" items={notifications.slice(0,4).map((n) => ({ id:n.id, title:n.title, detail:n.body, date:n.created_at }))} empty="Aucune notification." />
-            <InfoList title="Prochains événements" href="/parents/evenements" items={upcoming.map((e) => ({ id:e.id, title:e.title, detail:e.location ?? "Établissement", date:e.starts_at }))} empty="Aucun événement à venir." />
+          <section className="grid border-y border-terre/10 bg-papier sm:grid-cols-3">
+            <SummaryItem href="/parents/notes" icon={GraduationCap} label="Résultats disponibles" value={String(visibleGrades.length)} />
+            <SummaryItem href="/parents/absences" icon={UserX} label="Absences et retards" value={String(visibleAttendance.length)} />
+            <SummaryItem href="/parents/notifications" icon={Bell} label="Notifications non lues" value={String(unread)} />
+          </section>
+
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,.65fr)]">
+            <InfoSection title="Notifications" description="Les dernières informations de l’établissement." href="/parents/notifications" items={notifications.slice(0, 4).map((item) => ({ id: item.id, title: item.title, detail: item.body, date: item.created_at }))} empty="Aucune notification pour le moment." />
+            <InfoSection title="À venir" description="Prochains événements scolaires." href="/parents/evenements" items={upcoming.map((item) => ({ id: item.id, title: item.title, detail: item.location ?? "Établissement", date: item.starts_at }))} empty="Aucun événement à venir." />
           </div>
-
-          {financeIds.size > 0 && <section className="flex flex-col gap-3 border-y border-terre/10 bg-papier px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold text-terre">Paiements enregistrés</p><p className="text-sm text-pierre">Total des paiements visibles pour votre compte.</p></div><div className="flex items-center gap-4"><span className="font-bold text-terre">{money(totalPaid)}</span><Button size="sm" variant="outline" asChild><Link href="/parents/paiements">Voir l’historique</Link></Button></div></section>}
-
-          <section><h2 className="mb-3 text-base font-semibold text-terre">Accès rapides</h2><div className="grid border border-terre/10 bg-papier sm:grid-cols-2 lg:grid-cols-4">{[
-            ["/parents/notes","Résultats",GraduationCap],[ "/parents/absences","Présences",UserX],[ "/parents/cahier-de-textes","Cahier de textes",CalendarDays],[ "/parents/messages","Messages",CreditCard]
-          ].map(([href,label,Icon]) => <Link key={String(href)} href={String(href)} className="flex items-center gap-3 border-b border-terre/10 px-4 py-4 text-sm font-medium text-terre hover:bg-creme sm:border-l lg:border-b-0 lg:border-l first:sm:border-l-0 first:lg:border-l-0"><Icon className="h-4 w-4" />{String(label)}</Link>)}</div></section>
         </>
       )}
     </div>
   )
 }
 
-function Summary({ icon: Icon, label, value, href }: { icon: typeof Users; label: string; value: string; href: string }) {
-  return <Link href={href} className="px-4 py-4 hover:bg-creme"><Icon className="h-4 w-4 text-terre" /><p className="mt-2 text-xs text-pierre">{label}</p><p className="mt-0.5 text-xl font-bold text-terre">{value}</p></Link>
+function DataValue({ label, value }: { label: string; value: string }) {
+  return <div><p className="text-xs text-pierre">{label}</p><p className="mt-1 font-semibold text-terre">{value}</p></div>
 }
-function Metric({ label, value }: { label:string; value:string }) { return <div><p className="text-xs text-pierre">{label}</p><p className="mt-1 font-semibold text-terre">{value}</p></div> }
-function InfoList({ title, href, items, empty }: { title:string; href:string; items:{id:string;title:string;detail:string;date:string}[]; empty:string }) {
-  return <section className="border border-terre/10 bg-papier"><div className="flex items-center justify-between border-b border-terre/10 px-5 py-4"><h2 className="font-semibold text-terre">{title}</h2><Button variant="ghost" size="sm" asChild><Link href={href}>Voir tout</Link></Button></div>{items.length ? <div className="divide-y divide-terre/10">{items.map((item)=><Link key={item.id} href={href} className="block px-5 py-3 hover:bg-creme"><p className="truncate text-sm font-medium text-terre">{item.title}</p><p className="mt-0.5 line-clamp-1 text-xs text-pierre">{item.detail}</p><p className="mt-1 text-[11px] text-pierre">{new Date(item.date).toLocaleString("fr-FR")}</p></Link>)}</div> : <p className="px-5 py-8 text-sm text-pierre">{empty}</p>}</section>
+
+function SummaryItem({ href, icon: Icon, label, value }: { href: string; icon: typeof Users; label: string; value: string }) {
+  return <Link href={href} className="border-b border-terre/10 px-5 py-4 hover:bg-creme sm:border-b-0 sm:border-r last:sm:border-r-0"><Icon className="h-4 w-4 text-terre" /><p className="mt-2 text-xs text-pierre">{label}</p><p className="mt-0.5 text-xl font-bold text-terre">{value}</p></Link>
+}
+
+function InfoSection({ title, description, href, items, empty }: { title: string; description: string; href: string; items: { id: string; title: string; detail: string; date: string }[]; empty: string }) {
+  return <section className="border-y border-terre/10 bg-papier"><div className="flex items-center justify-between border-b border-terre/10 px-5 py-4"><div><h2 className="text-base font-semibold text-terre">{title}</h2><p className="text-sm text-pierre">{description}</p></div><Link href={href} className="text-sm font-medium text-terre hover:underline">Voir tout</Link></div>{items.length ? <div className="divide-y divide-terre/10">{items.map((item) => <Link key={item.id} href={href} className="block px-5 py-4 hover:bg-creme"><p className="truncate text-sm font-medium text-terre">{item.title}</p><p className="mt-1 line-clamp-2 text-sm text-pierre">{item.detail}</p><p className="mt-1 text-xs text-pierre">{dateTime(item.date)}</p></Link>)}</div> : <p className="px-5 py-8 text-sm text-pierre">{empty}</p>}</section>
 }

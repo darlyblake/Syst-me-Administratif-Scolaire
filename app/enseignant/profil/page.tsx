@@ -70,11 +70,11 @@ export default function ProfilEnseignantPage() {
         <p className="mt-1 text-sm text-[#6d7280]">Vos informations personnelles et professionnelles.</p>
       </header>
 
-      {error && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-      {message && <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-700">{message}</div>}
+      {error && <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+      {message && <div className="mt-4 rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-700">{message}</div>}
 
       <form onSubmit={save} className="mt-5">
-        <Card><CardHeader><CardTitle className="flex items-center gap-2 text-base"><UserRound className="h-4 w-4" />Informations personnelles</CardTitle></CardHeader>
+        <Card className="rounded-md"><CardHeader><CardTitle className="flex items-center gap-2 text-base"><UserRound className="h-4 w-4" />Informations personnelles</CardTitle></CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-1 text-sm"><span className="font-medium">Prénom</span><Input value={firstName} onChange={(e) => setFirstName(e.target.value)} /></label>
             <label className="space-y-1 text-sm"><span className="font-medium">Nom</span><Input value={lastName} onChange={(e) => setLastName(e.target.value)} /></label>
@@ -82,7 +82,7 @@ export default function ProfilEnseignantPage() {
           </CardContent>
         </Card>
 
-        <Card className="mt-4"><CardHeader><CardTitle className="text-base">Informations professionnelles</CardTitle></CardHeader>
+        <Card className="mt-4 rounded-md"><CardHeader><CardTitle className="text-base">Informations professionnelles</CardTitle></CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <Field label="Matricule" value={profile?.employee_number ?? "—"} />
             <Field label="Spécialité" value={profile?.specialty ?? "—"} />

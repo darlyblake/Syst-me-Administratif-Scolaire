@@ -1,4 +1,4 @@
-const CACHE_NAME = "nova-static-v4"
+const CACHE_NAME = "nova-static-v5"
 const APP_SHELL = ["/", "/offline", "/nova-logo.webp", "/manifest.webmanifest"]
 
 self.addEventListener("install", (event) => {

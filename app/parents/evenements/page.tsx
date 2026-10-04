@@ -5,7 +5,7 @@ import { CalendarDays, Clock, MapPin } from "lucide-react"
 import { useParentPortal } from "@/hooks/use-parent-portal"
 import { ParentPageHeader } from "@/components/parent/ParentPageHeader"
 import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
-import { Button } from "@/components/ui/button"
+
 
 export default function ParentEvents() {
  const {loading,error,refresh,events}=useParentPortal()

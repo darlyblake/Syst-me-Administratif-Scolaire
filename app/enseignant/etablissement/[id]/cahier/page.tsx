@@ -159,6 +159,21 @@ export default function TeacherCahierPage() {
       .slice(0, 6)
   }, [entries, search, classFilter, subjectFilter])
 
+  const recentHomeworks = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    return homeworks
+      .filter((item) => classFilter === "all" || item.class_id === classFilter)
+      .filter((item) => subjectFilter === "all" || item.subject_id === subjectFilter)
+      .filter((item) => {
+        if (!query) return true
+        return [item.title, item.instructions, item.class_name, item.subject_name]
+          .join(" ")
+          .toLowerCase()
+          .includes(query)
+      })
+      .slice(0, 6)
+  }, [homeworks, search, classFilter, subjectFilter])
+
   const activeHomeworks = homeworks.filter((item) => item.active).length
   const classOptions = Array.from(new Map(schedule.map((item) => [item.class_id, item.class_name])).entries())
   const subjectOptions = Array.from(new Map(schedule.map((item) => [item.subject_id, item.subject_name])).entries())
@@ -227,12 +242,12 @@ export default function TeacherCahierPage() {
         <p className="text-xs font-semibold uppercase tracking-wide text-[#3152c8]">Suivi pédagogique</p>
         <h1 className="mt-1 text-2xl font-bold">Cahier de texte & devoirs</h1>
         <p className="mt-1 text-sm text-[#6d7280]">
-          Une vue principale pour consulter, renseigner et retrouver les séances de l’établissement.
+          Consultez, renseignez et retrouvez les séances et devoirs de l’année académique active.
         </p>
       </header>
 
       {error && (
-        <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="mt-4 border-l-4 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -244,66 +259,56 @@ export default function TeacherCahierPage() {
         </div>
       ) : (
         <>
-          <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-lg border border-[#e1e3eb] bg-white p-4">
-              <p className="text-xs font-medium text-[#6d7280]">Cours au programme</p>
-              <p className="mt-1 text-2xl font-bold">{schedule.length}</p>
-              <p className="mt-1 text-xs text-[#7b8190]">Dans l’emploi du temps actif</p>
-            </div>
-            <div className="rounded-lg border border-[#e1e3eb] bg-white p-4">
-              <p className="text-xs font-medium text-[#6d7280]">Séances renseignées</p>
-              <p className="mt-1 text-2xl font-bold">{entries.length}</p>
-              <p className="mt-1 text-xs text-[#7b8190]">Entrées enregistrées</p>
-            </div>
-            <div className="rounded-lg border border-[#e1e3eb] bg-white p-4">
-              <p className="text-xs font-medium text-[#6d7280]">Devoirs actifs</p>
-              <p className="mt-1 text-2xl font-bold">{activeHomeworks}</p>
-              <p className="mt-1 text-xs text-[#7b8190]">Travaux encore suivis</p>
-            </div>
-            <div className="rounded-lg border border-[#e1e3eb] bg-white p-4">
-              <p className="text-xs font-medium text-[#6d7280]">Année académique</p>
-              <p className="mt-1 truncate text-lg font-bold">{schedule[0]?.academic_year_name ?? "—"}</p>
-              <p className="mt-1 text-xs text-[#7b8190]">Données de l’année active</p>
+          <section className="mt-5 border-y border-[#dfe2eb] bg-white">
+            <div className="grid divide-y divide-[#e5e7ee] sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
+              <div className="px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-[#737989]">Cours au programme</p>
+                <p className="mt-1 text-xl font-bold">{schedule.length}</p>
+                <p className="text-xs text-[#7b8190]">Emploi du temps actif</p>
+              </div>
+              <div className="px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-[#737989]">Séances renseignées</p>
+                <p className="mt-1 text-xl font-bold">{entries.length}</p>
+                <p className="text-xs text-[#7b8190]">Entrées enregistrées</p>
+              </div>
+              <div className="px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-[#737989]">Devoirs actifs</p>
+                <p className="mt-1 text-xl font-bold">{activeHomeworks}</p>
+                <p className="text-xs text-[#7b8190]">Travaux suivis</p>
+              </div>
+              <div className="px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-[#737989]">Année académique</p>
+                <p className="mt-1 truncate text-xl font-bold">{schedule[0]?.academic_year_name ?? "—"}</p>
+                <p className="text-xs text-[#7b8190]">Année active</p>
+              </div>
             </div>
           </section>
 
-          <section className="mt-5 rounded-lg border border-[#e1e3eb] bg-white">
-            <div className="border-b border-[#e5e7ee] px-4 py-3">
-              <h2 className="font-bold">Filtres du cahier</h2>
-              <p className="mt-0.5 text-sm text-[#6d7280]">Affinez les séances et les entrées affichées.</p>
+          <section className="mt-6 border-b border-[#dfe2eb] pb-5">
+            <div className="mb-3">
+              <h2 className="font-bold">Filtres</h2>
+              <p className="text-sm text-[#6d7280]">Filtrez les séances affichées sans quitter la page.</p>
             </div>
-            <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <label className="relative block">
                 <span className="sr-only">Rechercher</span>
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8a90a0]" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Rechercher une classe, matière…"
-                  className="h-10 w-full rounded-md border border-[#dfe2ec] pl-9 pr-3 text-sm outline-none focus:border-[#7890ef]"
+                  placeholder="Classe, matière, salle…"
+                  className="h-10 w-full border border-[#dfe2ec] bg-white pl-9 pr-3 text-sm outline-none focus:border-[#7890ef]"
                 />
               </label>
-              <select
-                value={classFilter}
-                onChange={(e) => setClassFilter(e.target.value)}
-                className="h-10 rounded-md border border-[#dfe2ec] bg-white px-3 text-sm"
-              >
+              <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="h-10 border border-[#dfe2ec] bg-white px-3 text-sm">
                 <option value="all">Toutes les classes</option>
                 {classOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
-              <select
-                value={subjectFilter}
-                onChange={(e) => setSubjectFilter(e.target.value)}
-                className="h-10 rounded-md border border-[#dfe2ec] bg-white px-3 text-sm"
-              >
+              <select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)} className="h-10 border border-[#dfe2ec] bg-white px-3 text-sm">
                 <option value="all">Toutes les matières</option>
                 {subjectOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="h-10 rounded-md border border-[#dfe2ec] bg-white px-3 text-sm"
-              >
+              <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="h-10 border border-[#dfe2ec] bg-white px-3 text-sm">
                 <option value="all">Toutes les journées</option>
                 <option value="today">Aujourd’hui</option>
                 {dayNames.slice(1).map((label, index) => <option key={index + 1} value={String(index + 1)}>{label}</option>)}
@@ -311,192 +316,204 @@ export default function TeacherCahierPage() {
             </div>
           </section>
 
-          <section className="mt-5 grid gap-5 xl:grid-cols-[1fr_1.35fr]">
-            <div className="rounded-lg border border-[#e1e3eb] bg-white">
-              <div className="border-b border-[#e5e7ee] px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h2 className="font-bold">Séances</h2>
-                    <p className="text-sm text-[#6d7280]">Sélectionnez une séance à renseigner.</p>
-                  </div>
-                  <CalendarDays className="h-5 w-5 text-[#707788]" />
-                </div>
+          <section className="mt-6">
+            <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[#dfe2eb] pb-3">
+              <div>
+                <h2 className="text-lg font-bold">Séances de l’emploi du temps</h2>
+                <p className="text-sm text-[#6d7280]">Sélectionnez une ligne pour renseigner le cahier et le devoir.</p>
               </div>
-              <div className="max-h-[520px] overflow-y-auto">
-                {filteredSchedule.length ? (
-                  <div className="divide-y divide-[#edf0f5]">
-                    {filteredSchedule.map((slot) => (
-                      <button
-                        key={slot.slot_id}
-                        type="button"
-                        onClick={() => void selectSlot(slot)}
-                        className={
-                          "w-full px-4 py-3 text-left transition-colors hover:bg-[#f7f8fc] " +
-                          (selected?.slot_id === slot.slot_id ? "bg-[#edf1ff]" : "")
-                        }
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-semibold">{slot.subject_name}</p>
-                            <p className="mt-0.5 text-sm text-[#6d7280]">{slot.class_name}</p>
-                          </div>
-                          <span className="shrink-0 text-xs font-medium text-[#6d7280]">
-                            {dayNames[slot.day_of_week]} · {slot.starts_at.slice(0, 5)}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-xs text-[#7b8190]">
-                          {slot.ends_at.slice(0, 5)}{slot.room ? " · Salle " + slot.room : ""}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-8 text-center text-sm text-[#6d7280]">Aucune séance ne correspond aux filtres.</div>
-                )}
-              </div>
+              <span className="text-sm text-[#6d7280]">{filteredSchedule.length} séance(s)</span>
             </div>
 
-            {selected ? (
-              <div className="rounded-lg border border-[#e1e3eb] bg-white">
-                <div className="border-b border-[#e5e7ee] px-4 py-3">
-                  <p className="text-xs text-[#6d7280]">Séance sélectionnée · {lessonDate}</p>
-                  <h2 className="mt-1 font-bold">{selected.subject_name} · {selected.class_name}</h2>
+            <div className="mt-3 overflow-x-auto border border-[#dfe2eb] bg-white">
+              <table className="min-w-full text-sm">
+                <thead className="border-b border-[#dfe2eb] bg-[#f7f8fb] text-left text-xs uppercase tracking-wide text-[#737989]">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Jour</th>
+                    <th className="px-4 py-3 font-semibold">Horaire</th>
+                    <th className="px-4 py-3 font-semibold">Classe</th>
+                    <th className="px-4 py-3 font-semibold">Matière</th>
+                    <th className="px-4 py-3 font-semibold">Salle</th>
+                    <th className="px-4 py-3 font-semibold">État</th>
+                    <th className="px-4 py-3 text-right font-semibold">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#edf0f5]">
+                  {filteredSchedule.map((slot) => {
+                    const date = dateForSlot(slot.day_of_week)
+                    const entry = entries.find((row) => row.timetable_slot_id === slot.slot_id && row.lesson_date === date)
+                    const isSelected = selected?.slot_id === slot.slot_id
+                    return (
+                      <tr key={slot.slot_id} className={isSelected ? "bg-[#eef2ff]" : "hover:bg-[#fafbfe]"}>
+                        <td className="whitespace-nowrap px-4 py-3">{dayNames[slot.day_of_week]}</td>
+                        <td className="whitespace-nowrap px-4 py-3">{slot.starts_at.slice(0, 5)}–{slot.ends_at.slice(0, 5)}</td>
+                        <td className="px-4 py-3 font-medium">{slot.class_name}</td>
+                        <td className="px-4 py-3">{slot.subject_name}</td>
+                        <td className="px-4 py-3">{slot.room || "—"}</td>
+                        <td className="px-4 py-3">
+                          {entry ? (
+                            <span className="inline-flex items-center gap-1 text-[#277047]">
+                              <CheckCircle2 className="h-4 w-4" /> Renseignée
+                            </span>
+                          ) : (
+                            <span className="text-[#8a90a0]">À renseigner</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button type="button" onClick={() => void selectSlot(slot)} className="font-semibold text-[#2944a8] hover:underline">
+                            {isSelected ? "Sélectionnée" : "Ouvrir"}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              {!filteredSchedule.length && <p className="p-8 text-center text-sm text-[#6d7280]">Aucune séance ne correspond aux filtres.</p>}
+            </div>
+          </section>
+
+          {selected && (
+            <section className="mt-8 border-y border-[#dfe2eb] py-6">
+              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#e5e7ee] pb-4">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-[#737989]">Séance sélectionnée · {lessonDate}</p>
+                  <h2 className="mt-1 text-xl font-bold">{selected.subject_name} · {selected.class_name}</h2>
                   <p className="text-sm text-[#6d7280]">
                     {selected.starts_at.slice(0, 5)}–{selected.ends_at.slice(0, 5)}
                     {selected.room ? " · Salle " + selected.room : ""}
                   </p>
                 </div>
-                <div className="grid gap-5 p-4 lg:grid-cols-2">
-                  <div>
-                    <div className="mb-3 flex items-center gap-2">
-                      <BookOpenText className="h-4 w-4 text-[#2944a8]" />
-                      <h3 className="font-semibold">Cours</h3>
-                    </div>
-                    <label className="block text-sm font-medium">
-                      Thème du cours
-                      <input
-                        value={theme}
-                        onChange={(e) => setTheme(e.target.value)}
-                        className="mt-1.5 h-10 w-full rounded-md border border-[#dfe2ec] px-3 outline-none focus:border-[#7890ef]"
-                      />
-                    </label>
-                    <label className="mt-4 block text-sm font-medium">
-                      Contenu et activités
-                      <textarea
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        rows={8}
-                        placeholder="Décrivez ce qui a été enseigné et les activités réalisées…"
-                        className="mt-1.5 w-full resize-y rounded-md border border-[#dfe2ec] p-3 outline-none focus:border-[#7890ef]"
-                      />
-                    </label>
-                  </div>
+                <span className="text-sm text-[#6d7280]">{selected.academic_year_name}</span>
+              </div>
 
-                  <div>
-                    <div className="mb-3 flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-[#2944a8]" />
-                      <h3 className="font-semibold">Devoir</h3>
-                    </div>
-                    <label className="block text-sm font-medium">
-                      Consignes
-                      <textarea
-                        value={homework}
-                        onChange={(e) => setHomework(e.target.value)}
-                        rows={8}
-                        placeholder="Exercices, lecture, recherche ou travail à préparer…"
-                        className="mt-1.5 w-full resize-y rounded-md border border-[#dfe2ec] p-3 outline-none focus:border-[#7890ef]"
-                      />
-                    </label>
-                    <label className="mt-4 block text-sm font-medium">
-                      Date de remise
-                      <input
-                        type="date"
-                        value={homeworkDueDate}
-                        onChange={(e) => setHomeworkDueDate(e.target.value)}
-                        className="mt-1.5 h-10 w-full rounded-md border border-[#dfe2ec] px-3"
-                      />
-                    </label>
+              <div className="grid gap-8 pt-5 lg:grid-cols-2">
+                <div>
+                  <div className="mb-4 flex items-center gap-2">
+                    <BookOpenText className="h-4 w-4 text-[#2944a8]" />
+                    <h3 className="font-bold">Cours</h3>
                   </div>
+                  <label className="block text-sm font-medium">
+                    Thème du cours
+                    <input value={theme} onChange={(e) => setTheme(e.target.value)} className="mt-1.5 h-10 w-full border border-[#dfe2ec] px-3 outline-none focus:border-[#7890ef]" />
+                  </label>
+                  <label className="mt-4 block text-sm font-medium">
+                    Contenu et activités
+                    <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={8} placeholder="Décrivez ce qui a été enseigné et les activités réalisées…" className="mt-1.5 w-full resize-y border border-[#dfe2ec] p-3 outline-none focus:border-[#7890ef]" />
+                  </label>
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5e7ee] px-4 py-3">
-                  <div className="text-sm">
-                    {message && (
-                      <p className="flex items-center gap-2 text-[#277047]">
-                        <CheckCircle2 className="h-4 w-4" />{message}
-                      </p>
-                    )}
+
+                <div>
+                  <div className="mb-4 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-[#2944a8]" />
+                    <h3 className="font-bold">Devoir</h3>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void save()}
-                    disabled={saving}
-                    className="inline-flex items-center justify-center gap-2 rounded-md bg-[#0b2b83] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                  >
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    Enregistrer
-                  </button>
+                  <label className="block text-sm font-medium">
+                    Consignes
+                    <textarea value={homework} onChange={(e) => setHomework(e.target.value)} rows={8} placeholder="Exercices, lecture, recherche ou travail à préparer…" className="mt-1.5 w-full resize-y border border-[#dfe2ec] p-3 outline-none focus:border-[#7890ef]" />
+                  </label>
+                  <label className="mt-4 block text-sm font-medium">
+                    Date de remise
+                    <input type="date" value={homeworkDueDate} onChange={(e) => setHomeworkDueDate(e.target.value)} className="mt-1.5 h-10 w-full border border-[#dfe2ec] px-3" />
+                  </label>
                 </div>
               </div>
-            ) : (
-              <div className="flex items-center justify-center rounded-lg border border-dashed border-[#dfe2ec] bg-white p-10 text-center text-sm text-[#6d7280]">
-                Sélectionnez une séance pour renseigner le cahier.
+
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[#e5e7ee] pt-4">
+                <div className="text-sm">
+                  {message && <p className="flex items-center gap-2 text-[#277047]"><CheckCircle2 className="h-4 w-4" />{message}</p>}
+                </div>
+                <button type="button" onClick={() => void save()} disabled={saving} className="inline-flex items-center justify-center gap-2 bg-[#0b2b83] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Enregistrer
+                </button>
               </div>
-            )}
+            </section>
+          )}
+
+          <section className="mt-8 border-t border-[#dfe2eb] pt-6">
+            <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[#dfe2eb] pb-3">
+              <div>
+                <h2 className="text-lg font-bold">Dernières séances renseignées</h2>
+                <p className="text-sm text-[#6d7280]">Les entrées récentes de l’année académique active.</p>
+              </div>
+              <button type="button" onClick={() => router.push(`/enseignant/etablissement/${id}/cahier/historique`)} className="text-sm font-semibold text-[#2944a8] hover:underline">
+                Voir l’historique
+              </button>
+            </div>
+            <div className="mt-3 overflow-x-auto border border-[#dfe2eb] bg-white">
+              <table className="min-w-full text-sm">
+                <thead className="border-b border-[#dfe2eb] bg-[#f7f8fb] text-left text-xs uppercase tracking-wide text-[#737989]">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Date</th>
+                    <th className="px-4 py-3 font-semibold">Classe</th>
+                    <th className="px-4 py-3 font-semibold">Matière</th>
+                    <th className="px-4 py-3 font-semibold">Thème</th>
+                    <th className="px-4 py-3 text-right font-semibold">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#edf0f5]">
+                  {recentEntries.map((entry) => (
+                    <tr key={entry.id} className="hover:bg-[#fafbfe]">
+                      <td className="whitespace-nowrap px-4 py-3">{entry.lesson_date}</td>
+                      <td className="px-4 py-3">{entry.class_name}</td>
+                      <td className="px-4 py-3">{entry.subject_name}</td>
+                      <td className="px-4 py-3">{entry.topic || "Sans thème"}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const slot = schedule.find((item) => item.slot_id === entry.timetable_slot_id)
+                            if (slot) void selectSlot(slot)
+                          }}
+                          className="font-semibold text-[#2944a8] hover:underline"
+                        >
+                          Ouvrir
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!recentEntries.length && <p className="p-6 text-sm text-[#6d7280]">Aucune séance renseignée avec ces filtres.</p>}
+            </div>
           </section>
 
-          <section className="mt-5 grid gap-5 lg:grid-cols-2">
-            <div className="rounded-lg border border-[#e1e3eb] bg-white">
-              <div className="border-b border-[#e5e7ee] px-4 py-3">
-                <h2 className="font-bold">Dernières séances renseignées</h2>
-                <p className="text-sm text-[#6d7280]">Les entrées les plus récentes de l’année active.</p>
-              </div>
-              <div className="divide-y divide-[#edf0f5]">
-                {recentEntries.length ? recentEntries.map((entry) => (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    onClick={() => {
-                      const slot = schedule.find((item) => item.slot_id === entry.timetable_slot_id)
-                      if (slot) void selectSlot(slot)
-                    }}
-                    className="w-full px-4 py-3 text-left hover:bg-[#f7f8fc]"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium">{entry.topic || "Cours sans thème"}</p>
-                        <p className="mt-0.5 text-sm text-[#6d7280]">{entry.subject_name} · {entry.class_name}</p>
-                      </div>
-                      <span className="shrink-0 text-xs text-[#7b8190]">{entry.lesson_date}</span>
-                    </div>
-                  </button>
-                )) : (
-                  <p className="p-6 text-sm text-[#6d7280]">Aucune séance renseignée avec ces filtres.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-[#e1e3eb] bg-white">
-              <div className="border-b border-[#e5e7ee] px-4 py-3">
-                <h2 className="font-bold">Devoirs récents</h2>
+          <section className="mt-8 border-t border-[#dfe2eb] pt-6 pb-8">
+            <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[#dfe2eb] pb-3">
+              <div>
+                <h2 className="text-lg font-bold">Devoirs récents</h2>
                 <p className="text-sm text-[#6d7280]">Travaux enregistrés pour vos classes.</p>
               </div>
-              <div className="divide-y divide-[#edf0f5]">
-                {homeworks.slice(0, 6).map((item) => (
-                  <div key={item.id} className="px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
+              <button type="button" onClick={() => router.push(`/enseignant/etablissement/${id}/cahier/devoirs`)} className="text-sm font-semibold text-[#2944a8] hover:underline">
+                Voir les devoirs
+              </button>
+            </div>
+            <div className="mt-3 overflow-x-auto border border-[#dfe2eb] bg-white">
+              <table className="min-w-full text-sm">
+                <thead className="border-b border-[#dfe2eb] bg-[#f7f8fb] text-left text-xs uppercase tracking-wide text-[#737989]">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Devoir</th>
+                    <th className="px-4 py-3 font-semibold">Classe</th>
+                    <th className="px-4 py-3 font-semibold">Matière</th>
+                    <th className="px-4 py-3 font-semibold">Remise</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#edf0f5]">
+                  {recentHomeworks.map((item) => (
+                    <tr key={item.id} className="hover:bg-[#fafbfe]">
+                      <td className="px-4 py-3">
                         <p className="font-medium">{item.title}</p>
-                        <p className="mt-0.5 text-sm text-[#6d7280]">{item.subject_name} · {item.class_name}</p>
-                      </div>
-                      <span className="shrink-0 text-xs text-[#7b8190]">
-                        {item.due_date ? "À rendre " + item.due_date : "Sans date"}
-                      </span>
-                    </div>
-                    {item.instructions && <p className="mt-2 line-clamp-2 text-sm text-[#6d7280]">{item.instructions}</p>}
-                  </div>
-                ))}
-                {!homeworks.length && <p className="p-6 text-sm text-[#6d7280]">Aucun devoir enregistré.</p>}
-              </div>
+                        {item.instructions && <p className="mt-1 max-w-xl truncate text-xs text-[#6d7280]">{item.instructions}</p>}
+                      </td>
+                      <td className="px-4 py-3">{item.class_name}</td>
+                      <td className="px-4 py-3">{item.subject_name}</td>
+                      <td className="whitespace-nowrap px-4 py-3">{item.due_date || "Sans date"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!recentHomeworks.length && <p className="p-6 text-sm text-[#6d7280]">Aucun devoir enregistré.</p>}
             </div>
           </section>
         </>

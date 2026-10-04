@@ -50,7 +50,7 @@ Cette checklist suit l'avancement réel du module Parent. Une tâche n'est coch�
 - [x] Historique
 - [ ] Reçus
 - [ ] Téléchargement des reçus
-- [ ] Échéances
+- [x] Échéances
 - [ ] Notifications d'échéance
 - [ ] Gestion multi-enfants / multi-établissements
 

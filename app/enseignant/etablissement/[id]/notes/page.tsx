@@ -33,7 +33,8 @@ export default function NotesEnseignantPage() {
     Promise.all([enseignantPortalService.getAssessments(id), enseignantPortalService.getSchedule(id), enseignantPortalService.getGradePeriods(id)])
       .then(([assessmentRows, scheduleRows, periodRows]) => {
         setAssessments(assessmentRows)
-        setGradePeriods(periodRows)\n        setSchedule(scheduleRows.map((s) => ({
+        setGradePeriods(periodRows)
+        setSchedule(scheduleRows.map((s) => ({
           slot_id: s.slot_id,
           academic_year_id: s.academic_year_id,
           class_id: s.class_id,
@@ -63,7 +64,8 @@ export default function NotesEnseignantPage() {
 
   const programAssessment = async () => {
     const selectedPair = classSubjects.find((item) => `${item.class_id}:${item.subject_id}` === assessmentClassSubject)
-    const maxScore = Number(assessmentMax.replace(",", "."))\n    const activePeriod = gradePeriods.find((period) => period.entry_open && period.is_current) ?? gradePeriods.find((period) => period.entry_open)
+    const maxScore = Number(assessmentMax.replace(",", "."))
+    const activePeriod = gradePeriods.find((period) => period.entry_open && period.is_current) ?? gradePeriods.find((period) => period.entry_open)
     if (!selectedPair || !assessmentTitle.trim() || !assessmentDate || !activePeriod || !Number.isFinite(maxScore) || maxScore <= 0) {
       setMessage(!activePeriod ? "Aucune période de saisie des notes n’est ouverte par l’établissement." : "Renseignez le titre, la classe/matière, la date et un barème valide.")
       return
@@ -85,7 +87,6 @@ export default function NotesEnseignantPage() {
       setAssessments(refreshed)
       setProgrammingOpen(false)
       setAssessmentTitle("")
-      setAssessmentTerm("")
       setMessage("Évaluation programmée. Vous pouvez maintenant saisir les notes.")
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Impossible de programmer l'évaluation.")

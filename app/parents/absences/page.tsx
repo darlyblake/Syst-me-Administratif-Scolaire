@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { CheckCircle2, FileText, X } from "lucide-react"
+import { FileText, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useParentPortal } from "@/hooks/use-parent-portal"

@@ -114,7 +114,9 @@ export function LoginPage() {
         password,
         options: {
           data: { first_name: firstName, last_name: lastName },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          // En production, utiliser l'URL canonique Vercel plutôt que l'origine
+          // courante du navigateur afin d'éviter un retour vers localhost.
+          emailRedirectTo: `${(process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") || window.location.origin)}/auth/callback`,
         },
       })
 

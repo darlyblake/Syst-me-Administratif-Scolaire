@@ -9,9 +9,8 @@ import { ParentChildSelect } from "@/components/parent/ParentChildSelect"
 import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
 
 export default function ParentNotes() {
-  const params = useSearchParams()
   const { loading, error, refresh, children, grades } = useParentPortal()
-  const [childId, setChildId] = useState(params.get("eleve") || "tous")
+  const [childId, setChildId] = useState("tous")
   const allowed = useMemo(() => children.filter((c) => c.can_view_academic), [children])
   const list = useMemo(() => grades.filter((g) => childId === "tous" ? allowed.some((c) => c.id === g.student_id) : g.student_id === childId), [grades, childId, allowed])
   const avg = list.length ? list.reduce((s, g) => s + g.score, 0) / list.length : null

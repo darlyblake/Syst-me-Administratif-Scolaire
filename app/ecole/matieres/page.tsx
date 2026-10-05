@@ -178,20 +178,17 @@ export default function MatieresPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:p-6">
-        <header className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="w-full min-w-0">
+        <header className="flex flex-col gap-3 border-b border-[#c5c5d3]/45 pb-3 md:flex-row md:items-start md:justify-between">
           <div className="flex items-start gap-3">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/ecole/tableau-bord"><ArrowLeft className="mr-2 h-4 w-4" />Retour</Link>
-            </Button>
+            
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Matières</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Gérez les matières et leur niveau d'enseignement.</p>
+              <h1 className="text-[23px] font-semibold leading-7 text-[#131b2e]">Matières</h1>
+              <p className="mt-0.5 text-[12px] text-[#515f74]">Référentiel des matières et niveaux d'enseignement</p>
             </div>
           </div>
-          <Button onClick={ouvrirAjout} disabled={loading || gradeLevels.length === 0}>
-            <Plus className="mr-2 h-4 w-4" />Ajouter une matière
+          <Button onClick={ouvrirAjout} disabled={loading || gradeLevels.length === 0} className="h-8 rounded bg-[#1e3a8a] px-3 text-[11px] hover:bg-[#00236f]">
+            <Plus className="mr-1.5 h-3.5 w-3.5" />Nouvelle matière
           </Button>
         </header>
 
@@ -201,9 +198,9 @@ export default function MatieresPage() {
           </div>
         )}
 
-        <section className="flex flex-col gap-3 border-b pb-4 lg:flex-row lg:items-center">
+        <section className="mt-3 border border-[#c5c5d3]/60 bg-white p-2">
           <Input
-            className="min-w-0 flex-1"
+            className="h-9 min-w-0 flex-1 rounded border-[#c5c5d3]/70 text-[12px]"
             placeholder="Rechercher par nom ou code"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -212,24 +209,24 @@ export default function MatieresPage() {
           <div className="flex gap-2 overflow-x-auto pb-1">
             <Button variant={selectedScope === "all" ? "default" : "outline"} size="sm" onClick={() => setSelectedScope("all")}>Tous</Button>
             {scopes.map((scope) => (
-              <Button key={scope} variant={selectedScope === scope ? "default" : "outline"} size="sm" onClick={() => setSelectedScope(scope)} className="shrink-0">
+              <Button key={scope} variant={selectedScope === scope ? "default" : "outline"} size="sm" onClick={() => setSelectedScope(scope)} className="h-8 shrink-0 rounded text-[11px]">
                 {SCOPE_LABELS[scope]}
               </Button>
             ))}
           </div>
         </section>
 
-        <section aria-label="Liste des matières" className="overflow-hidden border">
+        <section aria-label="Liste des matières" className="mt-2 overflow-hidden border border-[#c5c5d3]/60 bg-white">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-sm">
-              <thead className="border-b bg-muted/40">
+              <thead className="border-b border-[#c5c5d3]/60 bg-[#f2f3ff]">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium">Code</th>
-                  <th className="px-4 py-3 text-left font-medium">Matière</th>
-                  <th className="px-4 py-3 text-left font-medium">Niveau</th>
-                  <th className="px-4 py-3 text-left font-medium">Catégorie</th>
-                  <th className="px-4 py-3 text-left font-medium">Coefficient</th>
-                  <th className="px-4 py-3 text-right font-medium">Actions</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[.04em] text-[#515f74]">Code</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[.04em] text-[#515f74]">Matière</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[.04em] text-[#515f74]">Niveau</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[.04em] text-[#515f74]">Catégorie</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[.04em] text-[#515f74]">Coefficient</th>
+                  <th className="px-3 py-2 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -246,15 +243,15 @@ export default function MatieresPage() {
                     const level = levelsById.get(matiere.niveau[0])
                     return (
                       <tr key={matiere.id} className="hover:bg-muted/30">
-                        <td className="px-4 py-3 font-medium">{matiere.code}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-2 font-medium">{matiere.code}</td>
+                        <td className="px-3 py-2">
                           <div className="font-medium">{matiere.nom}</div>
                           {matiere.description && <div className="mt-0.5 max-w-md truncate text-xs text-muted-foreground">{matiere.description}</div>}
                         </td>
-                        <td className="px-4 py-3">{level?.name ?? "—"}</td>
-                        <td className="px-4 py-3">{level?.scope ? SCOPE_LABELS[level.scope] : "—"}</td>
-                        <td className="px-4 py-3">{matiere.coefficient}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-2">{level?.name ?? "—"}</td>
+                        <td className="px-3 py-2">{level?.scope ? SCOPE_LABELS[level.scope] : "—"}</td>
+                        <td className="px-3 py-2">{matiere.coefficient}</td>
+                        <td className="px-3 py-2">
                           <div className="flex justify-end gap-2">
                             <Button variant="outline" size="sm" onClick={() => ouvrirEdition(matiere)}>
                               <Edit className="mr-1.5 h-4 w-4" />Modifier
@@ -274,7 +271,7 @@ export default function MatieresPage() {
         </section>
 
         {!loading && filteredMatieres.length > 0 && (
-          <p className="text-sm text-muted-foreground">{filteredMatieres.length} matière(s) affichée(s) sur {matieres.length}.</p>
+          <div className="border-t border-[#c5c5d3]/45 px-2 py-2 text-[11px] text-[#515f74]">{filteredMatieres.length} matière(s) affichée(s) sur {matieres.length}.</div>
         )}
       </div>
 
@@ -295,6 +292,7 @@ export default function MatieresPage() {
           <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button><Button onClick={() => void enregistrer()} disabled={saving || !form.gradeLevelId}>{saving ? "Enregistrement..." : editing ? "Modifier" : "Ajouter"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   )
 

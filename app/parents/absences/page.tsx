@@ -1,8 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { FileText, X } from "lucide-react"
-import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useParentPortal } from "@/hooks/use-parent-portal"
@@ -11,10 +10,10 @@ import { ParentChildSelect } from "@/components/parent/ParentChildSelect"
 import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
 
 export default function ParentAbsences() {
-  const params = useSearchParams()
   const { loading, error, refresh, children, attendance, justificationRequests, requestAttendanceJustification, cancelAttendanceJustification } = useParentPortal()
   const allowed = useMemo(() => children.filter(c => c.can_view_academic), [children])
-  const [childId, setChildId] = useState(params.get("eleve") || "tous")
+  const [childId, setChildId] = useState("tous")
+  useEffect(() => { const id = new URLSearchParams(window.location.search).get("eleve"); if (id) setChildId(id) }, [])
   const [selected, setSelected] = useState<string | null>(null)
   const [reason, setReason] = useState("")
   const [busy, setBusy] = useState(false)

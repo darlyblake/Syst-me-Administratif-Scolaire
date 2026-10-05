@@ -156,3 +156,5 @@ Puis vérifier manuellement les parcours concernés, les états d'erreur, les fo
 ## Git
 
 Pour les refactorings importants, privilégier une branche dédiée et une Pull Request. Les commits doivent être courts et explicites. Ne pas faire de force-push sur `main` sans raison exceptionnelle et vérifiée.
+
+<!-- deployment-refresh: 2026-10-05 -->

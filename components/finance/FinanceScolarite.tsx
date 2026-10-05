@@ -455,208 +455,57 @@ export function FinanceScolarite() {
     }))
   }, [filteredStudents])
 
-  const [expandedMobileStudents, setExpandedMobileStudents] = useState<Set<string>>(new Set())
-
-  const toggleMobileStudent = (studentId: string) => {
-    setExpandedMobileStudents((current) => {
-      const next = new Set(current)
-      if (next.has(studentId)) next.delete(studentId)
-      else next.add(studentId)
-      return next
-    })
-  }
-
   const renderTable = (className: string, students: typeof filteredStudents) => (
-    <section className="rounded-lg border border-gray-200 bg-white">
-      <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
-        <h2 className="text-sm font-semibold text-gray-800">{className}</h2>
-        <p className="mt-0.5 text-xs text-gray-500">
-          {students.length} élève{students.length > 1 ? "s" : ""}
-        </p>
+    <section className="overflow-hidden border border-gray-200 bg-white">
+      <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-800">{className}</h2>
+          <p className="mt-0.5 text-xs text-gray-500">{students.length} élève{students.length > 1 ? "s" : ""}</p>
+        </div>
+        <span className="text-xs text-gray-500">Suivi des échéances</span>
       </div>
-
-      {/* Mobile : vrai tableau compact. Un clic sur la ligne ouvre les détails. */}
-      <div className="md:hidden">
-        <table className="w-full table-fixed text-sm">
-          <thead className="border-b border-gray-200 bg-gray-50">
-            <tr>
-              <th className="px-3 py-3 text-left font-medium text-gray-600">Élève</th>
-              <th className="w-[92px] px-2 py-3 text-center font-medium text-gray-600">État</th>
-              <th className="w-9 px-2 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {students.map((student) => {
-              const studentId = student.student?.id || student.enrollment_id
-              const expanded = expandedMobileStudents.has(studentId)
-              const registration = student.groups.find((group) => group.schedules.some((schedule) => isRegistrationSchedule(schedule)))
-
-              return (
-                <tr key={studentId}>
-                  <td colSpan={3} className="p-0">
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 px-3 py-3 text-left active:bg-gray-50"
-                      onClick={() => toggleMobileStudent(studentId)}
-                      aria-expanded={expanded}
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium text-gray-900">
-                          {student.student
-                            ? `${student.student.first_name} ${student.student.last_name}`
-                            : "Élève inconnu"}
-                        </span>
-                        {student.student?.student_number && (
-                          <span className="mt-0.5 block truncate text-[11px] text-gray-400">
-                            {student.student.student_number}
-                          </span>
-                        )}
-                      </span>
-                      <span className="shrink-0">
-                        <GlobalState schedules={student.schedules} />
-                      </span>
-                      <span
-                        className={`ml-1 shrink-0 text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`}
-                        aria-hidden="true"
-                      >
-                        ▾
-                      </span>
-                    </button>
-
-                    {expanded && (
-                      <div className="border-t border-gray-100 bg-gray-50/70 px-3 py-3">
-                        <div className="mb-3 flex items-center justify-between">
-                          <div>
-                            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Échéances</p>
-                            <p className="text-xs text-gray-500">Touchez un mois pour voir les versements.</p>
-                          </div>
-                          <Button
-                            size="sm"
-                            className="h-8 text-xs"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              setSelectedStudentForPay(student.schedules)
-                            }}
-                          >
-                            Encaisser
-                          </Button>
-                        </div>
-
-                        {registration && (
-                          <div className="mb-3 rounded-md border border-gray-200 bg-white px-3 py-2">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="text-[10px] font-medium uppercase text-gray-400">Inscription</p>
-                                <p className="truncate text-xs text-gray-500">
-                                  {fmtDate(registration.due_date)} · {fmt(registration.amount_due)}
-                                </p>
-                              </div>
-                              <ScheduleCell group={registration} payments={paymentHistory} mobile />
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {columns.map((column) => {
-                            const group = scheduleForColumn(student, column)
-
-                            return (
-                              <div
-                                key={column.key}
-                                className="min-w-0 rounded-md border border-gray-200 bg-white px-1.5 py-2 text-center"
-                              >
-                                <div className="text-[10px] font-medium uppercase text-gray-400">
-                                  {column.label}
-                                </div>
-                                {group ? (
-                                  <ScheduleCell
-                                    group={group}
-                                    payments={paymentHistory}
-                                    mobile
-                                  />
-                                ) : (
-                                  <div className="py-2 text-xs text-gray-300">—</div>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-
-                        <div className="mt-3 rounded-md border border-gray-200 bg-white px-3 py-2">
-                          <div className="flex items-center justify-between gap-3 text-xs">
-                            <span className="text-gray-500">Situation</span>
-                            <GlobalState schedules={student.schedules} />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Tablette / PC : on conserve le tableau large existant. */}
-      <div className="hidden w-full md:block">
-        <table className="w-full min-w-[760px] table-fixed text-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[980px] table-fixed text-sm">
           <colgroup>
-            <col className="w-[22%]" />
+            <col className="w-[220px]" />
             {columns.map((column) => <col key={`col-${column.key}`} />)}
-            <col className="w-[18%]" />
+            <col className="w-[150px]" />
           </colgroup>
           <thead className="border-b border-gray-200 bg-white">
             <tr>
-              <th className="sticky left-0 z-20 border-r border-gray-100 bg-white px-3 py-3 text-left font-medium text-gray-700">
-                Élève
-              </th>
+              <th className="sticky left-0 z-20 border-r border-gray-200 bg-white px-3 py-3 text-left font-medium text-gray-700">Élève</th>
               {columns.map((column) => (
-                <th
-                  key={column.key}
-                  className="px-2 py-3 text-center font-medium text-gray-700"
-                  title={`${column.longLabel}${column.due_date ? ` — ${fmtDate(column.due_date)}` : ""}`}
-                >
-                  {column.label}
+                <th key={column.key} className="px-2 py-3 text-center font-medium text-gray-700"
+                  title={`${column.longLabel}${column.due_date ? ` — ${fmtDate(column.due_date)}` : ""}`}>
+                  <span className="block">{column.label}</span>
+                  {column.due_date && <span className="mt-0.5 block text-[10px] font-normal text-gray-400">{fmtDate(column.due_date)}</span>}
                 </th>
               ))}
-              <th className="px-3 py-3 text-left font-medium text-gray-700">État</th>
+              <th className="px-3 py-3 text-left font-medium text-gray-700">Situation</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {students.map((student) => (
               <tr key={student.student?.id || student.enrollment_id} className="hover:bg-gray-50">
-                <td className="sticky left-0 z-10 border-r border-gray-100 bg-white px-3 py-3 font-medium text-gray-900">
-                  <button type="button" className="w-full text-left hover:text-green-700" onClick={() => setSelectedStudentForDetails({ student: student.student, class: student.class, schedules: student.schedules })}>
-                    <div className="max-w-[180px] truncate underline-offset-2 hover:underline">
+                <td className="sticky left-0 z-10 border-r border-gray-100 bg-white px-3 py-3">
+                  <button type="button" className="w-full text-left hover:text-[#00236f]"
+                    onClick={() => setSelectedStudentForDetails({ student: student.student, class: student.class, schedules: student.schedules })}>
+                    <div className="max-w-[200px] truncate font-medium text-gray-900">
                       {student.student ? `${student.student.first_name} ${student.student.last_name}` : "Élève inconnu"}
                     </div>
-                    {student.student?.student_number && <div className="mt-0.5 text-[11px] font-normal text-gray-400">{student.student.student_number}</div>}
+                    {student.student?.student_number && <div className="mt-0.5 text-[11px] text-gray-400">{student.student.student_number}</div>}
                   </button>
                 </td>
                 {columns.map((column) => {
                   const group = scheduleForColumn(student, column)
-                  return (
-                    <td key={column.key} className="px-2 py-2 text-center">
-                      {group ? (
-                        <ScheduleCell group={group} payments={paymentHistory} />
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
-                    </td>
-                  )
+                  return <td key={column.key} className="px-2 py-2 text-center">
+                    {group ? <ScheduleCell group={group} payments={paymentHistory} /> : <span className="text-gray-300">—</span>}
+                  </td>
                 })}
                 <td className="px-3 py-3">
                   <div className="flex items-center gap-2 whitespace-nowrap">
                     <GlobalState schedules={student.schedules} />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 text-xs"
-                      onClick={() => setSelectedStudentForPay(student.schedules)}
-                    >
-                      Encaisser
-                    </Button>
+                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setSelectedStudentForPay(student.schedules)}>Encaisser</Button>
                   </div>
                 </td>
               </tr>
@@ -666,6 +515,7 @@ export function FinanceScolarite() {
       </div>
     </section>
   )
+
 
   return (
     <div className="w-full space-y-5">

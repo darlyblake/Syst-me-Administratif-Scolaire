@@ -121,19 +121,24 @@ export default function InscriptionsPage() {
           {error}
         </div>
       )}
-      {/* Actions */}
-      <section className="mt-3">      {/* KPI */}
+      <header className="mt-1 flex flex-col gap-3 border-b border-[#c5c5d3]/45 pb-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h1 className="text-[23px] font-semibold leading-7 text-[#131b2e]">Inscriptions</h1>
+          <p className="mt-0.5 text-[12px] text-[#515f74]">Suivi des inscriptions, réinscriptions et mouvements d'élèves</p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <button type="button" onClick={openInscription} className="inline-flex h-8 items-center gap-1.5 rounded border border-[#00236f] bg-[#1e3a8a] px-3 text-[11px] font-medium text-white hover:bg-[#00236f]"><UserPlus className="h-3.5 w-3.5" /> Nouvelle inscription</button>
+          <button type="button" onClick={openReinscription} className="inline-flex h-8 items-center gap-1.5 rounded border border-[#c5c5d3]/70 bg-white px-3 text-[11px] font-medium text-[#131b2e] hover:bg-[#f2f3ff]"><RefreshCw className="h-3.5 w-3.5" /> Réinscription</button>
+          <Link href="/ecole/inscriptions/transfert" className="inline-flex h-8 items-center gap-1.5 rounded border border-[#c5c5d3]/70 bg-white px-3 text-[11px] font-medium text-[#131b2e] hover:bg-[#f2f3ff]"><ArrowRightLeft className="h-3.5 w-3.5" /> Transfert</Link>
+          <Link href="/ecole/inscriptions/statistiques" className="inline-flex h-8 items-center gap-1.5 rounded border border-[#c5c5d3]/70 bg-white px-3 text-[11px] font-medium text-[#131b2e] hover:bg-[#f2f3ff]"><BarChart3 className="h-3.5 w-3.5" /> Rapports</Link>
+        </div>
+      </header>
+
       <section className="mt-3 grid grid-cols-2 border border-[#c5c5d3]/60 bg-white lg:grid-cols-4">
-        <div className="border-r border-b border-[#c5c5d3]/45 p-3 last:border-r-0"><KPICard title="Élèves actifs" value={kpis.total} icon={UserPlus} color="terre" />
-        <div className="border-r border-b border-[#c5c5d3]/45 p-3 last:border-r-0"><KPICard title="Nouvelles inscriptions" value={kpis.nouvelles} icon={UserPlus} color="jardin" />
-        <div className="border-r border-b border-[#c5c5d3]/45 p-3 last:border-r-0"><KPICard title="Réinscriptions" value={kpis.reinscriptions} icon={RefreshCw} color="soleil" />
-        <KPICard
-          title="Transferts en attente"
-          value={kpis.transferts}
-          icon={ArrowRightLeft}
-          color="ambre"
-          trend={kpis.transferts > 0 ? { value: String(kpis.transferts), positive: false } : undefined}
-        /></div>
+        <div className="border-r border-b border-[#c5c5d3]/45 p-3"><KPICard title="Élèves actifs" value={kpis.total} icon={UserPlus} color="terre" /></div>
+        <div className="border-r border-b border-[#c5c5d3]/45 p-3"><KPICard title="Nouvelles inscriptions" value={kpis.nouvelles} icon={UserPlus} color="jardin" /></div>
+        <div className="border-r border-b border-[#c5c5d3]/45 p-3"><KPICard title="Réinscriptions" value={kpis.reinscriptions} icon={RefreshCw} color="soleil" /></div>
+        <div className="border-b border-[#c5c5d3]/45 p-3"><KPICard title="Transferts en attente" value={kpis.transferts} icon={ArrowRightLeft} color="ambre" trend={kpis.transferts > 0 ? { value: String(kpis.transferts), positive: false } : undefined} /></div>
       </section>
 
       {/* Tableau */}

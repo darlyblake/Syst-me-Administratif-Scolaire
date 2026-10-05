@@ -9,8 +9,12 @@ import { useParentPortal } from "@/hooks/use-parent-portal"
 import { ParentPageHeader } from "@/components/parent/ParentPageHeader"
 import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
 
-const dateTime = (value: string) =>
-  new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(value))
+const dateTime = (value: string | null | undefined) => {
+  if (!value) return "Date indisponible"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "Date indisponible"
+  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(date)
+}
 
 export default function ParentsDashboard() {
   const { utilisateur } = useAuthentification()

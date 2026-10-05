@@ -1,21 +1,25 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useEffect, useMemo, useState } from "react"
+import {
+  AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, ClipboardCheck,
+  Clock3, CreditCard, FileWarning, GraduationCap, History, Plus,
+  ReceiptText, School, UserPlus, Users, WalletCards
+} from "lucide-react"
 import { serviceStatistiques } from "@/services/statistiques.service"
 import { serviceEvenements } from "@/services/evenements.service"
 import type { StatistiquesTableauBord } from "@/types/models"
-import { NumberTicker } from "@/components/magicui/NumberTicker"
-import { BlurFade } from "@/components/magicui/BlurFade"
-import { AnimatedList } from "@/components/magicui/AnimatedList"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useDailyAbsences } from "@/hooks/useAbsences"
+
+const money = (value: number) =>
+  new Intl.NumberFormat("fr-FR").format(Math.max(0, Math.round(value))) + " FCFA"
 
 export default function PageTableauBord() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
   const aujourdhui = new Date().toISOString().split("T")[0]
-
   const { absences: absencesDuJourList } = useDailyAbsences(establishmentId, aujourdhui)
 
   const [statistiques, setStatistiques] = useState<StatistiquesTableauBord>({
@@ -31,161 +35,211 @@ export default function PageTableauBord() {
   const [activitesRecentes, setActivitesRecentes] = useState<string[]>([])
 
   useEffect(() => {
-    const nouvellesStatistiques = serviceStatistiques.calculerStatistiquesTableauBord()
-    setStatistiques(nouvellesStatistiques)
-
-    const evtPlanifies = serviceEvenements.obtenirEvenementsParStatut("planifie")
-    setEvenementsPlanifies(evtPlanifies.length)
+    setStatistiques(serviceStatistiques.calculerStatistiquesTableauBord())
+    const events = serviceEvenements.obtenirTousLesEvenements()
+    setEvenementsPlanifies(serviceEvenements.obtenirEvenementsParStatut("planifie").length)
     setActivitesRecentes(
-      serviceEvenements
-        .obtenirTousLesEvenements()
+      events
         .sort((a, b) => new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime())
-        .slice(0, 4)
-        .map((evenement) => evenement.titre)
+        .slice(0, 5)
+        .map((event) => event.titre)
     )
   }, [])
 
-  const formatDate = () => {
-    return new Date().toLocaleDateString("fr-FR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    })
-  }
+  const dateLabel = useMemo(
+    () => new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+    []
+  )
+
+  const actions = [
+    { href: "/ecole/inscriptions", label: "Nouvelle inscription", icon: UserPlus },
+    { href: "/ecole/finance/paiements", label: "Enregistrer un paiement", icon: CreditCard },
+    { href: "/ecole/students", label: "Ajouter un élève", icon: Plus },
+    { href: "/ecole/registre-appel", label: "Registre d'appel du jour", icon: ClipboardCheck },
+    { href: "/ecole/evenements", label: "Ajouter un événement", icon: CalendarDays },
+  ]
+
+  const alerts = [
+    {
+      label: "Finance",
+      text: statistiques.elevesImpayes > 0
+        ? `${statistiques.elevesImpayes} élève(s) présentent une situation de paiement à vérifier.`
+        : "Aucun impayé critique signalé.",
+      href: "/ecole/finance/paiements",
+      icon: WalletCards,
+    },
+    {
+      label: "Vie scolaire",
+      text: absencesDuJourList.length > 0
+        ? `${absencesDuJourList.length} absence(s) enregistrée(s) aujourd'hui à traiter ou justifier.`
+        : "Aucune absence enregistrée aujourd'hui.",
+      href: "/ecole/absences",
+      icon: AlertTriangle,
+    },
+    {
+      label: "Inscriptions",
+      text: "Vérifiez les dossiers récents et les pièces administratives manquantes.",
+      href: "/ecole/inscriptions",
+      icon: FileWarning,
+    },
+    {
+      label: "Personnel",
+      text: "Consultez les affectations et la présence du personnel.",
+      href: "/ecole/personnel/pointage",
+      icon: Users,
+    },
+  ]
 
   return (
-    <div className="space-y-8">
-      {/* Salut */}
-      <BlurFade>
-      <section>
-        <h2 className="text-2xl font-bold text-terre tracking-tight">Bonjour, Admin</h2>
-        <p className="text-pierre mt-1">Voici ce qui se passe aujourd'hui dans votre établissement</p>
+    <div className="space-y-7">
+      <section className="border-b border-[#c5c5d3]/45 pb-5">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#515f74]">Espace établissement</p>
+            <h1 className="text-[22px] font-semibold tracking-tight text-[#131b2e]">Tableau de bord</h1>
+            <p className="mt-1 text-[13px] text-[#515f74]">Vue générale de l'établissement — année scolaire en cours</p>
+          </div>
+          <p className="text-[12px] text-[#515f74]">{dateLabel}</p>
+        </div>
       </section>
-      </BlurFade>
 
-      {/* Alertes */}
-      <BlurFade delay={0.06}>
-      <section className="grid border-y border-[#D8E0DC] sm:grid-cols-3 sm:divide-x divide-[#D8E0DC]">
-        <Link href="/ecole/absences/liste" className="flex items-center gap-3 py-4 sm:px-4 hover:bg-papier transition">
-          <div className="w-10 h-10 rounded-xl bg-red-50 text-rouge-terre flex items-center justify-center shrink-0">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          </div>
-          <div>
-            <NumberTicker value={absencesDuJourList.length} className="text-lg font-bold tabular" />
-            <p className="text-xs text-pierre">Absences du jour</p>
-          </div>
-        </Link>
-        <Link href="/ecole/payments" className="flex items-center gap-3 py-4 sm:px-4 hover:bg-papier transition">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-ambre flex items-center justify-center shrink-0">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-          </div>
-          <div>
-            <NumberTicker value={statistiques.elevesImpayes} className="text-lg font-bold tabular" />
-            <p className="text-xs text-pierre">Élèves en impayé</p>
-          </div>
-        </Link>
-        <Link href="/ecole/evenements" className="flex items-center gap-3 py-4 sm:px-4 hover:bg-papier transition">
-          <div className="w-10 h-10 rounded-xl bg-terre-soft text-terre flex items-center justify-center shrink-0">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-          </div>
-          <div>
-            <NumberTicker value={evenementsPlanifies} className="text-lg font-bold tabular" />
-            <p className="text-xs text-pierre">Événements à venir</p>
-          </div>
-        </Link>
-      </section>
-      </BlurFade>
-
-      {/* KPI */}
-      <BlurFade delay={0.12}>
       <section>
-        <h3 className="text-sm font-semibold text-pierre uppercase tracking-wide mb-3">Vue d'ensemble</h3>
-        <div className="grid grid-cols-2 border-y border-[#D8E0DC] lg:grid-cols-4 lg:divide-x divide-[#D8E0DC]">
-          <div className="py-4 pr-4">
-            <p className="text-sm text-pierre">Élèves actifs</p>
-            <NumberTicker value={statistiques.totalEleves} className="text-3xl font-bold mt-1 tabular" />
-            <p className="text-xs text-jardin mt-2">Actifs</p>
+        <div className="flex flex-wrap gap-2">
+          {actions.map((action) => (
+            <Link
+              key={action.href}
+              href={action.href}
+              className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-[#c5c5d3]/55 bg-white px-3 text-[12px] font-medium text-[#131b2e] transition-colors hover:border-[#00236f]/35 hover:bg-[#f2f3ff]"
+            >
+              <action.icon className="h-4 w-4 text-[#00236f]" strokeWidth={1.8} />
+              {action.label}
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <div className="grid border-y border-[#c5c5d3]/45 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: "Élèves actifs", value: statistiques.totalEleves, note: "Effectif actuel", icon: School },
+            { label: "Classes ouvertes", value: statistiques.classesActives, note: "Divisions pédagogiques", icon: GraduationCap },
+            { label: "Enseignants", value: statistiques.totalEnseignants, note: `${statistiques.enseignantsPresents} présents`, icon: Users },
+            { label: "Présence personnel", value: `${statistiques.tauxPresenceEnseignants.toFixed(1)}%`, note: "Service administratif & technique", icon: CheckCircle2 },
+          ].map((item, index) => (
+            <div key={item.label} className={`flex items-start gap-3 px-3 py-4 sm:px-4 ${index > 0 ? "border-t border-[#c5c5d3]/45 sm:border-l sm:border-t-0" : ""}`}>
+              <item.icon className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#00236f]" strokeWidth={1.7} />
+              <div>
+                <p className="text-[11px] font-medium text-[#515f74]">{item.label}</p>
+                <p className="mt-1 text-[22px] font-semibold tabular-nums text-[#131b2e]">{item.value}</p>
+                <p className="mt-0.5 text-[11px] text-[#515f74]">{item.note}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <div className="grid border-y border-[#c5c5d3]/45 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="px-3 py-4 sm:px-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#515f74]">Recettes du mois</p>
+            <p className="mt-2 text-[20px] font-semibold tabular-nums text-[#131b2e]">{money(statistiques.totalRecettes)}</p>
+            <p className="mt-1 text-[11px] text-[#515f74]">Encaissements de scolarité</p>
           </div>
-          <div className="py-4 pr-4 lg:pl-4">
-            <p className="text-sm text-pierre">Enseignants</p>
-            <NumberTicker value={statistiques.totalEnseignants} className="text-3xl font-bold mt-1 tabular" />
-            <p className="text-xs text-pierre mt-2">{statistiques.enseignantsPresents} présents</p>
+          <div className="border-t border-[#c5c5d3]/45 px-3 py-4 sm:border-l sm:border-t-0 sm:px-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#515f74]">Impayés cumulés</p>
+            <p className="mt-2 text-[20px] font-semibold tabular-nums text-[#ba1a1a]">{money(statistiques.elevesImpayes)}</p>
+            <Link href="/ecole/finance/paiements" className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-[#00236f]">Consulter <ArrowRight className="h-3 w-3" /></Link>
           </div>
-          <div className="py-4 pr-4 lg:pl-4">
-            <p className="text-sm text-pierre">Classes</p>
-            <NumberTicker value={statistiques.classesActives} className="text-3xl font-bold mt-1 tabular" />
-            <p className="text-xs text-pierre mt-2">Actives</p>
-          </div>
-          <div className="py-4 pr-4 lg:pl-4">
-            <p className="text-sm text-pierre">Recettes (mois)</p>
-            <p className="text-3xl font-bold mt-1 tabular"><NumberTicker value={Math.round(statistiques.totalRecettes / 100000)} /> <span className="text-base font-medium">centaines de milliers</span></p>
-            <p className="text-xs text-pierre mt-2">FCFA</p>
+          <div className="border-t border-[#c5c5d3]/45 px-3 py-4 sm:col-span-2 lg:col-span-1 sm:px-4 lg:border-l lg:border-t-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#515f74]">Absences du jour</p>
+            <p className="mt-2 text-[20px] font-semibold tabular-nums text-[#131b2e]">{absencesDuJourList.length}</p>
+            <p className="mt-1 text-[11px] text-[#515f74]">Dont les justificatifs restent à vérifier si nécessaire</p>
           </div>
         </div>
       </section>
-      </BlurFade>
 
-      {/* Actions rapides */}
-      <BlurFade delay={0.18}>
       <section>
-        <h3 className="text-sm font-semibold text-pierre uppercase tracking-wide mb-3">Actions rapides</h3>
-        <div className="grid grid-cols-2 border-y border-[#D8E0DC] sm:grid-cols-3 lg:grid-cols-6 lg:divide-x divide-[#D8E0DC]">
-          <Link href="/ecole/inscriptions" className="flex items-center gap-2 py-3 pr-3 hover:bg-papier transition">
-            <div className="w-8 h-8 rounded-md bg-terre-soft text-terre flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-            </div>
-            <p className="text-sm font-medium">Inscriptions</p>
-          </Link>
-          <Link href="/ecole/students" className="flex items-center gap-2 py-3 pr-3 lg:pl-3 hover:bg-papier transition">
-            <div className="w-8 h-8 rounded-md bg-soleil-soft text-soleil flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-            </div>
-            <p className="text-sm font-medium">Élèves</p>
-          </Link>
-          <Link href="/ecole/enseignants" className="flex items-center gap-2 py-3 pr-3 lg:pl-3 hover:bg-papier transition">
-            <div className="w-8 h-8 rounded-md bg-green-50 text-jardin flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 14l9-5-9-5-9 5 9 5z"/></svg>
-            </div>
-            <p className="text-sm font-medium">Enseignants</p>
-          </Link>
-          <Link href="/ecole/payments" className="flex items-center gap-2 py-3 pr-3 lg:pl-3 hover:bg-papier transition">
-            <div className="w-8 h-8 rounded-md bg-amber-50 text-ambre flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-            </div>
-            <p className="text-sm font-medium">Paiements</p>
-          </Link>
-          <Link href="/ecole/registre-appel" className="flex items-center gap-2 py-3 pr-3 lg:pl-3 hover:bg-papier transition">
-            <div className="w-8 h-8 rounded-md bg-terre-soft text-terre flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-            </div>
-            <p className="text-sm font-medium">Présences</p>
-          </Link>
-          <Link href="/ecole/dossiers-papier" className="flex items-center gap-2 py-3 pr-3 lg:pl-3 hover:bg-papier transition">
-            <div className="w-8 h-8 rounded-md bg-soleil-soft text-soleil flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-            </div>
-            <p className="text-sm font-medium">Dossiers</p>
-          </Link>
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-[15px] font-semibold text-[#131b2e]">Situations nécessitant une action immédiate</h2>
+            <p className="mt-0.5 text-[11px] text-[#515f74]">Contrôles opérationnels à traiter par l'administration</p>
+          </div>
+          <span className="text-[11px] font-medium text-[#515f74]">{alerts.length} points</span>
+        </div>
+        <div className="divide-y divide-[#c5c5d3]/45 border-y border-[#c5c5d3]/45 bg-white">
+          {alerts.map((alert) => (
+            <Link key={alert.label} href={alert.href} className="group flex items-center gap-3 px-3 py-3.5 sm:px-4 hover:bg-[#f2f3ff]">
+              <alert.icon className="h-[18px] w-[18px] shrink-0 text-[#00236f]" strokeWidth={1.8} />
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-semibold text-[#131b2e]">{alert.label}</p>
+                <p className="mt-0.5 text-[12px] leading-5 text-[#515f74]">{alert.text}</p>
+              </div>
+              <ArrowRight className="h-4 w-4 shrink-0 text-[#515f74] transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          ))}
         </div>
       </section>
-      </BlurFade>
 
-      <BlurFade delay={0.24}>
-      <section>
-        <h3 className="text-sm font-semibold text-pierre uppercase tracking-wide mb-3">Activité récente</h3>
-        <AnimatedList className="border-y border-[#D8E0DC]">
-          {activitesRecentes.length > 0 ? activitesRecentes.map((activite) => (
-            <div key={activite} className="flex items-center justify-between gap-4 border-b border-[#D8E0DC] py-3 last:border-b-0">
-              <span className="text-sm text-encre">{activite}</span>
-              <span className="text-xs text-pierre">Enregistré</span>
+      <section className="grid gap-7 lg:grid-cols-[1.35fr_1fr]">
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h2 className="text-[15px] font-semibold text-[#131b2e]">Activité récente du système</h2>
+              <p className="mt-0.5 text-[11px] text-[#515f74]">Dernières opérations enregistrées</p>
             </div>
-          )) : (
-            <p className="py-4 text-sm text-pierre">Aucune activité récente.</p>
-          )}
-        </AnimatedList>
+            <History className="h-4 w-4 text-[#515f74]" />
+          </div>
+          <div className="divide-y divide-[#c5c5d3]/45 border-y border-[#c5c5d3]/45 bg-white">
+            {activitesRecentes.length ? activitesRecentes.map((activity, index) => (
+              <div key={`${activity}-${index}`} className="flex items-start gap-3 px-3 py-3 sm:px-4">
+                <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#d5e3fc] text-[9px] font-semibold text-[#00236f]">{index + 1}</span>
+                <div className="min-w-0">
+                  <p className="text-[12px] font-medium text-[#131b2e]">{activity}</p>
+                  <p className="mt-0.5 text-[11px] text-[#515f74]">Enregistrement récent</p>
+                </div>
+              </div>
+            )) : (
+              <p className="px-4 py-5 text-[12px] text-[#515f74]">Aucune activité récente.</p>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h2 className="text-[15px] font-semibold text-[#131b2e]">Calendrier institutionnel</h2>
+              <p className="mt-0.5 text-[11px] text-[#515f74]">{evenementsPlanifies} événement(s) planifié(s)</p>
+            </div>
+            <Clock3 className="h-4 w-4 text-[#515f74]" />
+          </div>
+          <div className="divide-y divide-[#c5c5d3]/45 border-y border-[#c5c5d3]/45 bg-white">
+            <Link href="/ecole/evenements" className="flex items-center gap-3 px-3 py-4 sm:px-4 hover:bg-[#f2f3ff]">
+              <CalendarDays className="h-[18px] w-[18px] text-[#00236f]" strokeWidth={1.8} />
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-semibold text-[#131b2e]">Événements scolaires</p>
+                <p className="mt-0.5 text-[11px] text-[#515f74]">Ouvrir l'agenda institutionnel</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-[#515f74]" />
+            </Link>
+            <Link href="/ecole/emploi-du-temps" className="flex items-center gap-3 px-3 py-4 sm:px-4 hover:bg-[#f2f3ff]">
+              <CalendarDays className="h-[18px] w-[18px] text-[#00236f]" strokeWidth={1.8} />
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-semibold text-[#131b2e]">Emploi du temps</p>
+                <p className="mt-0.5 text-[11px] text-[#515f74]">Consulter le planning des classes et salles</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-[#515f74]" />
+            </Link>
+            <Link href="/ecole/registre-appel" className="flex items-center gap-3 px-3 py-4 sm:px-4 hover:bg-[#f2f3ff]">
+              <ReceiptText className="h-[18px] w-[18px] text-[#00236f]" strokeWidth={1.8} />
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-semibold text-[#131b2e]">Registre d'appel</p>
+                <p className="mt-0.5 text-[11px] text-[#515f74]">Suivre la vie scolaire du jour</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-[#515f74]" />
+            </Link>
+          </div>
+        </div>
       </section>
-      </BlurFade>
     </div>
   )
 }

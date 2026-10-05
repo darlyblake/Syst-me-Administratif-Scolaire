@@ -67,10 +67,10 @@ export function ParentNav() {
     if (pathname !== path && !pathname?.startsWith(path + "/")) return false
     if (query) {
       const expected = new URLSearchParams(query)
-      for (const [key, value] of expected.entries()) if (searchParams.get(key) !== value) return false
+      for (const [key, value] of expected.entries()) if (new URLSearchParams(queryString).get(key) !== value) return false
       return true
     }
-    if (path === "/parents/cahier-de-textes" && searchParams.get("tab") === "homework") return false
+    if (path === "/parents/cahier-de-textes" && new URLSearchParams(queryString).get("tab") === "homework") return false
     return true
   }
 

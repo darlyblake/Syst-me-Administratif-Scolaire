@@ -9,8 +9,8 @@ const money=(n:number)=>new Intl.NumberFormat("fr-FR").format(n)+" FCFA"
 const methods:Record<string,string>={especes:"Espèces",cheque:"Chèque",virement:"Virement",mobile:"Mobile Money",mobile_money:"Mobile Money"}
 const statusClass=(status:string)=>status==="Payée"?"text-emerald-700":status==="Partielle"?"text-amber-700":status==="En retard"?"text-red-700":"text-slate-500"
 export default function ParentPaiements(){
- const params=useSearchParams(),{loading,error,refresh,children,payments,paymentSchedules,paymentAllocations}=useParentPortal()
- const allowed=useMemo(()=>children.filter(c=>c.can_view_finance),[children]); const [childId,setChildId]=useState(params.get("eleve")||"tous")
+ const {loading,error,refresh,children,payments,paymentSchedules,paymentAllocations}=useParentPortal()
+ const allowed=useMemo(()=>children.filter(c=>c.can_view_finance),[children]); const [childId,setChildId]=useState("tous")
  const enrollmentIds=new Set(allowed.filter(c=>childId==="tous"||c.id===childId).map(c=>c.enrollment_id).filter(Boolean))
  const schedules=paymentSchedules.filter(s=>enrollmentIds.has(s.enrollment_id)),list=payments.filter(p=>enrollmentIds.has(p.enrollment_id))
  const due=schedules.reduce((s,p)=>s+p.amount_due,0),paid=schedules.reduce((s,p)=>s+p.amount_paid,0)

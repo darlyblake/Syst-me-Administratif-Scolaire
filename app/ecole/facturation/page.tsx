@@ -1,33 +1,36 @@
 "use client"
 
-import { Receipt } from "lucide-react"
+import { ReceiptText } from "lucide-react"
 
 export default function FinanceFacturationPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">Facturation</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Gérez les factures, reçus et remboursements.
-        </p>
-      </div>
-
-      <div className="rounded-xl border border-gray-200 bg-white p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 shrink-0">
-            <Receipt className="h-5 w-5 text-gray-600" />
+      <header className="border-b border-gray-200 pb-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-gray-200 bg-gray-50">
+            <ReceiptText className="h-5 w-5 text-gray-700" />
           </div>
-          <div className="flex-1">
-            <h2 className="text-sm font-semibold text-gray-900 mb-1">
-              Factures et reçus
-            </h2>
-            <p className="text-sm text-gray-500">
-              Cette section sera disponible prochainement. Elle permettra de consulter
-              et d'émettre des factures, des reçus de paiement et des avoirs.
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight text-gray-900">Facturation</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Préparation des factures, reçus et remboursements de l'établissement.
             </p>
           </div>
         </div>
-      </div>
+      </header>
+
+      <section className="border border-gray-200 bg-white">
+        <div className="border-b border-gray-200 px-4 py-3">
+          <h2 className="text-sm font-semibold text-gray-900">Factures et reçus</h2>
+          <p className="mt-1 text-xs text-gray-500">Espace de consultation et d'émission des documents financiers.</p>
+        </div>
+        <div className="px-4 py-5">
+          <p className="max-w-2xl text-sm leading-6 text-gray-600">
+            Cette fonctionnalité sera disponible prochainement. Elle permettra de consulter les
+            opérations concernées et de générer les documents justificatifs associés aux paiements.
+          </p>
+        </div>
+      </section>
     </div>
   )
 }

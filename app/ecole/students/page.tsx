@@ -142,28 +142,159 @@ export default function StudentsPage() {
   function handlePrintSchoolCard(student: DonneesEleve): void { throw new Error("Function not implemented.") }
 
   return (
-    <div className="space-y-6 min-w-0 max-w-full overflow-x-hidden">
-      {(estEnCoursDeChargement || isLoadingSupabase) && <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">Chargement des élèves...</div>}
-      {studentsError && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{studentsError}</div>}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between min-w-0">
-        <div className="min-w-0"><h1 className="text-2xl font-bold text-terre flex items-center gap-2"><Users className="h-6 w-6 shrink-0" />Gestion des Élèves</h1><p className="text-pierre text-sm break-words">{filteredStudents.length} élève{filteredStudents.length > 1 ? "s" : ""}{selectedClass !== "all" ? ` en ${selectedClass}` : ""}{selectedStatus !== "all" ? ` (${selectedStatus}s)` : ""}</p></div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
-          <Button variant="outline" onClick={handleExportCSV} className="w-full rounded-2xl sm:w-auto"><Download className="h-4 w-4 mr-2 shrink-0" />Exporter</Button>
-          <StudentImportGuideModal />
-          <Button variant="outline" asChild className="w-full rounded-2xl sm:w-auto">
-            <Link href="/ecole/students/import-etat" className="flex w-full items-center justify-center whitespace-normal sm:w-auto sm:whitespace-nowrap">
-              <Upload className="h-4 w-4 mr-2 shrink-0" />Import État
-            </Link>
-          </Button>
-          <Button asChild className="w-full bg-terre hover:bg-terre-dark rounded-2xl sm:w-auto"><Link href="/ecole/inscriptions" className="flex w-full items-center justify-center whitespace-normal sm:w-auto sm:whitespace-nowrap"><FileText className="h-4 w-4 mr-2 shrink-0" />Nouvelle inscription</Link></Button>
-          <Button variant="outline" asChild className="w-full rounded-2xl sm:w-auto"><Link href="/ecole/inscriptions" className="flex w-full items-center justify-center whitespace-normal sm:w-auto sm:whitespace-nowrap"><RotateCcw className="h-4 w-4 mr-2 shrink-0" />Réinscription</Link></Button>
+    <div className="w-full min-w-0 space-y-6">
+      {(estEnCoursDeChargement || isLoadingSupabase) && (
+        <div className="border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          Chargement des élèves...
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4"><Card className="bg-papier shadow-soft border-0"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-pierre">Élèves actifs</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-terre">{quickStats.total}</div></CardContent></Card><Card className="bg-papier shadow-soft border-0"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-pierre">Sans photo</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-soleil">{quickStats.withoutPhoto}</div></CardContent></Card><Card className="bg-papier shadow-soft border-0"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-pierre">Absents aujourd'hui</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-rouge-terre">{quickStats.absentToday}</div></CardContent></Card><Card className="bg-papier shadow-soft border-0"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-pierre">Classes</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-jardin">{Object.keys(classStats).length}</div></CardContent></Card></div>
-      <ImportExportTools onExportCSV={handleExportCSV} onExportIdentifiants={handleExportIdentifiants} onDownloadTemplate={handleDownloadTemplate} onImportCSV={handleImportCSV} />
-      <Tabs defaultValue="by-class" className="space-y-6">
-        {/* existing page content continues below unchanged in the repository */}
-      </Tabs>
+      )}
+      {studentsError && (
+        <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {studentsError}
+        </div>
+      )}
+
+      <header className="flex flex-col gap-4 border-b border-gray-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Scolarité · Élèves</p>
+          <h1 className="mt-1 text-2xl font-semibold text-gray-900">Élèves</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            {filteredStudents.length} élève{filteredStudents.length > 1 ? "s" : ""}
+            {selectedClass !== "all" ? ` · ${selectedClass}` : ""}
+            {selectedStatus !== "all" ? ` · ${selectedStatus}` : ""}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleExportCSV}>
+            <Download className="mr-2 h-4 w-4" /> Exporter
+          </Button>
+          <StudentImportGuideModal />
+          <Button variant="outline" asChild>
+            <Link href="/ecole/students/import-etat"><Upload className="mr-2 h-4 w-4" /> Import État</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/ecole/inscriptions"><UserPlus className="mr-2 h-4 w-4" /> Nouvelle inscription</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/ecole/inscriptions"><RotateCcw className="mr-2 h-4 w-4" /> Réinscription</Link>
+          </Button>
+        </div>
+      </header>
+
+      <section className="grid grid-cols-2 border-y border-gray-200 sm:grid-cols-4">
+        {[
+          ["Élèves actifs", quickStats.total],
+          ["Sans photo", quickStats.withoutPhoto],
+          ["Absents aujourd'hui", quickStats.absentToday],
+          ["Classes", Object.keys(classStats).length],
+        ].map(([label, value], index) => (
+          <div key={String(label)} className={`px-4 py-4 ${index > 0 ? "border-l border-gray-200" : ""} ${index > 1 ? "border-t sm:border-t-0" : ""}`}>
+            <p className="text-xs font-medium text-gray-500">{label}</p>
+            <p className="mt-1 text-2xl font-semibold text-gray-900">{value}</p>
+          </div>
+        ))}
+      </section>
+
+      <section className="border border-gray-200 bg-white p-4">
+        <div className="mb-4 flex flex-col gap-1">
+          <h2 className="text-sm font-semibold text-gray-900">Rechercher et filtrer</h2>
+          <p className="text-xs text-gray-500">Utilisez les filtres pour retrouver rapidement un élève.</p>
+        </div>
+        <StudentFilters
+          searchTerm={searchTerm}
+          selectedClass={selectedClass}
+          selectedStatus={selectedStatus}
+          selectedLevel={selectedLevel}
+          onSearchChange={setSearchTerm}
+          onClassChange={setSelectedClass}
+          onStatusChange={setSelectedStatus}
+          onLevelChange={setSelectedLevel}
+          classes={classes}
+          classStats={classStats}
+          levels={Object.keys(levels)}
+        />
+      </section>
+
+      <section className="border border-gray-200 bg-white">
+        <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">Liste des élèves</h2>
+            <p className="mt-0.5 text-xs text-gray-500">Les élèves sont regroupés par classe.</p>
+          </div>
+          {selectedIds.size > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={handleBulkStatusChange}>Modifier le statut</Button>
+              <Button size="sm" variant="outline" onClick={handleBulkClassChange}>Affecter à une classe</Button>
+              <Button size="sm" variant="outline" onClick={handleBulkGenerateCertificates}><FileText className="mr-2 h-4 w-4" /> Attestations</Button>
+              <Button size="sm" variant="destructive" onClick={handleBulkArchive}>Désactiver</Button>
+            </div>
+          )}
+        </div>
+
+        {paginatedStudents.length === 0 ? (
+          <div className="px-4 py-12 text-center">
+            <Users className="mx-auto h-8 w-8 text-gray-300" />
+            <p className="mt-3 text-sm font-medium text-gray-700">Aucun élève trouvé</p>
+            <p className="mt-1 text-xs text-gray-500">Modifiez les critères de recherche ou ajoutez une nouvelle inscription.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {Object.entries(
+              paginatedStudents.reduce((acc, student) => {
+                const key = student.classe || "Classe non renseignée"
+                ;(acc[key] ??= []).push(student)
+                return acc
+              }, {} as Record<string, DonneesEleve[]>)
+            ).map(([classe, classStudents]) => (
+              <ClassSection
+                key={classe}
+                classe={classe}
+                students={classStudents}
+                onViewDetails={setSelectedStudent}
+                selectedStudentIds={Array.from(selectedIds)}
+                onSelectStudent={handleSelectStudent}
+              />
+            ))}
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between gap-3 border-t border-gray-200 px-4 py-3">
+            <p className="text-xs text-gray-500">Page {currentPage} sur {totalPages}</p>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>Précédent</Button>
+              <Button size="sm" variant="outline" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>Suivant</Button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="border border-gray-200 bg-white">
+        <div className="border-b border-gray-200 px-4 py-4">
+          <h2 className="text-sm font-semibold text-gray-900">Import et export</h2>
+          <p className="mt-1 text-xs text-gray-500">Outils administratifs pour transférer ou extraire les données des élèves.</p>
+        </div>
+        <div className="flex flex-wrap gap-2 p-4">
+          <Button variant="outline" onClick={handleExportCSV}><Download className="mr-2 h-4 w-4" /> Exporter les données</Button>
+          <Button variant="outline" onClick={handleExportIdentifiants}><Download className="mr-2 h-4 w-4" /> Exporter les identifiants</Button>
+          <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2 h-4 w-4" /> Modèle d'import</Button>
+          <label className="inline-flex h-9 cursor-pointer items-center rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <Upload className="mr-2 h-4 w-4" /> Importer CSV
+            <input type="file" accept=".csv" onChange={handleImportCSV} className="sr-only" />
+          </label>
+        </div>
+      </section>
+
+      {selectedStudent && (
+        <StudentDetailsModal
+          student={selectedStudent}
+          onClose={() => setSelectedStudent(null)}
+          onDelete={handleDeleteStudent}
+          onToggleStatus={handleToggleStatus}
+          onPrintReceipt={handlePrintReceipt}
+        />
+      )}
     </div>
+  )
   )
 }

@@ -291,7 +291,6 @@ export default function MatieresPage() {
           <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button><Button onClick={() => void enregistrer()} disabled={saving || !form.gradeLevelId}>{saving ? "Enregistrement..." : editing ? "Modifier" : "Ajouter"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-      </div>
     </div>
   )
 

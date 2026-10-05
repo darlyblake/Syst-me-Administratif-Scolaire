@@ -1,8 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import Link from "next/link"
-import { ArrowLeft, Check, Clock, Save, UserCheck, X } from "lucide-react"
+import { Check, Clock, Save, UserCheck, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -385,23 +384,16 @@ export default function RegistreAppelPage() {
   return (
     <main translate="no" className="min-h-screen bg-white text-slate-900">
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
-        <div className="mb-6 flex items-center justify-between gap-3 border-b pb-5">
-          <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/ecole/tableau-bord">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Retour
-            </Link>
-          </Button>
+        <div className="mb-6 flex flex-col gap-3 border-b pb-5 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-xl font-semibold">Registre d'appel</h1>
-            <p className="text-sm text-slate-500">
-              L'appel est lié au cours prévu dans l'emploi du temps. Un enseignant ne voit que ses cours.
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Vie scolaire</div>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight">Registre d'appel</h1>
+            <p className="mt-1 max-w-2xl text-sm text-slate-500">
+              Sélectionnez une classe et un cours pour enregistrer les présences. Les enseignants voient uniquement leurs cours.
             </p>
           </div>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/ecole/registre-appel/historique">Historique des présences</Link>
-          </Button>
+          <div className="text-sm text-slate-500">
+            {academicYear?.name ?? "Année scolaire"} · {currentTime.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}
           </div>
         </div>
 
@@ -473,7 +465,7 @@ export default function RegistreAppelPage() {
                   <h2 className="font-semibold">{selectedClass?.name}</h2>
                   <p className="text-sm text-slate-500">Cours du {new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</p>
                 </div>
-                <span className="text-sm text-slate-500">{lessons.length} cours</span>
+                <span className="text-sm text-slate-500">{lessons.length} créneau{lessons.length > 1 ? "x" : ""}</span>
               </div>
 
               <div className="overflow-x-auto">
@@ -502,7 +494,8 @@ export default function RegistreAppelPage() {
 
             <div className="mb-4 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="font-semibold">Appel · {selectedLesson?.matiere}</h2>
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Saisie des présences</div>
+                <h2 className="mt-1 font-semibold">Appel · {selectedLesson?.matiere}</h2>
                 <p className="text-sm text-slate-500">
                   {selectedLesson?.heureDebut}–{selectedLesson?.heureFin}{selectedLesson?.salle ? ` · ${selectedLesson.salle}` : ""}
                   {" · "}{counts.total} élève(s)
@@ -514,6 +507,7 @@ export default function RegistreAppelPage() {
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="border px-2.5 py-1 text-slate-700">Total {counts.total}</span>
                 <span className="border px-2.5 py-1 text-green-700">Présents {counts.present}</span>
                 <span className="border px-2.5 py-1 text-red-700">Absents {counts.absent}</span>
                 <span className="border px-2.5 py-1 text-amber-700">Retards {counts.late}</span>

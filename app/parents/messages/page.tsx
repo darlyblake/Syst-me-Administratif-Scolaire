@@ -57,7 +57,7 @@ export default function ParentsMessagesPage() {
   }
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-6">
       <ParentPageHeader
         eyebrow="Communication"
         title="Messages"
@@ -70,20 +70,20 @@ export default function ParentsMessagesPage() {
           <Button variant="outline" size="sm" onClick={() => void conversations.refetch()}>Réessayer</Button>
         </div>
       ) : conversations.isLoading ? (
-        <div className="border-y border-slate-200 bg-white px-5 py-8 text-sm text-slate-500">Chargement des conversations…</div>
+        <div className="border-y border-terre/10 bg-papier px-5 py-8 text-sm text-pierre">Chargement des conversations…</div>
       ) : !conversations.data.length ? (
         <ParentEmptyState
           title="Aucune conversation"
           description="Les conversations apparaîtront ici lorsque l’établissement vous aura ajouté à un échange."
         />
       ) : (
-        <section className="grid min-h-[560px] border-y border-slate-200 bg-white lg:grid-cols-[320px_minmax(0,1fr)]">
-          <aside className="border-b border-slate-200 lg:border-b-0 lg:border-r">
-            <div className="border-b border-slate-200 px-5 py-4">
-              <h2 className="text-sm font-semibold text-slate-900">Conversations</h2>
-              <p className="mt-1 text-xs text-slate-500">{conversations.data.length} échange{conversations.data.length > 1 ? "s" : ""}</p>
+        <section className="grid min-h-[560px] border-y border-terre/10 bg-papier lg:grid-cols-[320px_minmax(0,1fr)]">
+          <aside className="border-b border-terre/10 lg:border-b-0 lg:border-r">
+            <div className="border-b border-terre/10 px-5 py-4">
+              <h2 className="text-sm font-semibold text-terre">Conversations</h2>
+              <p className="mt-1 text-xs text-pierre">{conversations.data.length} échange{conversations.data.length > 1 ? "s" : ""}</p>
             </div>
-            <div className="divide-y divide-slate-200">
+            <div className="divide-y divide-terre/10">
               {conversations.data.map((conversation) => (
                 <button
                   key={conversation.id}
@@ -91,20 +91,20 @@ export default function ParentsMessagesPage() {
                   onClick={() => setSelectedId(conversation.id)}
                   className={`w-full border-l-2 px-5 py-4 text-left transition-colors ${
                     selectedId === conversation.id
-                      ? "border-terre bg-slate-50"
-                      : "border-transparent hover:bg-slate-50"
+                      ? "border-terre bg-terre-soft/30"
+                      : "border-transparent hover:bg-creme"
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-slate-900" />
+                    <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-terre" />
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-900">{conversation.title}</p>
+                      <p className="truncate text-sm font-semibold text-terre">{conversation.title}</p>
                       {conversation.establishment_id && (
-                        <p className="mt-1 flex items-center gap-1 text-[11px] text-slate-500">
+                        <p className="mt-1 flex items-center gap-1 text-[11px] text-pierre">
                           <Building2 className="h-3 w-3" /> Établissement
                         </p>
                       )}
-                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-pierre">
                         {conversation.last_message_preview || "Aucun message."}
                       </p>
                     </div>
@@ -117,16 +117,16 @@ export default function ParentsMessagesPage() {
           <div className="flex min-h-[500px] min-w-0 flex-col">
             {selectedConversation ? (
               <>
-                <div className="border-b border-slate-200 px-5 py-4">
-                  <h2 className="text-base font-semibold text-slate-900">{selectedConversation.title}</h2>
-                  <p className="mt-1 text-xs text-slate-500">Conversation sécurisée de votre espace parent.</p>
+                <div className="border-b border-terre/10 px-5 py-4">
+                  <h2 className="text-base font-semibold text-terre">{selectedConversation.title}</h2>
+                  <p className="mt-1 text-xs text-pierre">Conversation sécurisée de votre espace parent.</p>
                 </div>
 
                 <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
                   {messages.isLoading ? (
-                    <p className="text-sm text-slate-500">Chargement des messages…</p>
+                    <p className="text-sm text-pierre">Chargement des messages…</p>
                   ) : messages.error ? (
-                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{messages.error}</div>
+                    <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{messages.error}</div>
                   ) : messages.data.length ? (
                     messages.data.map((message) => {
                       const isMine = message.sender_id === userId
@@ -134,12 +134,12 @@ export default function ParentsMessagesPage() {
                         <div key={message.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                           <div className={`max-w-[85%] border px-4 py-3 text-sm ${
                             isMine
-                              ? "border-slate-900 bg-slate-900 text-white"
-                              : "border-slate-200 bg-slate-50 text-slate-900"
+                              ? "border-terre bg-terre text-white"
+                              : "border-terre/10 bg-creme text-terre"
                           }`}>
-                            {!isMine && <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{message.sender_name || "Participant"}</p>}
+                            {!isMine && <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-pierre">{message.sender_name || "Participant"}</p>}
                             <p className="whitespace-pre-wrap break-words leading-6">{message.content}</p>
-                            <p className={`mt-2 text-[10px] ${isMine ? "text-white/70" : "text-slate-500"}`}>
+                            <p className={`mt-2 text-[10px] ${isMine ? "text-white/70" : "text-pierre"}`}>
                               {new Date(message.created_at).toLocaleString("fr-FR", {
                                 day: "2-digit",
                                 month: "2-digit",
@@ -153,11 +153,11 @@ export default function ParentsMessagesPage() {
                       )
                     })
                   ) : (
-                    <div className="flex h-full items-center justify-center text-sm text-slate-500">Aucun message dans cette conversation.</div>
+                    <div className="flex h-full items-center justify-center text-sm text-pierre">Aucun message dans cette conversation.</div>
                   )}
                 </div>
 
-                <div className="border-t border-slate-200 px-5 py-4">
+                <div className="border-t border-terre/10 px-5 py-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                     <div className="min-w-0 flex-1">
                       <Textarea
@@ -168,7 +168,7 @@ export default function ParentsMessagesPage() {
                         maxLength={4000}
                         className="min-h-[80px] resize-none"
                       />
-                      <p className="mt-1 text-right text-[11px] text-slate-500">{draft.length}/4000</p>
+                      <p className="mt-1 text-right text-[11px] text-pierre">{draft.length}/4000</p>
                     </div>
                     <Button onClick={() => void handleSend()} disabled={isSending || !draft.trim()}>
                       <Send className="mr-2 h-4 w-4" />
@@ -180,9 +180,9 @@ export default function ParentsMessagesPage() {
             ) : (
               <div className="flex flex-1 items-center justify-center px-5 py-10 text-center">
                 <div>
-                  <MessageSquare className="mx-auto h-8 w-8 text-slate-900/40" />
-                  <p className="mt-3 font-medium text-slate-900">Sélectionnez une conversation</p>
-                  <p className="mt-1 text-sm text-slate-500">Choisissez un échange dans la liste.</p>
+                  <MessageSquare className="mx-auto h-8 w-8 text-terre/40" />
+                  <p className="mt-3 font-medium text-terre">Sélectionnez une conversation</p>
+                  <p className="mt-1 text-sm text-pierre">Choisissez un échange dans la liste.</p>
                 </div>
               </div>
             )}

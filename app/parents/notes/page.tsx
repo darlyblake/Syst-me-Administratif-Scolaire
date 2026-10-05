@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react"
 import { Download, TrendingUp } from "lucide-react"
-import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useParentPortal } from "@/hooks/use-parent-portal"
 import { ParentPageHeader } from "@/components/parent/ParentPageHeader"

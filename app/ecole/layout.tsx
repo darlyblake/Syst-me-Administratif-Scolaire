@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { Bell, ChevronDown, Menu, UserCircle } from "lucide-react"
 import type React from "react"
 import Sidebar from "@/components/Sidebar"
 import { PermissionRoute } from "@/components/auth/PermissionRoute"
@@ -23,7 +24,7 @@ export default function EcoleLayout({ children }: Readonly<{ children: React.Rea
                   aria-label={isSidebarOpen ? "Fermer le menu" : "Ouvrir le menu"}
                   className="flex h-8 w-8 items-center justify-center rounded text-[#444651] hover:bg-[#f2f3ff] lg:hidden"
                 >
-                  <span className="text-xl leading-none">{isSidebarOpen ? "×" : "☰"}</span>
+                  <Menu className="h-4 w-4" strokeWidth={1.8} />
                 </button>
                 <div className="flex min-w-0 items-center gap-2 text-[12px]">
                   <span className="font-semibold text-[#00236f]">Espace Établissement</span>
@@ -44,19 +45,19 @@ export default function EcoleLayout({ children }: Readonly<{ children: React.Rea
                   aria-label="Notifications"
                   className="relative flex h-8 w-8 items-center justify-center rounded text-[#444651] hover:bg-[#f2f3ff]"
                 >
-                  <span className="text-[18px]">♧</span>
+                  <Bell className="h-[18px] w-[18px]" strokeWidth={1.8} />
                   <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[#ba1a1a]" />
                 </button>
 
                 <div className="hidden items-center gap-2 border-l border-[#c5c5d3]/50 pl-3 sm:flex">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#00236f] text-white">
-                    <span className="text-[15px]">♙</span>
+                    <UserCircle className="h-[17px] w-[17px]" strokeWidth={1.8} />
                   </div>
                   <div className="leading-tight">
                     <p className="text-[12px] font-semibold text-[#131b2e]">Administration</p>
                     <p className="text-[11px] text-[#515f74]">Direction Générale</p>
                   </div>
-                  <span className="ml-1 text-[13px] text-[#444651]">⌄</span>
+                  <ChevronDown className="ml-1 h-3.5 w-3.5 text-[#444651]" strokeWidth={1.8} />
                 </div>
               </div>
             </div>

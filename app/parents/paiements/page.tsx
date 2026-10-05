@@ -1,6 +1,5 @@
 "use client"
 import { useMemo, useState } from "react"
-import { useSearchParams } from "next/navigation"
 import { Receipt } from "lucide-react"
 import { useParentPortal } from "@/hooks/use-parent-portal"
 import { ParentPageHeader } from "@/components/parent/ParentPageHeader"

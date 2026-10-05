@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import {
   AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, ClipboardCheck,
   Clock3, CreditCard, FileWarning, GraduationCap, History, Plus,
-  ReceiptText, School, UserPlus, Users, WalletCards
+  ReceiptText, School, UserPlus, Users
 } from "lucide-react"
 import { serviceStatistiques } from "@/services/statistiques.service"
 import { serviceEvenements } from "@/services/evenements.service"
@@ -31,19 +31,14 @@ export default function PageTableauBord() {
     enseignantsPresents: 0,
     tauxPresenceEnseignants: 0,
   })
-  const [evenementsPlanifies, setEvenementsPlanifies] = useState(0)
-  const [activitesRecentes, setActivitesRecentes] = useState<string[]>([])
+  const [evenements, setEvenements] = useState<any[]>([])
 
   useEffect(() => {
     setStatistiques(serviceStatistiques.calculerStatistiquesTableauBord())
-    const events = serviceEvenements.obtenirTousLesEvenements()
-    setEvenementsPlanifies(serviceEvenements.obtenirEvenementsParStatut("planifie").length)
-    setActivitesRecentes(
-      events
-        .sort((a, b) => new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime())
-        .slice(0, 5)
-        .map((event) => event.titre)
-    )
+    const events = serviceEvenements
+      .obtenirTousLesEvenements()
+      .sort((a, b) => new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime())
+    setEvenements(events.slice(0, 6))
   }, [])
 
   const dateLabel = useMemo(
@@ -52,192 +47,189 @@ export default function PageTableauBord() {
   )
 
   const actions = [
-    { href: "/ecole/inscriptions", label: "Nouvelle inscription", icon: UserPlus },
+    { href: "/ecole/inscriptions", label: "Nouvelle inscription", icon: UserPlus, primary: true },
     { href: "/ecole/finance/paiements", label: "Enregistrer un paiement", icon: CreditCard },
     { href: "/ecole/students", label: "Ajouter un élève", icon: Plus },
     { href: "/ecole/registre-appel", label: "Registre d'appel du jour", icon: ClipboardCheck },
     { href: "/ecole/evenements", label: "Ajouter un événement", icon: CalendarDays },
   ]
 
-  const alerts = [
+  const situations = [
     {
       label: "Finance",
+      tone: "finance",
       text: statistiques.elevesImpayes > 0
-        ? `${statistiques.elevesImpayes} élève(s) présentent une situation de paiement à vérifier.`
-        : "Aucun impayé critique signalé.",
+        ? `${statistiques.elevesImpayes} dossier(s) présentent un impayé à contrôler`
+        : "Aucun dossier impayé signalé.",
       href: "/ecole/finance/paiements",
-      icon: WalletCards,
+      action: "Consulter la liste",
     },
     {
       label: "Vie scolaire",
-      text: absencesDuJourList.length > 0
-        ? `${absencesDuJourList.length} absence(s) enregistrée(s) aujourd'hui à traiter ou justifier.`
+      tone: "school",
+      text: absencesDuJourList.length
+        ? `${absencesDuJourList.length} absence(s) enregistrée(s) aujourd'hui à traiter ou justifier`
         : "Aucune absence enregistrée aujourd'hui.",
       href: "/ecole/absences",
-      icon: AlertTriangle,
+      action: "Traiter les absences",
     },
     {
       label: "Inscriptions",
-      text: "Vérifiez les dossiers récents et les pièces administratives manquantes.",
+      tone: "registration",
+      text: "Vérifier les dossiers d'inscription et les pièces administratives.",
       href: "/ecole/inscriptions",
-      icon: FileWarning,
+      action: "Examiner",
     },
     {
       label: "Personnel",
-      text: "Consultez les affectations et la présence du personnel.",
-      href: "/ecole/personnel/pointage",
-      icon: Users,
+      tone: "staff",
+      text: "Contrôler les affectations et les besoins de remplacement.",
+      href: "/ecole/personnel",
+      action: "Gérer l'affectation",
     },
   ]
 
-  return (
-    <div className="space-y-7">
-      <section className="border-b border-[#c5c5d3]/45 pb-5">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#515f74]">Espace établissement</p>
-            <h1 className="text-[22px] font-semibold tracking-tight text-[#131b2e]">Tableau de bord</h1>
-            <p className="mt-1 text-[13px] text-[#515f74]">Vue générale de l'établissement — année scolaire en cours</p>
-          </div>
-          <p className="text-[12px] text-[#515f74]">{dateLabel}</p>
-        </div>
-      </section>
+  const metrics = [
+    { label: "Élèves actifs", value: statistiques.totalEleves.toLocaleString("fr-FR"), note: "Effectif actuel", icon: School },
+    { label: "Classes ouvertes", value: statistiques.classesActives.toLocaleString("fr-FR"), note: "Divisions pédagogiques", icon: GraduationCap },
+    { label: "Enseignants", value: statistiques.totalEnseignants.toLocaleString("fr-FR"), note: `${statistiques.enseignantsPresents} présents`, icon: Users },
+    { label: "Présence personnel", value: `${statistiques.tauxPresenceEnseignants.toFixed(1)}%`, note: "Service administratif & technique", icon: CheckCircle2 },
+    { label: "Recettes du mois", value: money(statistiques.totalRecettes), note: "Encaissements scolarité", icon: CreditCard },
+    { label: "Impayés cumulés", value: statistiques.elevesImpayes.toLocaleString("fr-FR"), note: "Dossiers débiteurs", icon: AlertTriangle, danger: true },
+    { label: "Absences du jour", value: absencesDuJourList.length.toLocaleString("fr-FR"), note: "Présences à contrôler", icon: CalendarDays },
+    { label: "Inscriptions en attente", value: "—", note: "Dossiers à instruire", icon: ClipboardCheck },
+  ]
 
-      <section>
-        <div className="flex flex-wrap gap-2">
+  return (
+    <div className="w-full">
+      <section className="flex flex-col gap-3 border-b border-[#c5c5d3]/45 pb-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h1 className="text-[24px] font-semibold leading-8 tracking-tight text-[#00236f]">Tableau de bord</h1>
+          <p className="mt-0.5 text-[13px] text-[#515f74]">
+            Vue générale de l'établissement — Année scolaire en cours
+          </p>
+        </div>
+
+        <div className="flex max-w-3xl flex-wrap gap-1.5">
           {actions.map((action) => (
             <Link
               key={action.href}
               href={action.href}
-              className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-[#c5c5d3]/55 bg-white px-3 text-[12px] font-medium text-[#131b2e] transition-colors hover:border-[#00236f]/35 hover:bg-[#f2f3ff]"
+              className={[
+                "inline-flex h-8 items-center gap-1.5 rounded border px-3 text-[12px] font-medium transition-colors",
+                action.primary
+                  ? "border-[#00236f] bg-[#1e3a8a] text-white hover:bg-[#00236f]"
+                  : "border-[#c5c5d3]/70 bg-white text-[#131b2e] hover:bg-[#f2f3ff]",
+              ].join(" ")}
             >
-              <action.icon className="h-4 w-4 text-[#00236f]" strokeWidth={1.8} />
-              {action.label}
+              <action.icon className="h-4 w-4" strokeWidth={1.7} />
+              <span>{action.label}</span>
             </Link>
           ))}
         </div>
       </section>
 
-      <section>
-        <div className="grid border-y border-[#c5c5d3]/45 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { label: "Élèves actifs", value: statistiques.totalEleves, note: "Effectif actuel", icon: School },
-            { label: "Classes ouvertes", value: statistiques.classesActives, note: "Divisions pédagogiques", icon: GraduationCap },
-            { label: "Enseignants", value: statistiques.totalEnseignants, note: `${statistiques.enseignantsPresents} présents`, icon: Users },
-            { label: "Présence personnel", value: `${statistiques.tauxPresenceEnseignants.toFixed(1)}%`, note: "Service administratif & technique", icon: CheckCircle2 },
-          ].map((item, index) => (
-            <div key={item.label} className={`flex items-start gap-3 px-3 py-4 sm:px-4 ${index > 0 ? "border-t border-[#c5c5d3]/45 sm:border-l sm:border-t-0" : ""}`}>
-              <item.icon className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#00236f]" strokeWidth={1.7} />
-              <div>
-                <p className="text-[11px] font-medium text-[#515f74]">{item.label}</p>
-                <p className="mt-1 text-[22px] font-semibold tabular-nums text-[#131b2e]">{item.value}</p>
-                <p className="mt-0.5 text-[11px] text-[#515f74]">{item.note}</p>
-              </div>
+      <section className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {metrics.map((metric) => (
+          <div key={metric.label} className="min-h-[88px] rounded border border-[#c5c5d3]/55 bg-white p-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#515f74]">{metric.label}</span>
+              <metric.icon className={`h-[17px] w-[17px] ${metric.danger ? "text-[#ba1a1a]" : "text-[#515f74]"}`} strokeWidth={1.7} />
+            </div>
+            <p className={`mt-1.5 text-[21px] font-semibold leading-6 tabular-nums ${metric.danger ? "text-[#ba1a1a]" : "text-[#131b2e]"}`}>{metric.value}</p>
+            <p className={`mt-0.5 text-[11px] ${metric.danger ? "text-[#ba1a1a]" : "text-[#515f74]"}`}>{metric.note}</p>
+          </div>
+        ))}
+      </section>
+
+      <section className="mt-4 overflow-hidden rounded border border-[#c5c5d3]/55 bg-white">
+        <div className="flex items-center justify-between border-b border-[#c5c5d3]/55 bg-[#f2f3ff] px-3 py-2">
+          <h2 className="flex items-center gap-2 text-[15px] font-semibold text-[#131b2e]">
+            <AlertTriangle className="h-[17px] w-[17px] text-[#ba1a1a]" strokeWidth={1.8} />
+            Situations nécessitant une action immédiate
+          </h2>
+          <span className="rounded bg-[#ffdad6] px-2 py-1 text-[10px] font-semibold text-[#93000a]">{situations.length} urgences opérationnelles</span>
+        </div>
+
+        <div className="divide-y divide-[#c5c5d3]/45">
+          {situations.map((item) => (
+            <div key={item.label} className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center">
+              <span className={[
+                "w-fit rounded px-2 py-1 text-[10px] font-semibold",
+                item.tone === "finance" ? "bg-[#ffdad6] text-[#93000a]" :
+                item.tone === "school" ? "bg-[#d5e3fc] text-[#264191]" :
+                item.tone === "registration" ? "bg-[#dce1ff] text-[#264191]" :
+                "bg-[#89f5e7] text-[#00312c]"
+              ].join(" ")}>{item.label}</span>
+              <p className="min-w-0 flex-1 text-[12px] text-[#131b2e]">{item.text}</p>
+              <Link href={item.href} className="inline-flex shrink-0 items-center gap-1 rounded border border-[#c5c5d3]/65 px-2.5 py-1.5 text-[11px] font-medium text-[#00236f] hover:bg-[#f2f3ff]">
+                {item.action}<ArrowRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
           ))}
         </div>
       </section>
 
-      <section>
-        <div className="grid border-y border-[#c5c5d3]/45 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="px-3 py-4 sm:px-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#515f74]">Recettes du mois</p>
-            <p className="mt-2 text-[20px] font-semibold tabular-nums text-[#131b2e]">{money(statistiques.totalRecettes)}</p>
-            <p className="mt-1 text-[11px] text-[#515f74]">Encaissements de scolarité</p>
+      <section className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <div className="overflow-hidden rounded border border-[#c5c5d3]/55 bg-white">
+          <div className="flex items-center justify-between border-b border-[#c5c5d3]/55 bg-[#f2f3ff] px-3 py-2">
+            <h2 className="flex items-center gap-2 text-[15px] font-semibold text-[#131b2e]">
+              <History className="h-[17px] w-[17px] text-[#515f74]" strokeWidth={1.8} />
+              Activité récente du système
+            </h2>
+            <span className="text-[11px] text-[#515f74]">{dateLabel}</span>
           </div>
-          <div className="border-t border-[#c5c5d3]/45 px-3 py-4 sm:border-l sm:border-t-0 sm:px-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#515f74]">Impayés cumulés</p>
-            <p className="mt-2 text-[20px] font-semibold tabular-nums text-[#ba1a1a]">{money(statistiques.elevesImpayes)}</p>
-            <Link href="/ecole/finance/paiements" className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-[#00236f]">Consulter <ArrowRight className="h-3 w-3" /></Link>
-          </div>
-          <div className="border-t border-[#c5c5d3]/45 px-3 py-4 sm:col-span-2 lg:col-span-1 sm:px-4 lg:border-l lg:border-t-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#515f74]">Absences du jour</p>
-            <p className="mt-2 text-[20px] font-semibold tabular-nums text-[#131b2e]">{absencesDuJourList.length}</p>
-            <p className="mt-1 text-[11px] text-[#515f74]">Dont les justificatifs restent à vérifier si nécessaire</p>
-          </div>
-        </div>
-      </section>
 
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <h2 className="text-[15px] font-semibold text-[#131b2e]">Situations nécessitant une action immédiate</h2>
-            <p className="mt-0.5 text-[11px] text-[#515f74]">Contrôles opérationnels à traiter par l'administration</p>
-          </div>
-          <span className="text-[11px] font-medium text-[#515f74]">{alerts.length} points</span>
-        </div>
-        <div className="divide-y divide-[#c5c5d3]/45 border-y border-[#c5c5d3]/45 bg-white">
-          {alerts.map((alert) => (
-            <Link key={alert.label} href={alert.href} className="group flex items-center gap-3 px-3 py-3.5 sm:px-4 hover:bg-[#f2f3ff]">
-              <alert.icon className="h-[18px] w-[18px] shrink-0 text-[#00236f]" strokeWidth={1.8} />
-              <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold text-[#131b2e]">{alert.label}</p>
-                <p className="mt-0.5 text-[12px] leading-5 text-[#515f74]">{alert.text}</p>
-              </div>
-              <ArrowRight className="h-4 w-4 shrink-0 text-[#515f74] transition-transform group-hover:translate-x-0.5" />
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="grid gap-7 lg:grid-cols-[1.35fr_1fr]">
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <h2 className="text-[15px] font-semibold text-[#131b2e]">Activité récente du système</h2>
-              <p className="mt-0.5 text-[11px] text-[#515f74]">Dernières opérations enregistrées</p>
-            </div>
-            <History className="h-4 w-4 text-[#515f74]" />
-          </div>
-          <div className="divide-y divide-[#c5c5d3]/45 border-y border-[#c5c5d3]/45 bg-white">
-            {activitesRecentes.length ? activitesRecentes.map((activity, index) => (
-              <div key={`${activity}-${index}`} className="flex items-start gap-3 px-3 py-3 sm:px-4">
-                <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#d5e3fc] text-[9px] font-semibold text-[#00236f]">{index + 1}</span>
+          <div className="divide-y divide-[#c5c5d3]/45">
+            {evenements.length ? evenements.map((event, index) => (
+              <div key={event.id ?? index} className="flex items-start gap-3 px-3 py-2.5">
+                <span className="mt-0.5 w-10 shrink-0 font-mono text-[11px] text-[#515f74]">{String(index + 1).padStart(2, "0")}</span>
                 <div className="min-w-0">
-                  <p className="text-[12px] font-medium text-[#131b2e]">{activity}</p>
-                  <p className="mt-0.5 text-[11px] text-[#515f74]">Enregistrement récent</p>
+                  <p className="text-[12px] font-semibold text-[#131b2e]">{event.titre}</p>
+                  <p className="mt-0.5 text-[11px] leading-4 text-[#515f74]">{event.description ?? "Opération enregistrée dans l'établissement."}</p>
                 </div>
               </div>
             )) : (
-              <p className="px-4 py-5 text-[12px] text-[#515f74]">Aucune activité récente.</p>
+              <div className="px-3 py-5 text-[12px] text-[#515f74]">Aucune activité récente.</div>
             )}
           </div>
+
+          <Link href="/ecole/evenements" className="flex items-center justify-center gap-1 border-t border-[#c5c5d3]/55 px-3 py-2 text-[11px] font-medium text-[#00236f] hover:bg-[#f2f3ff]">
+            Consulter le journal d'activité complet <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
 
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <h2 className="text-[15px] font-semibold text-[#131b2e]">Calendrier institutionnel</h2>
-              <p className="mt-0.5 text-[11px] text-[#515f74]">{evenementsPlanifies} événement(s) planifié(s)</p>
-            </div>
-            <Clock3 className="h-4 w-4 text-[#515f74]" />
+        <div className="overflow-hidden rounded border border-[#c5c5d3]/55 bg-white">
+          <div className="flex items-center justify-between border-b border-[#c5c5d3]/55 bg-[#f2f3ff] px-3 py-2">
+            <h2 className="flex items-center gap-2 text-[15px] font-semibold text-[#131b2e]">
+              <CalendarDays className="h-[17px] w-[17px] text-[#515f74]" strokeWidth={1.8} />
+              Calendrier institutionnel
+            </h2>
+            <span className="text-[11px] text-[#515f74]">{evenements.length ? `${evenements.length} événement(s)` : "Aucun événement"}</span>
           </div>
-          <div className="divide-y divide-[#c5c5d3]/45 border-y border-[#c5c5d3]/45 bg-white">
-            <Link href="/ecole/evenements" className="flex items-center gap-3 px-3 py-4 sm:px-4 hover:bg-[#f2f3ff]">
-              <CalendarDays className="h-[18px] w-[18px] text-[#00236f]" strokeWidth={1.8} />
-              <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold text-[#131b2e]">Événements scolaires</p>
-                <p className="mt-0.5 text-[11px] text-[#515f74]">Ouvrir l'agenda institutionnel</p>
-              </div>
-              <ArrowRight className="h-4 w-4 text-[#515f74]" />
-            </Link>
-            <Link href="/ecole/emploi-du-temps" className="flex items-center gap-3 px-3 py-4 sm:px-4 hover:bg-[#f2f3ff]">
-              <CalendarDays className="h-[18px] w-[18px] text-[#00236f]" strokeWidth={1.8} />
-              <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold text-[#131b2e]">Emploi du temps</p>
-                <p className="mt-0.5 text-[11px] text-[#515f74]">Consulter le planning des classes et salles</p>
-              </div>
-              <ArrowRight className="h-4 w-4 text-[#515f74]" />
-            </Link>
-            <Link href="/ecole/registre-appel" className="flex items-center gap-3 px-3 py-4 sm:px-4 hover:bg-[#f2f3ff]">
-              <ReceiptText className="h-[18px] w-[18px] text-[#00236f]" strokeWidth={1.8} />
-              <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold text-[#131b2e]">Registre d'appel</p>
-                <p className="mt-0.5 text-[11px] text-[#515f74]">Suivre la vie scolaire du jour</p>
-              </div>
-              <ArrowRight className="h-4 w-4 text-[#515f74]" />
-            </Link>
+
+          <div className="divide-y divide-[#c5c5d3]/45">
+            {evenements.slice(0, 3).map((event, index) => {
+              const date = event.date ? new Date(event.date) : null
+              return (
+                <div key={event.id ?? index} className="flex gap-3 px-3 py-3">
+                  <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded border border-[#c5c5d3]/60 bg-[#f2f3ff]">
+                    <span className="text-[9px] font-semibold uppercase text-[#515f74]">{date ? date.toLocaleDateString("fr-FR", { month: "short" }).replace(".", "") : "—"}</span>
+                    <span className="text-[16px] font-semibold text-[#00236f]">{date ? date.getDate() : "—"}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-semibold text-[#131b2e]">{event.titre}</p>
+                    <p className="mt-0.5 text-[11px] leading-4 text-[#515f74]">{event.description ?? "Événement institutionnel"}</p>
+                  </div>
+                </div>
+              )
+            })}
+            {!evenements.length && <div className="px-3 py-5 text-[12px] text-[#515f74]">Aucun événement institutionnel planifié.</div>}
           </div>
+
+          <Link href="/ecole/evenements" className="flex items-center justify-center gap-1 border-t border-[#c5c5d3]/55 px-3 py-2 text-[11px] font-medium text-[#00236f] hover:bg-[#f2f3ff]">
+            Ouvrir l'agenda académique complet <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
       </section>
     </div>

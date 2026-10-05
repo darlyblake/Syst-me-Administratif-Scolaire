@@ -76,7 +76,7 @@ export function ParentNav() {
 
   const badge = (key?: "notifs" | "msgs") => key === "notifs" ? unreadNotifications : key === "msgs" ? unreadMessages : 0
 
-  const NavItem = ({ href, label, Icon, count = 0, close = false }: { href: string; label: string; Icon: typeof LayoutDashboard; count?: number; close?: boolean }) => (
+  const NavItem = ({ href, label, icon: Icon, count = 0, close = false }: { href: string; label: string; icon: typeof LayoutDashboard; count?: number; close?: boolean }) => (
     <Link
       href={href}
       onClick={() => close && setOpen(false)}

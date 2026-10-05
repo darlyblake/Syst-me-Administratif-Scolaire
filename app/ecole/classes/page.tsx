@@ -252,13 +252,20 @@ export default function ClassesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Onglets */}
-      <div className="flex gap-2 border-b pb-4">
+    <div className="w-full min-w-0">
+      <header className="flex flex-col gap-3 border-b border-[#c5c5d3]/45 pb-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h1 className="text-[23px] font-semibold leading-7 text-[#131b2e]">Classes</h1>
+          <p className="mt-0.5 text-[12px] text-[#515f74]">Organisation des divisions, effectifs et répartition des élèves</p>
+        </div>
+        <Button onClick={() => setShowAddModal(true)} className="h-8 rounded bg-[#1e3a8a] px-3 text-[11px] hover:bg-[#00236f]"><Plus className="mr-1.5 h-3.5 w-3.5" /> Nouvelle classe</Button>
+      </header>
+
+      <div className="mt-3 flex flex-wrap items-center gap-0 border-b border-[#c5c5d3]/60">
         <button
           onClick={() => setActiveTab("liste")}
           className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-            activeTab === "liste" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+            activeTab === "liste" ? "border-[#00236f] text-[#00236f]" : "border-transparent text-[#515f74] hover:text-[#131b2e]"
           }`}
         >
           Liste des classes
@@ -266,7 +273,7 @@ export default function ClassesPage() {
         <button
           onClick={() => setActiveTab("repartition")}
           className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-            activeTab === "repartition" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+            activeTab === "repartition" ? "border-[#00236f] text-[#00236f]" : "border-transparent text-[#515f74] hover:text-[#131b2e]"
           }`}
         >
           Répartition
@@ -274,7 +281,7 @@ export default function ClassesPage() {
         <button
           onClick={() => setActiveTab("parametres")}
           className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-            activeTab === "parametres" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+            activeTab === "parametres" ? "border-[#00236f] text-[#00236f]" : "border-transparent text-[#515f74] hover:text-[#131b2e]"
           }`}
         >
           Paramètres
@@ -287,18 +294,13 @@ export default function ClassesPage() {
         </div>
       )}
 
-      <div className="rounded-xl border bg-card shadow-sm">
-        <Accordion type="single" collapsible>
-          <AccordionItem value="structure" className="border-b-0">
-            <AccordionTrigger className="px-4 py-3 hover:no-underline">
-              <h2 className="text-base font-semibold">Structure académique (Référence)</h2>
-            </AccordionTrigger>
-            <AccordionContent className="px-4 pb-4 pt-0">
-              <AcademicStructureTree data={academicStructure} isLoading={isAcademicLoading} error={academicError} />
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      </div>
+      <section className="mt-3 border border-[#c5c5d3]/60 bg-white">
+        <div className="flex items-center justify-between border-b border-[#c5c5d3]/55 bg-[#f2f3ff] px-3 py-2">
+          <div><h2 className="text-[13px] font-semibold text-[#131b2e]">Structure académique</h2><p className="text-[10px] text-[#515f74]">Référence utilisée pour les niveaux et les classes</p></div>
+          <span className="text-[10px] text-[#515f74]">Structure active</span>
+        </div>
+        <div className="p-3"><AcademicStructureTree data={academicStructure} isLoading={isAcademicLoading} error={academicError} /></div>
+      </section>
 
       {/* Onglet Liste */}
       {activeTab === "liste" && (
@@ -306,8 +308,7 @@ export default function ClassesPage() {
 
 
           {/* Filtres et recherche */}
-          <Card className="shadow-sm">
-            <CardContent className="pt-6">
+          <section className="mt-3 border border-[#c5c5d3]/60 bg-white p-2">
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -343,11 +344,10 @@ export default function ClassesPage() {
                   Nouvelle classe
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+          </section>
 
           {/* Liste des classes */}
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="mt-2 overflow-hidden border border-[#c5c5d3]/60 bg-white">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -392,16 +392,11 @@ export default function ClassesPage() {
           </div>
 
           {filteredClasses.length === 0 && (
-            <Card className="shadow-sm">
-              <CardContent className="py-12 text-center">
-                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Aucune classe trouvée.</p>
-                <Button onClick={() => setShowAddModal(true)} className="mt-4">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Ajouter une classe
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="mt-2 border border-[#c5c5d3]/60 bg-white px-4 py-10 text-center">
+              <Users className="mx-auto mb-3 h-8 w-8 text-[#515f74]" />
+              <p className="text-[12px] text-[#515f74]">Aucune classe trouvée.</p>
+              <Button onClick={() => setShowAddModal(true)} className="mt-3 h-8 rounded text-[11px]"><Plus className="mr-1.5 h-3.5 w-3.5" /> Ajouter une classe</Button>
+            </div>
           )}
         </>
       )}

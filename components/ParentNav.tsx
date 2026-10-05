@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { usePathname, useSearchParams } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { LayoutDashboard, Users, GraduationCap, CalendarDays, BookOpen, FileText, Bell, MessageSquare, UserRound, Menu, X, LogOut, ClipboardList, ChevronRight } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -31,11 +31,15 @@ const secondaire = [
 
 export function ParentNav() {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const [queryString, setQueryString] = useState("")
   const { utilisateur, deconnecter } = useAuthentification()
   const [open, setOpen] = useState(false)
   const [unreadNotifications, setUnreadNotifications] = useState(0)
   const [unreadMessages, setUnreadMessages] = useState(0)
+
+  useEffect(() => {
+    setQueryString(typeof window !== "undefined" ? window.location.search : "")
+  }, [pathname])
 
   useEffect(() => {
     let mounted = true

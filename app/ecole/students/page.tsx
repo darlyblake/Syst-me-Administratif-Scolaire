@@ -142,157 +142,228 @@ export default function StudentsPage() {
   function handlePrintSchoolCard(student: DonneesEleve): void { throw new Error("Function not implemented.") }
 
   return (
-    <div className="w-full min-w-0 space-y-6">
+    <div className="w-full min-w-0">
       {(estEnCoursDeChargement || isLoadingSupabase) && (
-        <div className="border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Chargement des élèves...
-        </div>
+        <div className="mb-3 border border-[#c5c5d3]/55 bg-white px-3 py-2 text-[12px] text-[#515f74]">Chargement des élèves...</div>
       )}
       {studentsError && (
-        <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {studentsError}
-        </div>
+        <div className="mb-3 border border-[#ffdad6] bg-[#ffefed] px-3 py-2 text-[12px] text-[#93000a]">{studentsError}</div>
       )}
 
-      <header className="flex flex-col gap-4 border-b border-gray-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
+      <header className="flex flex-col gap-3 border-b border-[#c5c5d3]/45 pb-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Scolarité · Élèves</p>
-          <h1 className="mt-1 text-2xl font-semibold text-gray-900">Élèves</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {filteredStudents.length} élève{filteredStudents.length > 1 ? "s" : ""}
-            {selectedClass !== "all" ? ` · ${selectedClass}` : ""}
-            {selectedStatus !== "all" ? ` · ${selectedStatus}` : ""}
-          </p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-[23px] font-semibold leading-7 tracking-tight text-[#131b2e]">Élèves</h1>
+            <span className="rounded bg-[#dce1ff] px-2 py-1 font-mono text-[12px] font-medium text-[#00236f]">{total.toLocaleString("fr-FR")} effectif total</span>
+          </div>
+          <p className="mt-0.5 text-[12px] text-[#515f74]">Gestion administrative et académique des effectifs scolaires</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={handleExportCSV}>
-            <Download className="mr-2 h-4 w-4" /> Exporter
+
+        <div className="flex flex-wrap justify-start gap-1.5 md:justify-end">
+          <Button variant="outline" className="h-8 rounded px-2.5 text-[11px]" onClick={handleBulkClassChange} disabled={selectedIds.size === 0}>
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Réinscription groupée
           </Button>
           <StudentImportGuideModal />
-          <Button variant="outline" asChild>
-            <Link href="/ecole/students/import-etat"><Upload className="mr-2 h-4 w-4" /> Import État</Link>
+          <Button variant="outline" className="h-8 rounded px-2.5 text-[11px]" onClick={handleExportCSV}>
+            <Download className="mr-1.5 h-3.5 w-3.5" /> Exporter (.xlsx)
           </Button>
-          <Button asChild>
-            <Link href="/ecole/inscriptions"><UserPlus className="mr-2 h-4 w-4" /> Nouvelle inscription</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/ecole/inscriptions"><RotateCcw className="mr-2 h-4 w-4" /> Réinscription</Link>
+          <Button asChild className="h-8 rounded bg-[#1e3a8a] px-3 text-[11px] hover:bg-[#00236f]">
+            <Link href="/ecole/inscriptions"><UserPlus className="mr-1.5 h-3.5 w-3.5" /> Nouvel élève</Link>
           </Button>
         </div>
       </header>
 
-      <section className="grid grid-cols-2 border-y border-gray-200 sm:grid-cols-4">
-        {[
-          ["Élèves actifs", quickStats.total],
-          ["Sans photo", quickStats.withoutPhoto],
-          ["Absents aujourd'hui", quickStats.absentToday],
-          ["Classes", Object.keys(classStats).length],
-        ].map(([label, value], index) => (
-          <div key={String(label)} className={`px-4 py-4 ${index > 0 ? "border-l border-gray-200" : ""} ${index > 1 ? "border-t sm:border-t-0" : ""}`}>
-            <p className="text-xs font-medium text-gray-500">{label}</p>
-            <p className="mt-1 text-2xl font-semibold text-gray-900">{value}</p>
-          </div>
-        ))}
-      </section>
+      <section className="mt-3 border border-[#c5c5d3]/60 bg-white p-2">
+        <div className="grid gap-1.5 lg:grid-cols-[1.7fr_.7fr_.8fr_.8fr]">
+          <label className="relative block">
+            <span className="sr-only">Rechercher</span>
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Rechercher par nom, matricule, tuteur..."
+              className="h-9 w-full border border-[#c5c5d3]/70 bg-white pl-9 pr-3 text-[12px] text-[#131b2e] outline-none focus:border-[#00236f]"
+            />
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#515f74]">⌕</span>
+          </label>
 
-      <section className="border border-gray-200 bg-white p-4">
-        <div className="mb-4 flex flex-col gap-1">
-          <h2 className="text-sm font-semibold text-gray-900">Rechercher et filtrer</h2>
-          <p className="text-xs text-gray-500">Utilisez les filtres pour retrouver rapidement un élève.</p>
-        </div>
-        <StudentFilters
-          searchTerm={searchTerm}
-          selectedClass={selectedClass}
-          selectedStatus={selectedStatus}
-          selectedLevel={selectedLevel}
-          onSearchChange={setSearchTerm}
-          onClassChange={setSelectedClass}
-          onStatusChange={setSelectedStatus}
-          onLevelChange={setSelectedLevel}
-          classes={classes}
-          classStats={classStats}
-          levels={Object.keys(levels)}
-        />
-      </section>
+          <select value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)} className="h-9 border border-[#c5c5d3]/70 bg-white px-2 text-[12px] text-[#131b2e]">
+            <option value="all">Tous les niveaux</option>
+            {Object.keys(levels).map((level) => <option key={level} value={level}>{level.charAt(0).toUpperCase() + level.slice(1)}</option>)}
+          </select>
 
-      <section className="border border-gray-200 bg-white">
-        <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-900">Liste des élèves</h2>
-            <p className="mt-0.5 text-xs text-gray-500">Les élèves sont regroupés par classe.</p>
-          </div>
-          {selectedIds.size > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={handleBulkStatusChange}>Modifier le statut</Button>
-              <Button size="sm" variant="outline" onClick={handleBulkClassChange}>Affecter à une classe</Button>
-              <Button size="sm" variant="outline" onClick={handleBulkGenerateCertificates}><FileText className="mr-2 h-4 w-4" /> Attestations</Button>
-              <Button size="sm" variant="destructive" onClick={handleBulkArchive}>Désactiver</Button>
-            </div>
-          )}
+          <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} className="h-9 border border-[#c5c5d3]/70 bg-white px-2 text-[12px] text-[#131b2e]">
+            <option value="all">Toutes les classes</option>
+            {classes.map((classe) => <option key={classe} value={classe}>{classe} ({classStats[classe] || 0})</option>)}
+          </select>
+
+          <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className="h-9 border border-[#c5c5d3]/70 bg-white px-2 text-[12px] text-[#131b2e]">
+            <option value="all">Inscrit / Actif</option>
+            <option value="actif">Actifs</option>
+            <option value="inactif">Inactifs</option>
+          </select>
         </div>
 
-        {paginatedStudents.length === 0 ? (
-          <div className="px-4 py-12 text-center">
-            <Users className="mx-auto h-8 w-8 text-gray-300" />
-            <p className="mt-3 text-sm font-medium text-gray-700">Aucun élève trouvé</p>
-            <p className="mt-1 text-xs text-gray-500">Modifiez les critères de recherche ou ajoutez une nouvelle inscription.</p>
+        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <Button type="button" variant="outline" className="h-8 rounded text-[11px]" onClick={() => setShowAdvancedFilters((value) => !value)}>
+              <Wrench className="mr-1.5 h-3.5 w-3.5" /> Filtres avancés
+            </Button>
+            {showAdvancedFilters && (
+              <>
+                <input value={filterAgeMin} onChange={(e) => setFilterAgeMin(e.target.value)} placeholder="Âge min" inputMode="numeric" className="h-8 w-20 border border-[#c5c5d3]/70 px-2 text-[11px]" />
+                <input value={filterAgeMax} onChange={(e) => setFilterAgeMax(e.target.value)} placeholder="Âge max" inputMode="numeric" className="h-8 w-20 border border-[#c5c5d3]/70 px-2 text-[11px]" />
+              </>
+            )}
           </div>
-        ) : (
-          <div className="divide-y divide-gray-200">
-            {Object.entries(
-              paginatedStudents.reduce((acc, student) => {
-                const key = student.classe || "Classe non renseignée"
-                ;(acc[key] ??= []).push(student)
-                return acc
-              }, {} as Record<string, DonneesEleve[]>)
-            ).map(([classe, classStudents]) => (
-              <ClassSection
-                key={classe}
-                classe={classe}
-                students={classStudents}
-                onViewDetails={setSelectedStudent}
-                selectedStudentIds={Array.from(selectedIds)}
-                onSelectStudent={handleSelectStudent}
-              />
-            ))}
-          </div>
-        )}
+          <span className="font-mono text-[11px] text-[#515f74]">{filteredStudents.length.toLocaleString("fr-FR")} résultats&nbsp; ↻</span>
+        </div>
+      </section>
 
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between gap-3 border-t border-gray-200 px-4 py-3">
-            <p className="text-xs text-gray-500">Page {currentPage} sur {totalPages}</p>
-            <div className="flex gap-2">
+      <section className="mt-2 grid min-w-0 gap-2 xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,.95fr)]">
+        <div className="min-w-0 overflow-hidden border border-[#c5c5d3]/60 bg-white">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] border-collapse">
+              <thead>
+                <tr className="border-b border-[#c5c5d3]/60 bg-[#f2f3ff]">
+                  <th className="w-10 px-2 py-2 text-left"><input type="checkbox" aria-label="Sélectionner les élèves visibles" onChange={(e) => setSelectedIds(e.target.checked ? new Set(paginatedStudents.map((s) => s.id)) : new Set())} /></th>
+                  <th className="px-2 py-2 text-left">Matricule</th>
+                  <th className="px-2 py-2 text-left">Élève</th>
+                  <th className="px-2 py-2 text-left">Sexe / âge</th>
+                  <th className="px-2 py-2 text-left">Classe</th>
+                  <th className="px-2 py-2 text-left">Contact</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedStudents.length === 0 ? (
+                  <tr><td colSpan={6} className="px-4 py-12 text-center text-[12px] text-[#515f74]">Aucun élève trouvé.</td></tr>
+                ) : paginatedStudents.map((student) => {
+                  const className = assignmentClasses.find((item) => item.id === student.id || item.id === (student as any).class_id)?.name || student.classe || "—"
+                  const birth = student.dateNaissance ? new Date(student.dateNaissance) : null
+                  const age = birth && !Number.isNaN(birth.getTime()) ? Math.max(0, new Date().getFullYear() - birth.getFullYear()) : null
+                  const initials = ((student.prenom?.[0] || "") + (student.nom?.[0] || "")).toUpperCase() || "—"
+                  const selected = selectedStudent?.id === student.id
+                  return (
+                    <tr
+                      key={student.id}
+                      onClick={() => setSelectedStudent(student)}
+                      className={["cursor-pointer border-b border-[#c5c5d3]/45 last:border-b-0 hover:bg-[#f7f8ff]", selected ? "bg-[#eef2ff]" : ""].join(" ")}
+                    >
+                      <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" checked={selectedIds.has(student.id)} onChange={(e) => handleSelectStudent(student.id, e.target.checked)} aria-label={`Sélectionner ${student.nom} ${student.prenom}`} />
+                      </td>
+                      <td className="px-2 py-2 font-mono text-[11px] text-[#264191]">{student.identifiant || "—"}</td>
+                      <td className="px-2 py-2">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#d5e3fc] text-[10px] font-semibold text-[#264191]">{initials}</span>
+                          <div className="min-w-0">
+                            <p className="truncate text-[12px] font-semibold text-[#131b2e]">{student.nom} {student.prenom}</p>
+                            <p className="truncate text-[10px] text-[#515f74]">Régime non renseigné</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 text-[11px] text-[#303746]">{student.sexe || "—"} {age !== null ? `- ${age} ans` : ""}<div className="text-[10px] text-[#515f74]">{birth ? birth.toLocaleDateString("fr-FR") : "—"}</div></td>
+                      <td className="px-2 py-2"><span className="rounded bg-[#dce1ff] px-2 py-1 text-[10px] text-[#264191]">{className}</span></td>
+                      <td className="px-2 py-2 text-[11px] text-[#303746]">{student.informationsContact.telephone || student.informationsContact.email || "—"}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-[#c5c5d3]/60 px-3 py-2.5 text-[11px] text-[#515f74] sm:flex-row sm:items-center sm:justify-between">
+            <span>Affichage <strong className="text-[#131b2e]">{paginatedStudents.length ? startIndex + 1 : 0} à {Math.min(endIndex, filteredStudents.length)}</strong> sur <strong className="text-[#131b2e]">{total.toLocaleString("fr-FR")}</strong> élèves</span>
+            <div className="flex items-center gap-1.5">
+              <span>Lignes :</span>
+              <span className="rounded border border-[#c5c5d3]/60 px-2 py-1">50</span>
               <Button size="sm" variant="outline" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>Précédent</Button>
+              <span className="rounded bg-[#1e3a8a] px-2.5 py-1.5 font-medium text-white">{currentPage}</span>
               <Button size="sm" variant="outline" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>Suivant</Button>
             </div>
           </div>
-        )}
+        </div>
+
+        <aside className="min-w-0 overflow-hidden border border-[#c5c5d3]/60 bg-white">
+          {selectedStudent ? (
+            <>
+              <div className="flex items-start justify-between border-b border-[#c5c5d3]/60 bg-[#f2f3ff] px-3 py-2.5">
+                <div className="flex items-start gap-2">
+                  <div className="flex h-10 w-10 items-center justify-center bg-[#1e3a8a] text-[12px] font-semibold text-white">
+                    {((selectedStudent.prenom?.[0] || "") + (selectedStudent.nom?.[0] || "")).toUpperCase() || "—"}
+                  </div>
+                  <div>
+                    <h2 className="text-[16px] font-semibold text-[#131b2e]">{selectedStudent.nom} {selectedStudent.prenom}</h2>
+                    <p className="font-mono text-[11px] text-[#264191]">{selectedStudent.identifiant || "Matricule non renseigné"} <span className="text-[#515f74]">|</span> {assignmentClasses.find((item) => item.id === (selectedStudent as any).class_id)?.name || selectedStudent.classe || "Classe non renseignée"}</p>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setSelectedStudent(null)} className="text-[18px] text-[#515f74] hover:text-[#131b2e]" aria-label="Fermer">×</button>
+              </div>
+
+              <div className="flex border-b border-[#c5c5d3]/60 bg-white text-[11px]">
+                {["Identité", "Scolarité", "Finances", "Absences/Notes", "Documents"].map((tab, index) => (
+                  <span key={tab} className={["px-2.5 py-2", index === 0 ? "border-b-2 border-[#00236f] font-semibold text-[#00236f]" : "text-[#515f74]"].join(" ")}>{tab}</span>
+                ))}
+              </div>
+
+              <div className="space-y-3 p-3">
+                <div>
+                  <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#515f74]">État civil & régime</h3>
+                  <div className="grid grid-cols-2 gap-1 border border-[#c5c5d3]/50 bg-[#f2f3ff] p-2.5 text-[11px]">
+                    <div><span className="text-[#515f74]">Date de naissance :</span><div className="font-medium">{selectedStudent.dateNaissance ? new Date(selectedStudent.dateNaissance).toLocaleDateString("fr-FR") : "Non renseignée"}</div></div>
+                    <div><span className="text-[#515f74]">Lieu :</span><div className="font-medium">{selectedStudent.lieuNaissance || "Non renseigné"}</div></div>
+                    <div><span className="text-[#515f74]">Sexe :</span><div className="font-medium">{selectedStudent.sexe || "Non renseigné"}</div></div>
+                    <div><span className="text-[#515f74]">Statut :</span><div className="font-medium text-[#00236f]">{selectedStudent.statut}</div></div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#515f74]">Responsable légal principal</h3>
+                  <div className="border border-[#c5c5d3]/50 bg-[#f2f3ff] p-2.5 text-[11px]">
+                    <p className="font-semibold text-[#131b2e]">{selectedStudent.nomParent || "Responsable non renseigné"}</p>
+                    <p className="mt-1 text-[#515f74]">{selectedStudent.informationsContact.telephone || "Téléphone non renseigné"}</p>
+                    <p className="text-[#515f74]">{selectedStudent.informationsContact.email || "Email non renseigné"}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#515f74]">Indicateurs de suivi</h3>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <div className="border border-[#c5c5d3]/50 p-2"><p className="text-[10px] text-[#515f74]">Solde scolarité</p><p className="mt-1 text-[14px] font-semibold text-[#131b2e]">—</p><p className="text-[10px] text-[#515f74]">Données financières disponibles selon le dossier</p></div>
+                    <div className="border border-[#c5c5d3]/50 p-2"><p className="text-[10px] text-[#515f74]">Assiduité</p><p className="mt-1 text-[14px] font-semibold text-[#131b2e]">—</p><p className="text-[10px] text-[#515f74]">Voir Absences</p></div>
+                    <div className="border border-[#c5c5d3]/50 p-2"><p className="text-[10px] text-[#515f74]">Moy. trimestre</p><p className="mt-1 text-[14px] font-semibold text-[#131b2e]">—</p><p className="text-[10px] text-[#515f74]">Voir Évaluations / Notes</p></div>
+                    <div className="border border-[#c5c5d3]/50 p-2"><p className="text-[10px] text-[#515f74]">Dossier</p><p className="mt-1 text-[14px] font-semibold text-[#131b2e]">—</p><p className="text-[10px] text-[#515f74]">Pièces à consulter</p></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap justify-end gap-2 border-t border-[#c5c5d3]/60 bg-[#f2f3ff] p-2.5">
+                <Button variant="outline" size="sm" className="h-8 rounded text-[11px]" onClick={() => handleToggleStatus(selectedStudent)}>{selectedStudent.statut === "actif" ? "Désactiver" : "Activer"}</Button>
+                <Button variant="outline" size="sm" className="h-8 rounded text-[11px]" onClick={() => handlePrintSchoolCertificate(selectedStudent)}><FileText className="mr-1.5 h-3.5 w-3.5" /> Certificat</Button>
+                <Button size="sm" className="h-8 rounded bg-[#1e3a8a] text-[11px] hover:bg-[#00236f]" onClick={() => router.push(`/ecole/students/${selectedStudent.id}`)}>Dossier</Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex min-h-[420px] items-center justify-center px-6 text-center">
+              <div>
+                <Users className="mx-auto h-8 w-8 text-[#515f74]" strokeWidth={1.5} />
+                <p className="mt-2 text-[13px] font-semibold text-[#131b2e]">Sélectionnez un élève</p>
+                <p className="mt-1 text-[11px] leading-5 text-[#515f74]">Le dossier administratif s'affichera ici.</p>
+              </div>
+            </div>
+          )}
+        </aside>
       </section>
 
-      <section className="border border-gray-200 bg-white">
-        <div className="border-b border-gray-200 px-4 py-4">
-          <h2 className="text-sm font-semibold text-gray-900">Import et export</h2>
-          <p className="mt-1 text-xs text-gray-500">Outils administratifs pour transférer ou extraire les données des élèves.</p>
+      {selectedIds.size > 0 && (
+        <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 border border-[#c5c5d3] bg-white px-3 py-2 shadow-[0_3px_12px_rgba(19,27,46,.10)]">
+          <span className="text-[11px] font-medium text-[#131b2e]">{selectedIds.size} élève(s) sélectionné(s)</span>
+          <div className="flex flex-wrap gap-1.5">
+            <Button size="sm" variant="outline" onClick={handleBulkStatusChange}>Modifier le statut</Button>
+            <Button size="sm" variant="outline" onClick={handleBulkClassChange}>Affecter à une classe</Button>
+            <Button size="sm" variant="outline" onClick={handleBulkGenerateCertificates}><FileText className="mr-1.5 h-3.5 w-3.5" /> Attestations</Button>
+            <Button size="sm" variant="destructive" onClick={handleBulkArchive}>Désactiver</Button>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2 p-4">
-          <Button variant="outline" onClick={handleExportCSV}><Download className="mr-2 h-4 w-4" /> Exporter les données</Button>
-          <Button variant="outline" onClick={handleExportIdentifiants}><Download className="mr-2 h-4 w-4" /> Exporter les identifiants</Button>
-          <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2 h-4 w-4" /> Modèle d'import</Button>
-          <label className="inline-flex h-9 cursor-pointer items-center rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
-            <Upload className="mr-2 h-4 w-4" /> Importer CSV
-            <input type="file" accept=".csv" onChange={handleImportCSV} className="sr-only" />
-          </label>
-        </div>
-      </section>
-
-      {selectedStudent && (
-        <StudentDetailsModal
-          student={selectedStudent}
-          onClose={() => setSelectedStudent(null)}
-          onDelete={handleDeleteStudent}
-          onToggleStatus={handleToggleStatus}
-          onPrintReceipt={handlePrintReceipt}
-        />
       )}
     </div>
   )

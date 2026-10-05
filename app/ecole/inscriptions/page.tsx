@@ -110,7 +110,7 @@ export default function InscriptionsPage() {
     s === "actif" ? "Actif" : s === "transfere" ? "Transféré" : "Inactif"
 
   return (
-    <div className="space-y-8">
+    <div className="w-full min-w-0">
       {(estEnCoursDeChargement || isLoading) && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
           Chargement des inscriptions...
@@ -122,78 +122,36 @@ export default function InscriptionsPage() {
         </div>
       )}
       {/* Actions */}
-      <section>
-        <h2 className="text-lg font-semibold mb-4">Actions rapides</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <button type="button" onClick={openInscription} className="text-left">
-            <div className="action-card-eco h-full flex items-start gap-3 border-y border-[#D8E0DC] py-4 hover:bg-papier transition">
-              <div className="w-8 h-8 rounded-md bg-terre-soft text-terre flex items-center justify-center shrink-0">
-                <UserPlus className="h-4 w-4" strokeWidth={1.8} />
-              </div>
-              <div>
-                <h3 className="font-semibold">Nouvelle inscription</h3>
-                <p className="text-sm text-pierre mt-1">Inscrire un nouvel élève (paiement cash)</p>
-              </div>
-            </div>
-          </button>
-          <button type="button" onClick={openReinscription} className="text-left">
-            <div className="action-card-eco h-full flex items-start gap-3 border-y border-[#D8E0DC] py-4 hover:bg-papier transition">
-              <div className="w-8 h-8 rounded-md bg-soleil-soft text-soleil flex items-center justify-center shrink-0">
-                <RefreshCw className="h-4 w-4" strokeWidth={1.8} />
-              </div>
-              <div>
-                <h3 className="font-semibold">Réinscription</h3>
-                <p className="text-sm text-pierre mt-1">Renouveler pour la nouvelle année</p>
-              </div>
-            </div>
-          </button>
-          <ActionCard
-            href="/ecole/inscriptions/transfert"
-            title="Transfert"
-            description="Envoyer ou recevoir un élève"
-            icon={ArrowRightLeft}
-            color="ambre"
-          />
-          <ActionCard
-            href="/ecole/inscriptions/statistiques"
-            title="Rapports"
-            description="Statistiques d'inscription"
-            icon={BarChart3}
-            color="jardin"
-          />
-        </div>
-      </section>
-
-      {/* KPI */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Élèves actifs" value={kpis.total} icon={UserPlus} color="terre" />
-        <KPICard title="Nouvelles inscriptions" value={kpis.nouvelles} icon={UserPlus} color="jardin" />
-        <KPICard title="Réinscriptions" value={kpis.reinscriptions} icon={RefreshCw} color="soleil" />
+      <section className="mt-3">      {/* KPI */}
+      <section className="mt-3 grid grid-cols-2 border border-[#c5c5d3]/60 bg-white lg:grid-cols-4">
+        <div className="border-r border-b border-[#c5c5d3]/45 p-3 last:border-r-0"><KPICard title="Élèves actifs" value={kpis.total} icon={UserPlus} color="terre" />
+        <div className="border-r border-b border-[#c5c5d3]/45 p-3 last:border-r-0"><KPICard title="Nouvelles inscriptions" value={kpis.nouvelles} icon={UserPlus} color="jardin" />
+        <div className="border-r border-b border-[#c5c5d3]/45 p-3 last:border-r-0"><KPICard title="Réinscriptions" value={kpis.reinscriptions} icon={RefreshCw} color="soleil" />
         <KPICard
           title="Transferts en attente"
           value={kpis.transferts}
           icon={ArrowRightLeft}
           color="ambre"
           trend={kpis.transferts > 0 ? { value: String(kpis.transferts), positive: false } : undefined}
-        />
+        /></div>
       </section>
 
       {/* Tableau */}
-      <section className="border-y border-[#D8E0DC] overflow-hidden">
-        <div className="p-5 border-b border-terre/8 flex flex-col sm:flex-row gap-3">
+      <section className="mt-3 overflow-hidden border border-[#c5c5d3]/60 bg-white">
+        <div className="border-b border-[#c5c5d3]/55 bg-[#f2f3ff] p-2 flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-pierre" />
               <Input
                 placeholder="Rechercher (nom, prénom, matricule…)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 rounded-md border-[#C8D3CD] bg-transparent"
+              className="h-9 pl-9 rounded border-[#c5c5d3]/70 bg-white text-[12px]"
             />
           </div>
           <select
             value={filterClasse}
             onChange={(e) => setFilterClasse(e.target.value)}
-            className="px-3 py-2 rounded-md border border-[#C8D3CD] bg-transparent text-sm"
+            className="h-9 px-3 rounded border border-[#c5c5d3]/70 bg-white text-[12px]"
           >
             <option value="">Toutes les classes</option>
             {classes.map(([id, name]) => (
@@ -215,19 +173,19 @@ export default function InscriptionsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-pierre border-b border-terre/8">
-                <th className="px-5 py-3.5 font-medium">Élève</th>
-                <th className="px-5 py-3.5 font-medium">Classe</th>
-                <th className="px-5 py-3.5 font-medium">Type</th>
-                <th className="px-5 py-3.5 font-medium">Date</th>
-                <th className="px-5 py-3.5 font-medium">Statut</th>
+              <tr className="text-left border-b border-[#c5c5d3]/60 bg-[#f2f3ff]">
+                <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-[.04em] text-[#515f74]">Élève</th>
+                <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-[.04em] text-[#515f74]">Classe</th>
+                <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-[.04em] text-[#515f74]">Type</th>
+                <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-[.04em] text-[#515f74]">Date</th>
+                <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-[.04em] text-[#515f74]">Statut</th>
                 <th className="px-5 py-3.5 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-terre/6">
               {filtered.map((e: DonneesEleve) => (
                 <tr key={e.id} className="hover:bg-soleil-soft/40 transition">
-                  <td className="px-5 py-4">
+                  <td className="px-3 py-2">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-terre-soft text-terre font-semibold text-sm flex items-center justify-center">
                         {(e.prenom?.[0] || "") + (e.nom?.[0] || "")}
@@ -238,23 +196,23 @@ export default function InscriptionsPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-4 text-pierre">{e.classe}</td>
-                  <td className="px-5 py-4">
+                  <td className="px-3 py-2 text-pierre">{e.classe}</td>
+                  <td className="px-3 py-2">
                     <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeType(e.typeInscription)}`}>
                       {e.typeInscription === "inscription" ? "Nouvelle" : "Réinscription"}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-pierre">
+                  <td className="px-3 py-2 text-pierre">
                     {e.dateInscription
                       ? new Date(e.dateInscription).toLocaleDateString("fr-FR")
                       : "—"}
                   </td>
-                  <td className="px-5 py-4">
+                  <td className="px-3 py-2">
                     <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeStatut(e.statut)}`}>
                       {labelStatut(e.statut)}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-right">
+                  <td className="px-3 py-2 text-right">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -273,7 +231,7 @@ export default function InscriptionsPage() {
         {filtered.length === 0 && (
           <div className="text-center py-14 text-pierre">
             <p className="mb-3">Aucune inscription trouvée</p>
-            <Button onClick={openInscription} className="bg-terre hover:bg-terre-dark rounded-2xl">
+            <Button onClick={openInscription} className="rounded bg-[#1e3a8a] hover:bg-[#00236f]">
               <UserPlus className="h-4 w-4 mr-2" />
               Nouvelle inscription
             </Button>

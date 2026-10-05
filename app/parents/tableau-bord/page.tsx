@@ -62,7 +62,7 @@ export default function ParentsDashboard() {
                   <div key={child.id} className="px-5 py-5 transition-colors hover:bg-slate-50/70">
                     <div className="grid gap-5 lg:grid-cols-[minmax(240px,1.5fr)_repeat(2,minmax(120px,.6fr))_auto] lg:items-center">
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-700">{child.first_name[0]}{child.last_name[0]}</div>
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-700">{child.first_name?.[0] ?? ""}{child.last_name?.[0] ?? ""}</div>
                         <div className="min-w-0"><p className="truncate font-semibold text-slate-950">{child.first_name} {child.last_name}</p><p className="mt-0.5 text-sm text-slate-500">{child.class_name ?? "Classe non attribuée"}</p></div>
                       </div>
                       {child.can_view_academic ? <><DataValue label="Moyenne" value={average === null ? "—" : `${average.toFixed(1)}/20`} /><DataValue label="Absences / retards" value={String(issues ?? 0)} /></> : <><DataValue label="Suivi scolaire" value="Limité" /><DataValue label="Accès" value="Restreint" /></>}

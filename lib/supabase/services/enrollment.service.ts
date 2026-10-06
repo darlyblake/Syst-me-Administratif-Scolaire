@@ -84,7 +84,7 @@ export async function createStudentEnrollmentWithSchedule(data: {
     p_pay_options: data.payOptions ?? false,
   })
 
-  if (error) throw new Error("Impossible d'enregistrer l'inscription.")
+  if (error) throw new Error(error.message || "Impossible d'enregistrer l'inscription.")
   return result as StudentEnrollmentResult
 }
 

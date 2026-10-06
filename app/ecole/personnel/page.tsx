@@ -154,8 +154,6 @@ export default function PersonnelPage() {
               </div>
             </header>
 
-            </div>
-
             {/* Statistiques inline */}
             <p className="border-b border-[#c5c5d3]/45 py-2 text-[12px] text-[#515f74]">
               Total{" "}

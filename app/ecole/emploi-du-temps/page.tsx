@@ -274,13 +274,13 @@ export default function EmploiDuTempsPage() {
   }
 
   if (loading) {
-    return <main className="min-h-screen p-4 md:p-6"><div className="mx-auto max-w-7xl animate-pulse rounded-xl border bg-card p-8 text-muted-foreground">Chargement de l'emploi du temps…</div></main>
+    return <main className="min-h-screen p-4 md:p-6"><div className="mx-auto max-w-7xl animate-pulse rounded border bg-card p-8 text-[#515f74]">Chargement de l'emploi du temps…</div></main>
   }
 
   return (
     <main className="w-full min-w-0 bg-white p-3 sm:p-4 md:p-5">
       <div className="w-full space-y-4">
-        <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <header className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
             <Button variant="outline" size="icon" asChild className="shrink-0">
               <Link href="/ecole/tableau-bord" aria-label="Retour au tableau de bord"><ArrowLeft className="h-4 w-4" /></Link>
@@ -328,46 +328,46 @@ export default function EmploiDuTempsPage() {
         </Card>
 
         {!selectedClassId || !selectedYearId ? (
-          <Card><CardContent className="p-10 text-center text-muted-foreground">Sélectionnez une année et une classe pour commencer.</CardContent></Card>
+          <Card><CardContent className="p-10 text-center text-[#515f74]">Sélectionnez une année et une classe pour commencer.</CardContent></Card>
         ) : loadingGrid ? (
-          <Card><CardContent className="p-10 text-center text-muted-foreground">Chargement des affectations et des cours…</CardContent></Card>
+          <Card><CardContent className="p-10 text-center text-[#515f74]">Chargement des affectations et des cours…</CardContent></Card>
         ) : (
           <Card className="overflow-hidden">
-            <div className="border-b bg-muted/40 px-4 py-3">
+            <div className="border-b bg-[#f2f3ff]/40 px-4 py-3">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <div><h2 className="font-semibold">Planning de {selectedClass?.nom}</h2><p className="text-xs text-muted-foreground">Cliquez sur une cellule vide pour créer un cours. Cliquez sur un cours pour le modifier.</p></div>
-                <div className="text-xs text-muted-foreground">{assignments.length} affectation(s) disponible(s)</div>
+                <div><h2 className="font-semibold">Planning de {selectedClass?.nom}</h2><p className="text-xs text-[#515f74]">Cliquez sur une cellule vide pour créer un cours. Cliquez sur un cours pour le modifier.</p></div>
+                <div className="text-xs text-[#515f74]">{assignments.length} affectation(s) disponible(s)</div>
               </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1050px] border-collapse text-sm">
                 <thead>
                   <tr>
-                    <th className="sticky left-0 z-20 w-28 border-b border-r bg-muted/70 p-3 text-left font-semibold">Horaire</th>
-                    {JOURS.map(day => <th key={day.value} className="border-b border-r bg-muted/70 p-3 text-center font-semibold">{day.label}</th>)}
+                    <th className="sticky left-0 z-20 w-28 border-b border-r bg-[#f2f3ff]/70 p-3 text-left font-semibold">Horaire</th>
+                    {JOURS.map(day => <th key={day.value} className="border-b border-r bg-[#f2f3ff]/70 p-3 text-center font-semibold">{day.label}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {timeRows.length === 0 ? (
-                    <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">Aucune plage horaire. Utilisez « Ajouter une plage horaire » pour définir vos horaires.</td></tr>
+                    <tr><td colSpan={7} className="p-12 text-center text-[#515f74]">Aucune plage horaire. Utilisez « Ajouter une plage horaire » pour définir vos horaires.</td></tr>
                   ) : timeRows.map(row => (
                     <tr key={rowKey(row)} className="h-28">
-                      <td className="sticky left-0 z-10 border-b border-r bg-background p-3 align-top font-medium">
-                        <div className="flex items-center justify-between gap-1"><span>{row.startsAt}</span><span className="text-muted-foreground">–</span><span>{row.endsAt}</span></div>
-                        {!slots.some(slot => slot.starts_at === row.startsAt && slot.ends_at === row.endsAt) && <button className="mt-3 text-xs text-muted-foreground hover:text-foreground" onClick={() => handleRemoveTimeRow(row)}>Supprimer la ligne</button>}
+                      <td className="sticky left-0 z-10 border-b border-r bg-white p-3 align-top font-medium">
+                        <div className="flex items-center justify-between gap-1"><span>{row.startsAt}</span><span className="text-[#515f74]">–</span><span>{row.endsAt}</span></div>
+                        {!slots.some(slot => slot.starts_at === row.startsAt && slot.ends_at === row.endsAt) && <button className="mt-3 text-xs text-[#515f74] hover:text-foreground" onClick={() => handleRemoveTimeRow(row)}>Supprimer la ligne</button>}
                       </td>
                       {JOURS.map(day => {
                         const slot = slotByCell.get(`${day.value}-${row.startsAt}-${row.endsAt}`)
                         return (
                           <td key={day.value} className="border-b border-r p-1 align-top">
                             {slot ? (
-                              <button onClick={() => openEditSlot(slot)} className="group h-full min-h-24 w-full rounded-md border border-[#c5c5d3]/60 bg-white p-3 text-left shadow-none transition hover:-translate-y-px hover:shadow-md">
+                              <button onClick={() => openEditSlot(slot)} className="group h-full min-h-24 w-full rounded border border-[#c5c5d3]/60 bg-white p-3 text-left shadow-none transition hover:-translate-y-px hover:shadow-none">
                                 <div className="font-semibold leading-tight">{slot.subject_name}</div>
-                                <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><UserRound className="h-3.5 w-3.5" />{slot.teacher_name}</div>
-                                {slot.room && <div className="mt-1 text-xs text-muted-foreground">Salle · {slot.room}</div>}
+                                <div className="mt-2 flex items-center gap-1 text-xs text-[#515f74]"><UserRound className="h-3.5 w-3.5" />{slot.teacher_name}</div>
+                                {slot.room && <div className="mt-1 text-xs text-[#515f74]">Salle · {slot.room}</div>}
                               </button>
                             ) : (
-                              <button onClick={() => openNewSlot(day.value, row)} className="flex min-h-24 w-full items-center justify-center rounded-md border border-dashed bg-muted/10 text-muted-foreground transition hover:border-foreground/30 hover:bg-[#f7f8fc]">
+                              <button onClick={() => openNewSlot(day.value, row)} className="flex min-h-24 w-full items-center justify-center rounded border border-dashed bg-[#f2f3ff]/10 text-[#515f74] transition hover:border-foreground/30 hover:bg-[#f7f8fc]">
                                 <Plus className="h-5 w-5" />
                                 <span className="sr-only">Ajouter un cours le {day.label}</span>
                               </button>
@@ -386,9 +386,9 @@ export default function EmploiDuTempsPage() {
 
       {newTimeOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={() => setNewTimeOpen(false)}>
-          <div className="w-full max-w-md rounded-xl bg-background p-6 shadow-2xl" onMouseDown={event => event.stopPropagation()}>
-            <div className="mb-5 flex items-center justify-between"><div><h3 className="font-semibold">Nouvelle plage horaire</h3><p className="text-sm text-muted-foreground">Définissez vous-même les heures de la grille.</p></div><Button variant="ghost" size="icon" onClick={() => setNewTimeOpen(false)}><X className="h-4 w-4" /></Button></div>
-            <div className="grid gap-4 sm:grid-cols-2">
+          <div className="w-full max-w-md rounded bg-white p-6 shadow-none" onMouseDown={event => event.stopPropagation()}>
+            <div className="mb-5 flex items-center justify-between"><div><h3 className="font-semibold">Nouvelle plage horaire</h3><p className="text-sm text-[#515f74]">Définissez vous-même les heures de la grille.</p></div><Button variant="ghost" size="icon" onClick={() => setNewTimeOpen(false)}><X className="h-4 w-4" /></Button></div>
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2"><Label>Début *</Label><Input type="time" value={newStartsAt} onChange={e => setNewStartsAt(e.target.value)} /></div>
               <div className="space-y-2"><Label>Fin *</Label><Input type="time" value={newEndsAt} onChange={e => setNewEndsAt(e.target.value)} /></div>
             </div>
@@ -399,13 +399,13 @@ export default function EmploiDuTempsPage() {
 
       {editor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={closeEditor}>
-          <div className="w-full max-w-lg rounded-xl bg-background p-6 shadow-2xl" onMouseDown={event => event.stopPropagation()}>
-            <div className="mb-5 flex items-start justify-between gap-3"><div><h3 className="font-semibold">{editor.slot ? "Modifier le cours" : "Ajouter un cours"}</h3><p className="text-sm text-muted-foreground">{JOURS.find(day => day.value === editor.dayOfWeek)?.label} · {editor.startsAt} – {editor.endsAt}</p></div><Button variant="ghost" size="icon" onClick={closeEditor}><X className="h-4 w-4" /></Button></div>
+          <div className="w-full max-w-lg rounded bg-white p-6 shadow-none" onMouseDown={event => event.stopPropagation()}>
+            <div className="mb-5 flex items-start justify-between gap-3"><div><h3 className="font-semibold">{editor.slot ? "Modifier le cours" : "Ajouter un cours"}</h3><p className="text-sm text-[#515f74]">{JOURS.find(day => day.value === editor.dayOfWeek)?.label} · {editor.startsAt} – {editor.endsAt}</p></div><Button variant="ghost" size="icon" onClick={closeEditor}><X className="h-4 w-4" /></Button></div>
 
             <div className="space-y-4">
               <div className="space-y-2"><Label>Enseignant *</Label><Select value={teacherId} onValueChange={handleTeacherChange}><SelectTrigger><SelectValue placeholder={teachers.length ? "Choisir l'enseignant" : "Aucun enseignant affecté"} /></SelectTrigger><SelectContent>{teachers.map(teacher => <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>)}</SelectContent></Select></div>
-              <div className="space-y-2"><Label>Matière *</Label><Select value={classSubjectId} onValueChange={setClassSubjectId} disabled={!teacherId}><SelectTrigger><SelectValue placeholder={teacherId ? "Choisir la matière" : "Choisissez d'abord l'enseignant"} /></SelectTrigger><SelectContent>{teacherSubjects.map(item => <SelectItem key={item.id} value={item.id}>{item.subject_name}{item.subject_code ? ` · ${item.subject_code}` : ""}</SelectItem>)}</SelectContent></Select><p className="text-xs text-muted-foreground">La liste contient uniquement les matières réellement affectées à cet enseignant dans cette classe.</p></div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2"><Label>Matière *</Label><Select value={classSubjectId} onValueChange={setClassSubjectId} disabled={!teacherId}><SelectTrigger><SelectValue placeholder={teacherId ? "Choisir la matière" : "Choisissez d'abord l'enseignant"} /></SelectTrigger><SelectContent>{teacherSubjects.map(item => <SelectItem key={item.id} value={item.id}>{item.subject_name}{item.subject_code ? ` · ${item.subject_code}` : ""}</SelectItem>)}</SelectContent></Select><p className="text-xs text-[#515f74]">La liste contient uniquement les matières réellement affectées à cet enseignant dans cette classe.</p></div>
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2"><Label>Début</Label><Input type="time" value={editor.startsAt} onChange={e => setEditor(current => current ? { ...current, startsAt: e.target.value } : current)} /></div>
                 <div className="space-y-2"><Label>Fin</Label><Input type="time" value={editor.endsAt} onChange={e => setEditor(current => current ? { ...current, endsAt: e.target.value } : current)} /></div>
               </div>

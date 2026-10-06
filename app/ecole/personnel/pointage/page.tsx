@@ -484,11 +484,11 @@ export default function PersonnelPointagePage() {
   }
 
   if (estEnCoursDeChargement) {
-    return <main className="min-h-screen p-6 text-sm text-muted-foreground">Chargement du pointage…</main>
+    return <main className="w-full min-w-0 p-6 text-sm text-muted-foreground">Chargement du pointage…</main>
   }
 
   return (
-    <main className="min-h-screen bg-muted/20 p-3 sm:p-4 md:p-6">
+    <main className="w-full min-w-0 bg-muted/20 p-3 sm:p-4 md:p-6">
       <div className="mx-auto max-w-7xl space-y-5">
         <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -536,7 +536,7 @@ export default function PersonnelPointagePage() {
               })}
             </div>
 
-            <div className="mx-auto max-w-xl rounded-xl border bg-background p-5 shadow-sm">
+            <div className="mx-auto max-w-xl rounded-xl border bg-background p-5 shadow-none">
               <div className="mb-5">
                 <h2 className="text-lg font-semibold">{ACTIONS.find(action => action.id === mode)?.label}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">Le code identifie automatiquement la personne. Pour un enseignant, le cours est recherché automatiquement dans l'emploi du temps.</p>
@@ -902,7 +902,7 @@ export default function PersonnelPointagePage() {
                               onClick={() => updateWorkDay(day, { enabled: !value.enabled })}
                               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${value.enabled ? "bg-primary" : "bg-muted"}`}
                             >
-                              <span className={`pointer-events-none block h-5 w-5 rounded-full bg-background shadow-sm transition-transform ${value.enabled ? "translate-x-5" : "translate-x-0"}`} />
+                              <span className={`pointer-events-none block h-5 w-5 rounded-full bg-background shadow-none transition-transform ${value.enabled ? "translate-x-5" : "translate-x-0"}`} />
                             </button>
                           </td>
                         </tr>

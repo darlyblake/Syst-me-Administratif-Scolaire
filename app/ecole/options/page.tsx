@@ -93,7 +93,7 @@ export default function OptionsPage() {
   return (
     <div className="w-full min-w-0 p-3 md:p-5">
       <div className="w-full">
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-3 mb-6">
           <Button variant="outline" size="sm" asChild>
             <Link href="/ecole/tableau-bord">
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -110,7 +110,7 @@ export default function OptionsPage() {
         </div>
 
         {/* Statistiques */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
           <Card>
             <CardContent className="p-4">
               <p className="text-sm text-[#515f74]">Total options</p>
@@ -134,7 +134,7 @@ export default function OptionsPage() {
         {/* Filtres et actions */}
         <Card className="mb-6">
           <CardContent className="p-4">
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               <Select value={filterType} onValueChange={setFilterType}>
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Filtrer par type" />
@@ -167,7 +167,7 @@ export default function OptionsPage() {
               ) : (
                 filteredOptions.map((option) => (
                   <div key={option.id} className="border border-[#c5c5d3]/60 p-4 flex justify-between items-center hover:bg-[#f2f3ff]">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                         {getTypeIcon(option.type)}
                       </div>

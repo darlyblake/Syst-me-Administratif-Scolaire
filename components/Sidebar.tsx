@@ -100,6 +100,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
       { href: "/ecole/settings/annee-academique", label: "Année académique", icon: CalendarDays, permission: "settings.view" },
       { href: "/ecole/settings/scolarite", label: "Scolarité / Frais", icon: CreditCard, permission: "settings.view" },
       { href: "/ecole/settings/structure", label: "Structure académique", icon: Layers, permission: "settings.view" },
+      { href: "/ecole/settings/options-scolaires", label: "Options scolaires", icon: Wrench, permission: "settings.view" },
     ]},
   ]
 

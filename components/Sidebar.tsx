@@ -22,11 +22,20 @@ interface SidebarProps {
 function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const { utilisateur } = useAuthentification()
+  const { utilisateur, contexte, etablissementActif } = useAuthentification()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const isActive = (path: string) => pathname === path || pathname.startsWith(path + "/")
-  const can = (permission: string) => hasEffectiveSchoolPermission(utilisateur, permission)
+  const can = (permission: string) => {
+    const isSchoolAccount = contexte?.account_type === "school_member"
+    const organizationRole = etablissementActif?.role ?? contexto?.establishments?.find((e) => e.id === utilisateur?.etablissementId)?.role
+    const runtimeUser = utilisateur ? {
+      ...utilisateur,
+      role: isSchoolAccount ? organizationRole : utilisateur.role,
+      etablissementRole: organizationRole,
+    } : null
+    return hasEffectiveSchoolPermission(runtimeUser, permission)
+  }
 
   const handleLogout = async () => {
     if (isLoggingOut) return
@@ -54,7 +63,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
     ]},
     { section: "Scolarité", items: [
       { href: "/ecole/students", label: "Élèves", icon: School, permission: "students.view" },
-      { href: "/ecole/inscriptions", label: "Inscriptions", icon: ClipboardCheck, permission: "enrollment.view" },
+      { href: "/ecole/inscriptions", label: "Inscriptions", icon: ClipboardCheck, permission: "inscriptions.view" },
       { href: "/ecole/classes", label: "Classes", icon: GraduationCap, permission: "classes.view" },
       { href: "/ecole/matieres", label: "Matières", icon: BookOpen, permission: "subjects.view" },
       { href: "/ecole/emploi-du-temps", label: "Emploi du temps", icon: CalendarDays, permission: "timetable.view" },
@@ -75,7 +84,6 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
     ]},
     { section: "Finance", items: [
       { href: "/ecole/finance/paiements", label: "Scolarité", icon: CreditCard, permission: "finance.view" },
-      { href: "/ecole/finance/caisse", label: "Paiements", icon: ReceiptText, permission: "finance.view" },
       { href: "/ecole/finance/caisse", label: "Mouvements de caisse", icon: Layers, permission: "finance.view" },
       { href: "/ecole/facturation", label: "Facturation", icon: FileText, permission: "finance.view" },
       { href: "/ecole/finance/impayes", label: "Impayés", icon: AlertTriangle, permission: "finance.view" },

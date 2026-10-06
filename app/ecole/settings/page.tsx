@@ -431,8 +431,8 @@ export default function SettingsPage() {
 
   if (noEstablishment) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#f7f8fc]">
-        <Card className="max-w-md">
+      <div className="flex min-h-screen items-center justify-center bg-[#f7f8fc] px-4">
+        <Card className="w-full max-w-md rounded-none border-[#d9dce5] shadow-none">
           <CardHeader>
             <CardTitle>Erreur de chargement</CardTitle>
             <CardDescription>Impossible de déterminer votre établissement.</CardDescription>
@@ -446,369 +446,168 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen min-w-0 max-w-full overflow-x-hidden bg-[#f7f8fc]">
-      <div className="mx-auto max-w-7xl min-w-0 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Retour
-              </Link>
-            </Button>
+    <div className="min-h-screen min-w-0 bg-[#f7f8fc] text-[#172033]">
+      <div className="w-full px-4 py-4 sm:px-6 lg:px-8">
+        <div className="border-b border-[#d7dae3] pb-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h1 className="text-xl sm:text-[23px] font-semibold text-[#131b2e] flex items-center gap-2">
-                <Settings className="h-5 w-5 sm:h-6 sm:w-6" />
-                Paramètres du Système
+              <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-[#6b7280]">
+                Configuration <span className="px-1">/</span> Paramètres de l'établissement
+              </div>
+              <h1 className="text-[24px] font-semibold leading-8 tracking-tight text-[#172033]">
+                Paramètres de l'Établissement
               </h1>
-              <p className="text-sm sm:text-base text-[#36445a]">Configuration de l'établissement et des tarifs</p>
+              <p className="mt-1 max-w-3xl text-[13px] leading-5 text-[#5d6677]">
+                Configurez les informations administratives, l'année académique, la scolarité et la structure de votre établissement.
+              </p>
             </div>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button variant="outline" onClick={resetSettings} className="flex-1 sm:flex-none">
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Réinitialiser
-            </Button>
-            <Button onClick={saveSettings} disabled={!hasUnsavedChanges} className="flex-1 sm:flex-none">
-              <Save className="h-4 w-4 mr-2" />
-              Sauvegarder
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={resetSettings} disabled={!hasUnsavedChanges} className="h-9 rounded-md border-[#cfd3dc] bg-white text-[#36445a] shadow-none">
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Réinitialiser
+              </Button>
+              <Button size="sm" onClick={saveSettings} disabled={!hasUnsavedChanges} className="h-9 rounded-md bg-[#173b8f] text-white shadow-none hover:bg-[#123176]">
+                <Save className="mr-2 h-4 w-4" />
+                Enregistrer
+              </Button>
+            </div>
           </div>
         </div>
 
         {hasUnsavedChanges && (
-          <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Vous avez des modifications non enregistrées. N'oubliez pas de sauvegarder avant de quitter.
+          <div className="mt-3 border-l-2 border-[#b7791f] bg-[#fffaf0] px-3 py-2 text-[12px] text-[#805b16]">
+            Des modifications ne sont pas encore enregistrées.
           </div>
         )}
 
-        {establishmentError ? (
-          <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        {establishmentError && (
+          <div className="mt-3 border border-[#ead7a2] bg-[#fffaf0] px-3 py-2 text-[12px] text-[#805b16]">
             Les paramètres d'établissement ne sont pas disponibles en temps réel, mais la configuration locale reste intacte.
           </div>
-        ) : null}
+        )}
 
         {academicYearsError && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div className="mt-3 border border-[#e5b7b7] bg-[#fff6f6] px-3 py-2 text-[12px] text-[#9b2c2c]">
             Erreur de chargement des années académiques : {academicYearsError}
           </div>
         )}
 
         {structureError && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div className="mt-3 border border-[#e5b7b7] bg-[#fff6f6] px-3 py-2 text-[12px] text-[#9b2c2c]">
             Erreur de chargement de la structure académique : {structureError}
           </div>
         )}
 
-
-
-        <Tabs defaultValue="general" className="space-y-6">
-          <TabsList className="flex h-auto w-full max-w-full flex-wrap justify-start gap-1 overflow-x-auto p-1">
-            <TabsTrigger value="general" className="whitespace-nowrap">Général</TabsTrigger>
-            <TabsTrigger value="academic" className="whitespace-nowrap">Année scolaire</TabsTrigger>
-            <TabsTrigger value="structure" className="whitespace-nowrap">Structure académique</TabsTrigger>
-            <TabsTrigger value="scolarite" className="whitespace-nowrap">Scolarité</TabsTrigger>
-            <TabsTrigger value="roles" className="whitespace-nowrap">Rôles et accès</TabsTrigger>
-            <TabsTrigger value="payroll" className="whitespace-nowrap">Paie du personnel</TabsTrigger>
-            <TabsTrigger value="appearance" className="whitespace-nowrap">Apparence</TabsTrigger>
+        <Tabs defaultValue="general" className="mt-5 space-y-5">
+          <TabsList className="h-auto w-full justify-start gap-0 overflow-x-auto rounded-none border-b border-[#d7dae3] bg-transparent p-0">
+            <TabsTrigger value="general" className="h-10 rounded-none border-b-2 border-transparent px-4 text-[12px] font-medium text-[#657084] shadow-none data-[state=active]:border-[#173b8f] data-[state=active]:bg-transparent data-[state=active]:text-[#173b8f]">
+              Établissement & Coordonnées
+            </TabsTrigger>
+            <TabsTrigger value="academic" className="h-10 rounded-none border-b-2 border-transparent px-4 text-[12px] font-medium text-[#657084] shadow-none data-[state=active]:border-[#173b8f] data-[state=active]:bg-transparent data-[state=active]:text-[#173b8f]">
+              Année académique & Périodes
+            </TabsTrigger>
+            <TabsTrigger value="scolarite" className="h-10 rounded-none border-b-2 border-transparent px-4 text-[12px] font-medium text-[#657084] shadow-none data-[state=active]:border-[#173b8f] data-[state=active]:bg-transparent data-[state=active]:text-[#173b8f]">
+              Scolarité & Grille tarifaire
+            </TabsTrigger>
+            <TabsTrigger value="structure" className="h-10 rounded-none border-b-2 border-transparent px-4 text-[12px] font-medium text-[#657084] shadow-none data-[state=active]:border-[#173b8f] data-[state=active]:bg-transparent data-[state=active]:text-[#173b8f]">
+              Structure académique
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="general">
-            <Card>
-              <CardHeader>
-                <CardTitle>Informations de l'établissement</CardTitle>
-                <CardDescription>Paramètres généraux de l'école</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="nomEcole" className="flex items-center gap-1">
-                      Nom de l'établissement <span className="text-red-500">*</span>
-                      <HelpCircle className="h-3 w-3 text-gray-400" />
-                    </Label>
-                    <Input
-                      id="nomEcole"
-                      value={establishmentFormData.nomEtablissement}
-                      onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, nomEtablissement: e.target.value }))}
-                      className={establishmentFormData.nomEtablissement ? "" : "border-red-300"}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="nomDirecteur" className="flex items-center gap-1">
-                      Nom du directeur
-                      <HelpCircle className="h-3 w-3 text-gray-400" />
-                    </Label>
-                    <Input
-                      id="nomDirecteur"
-                      value={establishmentFormData.nomDirecteur}
-                      onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, nomDirecteur: e.target.value }))}
-                      placeholder="Ex : M. Jean Dupont"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="adresseEcole" className="flex items-center gap-1">
-                    Adresse complète
-                    <HelpCircle className="h-3 w-3 text-gray-400" />
-                  </Label>
-                  <Input
-                    id="adresseEcole"
-                    value={establishmentFormData.adresse}
-                    onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, adresse: e.target.value }))}
-                    placeholder="Ex : Quartier Batterie IV, Libreville"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="telephoneEcole" className="flex items-center gap-1">
-                    Téléphone
-                    <HelpCircle className="h-3 w-3 text-gray-400" />
-                  </Label>
-                  <Input
-                    id="telephoneEcole"
-                    value={establishmentFormData.telephoneEtablissement}
-                    onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, telephoneEtablissement: e.target.value }))}
-                    placeholder="Ex : +241 01 23 45 67"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="modePaiement" className="flex items-center gap-1">
-                    Mode de paiement autorisé <span className="text-red-500">*</span>
-                    <HelpCircle className="h-3 w-3 text-gray-400" />
-                  </Label>
-                  <Select
-                    value={settings.modePaiement}
-                    onValueChange={(value) => handleSettingsChange("modePaiement", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mensuel">Mensuel uniquement</SelectItem>
-                      <SelectItem value="trimestriel">Par trimestre uniquement</SelectItem>
-                      <SelectItem value="les_deux">Mensuel et trimestriel</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="border-t pt-6 mt-6">
-                  <h3 className="text-lg font-medium mb-4">Identité visuelle de l'établissement</h3>
-                  <p className="text-sm text-[#36445a] mb-4">
-                    Le logo et le cachet seront utilisés sur les documents officiels (bulletins, certificats, attestations).
-                  </p>
-
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <div className="space-y-4">
-                      <Label className="font-medium">Logo officiel</Label>
-                      <div className="space-y-2">
-                        {settings.logoUrl && (
-                          <div className="relative w-32 h-32 border rounded-lg overflow-hidden bg-[#f7f8fc]">
-                            <img
-                              src={settings.logoUrl}
-                              alt="Logo officiel de l'établissement"
-                              className="w-full h-full object-contain"
-                            />
-                          </div>
-                        )}
-                        <div className="flex gap-2">
-                          <Input
-                            type="file"
-                            accept="image/png,image/jpeg,image/jpg,image/webp"
-                            onChange={handleLogoUpload}
-                            className="flex-1"
-                          />
-                          {settings.logoUrl && (
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => setSettings(prev => ({ ...prev, logoUrl: "" }))}
-                              aria-label="Supprimer le logo"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                        {erreursValidation.logo && (
-                          <p className="text-xs text-red-500">{erreursValidation.logo}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <Label className="font-medium">Cachet officiel</Label>
-                      <div className="space-y-2">
-                        {settings.cachetUrl && (
-                          <div className="relative w-32 h-32 border rounded-lg overflow-hidden bg-[#f7f8fc]">
-                            <img
-                              src={settings.cachetUrl}
-                              alt="Cachet officiel de l'établissement"
-                              className="w-full h-full object-contain"
-                            />
-                          </div>
-                        )}
-                        <div className="flex gap-2">
-                          <Input
-                            type="file"
-                            accept="image/png,image/jpeg,image/jpg,image/webp"
-                            onChange={handleCachetUpload}
-                            className="flex-1"
-                          />
-                          {settings.cachetUrl && (
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => setSettings(prev => ({ ...prev, cachetUrl: "" }))}
-                              aria-label="Supprimer le cachet"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                        {erreursValidation.cachet && (
-                          <p className="text-xs text-red-500">{erreursValidation.cachet}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="academic">
-            <AcademicYearsTab />
-          </TabsContent>
-
-          <TabsContent value="structure">
-            <StructureAcademiquePage />
-          </TabsContent>
-
-          <TabsContent value="scolarite">
-            <ScolariteSettingsPage />
-          </TabsContent>
-
-          <TabsContent value="roles">
-            <RolesTab />
-          </TabsContent>
-
-          <TabsContent value="payroll">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><WalletCards className="h-5 w-5" /> Paie du personnel</CardTitle>
-                <CardDescription>Définissez quand les états de salaire sont préparés et utilisez ensuite la navigation mensuelle dans Finance → Paie.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="rounded-md border bg-[#f7f8fc] p-4 text-sm text-[#36445a]">
-                  <p className="font-medium text-[#131b2e]">Fonctionnement</p>
-                  <p className="mt-1">Chaque état correspond à un mois de salaire. La navigation dans Finance permet de passer au mois précédent ou suivant sans perdre l'historique des périodes déjà générées.</p>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="payroll-generation-day">Jour de génération automatique</Label>
-                    <Input id="payroll-generation-day" type="number" min={1} max={28} value={payrollGenerationDay} onChange={(e) => setPayrollGenerationDay(e.target.value)} disabled={payrollLoading} />
-                    <p className="text-xs text-[#515f74]">Exemple : le 5 prépare l'état du mois précédent.</p>
-                  </div>
-                  <div className="flex items-start gap-3 rounded-md border p-4">
-                    <input id="payroll-auto-generate" type="checkbox" checked={payrollAutoGenerate} onChange={(e) => setPayrollAutoGenerate(e.target.checked)} className="mt-1 h-4 w-4" />
-                    <div>
-                      <Label htmlFor="payroll-auto-generate" className="cursor-pointer">Générer automatiquement les états</Label>
-                      <p className="text-xs text-[#515f74] mt-1">Le système prépare l'état mensuel au jour défini.</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-3 rounded-md border p-4">
+          <TabsContent value="general" className="mt-0">
+            <div className="space-y-4">
+              <section className="border border-[#d7dae3] bg-white shadow-none">
+                <div className="flex items-start justify-between border-b border-[#e3e5ea] px-4 py-3">
                   <div>
-                    <Label>Année académique concernée</Label>
-                    <Select value={payrollYearId} onValueChange={(value) => {
-                      const year = academicYears?.find((y) => y.id === value)
-                      setPayrollYearId(value)
-                      setPayrollPayableMonths(year ? payrollMonthOptions(year).map((m) => m.month) : [])
-                      if (year) {
-                        payrollService.getAcademicYearPayrollSettings(establishmentId!, value).then((data) => {
-                          if (Array.isArray(data?.payable_months)) setPayrollPayableMonths(data.payable_months.map(Number))
-                        }).catch(() => {})
-                      }
-                    }}>
-                      <SelectTrigger><SelectValue placeholder="Sélectionner une année" /></SelectTrigger>
-                      <SelectContent>
-                        {(academicYears ?? []).map((year) => <SelectItem key={year.id} value={year.id}>{year.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <h2 className="text-[14px] font-semibold text-[#172033]">1. Identité Administrative & Juridique</h2>
+                    <p className="mt-0.5 text-[11px] text-[#70798a]">Informations officielles utilisées sur les documents de l'établissement.</p>
                   </div>
-                  <div>
-                    <Label>Mois payables dans cet établissement</Label>
-                    <p className="text-xs text-[#515f74] mb-3">Seuls les mois compris dans la période de cette année académique peuvent être sélectionnés.</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {(academicYears?.find((y) => y.id === payrollYearId) ? payrollMonthOptions(academicYears.find((y) => y.id === payrollYearId)!) : []).map((item) => (
-                        <label key={item.year + "-" + item.month} className="flex items-center gap-2 rounded border px-3 py-2 text-sm cursor-pointer">
-                          <input type="checkbox" checked={payrollPayableMonths.includes(item.month)} onChange={(e) => setPayrollPayableMonths((prev) => e.target.checked ? [...new Set([...prev, item.month])] : prev.filter((m) => m !== item.month))} />
-                          {item.label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+                  <span className="text-[11px] text-[#6b7280]">Obligatoire</span>
                 </div>
-                <div className="flex justify-end">
-                  <Button onClick={savePayrollSettings} disabled={payrollSaving || payrollLoading}>
-                    <Save className="h-4 w-4 mr-2" />
-                    {payrollSaving ? "Enregistrement..." : "Enregistrer la configuration"}
-                  </Button>
+                <div className="grid gap-x-6 gap-y-4 p-4 md:grid-cols-2">
+                  <div><Label htmlFor="nomEcole">Nom de l'établissement *</Label><Input id="nomEcole" value={establishmentFormData.nomEtablissement} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, nomEtablissement: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="nomLegal">Dénomination légale</Label><Input id="nomLegal" value={establishmentFormData.nomLegal} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, nomLegal: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="nomCourt">Nom court</Label><Input id="nomCourt" value={establishmentFormData.nomCourt} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, nomCourt: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="typeEcole">Type d'établissement</Label><Input id="typeEcole" value={establishmentFormData.typeEcole} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, typeEcole: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="codeEtablissement">Code établissement</Label><Input id="codeEtablissement" value={establishmentFormData.codeEtablissement} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, codeEtablissement: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="nomDirecteur">Responsable / Directeur</Label><Input id="nomDirecteur" value={establishmentFormData.nomDirecteur} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, nomDirecteur: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div className="md:col-span-2"><Label htmlFor="slogan">Slogan</Label><Input id="slogan" value={establishmentFormData.slogan} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, slogan: e.target.value }))} className="mt-1.5 rounded-md" /></div>
                 </div>
-              </CardContent>
-            </Card>
+              </section>
+
+              <section className="border border-[#d7dae3] bg-white shadow-none">
+                <div className="border-b border-[#e3e5ea] px-4 py-3">
+                  <h2 className="text-[14px] font-semibold text-[#172033]">2. Coordonnées & Siège Géographique</h2>
+                </div>
+                <div className="grid gap-x-6 gap-y-4 p-4 md:grid-cols-2">
+                  <div className="md:col-span-2"><Label htmlFor="adresseEcole">Adresse principale</Label><Input id="adresseEcole" value={establishmentFormData.adresse} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, adresse: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="adresse2">Adresse complémentaire</Label><Input id="adresse2" value={establishmentFormData.adresse2} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, adresse2: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="ville">Ville</Label><Input id="ville" value={establishmentFormData.ville} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, ville: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="province">Province</Label><Input id="province" value={establishmentFormData.province} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, province: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="pays">Pays</Label><Input id="pays" value={establishmentFormData.pays} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, pays: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="codePostal">Code postal</Label><Input id="codePostal" value={establishmentFormData.codePostal} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, codePostal: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="emailEtablissement">Email</Label><Input id="emailEtablissement" type="email" value={establishmentFormData.emailEtablissement} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, emailEtablissement: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="telephoneEcole">Téléphone principal</Label><Input id="telephoneEcole" value={establishmentFormData.telephoneEtablissement} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, telephoneEtablissement: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="telephoneSecondaire">Téléphone secondaire</Label><Input id="telephoneSecondaire" value={establishmentFormData.telephoneSecondaire} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, telephoneSecondaire: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="siteWeb">Site web</Label><Input id="siteWeb" value={establishmentFormData.siteWeb} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, siteWeb: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                </div>
+              </section>
+
+              <section className="border border-[#d7dae3] bg-white shadow-none">
+                <div className="border-b border-[#e3e5ea] px-4 py-3">
+                  <h2 className="text-[14px] font-semibold text-[#172033]">3. Éléments d'Authenticité & Documents Officiels</h2>
+                </div>
+                <div className="grid gap-6 p-4 md:grid-cols-2">
+                  <div className="space-y-3"><Label>Logo officiel</Label>{settings.logoUrl ? <div className="flex h-24 w-24 items-center justify-center border border-[#d7dae3] bg-[#f8f9fb] p-2"><img src={settings.logoUrl} alt="Logo officiel" className="max-h-full max-w-full object-contain" /></div> : <div className="flex h-24 w-24 items-center justify-center border border-dashed border-[#cfd3dc] text-[11px] text-[#7b8494]">Aucun logo</div>}<div className="flex gap-2"><Input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" onChange={handleLogoUpload} className="rounded-md" />{settings.logoUrl && <Button variant="outline" size="icon" onClick={() => setSettings(prev => ({ ...prev, logoUrl: "" }))}><Trash2 className="h-4 w-4" /></Button>}</div>{erreursValidation.logo && <p className="text-xs text-red-600">{erreursValidation.logo}</p>}</div>
+                  <div className="space-y-3"><Label>Cachet officiel</Label>{settings.cachetUrl ? <div className="flex h-24 w-24 items-center justify-center border border-[#d7dae3] bg-[#f8f9fb] p-2"><img src={settings.cachetUrl} alt="Cachet officiel" className="max-h-full max-w-full object-contain" /></div> : <div className="flex h-24 w-24 items-center justify-center border border-dashed border-[#cfd3dc] text-[11px] text-[#7b8494]">Aucun cachet</div>}<div className="flex gap-2"><Input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" onChange={handleCachetUpload} className="rounded-md" />{settings.cachetUrl && <Button variant="outline" size="icon" onClick={() => setSettings(prev => ({ ...prev, cachetUrl: "" }))}><Trash2 className="h-4 w-4" /></Button>}</div>{erreursValidation.cachet && <p className="text-xs text-red-600">{erreursValidation.cachet}</p>}</div>
+                </div>
+              </section>
+
+              <section className="border border-[#d7dae3] bg-white shadow-none">
+                <div className="border-b border-[#e3e5ea] px-4 py-3">
+                  <h2 className="text-[14px] font-semibold text-[#172033]">4. Exercice & Période en cours</h2>
+                </div>
+                <div className="grid gap-x-6 gap-y-4 p-4 md:grid-cols-2">
+                  <div><Label htmlFor="anneeAcademique">Année académique</Label><Input id="anneeAcademique" value={settings.anneeAcademique} onChange={(e) => handleSettingsChange("anneeAcademique", e.target.value)} placeholder="2026-2027" className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="modePaiement">Mode de paiement autorisé</Label><Select value={settings.modePaiement} onValueChange={(value) => handleSettingsChange("modePaiement", value)}><SelectTrigger className="mt-1.5 rounded-md"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mensuel">Mensuel uniquement</SelectItem><SelectItem value="trimestriel">Par trimestre uniquement</SelectItem><SelectItem value="les_deux">Mensuel et trimestriel</SelectItem></SelectContent></Select></div>
+                  <div><Label htmlFor="dateDebut">Date de début</Label><Input id="dateDebut" type="date" value={settings.dateDebut} onChange={(e) => handleSettingsChange("dateDebut", e.target.value)} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="dateFin">Date de fin</Label><Input id="dateFin" type="date" value={settings.dateFin} onChange={(e) => handleSettingsChange("dateFin", e.target.value)} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="deviseCode">Code devise</Label><Input id="deviseCode" value={establishmentFormData.deviseCode} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, deviseCode: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="deviseSymbole">Symbole devise</Label><Input id="deviseSymbole" value={establishmentFormData.deviseSymbole} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, deviseSymbole: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                  <div><Label htmlFor="fuseauHoraire">Fuseau horaire</Label><Input id="fuseauHoraire" value={establishmentFormData.fuseauHoraire} onChange={(e) => setEstablishmentFormData(prev => ({ ...prev, fuseauHoraire: e.target.value }))} className="mt-1.5 rounded-md" /></div>
+                </div>
+              </section>
+            </div>
           </TabsContent>
 
-          <TabsContent value="appearance">
-            <Card>
-              <CardHeader>
-                <CardTitle>Apparence</CardTitle>
-                <CardDescription>Personnaliser l'apparence de l'application</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="primaryColor">Couleur principale</Label>
-                    <Input id="primaryColor" type="color" defaultValue="#3b82f6" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="secondaryColor">Couleur secondaire</Label>
-                    <Input id="secondaryColor" type="color" defaultValue="#10b981" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="logoFile">Logo de l'école</Label>
-                    <Input id="logoFile" type="file" accept="image/*" onChange={handleLogoUpload} />
-                    {settings.logoUrl && (
-                      <div className="mt-2">
-                        <img
-                          src={settings.logoUrl}
-                          alt="Aperçu du logo"
-                          className="w-16 h-16 border-2 border-[#c5c5d3]/60 rounded-full object-contain"
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="theme">Thème par défaut</Label>
-                    <Select defaultValue="light">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="light">Clair</SelectItem>
-                        <SelectItem value="dark">Sombre</SelectItem>
-                        <SelectItem value="system">Système</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="p-4 bg-[#eef3ff] rounded-lg">
-                  <h3 className="font-medium text-blue-800 mb-2">Aperçu</h3>
-                  <p className="text-sm text-[#1e3a8a]">Les changements d'apparence seront appliqués après sauvegarde et redémarrage de l'application.</p>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="academic" className="mt-0">
+            <div className="border border-[#d7dae3] bg-white shadow-none">
+              <div className="border-b border-[#e3e5ea] px-4 py-3">
+                <h2 className="text-[14px] font-semibold text-[#172033]">Année Scolaire Active & Bascule d'Exercice</h2>
+                <p className="mt-0.5 text-[11px] text-[#70798a]">Gérez les années académiques et leur période d'application.</p>
+              </div>
+              <div className="p-4"><AcademicYearsTab /></div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="scolarite" className="mt-0">
+            <div className="border border-[#d7dae3] bg-white shadow-none">
+              <div className="border-b border-[#e3e5ea] px-4 py-3">
+                <h2 className="text-[14px] font-semibold text-[#172033]">Scolarité & Grille tarifaire</h2>
+                <p className="mt-0.5 text-[11px] text-[#70798a]">Configurez les frais, modes de paiement et échéances par niveau.</p>
+              </div>
+              <div className="p-0"><ScolariteSettingsPage /></div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="structure" className="mt-0">
+            <div className="border border-[#d7dae3] bg-white shadow-none">
+              <div className="border-b border-[#e3e5ea] px-4 py-3">
+                <h2 className="text-[14px] font-semibold text-[#172033]">Structure académique</h2>
+                <p className="mt-0.5 text-[11px] text-[#70798a]">Configurez les cycles et niveaux de l'établissement.</p>
+              </div>
+              <div className="p-0"><StructureAcademiquePage /></div>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

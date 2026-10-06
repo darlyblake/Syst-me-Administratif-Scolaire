@@ -50,12 +50,13 @@ export function PermissionRoute({ children }: { children: ReactNode }) {
   const permission = permissionForPath(pathname)
   const organizationRole = etablissementActif?.role ?? contexte?.establishments?.find((e) => e.id === utilisateur?.etablissementId)?.role
   const isSchoolAccount = contexte?.account_type === "school_member"
-  const runtimeUser = utilisateur ? {
-    role: isSchoolAccount ? organizationRole : utilisateur.role,
-    permissions: [],
-    revoked_permissions: [],
-    status: "active",
-  } : null
+  const runtimeUser = utilisateur
+    ? {
+        ...utilisateur,
+        role: isSchoolAccount ? organizationRole : utilisateur.role,
+        etablissementRole: organizationRole,
+      }
+    : null
   const allowed = Boolean(utilisateur) && (!permission || hasEffectiveSchoolPermission(runtimeUser, permission))
 
   useEffect(() => {

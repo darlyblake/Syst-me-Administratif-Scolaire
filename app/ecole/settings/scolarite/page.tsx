@@ -175,11 +175,11 @@ function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYea
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-base font-semibold">Configuration — {levelLabel}</DialogTitle>
+      <DialogContent className="max-w-xl rounded-none border-[#cfd3dc] bg-white p-0 text-[#172033] shadow-[0_12px_32px_rgba(23,32,51,0.16)]">
+        <DialogHeader className="border-b border-[#e3e5ea] px-5 py-4">
+          <DialogTitle className="text-[15px] font-semibold text-[#172033]" className="text-base font-semibold">Configuration — {levelLabel}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-5 py-1">
+        <div className="max-h-[70vh] space-y-5 overflow-y-auto px-5 py-5">
           <div className="space-y-1.5">
             <Label htmlFor="modal-annual" className="text-sm">Scolarité annuelle</Label>
             <div className="relative">

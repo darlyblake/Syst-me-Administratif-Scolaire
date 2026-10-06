@@ -126,15 +126,12 @@ export default function AcademicYearsTab() {
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <div className="w-full border border-[#d7dae3] bg-white shadow-none">
+      <CardHeader className="border-b border-[#e3e5ea] px-4 py-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Année académique
-            </CardTitle>
-            <CardDescription>Configuration de l'année scolaire (gérée via Supabase)</CardDescription>
+            <CardTitle className="text-[14px] font-semibold text-[#172033]">Année scolaire active & bascule d’exercice</CardTitle>
+            <CardDescription className="text-[11px] text-[#70798a]">Période officielle de l’établissement et gestion des années enregistrées.</CardDescription>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -196,9 +193,9 @@ export default function AcademicYearsTab() {
           </Dialog>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4 p-4">
         {error && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="border border-[#e5b7b7] bg-[#fff6f6] p-3 text-sm text-[#9b2c2c]">
             Erreur de chargement : {error}
           </div>
         )}
@@ -220,33 +217,33 @@ export default function AcademicYearsTab() {
         ) : (
           <div className="space-y-3">
             {academicYears.map((year) => (
-              <div key={year.id} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg ${year.status === "active" ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'}`}>
+              <div key={year.id} className={`flex flex-col justify-between border-b border-[#edf0f4] px-1 py-3 sm:flex-row sm:items-center ${year.status === "active" ? "bg-[#f3f7ff]" : "hover:bg-[#fafbfc]"}`}>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h4 className="font-medium">{year.name}</h4>
+                    <h4 className="text-[13px] font-semibold text-[#172033]">{year.name}</h4>
                     {year.status === "active" && (
-                      <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">
+                      <span className="flex items-center gap-1 border border-[#b9dcc8] bg-[#f0f8f3] px-2 py-0.5 text-[10px] font-medium text-[#1f6b48]">
                         <CheckCircle2 className="h-3 w-3" />
                         Année actuelle
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="mt-1 text-[11px] text-[#657084]">
                     {year.start_date ? new Date(year.start_date).toLocaleDateString('fr-FR') : '—'} - {year.end_date ? new Date(year.end_date).toLocaleDateString('fr-FR') : '—'}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2 mt-3 sm:mt-0">
-                  <Button variant="outline" size="sm" onClick={() => handleOpenDialog(year)}>
+                <div className="mt-3 flex flex-wrap gap-2 sm:mt-0">
+                  <Button variant="outline" size="sm" className="h-8 rounded-md border-[#cfd3dc] text-[11px] shadow-none" onClick={() => handleOpenDialog(year)}>
                     <Edit className="h-4 w-4 mr-2" />
                     Modifier
                   </Button>
                   {year.status !== "active" && (
-                    <Button variant="outline" size="sm" onClick={() => handleActivate(year.id)}>
+                    <Button variant="outline" size="sm" className="h-8 rounded-md border-[#cfd3dc] text-[11px] shadow-none" onClick={() => handleActivate(year.id)}>
                       Activer
                     </Button>
                   )}
                   {year.status === "active" && (
-                    <Button variant="outline" size="sm" onClick={() => handleClose(year.id)}>
+                    <Button variant="outline" size="sm" className="h-8 rounded-md border-[#cfd3dc] text-[11px] shadow-none" onClick={() => handleClose(year.id)}>
                       Clôturer
                     </Button>
                   )}
@@ -256,6 +253,6 @@ export default function AcademicYearsTab() {
           </div>
         )}
       </CardContent>
-    </Card>
+    </div>
   )
 }

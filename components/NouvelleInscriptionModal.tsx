@@ -15,7 +15,6 @@ import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import { useEnrollment } from "@/hooks/useEnrollment"
-import { createStudent } from "@/lib/supabase/services/student.service"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { financeService } from "@/lib/supabase/services/finance.service"
 import type { TuitionPlanInstallment, TuitionPlanWithInstallments } from "@/lib/supabase/types"
@@ -261,27 +260,15 @@ export default function NouvelleInscriptionModal({
     }
 
     try {
-      // 1. Créer ou récupérer l'élève
-      let finalStudentId = studentId ?? null
-      if (typeInscription === "inscription") {
-        const num = studentNumber || genererCodeUnique()
-        finalStudentId = await createStudent({
-          establishmentId,
-          firstName,
-          lastName,
-          studentNumber: num,
-          birthDate,
-          sex,
-          phone: parentPhone,
-          email: parentEmail,
-          active: true,
-        })
-      }
+      // La RPC crée l'élève et l'inscription dans la même transaction.
+      // Ne créons plus l'élève séparément : en cas d'échec de l'inscription,
+      // cela laissait auparavant des élèves orphelins dans la base.
+      const finalStudentId = studentId ?? null
 
-      // 2. Créer l'inscription
       const result = await createStudentEnrollment({
         establishmentId,
         studentId: finalStudentId,
+        studentNumber: studentNumber || genererCodeUnique(),
         academicYearId: activeYear.id,
         classId: selectedClass.id,
         tuitionPlanId: selectedPlan.id,

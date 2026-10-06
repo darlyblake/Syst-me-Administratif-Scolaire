@@ -140,10 +140,10 @@ export default function AcademicYearsTab() {
                 Créer une année
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{editingYear ? "Modifier l'année" : "Nouvelle année académique"}</DialogTitle>
-                <DialogDescription>
+            <DialogContent className="max-w-lg rounded-none border-[#cfd3dc] bg-white p-0 text-[#172033] shadow-[0_12px_32px_rgba(23,32,51,0.16)]">
+              <DialogHeader className="border-b border-[#e3e5ea] px-5 py-4">
+                <DialogTitle className="text-[15px] font-semibold text-[#172033]">{editingYear ? "Modifier l'année" : "Nouvelle année académique"}</DialogTitle>
+                <DialogDescription className="text-[12px] leading-5 text-[#657084]">
                   {editingYear ? "Modifiez les informations de l'année académique." : "Créez une nouvelle année académique."}
                 </DialogDescription>
               </DialogHeader>
@@ -181,7 +181,7 @@ export default function AcademicYearsTab() {
                   </div>
                 )}
               </div>
-              <DialogFooter>
+              <DialogFooter className="border-t border-[#e3e5ea] bg-[#fafbfc] px-5 py-3">
                 <Button variant="outline" onClick={handleCloseDialog}>
                   Annuler
                 </Button>

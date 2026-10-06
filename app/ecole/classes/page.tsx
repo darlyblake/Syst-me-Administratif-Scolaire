@@ -241,11 +241,11 @@ export default function ClassesPage() {
   const niveauxUniques = Array.from(new Set(displayClasses.map(c => c.niveau)))
   if (estEnCoursDeChargement || loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-3">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-1/4"></div>
-          <div className="h-32 bg-muted rounded-xl"></div>
-          <div className="h-32 bg-muted rounded-xl"></div>
+          <div className="h-8 bg-[#f2f3ff] rounded w-1/4"></div>
+          <div className="h-32 bg-[#f2f3ff] rounded"></div>
+          <div className="h-32 bg-[#f2f3ff] rounded"></div>
         </div>
       </div>
     )
@@ -264,7 +264,7 @@ export default function ClassesPage() {
       <div className="mt-3 flex flex-wrap items-center gap-0 border-b border-[#c5c5d3]/60">
         <button
           onClick={() => setActiveTab("liste")}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+          className={`px-4 py-2 rounded text-sm font-medium transition ${
             activeTab === "liste" ? "border-[#00236f] text-[#00236f]" : "border-transparent text-[#515f74] hover:text-[#131b2e]"
           }`}
         >
@@ -272,7 +272,7 @@ export default function ClassesPage() {
         </button>
         <button
           onClick={() => setActiveTab("repartition")}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+          className={`px-4 py-2 rounded text-sm font-medium transition ${
             activeTab === "repartition" ? "border-[#00236f] text-[#00236f]" : "border-transparent text-[#515f74] hover:text-[#131b2e]"
           }`}
         >
@@ -280,7 +280,7 @@ export default function ClassesPage() {
         </button>
         <button
           onClick={() => setActiveTab("parametres")}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+          className={`px-4 py-2 rounded text-sm font-medium transition ${
             activeTab === "parametres" ? "border-[#00236f] text-[#00236f]" : "border-transparent text-[#515f74] hover:text-[#131b2e]"
           }`}
         >
@@ -289,7 +289,7 @@ export default function ClassesPage() {
       </div>
 
       {error && (
-        <div role="alert" className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div role="alert" className="rounded border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}
@@ -311,7 +311,7 @@ export default function ClassesPage() {
           <section className="mt-3 border border-[#c5c5d3]/60 bg-white p-2">
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#515f74] h-4 w-4" />
                   <Input
                     placeholder="Rechercher une classe..."
                     value={searchTerm}
@@ -322,7 +322,7 @@ export default function ClassesPage() {
                 <select
                   value={filterTypeEcole}
                   onChange={(e) => setFilterTypeEcole(e.target.value)}
-                  className="px-3 py-2 rounded-md border bg-background"
+                  className="px-3 py-2 rounded border bg-white"
                 >
                   <option value="">Tous les cycles</option>
                   {typesEcoleUniques.map((type) => (
@@ -332,7 +332,7 @@ export default function ClassesPage() {
                 <select
                   value={filterNiveau}
                   onChange={(e) => setFilterNiveau(e.target.value)}
-                  className="px-3 py-2 rounded-md border bg-background"
+                  className="px-3 py-2 rounded border bg-white"
                 >
                   <option value="">Tous les niveaux</option>
                   {niveauxUniques.map((niveau) => (
@@ -403,20 +403,20 @@ export default function ClassesPage() {
 
       {/* Onglet Répartition */}
       {activeTab === "repartition" && (
-        <div className="space-y-6">
-          <Card className="shadow-sm">
+        <div className="space-y-3">
+          <Card className="shadow-none">
             <CardHeader>
               <CardTitle>Répartition des élèves</CardTitle>
               <CardDescription>Choisissez un niveau et un mode de répartition</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <Label>Niveau</Label>
                   <select
                     value={selectedNiveau}
                     onChange={(e) => setSelectedNiveau(e.target.value)}
-                    className="w-full mt-1.5 px-3 py-2 rounded-md border bg-background"
+                    className="w-full mt-1.5 px-3 py-2 rounded border bg-white"
                   >
                     <option value="">Sélectionner un niveau</option>
                     {niveauxUniques.map((niveau) => (
@@ -429,7 +429,7 @@ export default function ClassesPage() {
                   <select
                     value={repartitionMode}
                     onChange={(e) => setRepartitionMode(e.target.value as ModeRepartition)}
-                    className="w-full mt-1.5 px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50"
+                    className="w-full mt-1.5 px-3 py-2.5 rounded border border-terre/15 bg-creme/50"
                   >
                     <option value="aleatoire">Aléatoire</option>
                     <option value="equilibre_genre">Équilibre genre</option>
@@ -443,9 +443,9 @@ export default function ClassesPage() {
                       type="checkbox"
                       checked={repartitionDepuisZero}
                       onChange={(e) => setRepartitionDepuisZero(e.target.checked)}
-                      className="rounded border-input"
+                      className="rounded border-[#c5c5d3]/70"
                     />
-                    <span className="text-sm text-muted-foreground">Repartir depuis zéro</span>
+                    <span className="text-sm text-[#515f74]">Repartir depuis zéro</span>
                   </label>
                 </div>
               </div>
@@ -457,33 +457,33 @@ export default function ClassesPage() {
           </Card>
 
           {repartitionPreview && (
-            <Card className="shadow-sm">
+            <Card className="shadow-none">
               <CardHeader>
                 <CardTitle>Aperçu de la répartition</CardTitle>
                 <CardDescription>Revoyez les affectations avant d'appliquer</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {repartitionPreview.resume.map((r: any) => (
-                    <Card key={r.classeId} className="shadow-none border bg-muted/30">
+                    <Card key={r.classeId} className="border border-[#c5c5d3]/60 bg-[#f2f3ff]">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm">{r.classeNom}</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2">
                         <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Total:</span>
+                          <span className="text-[#515f74]">Total:</span>
                           <span className="font-medium">{r.total} / {r.capacite}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Garçons:</span>
+                          <span className="text-[#515f74]">Garçons:</span>
                           <span className="font-medium">{r.M}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Filles:</span>
+                          <span className="text-[#515f74]">Filles:</span>
                           <span className="font-medium">{r.F}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Autre:</span>
+                          <span className="text-[#515f74]">Autre:</span>
                           <span className="font-medium">{r.autre}</span>
                         </div>
                       </CardContent>
@@ -491,7 +491,7 @@ export default function ClassesPage() {
                   ))}
                 </div>
                 {repartitionPreview.nonAffectes.length > 0 && (
-                  <div className="bg-destructive/10 rounded-md p-4 border border-destructive/20">
+                  <div className="bg-destructive/10 rounded p-4 border border-destructive/20">
                     <p className="text-sm font-medium text-destructive">
                       {repartitionPreview.nonAffectes.length} élèves non affectés (capacité insuffisante)
                     </p>
@@ -515,18 +515,18 @@ export default function ClassesPage() {
 
       {/* Onglet Paramètres */}
       {activeTab === "parametres" && (
-        <Card className="shadow-sm">
+        <Card className="shadow-none">
           <CardHeader>
             <CardTitle>Paramètres de répartition</CardTitle>
             <CardDescription>Configurez le comportement par défaut et les exceptions par niveau</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-3">
             <div>
               <Label>Mode global par défaut</Label>
               <select
                 value={params.modeGlobal}
                 onChange={(e) => setParams({ ...params, modeGlobal: e.target.value as ModeRepartition })}
-                className="w-full mt-1.5 px-3 py-2 rounded-md border bg-background"
+                className="w-full mt-1.5 px-3 py-2 rounded border bg-white"
               >
                 <option value="aleatoire">Aléatoire</option>
                 <option value="equilibre_genre">Équilibre genre</option>
@@ -540,19 +540,19 @@ export default function ClassesPage() {
                   type="checkbox"
                   checked={params.bloquerSiComplet}
                   onChange={(e) => setParams({ ...params, bloquerSiComplet: e.target.checked })}
-                  className="rounded border-input"
+                  className="rounded border-[#c5c5d3]/70"
                 />
-                <span className="text-sm text-muted-foreground">Bloquer l'inscription si le niveau est complet</span>
+                <span className="text-sm text-[#515f74]">Bloquer l'inscription si le niveau est complet</span>
               </label>
             </div>
             <div>
               <Label>Exceptions par niveau</Label>
               <div className="mt-2 space-y-2">
                 {Object.entries(params.modeParNiveau).map(([niveau, mode]) => (
-                  <div key={niveau} className="flex items-center justify-between bg-muted rounded-md px-3 py-2 border">
+                  <div key={niveau} className="flex items-center justify-between bg-[#f2f3ff] rounded px-3 py-2 border">
                     <span className="text-sm font-medium">{niveau}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{mode}</span>
+                      <span className="text-xs text-[#515f74]">{mode}</span>
                       <Button variant="ghost" size="sm" onClick={() => handleSupprimerOverride(niveau)}>
                         <X className="h-4 w-4" />
                       </Button>
@@ -564,7 +564,7 @@ export default function ClassesPage() {
                 <select
                   value={newNiveauOverride}
                   onChange={(e) => setNewNiveauOverride(e.target.value)}
-                  className="flex-1 px-3 py-2 rounded-md border bg-background"
+                  className="flex-1 px-3 py-2 rounded border bg-white"
                 >
                   <option value="">Niveau</option>
                   {niveauxUniques.map((niveau) => (
@@ -574,7 +574,7 @@ export default function ClassesPage() {
                 <select
                   value={newModeOverride}
                   onChange={(e) => setNewModeOverride(e.target.value as ModeRepartition)}
-                  className="flex-1 px-3 py-2 rounded-md border bg-background"
+                  className="flex-1 px-3 py-2 rounded border bg-white"
                 >
                   <option value="aleatoire">Aléatoire</option>
                   <option value="equilibre_genre">Équilibre genre</option>
@@ -597,7 +597,7 @@ export default function ClassesPage() {
       {/* Modal d'ajout */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-background border rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-lg">
+          <div className="bg-white border rounded max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-none">
             <h3 className="text-lg font-semibold mb-4">Nouvelle classe</h3>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -615,7 +615,7 @@ export default function ClassesPage() {
                   id="typeEcole"
                   value={nouvelleClasse.typeEcole}
                   onChange={(e) => handleTypeEcoleChange(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md border bg-background"
+                  className="w-full px-3 py-2 rounded border bg-white"
                 >
                   <option value="">Sélectionner un cycle</option>
                   {academicStructure.map((cycle) => (
@@ -629,7 +629,7 @@ export default function ClassesPage() {
                   id="niveau"
                   value={nouvelleClasse.niveau}
                   onChange={(e) => handleNiveauChange(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md border bg-background"
+                  className="w-full px-3 py-2 rounded border bg-white"
                   disabled={!nouvelleClasse.typeEcole}
                 >
                   <option value="">Sélectionner d'abord le cycle</option>
@@ -667,7 +667,7 @@ export default function ClassesPage() {
       {/* Modal de modification */}
       {showEditModal && editingClasse && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-background border rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-lg">
+          <div className="bg-white border rounded max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-none">
             <h3 className="text-lg font-semibold mb-4">Modifier la classe</h3>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -687,7 +687,7 @@ export default function ClassesPage() {
                     const typeEcole = e.target.value
                     setEditingClasse({ ...editingClasse, typeEcole, niveau: "" })
                   }}
-                  className="w-full px-3 py-2 rounded-md border bg-background"
+                  className="w-full px-3 py-2 rounded border bg-white"
                 >
                   <option value="">Sélectionner un cycle</option>
                   {academicStructure.map((cycle) => (
@@ -707,7 +707,7 @@ export default function ClassesPage() {
                       niveau
                     })
                   }}
-                  className="w-full px-3 py-2 rounded-md border bg-background"
+                  className="w-full px-3 py-2 rounded border bg-white"
                   disabled={!editingClasse.typeEcole}
                 >
                   <option value="">Sélectionner d'abord le cycle</option>

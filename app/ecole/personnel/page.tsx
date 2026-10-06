@@ -125,8 +125,8 @@ export default function PersonnelPage() {
   ]
 
   return (
-    <div className="w-full min-w-0">
-      <div className="w-full">
+    <div className="min-h-screen p-4">
+      <div className="max-w-7xl mx-auto">
         {!isLoaded ? (
           <div className="flex items-center justify-center h-64 text-gray-500">
             {staffError ? (
@@ -138,10 +138,10 @@ export default function PersonnelPage() {
         ) : (
           <>
             {/* En-tête */}
-            <header className="flex flex-col gap-3 border-b border-[#c5c5d3]/45 pb-3 md:flex-row md:items-start md:justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
               <div>
-                <h1 className="text-[23px] font-semibold leading-7 text-[#131b2e]">Personnel</h1>
-                <p className="mt-0.5 text-[12px] text-[#515f74]">
+                <h1 className="text-2xl font-bold text-gray-900">Personnel</h1>
+                <p className="text-gray-500 text-sm mt-0.5">
                   Gérez les membres du personnel et leurs accès à l'application.
                 </p>
               </div>
@@ -152,40 +152,40 @@ export default function PersonnelPage() {
                 Ajouter un membre
               </Button>
               </div>
-            </header>
+            </div>
 
             {/* Statistiques inline */}
-            <p className="border-b border-[#c5c5d3]/45 py-2 text-[12px] text-[#515f74]">
+            <p className="text-sm text-gray-500 mb-4">
               Total{" "}
-              <span className="font-semibold text-[#131b2e]">{stats.total}</span>
+              <span className="font-semibold text-gray-900">{stats.total}</span>
               {" · "}Actifs{" "}
-              <span className="font-semibold text-[#131b2e]">{stats.actifs}</span>
+              <span className="font-semibold text-gray-900">{stats.actifs}</span>
               {" · "}Comptes actifs{" "}
-              <span className="font-semibold text-[#1d6b45]">{stats.comptesActifs}</span>
+              <span className="font-semibold text-green-700">{stats.comptesActifs}</span>
               {" · "}Sans compte{" "}
-              <span className="font-semibold text-[#9a6700]">{stats.sansCompte}</span>
+              <span className="font-semibold text-amber-600">{stats.sansCompte}</span>
             </p>
 
             {/* Filtres + recherche */}
-            <section className="flex flex-col gap-2 border border-[#c5c5d3]/60 bg-white p-2 md:flex-row">
+            <div className="flex flex-col md:flex-row gap-3 mb-5">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7b8798]" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Rechercher par nom, poste, téléphone…"
                   value={searchTerm}
                   onChange={(e) => { setSearchTerm(e.target.value); setPage(1) }}
-                  className="h-9 pl-9 rounded border-[#c5c5d3]/70 bg-white text-[12px]"
+                  className="pl-9 bg-white"
                 />
               </div>
-              <div className="flex gap-1 overflow-x-auto border-b border-[#c5c5d3]/45 pb-1">
+              <div className="flex bg-gray-100 p-1 rounded-md gap-0.5 overflow-x-auto">
                 {FILTRES.map((f) => (
                   <button
                     key={f.id}
                     onClick={() => setFilterStatut(f.id)}
                     className={`px-3 py-1.5 text-sm font-medium rounded whitespace-nowrap transition-colors ${
                       filterStatut === f.id
-                        ? "bg-[#1e3a8a] text-white shadow-sm"
-                        : "text-[#515f74] hover:text-[#131b2e]"
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-500 hover:text-gray-900"
                     }`}
                   >
                     {f.label}
@@ -195,7 +195,7 @@ export default function PersonnelPage() {
             </div>
 
             {/* Tableau */}
-            <div className="overflow-hidden border border-[#c5c5d3]/60 bg-white mb-6">
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-6">
               {filtered.length === 0 ? (
                 <div className="p-12 text-center text-gray-500">
                   <Users className="h-8 w-8 mx-auto text-gray-300 mb-3" />
@@ -206,32 +206,32 @@ export default function PersonnelPage() {
                   {/* Desktop */}
                   <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                      <thead className="border-b border-[#c5c5d3]/60 bg-[#f2f3ff]">
+                      <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
-                          <th className="px-4 py-3 font-medium text-[#36445a]">Nom</th>
-                          <th className="px-4 py-3 font-medium text-[#36445a]">Poste</th>
-                          <th className="px-4 py-3 font-medium text-[#36445a]">Téléphone</th>
-                          <th className="px-4 py-3 font-medium text-[#36445a]">Statut</th>
-                          <th className="px-4 py-3 font-medium text-[#36445a]">Accès</th>
-                          <th className="px-4 py-3 text-right font-medium text-[#36445a]">Actions</th>
+                          <th className="px-4 py-3 font-medium text-gray-700">Nom</th>
+                          <th className="px-4 py-3 font-medium text-gray-700">Poste</th>
+                          <th className="px-4 py-3 font-medium text-gray-700">Téléphone</th>
+                          <th className="px-4 py-3 font-medium text-gray-700">Statut</th>
+                          <th className="px-4 py-3 font-medium text-gray-700">Accès</th>
+                          <th className="px-4 py-3 text-right font-medium text-gray-700">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#c5c5d3]/40">
+                      <tbody className="divide-y divide-gray-100">
                         {filtered.map((person) => {
                           const roleName = roles.find((r) => r.role.id === person.roleId)?.role.name
                           return (
-                            <tr key={person.id} className="hover:bg-[#f2f3ff] transition-colors">
+                            <tr key={person.id} className="hover:bg-gray-50 transition-colors">
                               <td className="px-4 py-3">
-                                <div className="font-medium text-[#131b2e]">{person.prenom} {person.nom}</div>
-                                {person.email && <div className="text-xs text-[#7b8798]">{person.email}</div>}
+                                <div className="font-medium text-gray-900">{person.prenom} {person.nom}</div>
+                                {person.email && <div className="text-xs text-gray-400">{person.email}</div>}
                               </td>
-                              <td className="px-4 py-3 text-[#36445a]">{person.poste}</td>
-                              <td className="px-4 py-3 text-[#515f74]">{person.telephone || "—"}</td>
+                              <td className="px-4 py-3 text-gray-700">{person.poste}</td>
+                              <td className="px-4 py-3 text-gray-600">{person.telephone || "—"}</td>
                               <td className="px-4 py-3">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                  person.statut === "actif" ? "bg-[#e8f4ed] text-[#1d6b45]"
-                                  : person.statut === "inactif" ? "bg-gray-100 text-[#515f74]"
-                                  : "bg-[#fff4d6] text-[#8a6500]"
+                                  person.statut === "actif" ? "bg-green-100 text-green-800"
+                                  : person.statut === "inactif" ? "bg-gray-100 text-gray-600"
+                                  : "bg-amber-100 text-amber-800"
                                 }`}>
                                   {person.statut === "actif" ? "Actif"
                                    : person.statut === "inactif" ? "Inactif"
@@ -240,10 +240,10 @@ export default function PersonnelPage() {
                               </td>
                               <td className="px-4 py-3">
                                 <span className={`inline-flex items-center gap-1 text-xs font-medium ${
-                                  person.accountStatus === "active" ? "text-[#1d6b45]"
+                                  person.accountStatus === "active" ? "text-green-700"
                                   : person.accountStatus === "inactive" ? "text-red-600"
-                                  : person.accountStatus === "invited" ? "text-[#9a6700]"
-                                  : "text-[#7b8798]"
+                                  : person.accountStatus === "invited" ? "text-amber-600"
+                                  : "text-gray-400"
                                 }`}>
                                   {person.accountStatus === "active" && <UserCheck className="h-3.5 w-3.5" />}
                                   {person.accountStatus === "inactive" && <UserX className="h-3.5 w-3.5" />}
@@ -314,19 +314,19 @@ export default function PersonnelPage() {
                       return (
                         <div key={person.id} className="p-4 space-y-3">
                           <div>
-                            <div className="font-semibold text-[#131b2e]">{person.prenom} {person.nom}</div>
+                            <div className="font-semibold text-gray-900">{person.prenom} {person.nom}</div>
                             <div className="text-sm text-gray-500">{person.poste}</div>
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>
                               <span className="text-gray-500">Statut : </span>
-                              <span className={`font-medium ${person.statut === "actif" ? "text-[#1d6b45]" : person.statut === "inactif" ? "text-[#515f74]" : "text-[#9a6700]"}`}>
+                              <span className={`font-medium ${person.statut === "actif" ? "text-green-700" : person.statut === "inactif" ? "text-gray-600" : "text-amber-600"}`}>
                                 {person.statut === "actif" ? "Actif" : person.statut === "inactif" ? "Inactif" : "En congé"}
                               </span>
                             </div>
                             <div>
                               <span className="text-gray-500">Accès : </span>
-                              <span className={`font-medium ${person.accountStatus === "active" ? "text-[#1d6b45]" : person.accountStatus === "inactive" ? "text-red-600" : "text-gray-500"}`}>
+                              <span className={`font-medium ${person.accountStatus === "active" ? "text-green-700" : person.accountStatus === "inactive" ? "text-red-600" : "text-gray-500"}`}>
                                 {person.accountStatus === "active" ? (roleName || "Actif")
                                   : person.accountStatus === "inactive" ? "Désactivé"
                                   : "Aucun compte"}
@@ -339,7 +339,7 @@ export default function PersonnelPage() {
                                 Créer un compte
                               </Button>
                             ) : person.accountStatus === "inactive" ? (
-                              <Button variant="outline" size="sm" className="flex-1 text-[#1d6b45] border-green-200" onClick={() => setAccountPersonnel(person)}>
+                              <Button variant="outline" size="sm" className="flex-1 text-green-700 border-green-200" onClick={() => setAccountPersonnel(person)}>
                                 Réactiver
                               </Button>
                             ) : (
@@ -386,7 +386,7 @@ export default function PersonnelPage() {
               <DialogTitle>Désactiver ce membre ?</DialogTitle>
             </DialogHeader>
             <div className="py-3 space-y-4">
-              <p className="text-sm text-[#36445a]">
+              <p className="text-sm text-gray-700">
                 <strong>{deactivateTarget.prenom} {deactivateTarget.nom}</strong> ne sera plus considéré comme membre actif du personnel. Son historique sera conservé.
               </p>
               {deactivateError && (

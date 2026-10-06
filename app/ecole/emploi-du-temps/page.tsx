@@ -278,26 +278,26 @@ export default function EmploiDuTempsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-muted/30 p-3 sm:p-4 md:p-6">
-      <div className="mx-auto max-w-[1500px] space-y-5">
+    <main className="w-full min-w-0 bg-white p-3 sm:p-4 md:p-5">
+      <div className="w-full space-y-4">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
             <Button variant="outline" size="icon" asChild className="shrink-0">
               <Link href="/ecole/tableau-bord" aria-label="Retour au tableau de bord"><ArrowLeft className="h-4 w-4" /></Link>
             </Button>
             <div>
-              <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight sm:text-2xl"><Calendar className="h-6 w-6" />Emploi du temps</h1>
-              <p className="text-sm text-muted-foreground">Construisez l'horaire de chaque classe comme dans un tableau Excel.</p>
+              <h1 className="flex items-center gap-2 text-[23px] font-semibold leading-7 text-[#131b2e]"><Calendar className="h-6 w-6" />Emploi du temps</h1>
+              <p className="mt-0.5 text-[12px] text-[#515f74]">Planification des cours par classe, enseignant et matière</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <span className="rounded-full border bg-background px-3 py-1">{selectedClass?.nom ?? "Aucune classe"}</span>
-            <span className="rounded-full border bg-background px-3 py-1">{activeYear?.name ?? "Aucune année"}</span>
+          <div className="flex flex-wrap gap-2 text-[11px] text-[#515f74]">
+            <span className="rounded border border-[#c5c5d3]/70 bg-white px-3 py-1 text-[11px] text-[#36445a]">{selectedClass?.nom ?? "Aucune classe"}</span>
+            <span className="rounded border border-[#c5c5d3]/70 bg-white px-3 py-1 text-[11px] text-[#36445a]">{activeYear?.name ?? "Aucune année"}</span>
           </div>
         </header>
 
         {(error || success) && (
-          <div className={`flex items-start justify-between gap-3 rounded-lg border px-4 py-3 text-sm ${error ? "border-destructive/30 bg-destructive/5 text-destructive" : "border-emerald-500/30 bg-emerald-500/5 text-emerald-700"}`}>
+          <div className={`flex items-start justify-between gap-3 border px-4 py-3 text-sm ${error ? "border-destructive/30 bg-destructive/5 text-destructive" : "border-emerald-500/30 bg-emerald-500/5 text-emerald-700"}`}>
             <span>{error ?? success}</span>
             <button onClick={() => { setError(null); setSuccess(null) }} aria-label="Fermer"><X className="h-4 w-4" /></button>
           </div>
@@ -361,13 +361,13 @@ export default function EmploiDuTempsPage() {
                         return (
                           <td key={day.value} className="border-b border-r p-1 align-top">
                             {slot ? (
-                              <button onClick={() => openEditSlot(slot)} className="group h-full min-h-24 w-full rounded-md border bg-background p-3 text-left shadow-sm transition hover:-translate-y-px hover:shadow-md">
+                              <button onClick={() => openEditSlot(slot)} className="group h-full min-h-24 w-full rounded-md border border-[#c5c5d3]/60 bg-white p-3 text-left shadow-none transition hover:-translate-y-px hover:shadow-md">
                                 <div className="font-semibold leading-tight">{slot.subject_name}</div>
                                 <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><UserRound className="h-3.5 w-3.5" />{slot.teacher_name}</div>
                                 {slot.room && <div className="mt-1 text-xs text-muted-foreground">Salle · {slot.room}</div>}
                               </button>
                             ) : (
-                              <button onClick={() => openNewSlot(day.value, row)} className="flex min-h-24 w-full items-center justify-center rounded-md border border-dashed bg-muted/10 text-muted-foreground transition hover:border-foreground/30 hover:bg-muted/30">
+                              <button onClick={() => openNewSlot(day.value, row)} className="flex min-h-24 w-full items-center justify-center rounded-md border border-dashed bg-muted/10 text-muted-foreground transition hover:border-foreground/30 hover:bg-[#f7f8fc]">
                                 <Plus className="h-5 w-5" />
                                 <span className="sr-only">Ajouter un cours le {day.label}</span>
                               </button>

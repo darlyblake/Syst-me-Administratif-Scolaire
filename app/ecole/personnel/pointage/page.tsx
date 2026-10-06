@@ -500,8 +500,8 @@ export default function PersonnelPointagePage() {
           </div>
           <div className="flex flex-wrap items-end gap-2 text-sm print:hidden">
             <div><Label htmlFor="pointage-date">Date consultée</Label><Input id="pointage-date" type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} className="mt-1 w-[170px]" /></div>
-            <span className="rounded-md border bg-background px-3 py-2"><Users className="mr-1 inline h-4 w-4" />{counts.present} présent(s)</span>
-            <span className="rounded-md border bg-background px-3 py-2"><AlertTriangle className="mr-1 inline h-4 w-4" />{alerts.length} alerte(s)</span>
+            <span className="border bg-background px-3 py-2"><Users className="mr-1 inline h-4 w-4" />{counts.present} présent(s)</span>
+            <span className="border bg-background px-3 py-2"><AlertTriangle className="mr-1 inline h-4 w-4" />{alerts.length} alerte(s)</span>
             <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" /> Imprimer</Button>
             <Button variant="outline" size="sm" onClick={() => void loadMonitoring()} disabled={refreshing}>
               <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Actualiser
@@ -527,7 +527,7 @@ export default function PersonnelPointagePage() {
                 const Icon = action.icon
                 const selected = mode === action.id
                 return (
-                  <button key={action.id} onClick={() => { setMode(action.id); setMessage(null) }} className={`rounded-lg border bg-background p-4 text-left transition ${selected ? "border-emerald-600 ring-1 ring-emerald-600" : "hover:border-gray-300"}`}>
+                  <button key={action.id} onClick={() => { setMode(action.id); setMessage(null) }} className={`border bg-background p-4 text-left transition ${selected ? "border-emerald-600 ring-1 ring-emerald-600" : "hover:border-gray-300"}`}>
                     <Icon className="mb-3 h-5 w-5" />
                     <div className="font-medium">{action.label}</div>
                     <div className="mt-1 text-xs text-muted-foreground">{action.description}</div>
@@ -536,7 +536,7 @@ export default function PersonnelPointagePage() {
               })}
             </div>
 
-            <div className="mx-auto max-w-xl rounded-xl border bg-background p-5 shadow-none">
+            <div className="mx-auto max-w-xl border bg-background p-5 shadow-none">
               <div className="mb-5">
                 <h2 className="text-lg font-semibold">{ACTIONS.find(action => action.id === mode)?.label}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">Le code identifie automatiquement la personne. Pour un enseignant, le cours est recherché automatiquement dans l'emploi du temps.</p>
@@ -558,7 +558,7 @@ export default function PersonnelPointagePage() {
                 {busy ? "Vérification…" : "Valider le pointage"}
               </Button>
 
-              {message && <div className="mt-4 rounded-md border bg-muted/30 p-3 text-sm">{message}</div>}
+              {message && <div className="mt-4 border bg-muted/30 p-3 text-sm">{message}</div>}
 
               <div className="mt-5 border-t pt-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -572,7 +572,7 @@ export default function PersonnelPointagePage() {
                 </div>
 
                 {qrSvg && (
-                  <div className="mt-4 flex flex-col items-center gap-3 rounded-lg border bg-white p-4">
+                  <div className="mt-4 flex flex-col items-center gap-3 border bg-white p-4">
                     <div className="h-64 w-64" dangerouslySetInnerHTML={{ __html: qrSvg }} />
                     <p className="text-xs text-muted-foreground">Valide jusqu'à {qrExpiresAt ? new Date(qrExpiresAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}</p>
                   </div>
@@ -584,14 +584,14 @@ export default function PersonnelPointagePage() {
 
         {section === "codes" && (
           <section className="space-y-4">
-            <div className="rounded-md border bg-background p-4">
+            <div className="border bg-background p-4">
               <h2 className="flex items-center gap-2 font-semibold"><QrCode className="h-5 w-5" />Codes personnels de pointage</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Chaque enseignant et membre du personnel actif possède un code individuel. Le code permet de pointer sans scanner le QR de l'ordinateur.
                 Pour des raisons de sécurité, le code complet n'est affiché qu'au moment de sa génération ou de son renouvellement.
               </p>
             </div>
-            <div className="overflow-x-auto rounded-md border bg-background">
+            <div className="overflow-x-auto border bg-background">
               <table className="w-full min-w-[760px] text-sm">
                 <thead className="border-b bg-muted/40">
                   <tr>
@@ -614,7 +614,7 @@ export default function PersonnelPointagePage() {
                         <td className="px-4 py-3 text-right">
                           {isRevealed && revealedCode ? (
                             <span className="inline-flex items-center gap-3">
-                              <span className="rounded-md border bg-muted/30 px-3 py-1.5 font-mono font-semibold tracking-[0.2em]">{revealedCode}</span>
+                              <span className="border bg-muted/30 px-3 py-1.5 font-mono font-semibold tracking-[0.2em]">{revealedCode}</span>
                               <Button size="sm" variant="outline" onClick={() => void generatePersonCode(person)} disabled={isBusy}>
                                 Renouveler
                               </Button>
@@ -636,7 +636,7 @@ export default function PersonnelPointagePage() {
         )}
 
         {section === "historique" && (
-          <section className="overflow-x-auto rounded-lg border bg-background">
+          <section className="overflow-x-auto border bg-background">
             <table className="w-full min-w-[900px] text-sm">
               <thead className="border-b bg-muted/40">
                 <tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Heure</th><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Événement</th><th className="px-4 py-3 text-left">Méthode</th><th className="px-4 py-3 text-left">Cours</th></tr>
@@ -663,7 +663,7 @@ export default function PersonnelPointagePage() {
               <div className="flex flex-wrap items-end gap-3">
                 <div>
                   <Label htmlFor="fiche-month">Mois de la fiche</Label>
-                  <select id="fiche-month" value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)} className="mt-1 h-10 w-[220px] rounded-md border bg-background px-3 text-sm">
+                  <select id="fiche-month" value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)} className="mt-1 h-10 w-[220px] border bg-background px-3 text-sm">
                     {monthOptions.map(month => (
                       <option key={month} value={month}>
                         {new Date(month + "-01T12:00:00").toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
@@ -679,7 +679,7 @@ export default function PersonnelPointagePage() {
               <Button variant="outline" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" /> Imprimer / PDF</Button>
             </div>
 
-            <div className="rounded-lg border bg-background p-4">
+            <div className="border bg-background p-4">
               <h2 className="font-semibold">Fiche de pointage — {new Date(selectedMonth + "-01T12:00:00").toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</h2>
               <p className="mt-1 text-sm text-muted-foreground">Le pointage calcule les heures prévues, travaillées et supplémentaires. Finance décide ensuite des primes, retenues et règles de paie.</p>
               {ficheLoading && <p className="mt-2 text-sm text-muted-foreground">Génération de la fiche…</p>}
@@ -691,7 +691,7 @@ export default function PersonnelPointagePage() {
             </div>
 
             {ficheTab === "recapitulatif" ? (
-              <div className="overflow-x-auto rounded-lg border bg-background">
+              <div className="overflow-x-auto border bg-background">
                 <table className="w-full min-w-[1100px] text-sm">
                   <thead className="border-b bg-muted/40">
                     <tr><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Heures prévues</th><th className="px-4 py-3 text-left">Heures travaillées</th><th className="px-4 py-3 text-left">Heures créditées</th><th className="px-4 py-3 text-left">Retards</th><th className="px-4 py-3 text-left">Heures sup.</th><th className="px-4 py-3 text-left">Absences</th></tr>
@@ -713,7 +713,7 @@ export default function PersonnelPointagePage() {
                 </table>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-lg border bg-background">
+              <div className="overflow-x-auto border bg-background">
                 <table className="w-full min-w-[1300px] text-sm">
                   <thead className="border-b bg-muted/40">
                     <tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Prévu</th><th className="px-4 py-3 text-left">Travaillé</th><th className="px-4 py-3 text-left">Crédité</th><th className="px-4 py-3 text-left">Retard</th><th className="px-4 py-3 text-left">Départ anticipé</th><th className="px-4 py-3 text-left">Heures sup.</th><th className="px-4 py-3 text-left">État</th></tr>
@@ -739,7 +739,7 @@ export default function PersonnelPointagePage() {
         )}
 
         {section === "absents" && (
-          <section className="overflow-x-auto rounded-lg border bg-background">
+          <section className="overflow-x-auto border bg-background">
             <table className="w-full min-w-[700px] text-sm">
               <thead className="border-b bg-muted/40">
                 <tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Identifiant</th><th className="px-4 py-3 text-left">État</th></tr>
@@ -766,12 +766,12 @@ export default function PersonnelPointagePage() {
               <button onClick={() => setRetardTab("enseignants")} className={`rounded-md border px-3 py-2 text-sm ${retardTab === "enseignants" ? "border-emerald-600 bg-emerald-50 text-emerald-700 font-medium" : "text-muted-foreground"}`}>Retards enseignants</button>
               <button onClick={() => setRetardTab("personnel")} className={`rounded-md border px-3 py-2 text-sm ${retardTab === "personnel" ? "border-emerald-600 bg-emerald-50 text-emerald-700 font-medium" : "text-muted-foreground"}`}>Retards du personnel</button>
             </div>
-            <div className="rounded-md border bg-background p-3 text-sm text-muted-foreground">
+            <div className="border bg-background p-3 text-sm text-muted-foreground">
               {retardTab === "enseignants"
                 ? "Les retards enseignants sont calculés sur l'heure de début de chaque cours."
                 : "Les retards du personnel sont calculés sur l'horaire général configuré dans Paramètres."}
             </div>
-            <div className="overflow-x-auto rounded-lg border bg-background">
+            <div className="overflow-x-auto border bg-background">
               <table className="w-full min-w-[900px] text-sm">
                 <thead className="border-b bg-muted/40"><tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Personne</th><th className="px-4 py-3 text-left">Fonction</th><th className="px-4 py-3 text-left">Début prévu</th><th className="px-4 py-3 text-left">Arrivée / cours</th><th className="px-4 py-3 text-left">Retard</th></tr></thead>
                 <tbody className="divide-y">
@@ -818,7 +818,7 @@ export default function PersonnelPointagePage() {
         )}
 
         {section === "cours" && (
-          <section className="overflow-x-auto rounded-lg border bg-background">
+          <section className="overflow-x-auto border bg-background">
             <table className="w-full min-w-[800px] text-sm">
               <thead className="border-b bg-muted/40"><tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Enseignant</th><th className="px-4 py-3 text-left">Début</th><th className="px-4 py-3 text-left">Fin prévue</th><th className="px-4 py-3 text-left">État</th></tr></thead>
               <tbody className="divide-y">
@@ -831,9 +831,9 @@ export default function PersonnelPointagePage() {
 
         {section === "alertes" && (
           <section className="space-y-3">
-            <div className="flex flex-wrap items-end gap-2 print:hidden"><div><Label htmlFor="alert-filter">Filtrer les alertes</Label><select id="alert-filter" value={alertFilter} onChange={event => setAlertFilter(event.target.value)} className="mt-1 h-10 rounded-md border bg-background px-3 text-sm"><option value="all">Toutes</option><option value="late">Retards</option><option value="missing_lesson">Cours non pointés</option><option value="lesson_to_close">Cours à clôturer</option></select></div></div>
+            <div className="flex flex-wrap items-end gap-2 print:hidden"><div><Label htmlFor="alert-filter">Filtrer les alertes</Label><select id="alert-filter" value={alertFilter} onChange={event => setAlertFilter(event.target.value)} className="mt-1 h-10 border bg-background px-3 text-sm"><option value="all">Toutes</option><option value="late">Retards</option><option value="missing_lesson">Cours non pointés</option><option value="lesson_to_close">Cours à clôturer</option></select></div></div>
             {filteredAlerts.map((alert, index) => (
-              <div key={`${alert.alert_type}-${alert.teacher_id}-${alert.timetable_slot_id}-${index}`} className="flex flex-wrap items-start gap-3 rounded-lg border bg-background p-4">
+              <div key={`${alert.alert_type}-${alert.teacher_id}-${alert.timetable_slot_id}-${index}`} className="flex flex-wrap items-start gap-3 border bg-background p-4">
                 <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600" />
                 <div className="min-w-0 flex-1">
                   <div className="font-medium">
@@ -859,19 +859,19 @@ export default function PersonnelPointagePage() {
                 )}
               </div>
             ))}
-            {!alerts.length && <div className="rounded-lg border bg-background p-10 text-center text-muted-foreground"><CheckCircle2 className="mx-auto mb-3 h-8 w-8 text-emerald-600" />Aucune alerte pour cette date.</div>}
+            {!alerts.length && <div className="border bg-background p-10 text-center text-muted-foreground"><CheckCircle2 className="mx-auto mb-3 h-8 w-8 text-emerald-600" />Aucune alerte pour cette date.</div>}
           </section>
         )}
 
         {section === "parametres" && (
-          <section className="max-w-3xl rounded-lg border bg-background p-5 space-y-5">
+          <section className="max-w-3xl border bg-background p-5 space-y-5">
             <div>
               <h2 className="flex items-center gap-2 font-semibold"><Settings2 className="h-5 w-5" /> Calcul des heures et règles de pointage</h2>
               <p className="mt-1 text-sm text-muted-foreground">Exemple : un cours de 08h00 à 09h40 peut compter 2 h jusqu'au seuil configuré, puis 1 h après ce seuil.</p>
             </div>
 
             <div className="space-y-5">
-              <div className="rounded-md border bg-muted/20 p-3">
+              <div className="border bg-muted/20 p-3">
                 <p className="font-medium">Jours ouvrables de l'établissement — personnel non enseignant</p>
                 <p className="mt-1 text-xs text-muted-foreground">Chaque jour possède son propre horaire. Le système utilise automatiquement l'horaire du jour concerné pour calculer les retards, heures prévues, heures travaillées et heures supplémentaires. Le samedi peut donc avoir un horaire différent des autres jours.</p>
               </div>

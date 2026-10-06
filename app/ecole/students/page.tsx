@@ -219,7 +219,7 @@ export default function StudentsPage() {
         </div>
       </section>
 
-      <section className="mt-2 grid min-w-0 gap-2 xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,.95fr)]">
+      <section className="mt-2 min-w-0">
         <div className="min-w-0 overflow-hidden border border-[#c5c5d3]/60 bg-white">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] border-collapse">
@@ -237,7 +237,7 @@ export default function StudentsPage() {
                 {paginatedStudents.length === 0 ? (
                   <tr><td colSpan={6} className="px-4 py-12 text-center text-[12px] text-[#515f74]">Aucun élève trouvé.</td></tr>
                 ) : paginatedStudents.map((student) => {
-                  const className = assignmentClasses.find((item) => item.id === student.id || item.id === (student as any).class_id)?.name || student.classe || "—"
+                  const className = assignmentClasses.find((item) => item.id === (student as any).class_id)?.name || student.classe || "—"
                   const birth = student.dateNaissance ? new Date(student.dateNaissance) : null
                   const age = birth && !Number.isNaN(birth.getTime()) ? Math.max(0, new Date().getFullYear() - birth.getFullYear()) : null
                   const initials = ((student.prenom?.[0] || "") + (student.nom?.[0] || "")).toUpperCase() || "—"
@@ -282,77 +282,18 @@ export default function StudentsPage() {
             </div>
           </div>
         </div>
-
-        <aside className="min-w-0 overflow-hidden border border-[#c5c5d3]/60 bg-white">
-          {selectedStudent ? (
-            <>
-              <div className="flex items-start justify-between border-b border-[#c5c5d3]/60 bg-[#f2f3ff] px-3 py-2.5">
-                <div className="flex items-start gap-2">
-                  <div className="flex h-10 w-10 items-center justify-center bg-[#1e3a8a] text-[12px] font-semibold text-white">
-                    {((selectedStudent.prenom?.[0] || "") + (selectedStudent.nom?.[0] || "")).toUpperCase() || "—"}
-                  </div>
-                  <div>
-                    <h2 className="text-[16px] font-semibold text-[#131b2e]">{selectedStudent.nom} {selectedStudent.prenom}</h2>
-                    <p className="font-mono text-[11px] text-[#264191]">{selectedStudent.identifiant || "Matricule non renseigné"} <span className="text-[#515f74]">|</span> {assignmentClasses.find((item) => item.id === (selectedStudent as any).class_id)?.name || selectedStudent.classe || "Classe non renseignée"}</p>
-                  </div>
-                </div>
-                <button type="button" onClick={() => setSelectedStudent(null)} className="text-[18px] text-[#515f74] hover:text-[#131b2e]" aria-label="Fermer">×</button>
-              </div>
-
-              <div className="flex border-b border-[#c5c5d3]/60 bg-white text-[11px]">
-                {["Identité", "Scolarité", "Finances", "Absences/Notes", "Documents"].map((tab, index) => (
-                  <span key={tab} className={["px-2.5 py-2", index === 0 ? "border-b-2 border-[#00236f] font-semibold text-[#00236f]" : "text-[#515f74]"].join(" ")}>{tab}</span>
-                ))}
-              </div>
-
-              <div className="space-y-3 p-3">
-                <div>
-                  <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#515f74]">État civil & régime</h3>
-                  <div className="grid grid-cols-2 gap-1 border border-[#c5c5d3]/50 bg-[#f2f3ff] p-2.5 text-[11px]">
-                    <div><span className="text-[#515f74]">Date de naissance :</span><div className="font-medium">{selectedStudent.dateNaissance ? new Date(selectedStudent.dateNaissance).toLocaleDateString("fr-FR") : "Non renseignée"}</div></div>
-                    <div><span className="text-[#515f74]">Lieu :</span><div className="font-medium">{selectedStudent.lieuNaissance || "Non renseigné"}</div></div>
-                    <div><span className="text-[#515f74]">Sexe :</span><div className="font-medium">{selectedStudent.sexe || "Non renseigné"}</div></div>
-                    <div><span className="text-[#515f74]">Statut :</span><div className="font-medium text-[#00236f]">{selectedStudent.statut}</div></div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#515f74]">Responsable légal principal</h3>
-                  <div className="border border-[#c5c5d3]/50 bg-[#f2f3ff] p-2.5 text-[11px]">
-                    <p className="font-semibold text-[#131b2e]">{selectedStudent.nomParent || "Responsable non renseigné"}</p>
-                    <p className="mt-1 text-[#515f74]">{selectedStudent.informationsContact.telephone || "Téléphone non renseigné"}</p>
-                    <p className="text-[#515f74]">{selectedStudent.informationsContact.email || "Email non renseigné"}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#515f74]">Indicateurs de suivi</h3>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <div className="border border-[#c5c5d3]/50 p-2"><p className="text-[10px] text-[#515f74]">Solde scolarité</p><p className="mt-1 text-[14px] font-semibold text-[#131b2e]">—</p><p className="text-[10px] text-[#515f74]">Données financières disponibles selon le dossier</p></div>
-                    <div className="border border-[#c5c5d3]/50 p-2"><p className="text-[10px] text-[#515f74]">Assiduité</p><p className="mt-1 text-[14px] font-semibold text-[#131b2e]">—</p><p className="text-[10px] text-[#515f74]">Voir Absences</p></div>
-                    <div className="border border-[#c5c5d3]/50 p-2"><p className="text-[10px] text-[#515f74]">Moy. trimestre</p><p className="mt-1 text-[14px] font-semibold text-[#131b2e]">—</p><p className="text-[10px] text-[#515f74]">Voir Évaluations / Notes</p></div>
-                    <div className="border border-[#c5c5d3]/50 p-2"><p className="text-[10px] text-[#515f74]">Dossier</p><p className="mt-1 text-[14px] font-semibold text-[#131b2e]">—</p><p className="text-[10px] text-[#515f74]">Pièces à consulter</p></div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap justify-end gap-2 border-t border-[#c5c5d3]/60 bg-[#f2f3ff] p-2.5">
-                <Button variant="outline" size="sm" className="h-8 rounded text-[11px]" onClick={() => handleToggleStatus(selectedStudent)}>{selectedStudent.statut === "actif" ? "Désactiver" : "Activer"}</Button>
-                <Button variant="outline" size="sm" className="h-8 rounded text-[11px]" onClick={() => handlePrintSchoolCertificate(selectedStudent)}><FileText className="mr-1.5 h-3.5 w-3.5" /> Certificat</Button>
-                <Button size="sm" className="h-8 rounded bg-[#1e3a8a] text-[11px] hover:bg-[#00236f]" onClick={() => router.push(`/ecole/students/${selectedStudent.id}`)}>Dossier</Button>
-              </div>
-            </>
-          ) : (
-            <div className="flex min-h-[420px] items-center justify-center px-6 text-center">
-              <div>
-                <Users className="mx-auto h-8 w-8 text-[#515f74]" strokeWidth={1.5} />
-                <p className="mt-2 text-[13px] font-semibold text-[#131b2e]">Sélectionnez un élève</p>
-                <p className="mt-1 text-[11px] leading-5 text-[#515f74]">Le dossier administratif s'affichera ici.</p>
-              </div>
-            </div>
-          )}
-        </aside>
       </section>
+
+      {selectedStudent && (
+        <StudentDetailsModal
+          student={selectedStudent}
+          onClose={() => setSelectedStudent(null)}
+          onDelete={handleDeleteStudent}
+          onToggleStatus={handleToggleStatus}
+          onPrintReceipt={handlePrintReceipt}
+          onEdit={(student) => router.push(`/ecole/students/${student.id}`)}
+        />
+      )}
 
       {selectedIds.size > 0 && (
         <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 border border-[#c5c5d3] bg-white px-3 py-2 shadow-[0_3px_12px_rgba(19,27,46,.10)]">

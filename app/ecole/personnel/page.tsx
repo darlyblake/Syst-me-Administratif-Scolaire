@@ -152,7 +152,7 @@ export default function PersonnelPage() {
                 Ajouter un membre
               </Button>
               </div>
-            </div>
+            </header>
 
             {/* Statistiques inline */}
             <p className="border-b border-[#c5c5d3]/45 py-2 text-[12px] text-[#515f74]">

@@ -210,235 +210,185 @@ export default function DocumentsPage() {
   const statistiques = serviceDocuments.obtenirStatistiques()
 
   return (
-    <div className="min-h-screen p-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/ecole/tableau-bord">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Retour
-            </Link>
-          </Button>
+    <div className="w-full min-w-0 text-[#131b2e]">
+      <header className="border-b border-[#c5c5d3]/60 pb-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <FileText className="h-6 w-6" />
-              Génération de Documents
-            </h1>
-            <p className="text-gray-600">Certificats, attestations, reçus, convocations</p>
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-[#00236f]" />
+              <h1 className="text-[23px] font-semibold leading-7 tracking-tight">Génération de documents</h1>
+            </div>
+            <p className="mt-0.5 text-[12px] leading-4 text-[#515f74]">
+              Création, suivi et impression des documents administratifs scolaires
+            </p>
+          </div>
+          <Button
+            type="button"
+            onClick={() => setShowGenerateModal(true)}
+            className="h-8 rounded border border-[#00236f] bg-[#1e3a8a] px-3 text-[11px] font-medium hover:bg-[#00236f]"
+          >
+            <FileText className="mr-1.5 h-3.5 w-3.5" /> Générer un document
+          </Button>
+        </div>
+      </header>
+
+      <section className="mt-3 grid grid-cols-1 border border-[#c5c5d3]/50 bg-white sm:grid-cols-3">
+        {[
+          { label: "Total documents", value: statistiques.total, tone: "text-[#00236f] bg-[#dce1ff]" },
+          { label: "Documents imprimés", value: statistiques.parStatut.imprime || 0, tone: "text-[#166534] bg-[#dcfce7]" },
+          { label: "Documents générés", value: statistiques.parStatut.genere || 0, tone: "text-[#7a5600] bg-[#fff7dc]" },
+        ].map((item, index) => (
+          <div key={item.label} className={`flex min-h-[70px] items-center justify-between border-b border-[#c5c5d3]/45 p-3 sm:border-b-0 ${index < 2 ? "sm:border-r" : ""}`}>
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-[.04em] text-[#515f74]">{item.label}</p>
+              <p className="mt-1 text-[21px] font-semibold tabular-nums">{item.value}</p>
+            </div>
+            <span className={`flex h-8 w-8 items-center justify-center ${item.tone}`}>
+              <FileText className="h-4 w-4" />
+            </span>
+          </div>
+        ))}
+      </section>
+
+      <section className="mt-3 overflow-hidden border border-[#c5c5d3]/45 bg-white">
+        <div className="grid grid-cols-1 gap-2 bg-[#f2f3ff] p-2 md:grid-cols-[1fr_260px_auto]">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#515f74]" />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Rechercher un document ou un identifiant…"
+              className="h-8 w-full rounded border border-[#c5c5d3]/70 bg-white pl-8 pr-2.5 text-[12px] outline-none focus:border-[#00236f]"
+            />
+          </div>
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="h-8 rounded border border-[#c5c5d3]/70 bg-white px-2.5 text-[12px] outline-none focus:border-[#00236f]"
+          >
+            <option value="tous">Tous les types</option>
+            {TYPES_DOCUMENTS.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+          </select>
+          <div className="flex items-center justify-end px-1 text-[11px] text-[#515f74]">
+            {filteredDocuments.length} document(s)
           </div>
         </div>
 
-        {/* Statistiques */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-gray-600">Total documents</p>
-              <p className="text-2xl font-bold">{statistiques.total}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-gray-600">Imprimés</p>
-              <p className="text-2xl font-bold text-green-600">{statistiques.parStatut.imprime || 0}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-gray-600">Générés</p>
-              <p className="text-2xl font-bold text-blue-600">{statistiques.parStatut.genere || 0}</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filtres et actions */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <Input
-                  placeholder="Rechercher par ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full"
-                />
-              </div>
-              <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filtrer par type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tous">Tous les types</SelectItem>
-                  {TYPES_DOCUMENTS.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button onClick={() => setShowGenerateModal(true)} className="ml-auto">
-                <FileText className="h-4 w-4 mr-2" />
-                Générer un document
-              </Button>
+        <div className="border-t border-[#c5c5d3]/45">
+          {filteredDocuments.length === 0 ? (
+            <div className="px-3 py-12 text-center">
+              <FileText className="mx-auto h-8 w-8 text-[#515f74]" strokeWidth={1.5} />
+              <p className="mt-2 text-[13px] font-semibold">Aucun document généré</p>
+              <p className="mt-1 text-[11px] text-[#515f74]">Les documents créés depuis cet espace apparaîtront ici.</p>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Liste des documents */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Documents Générés</CardTitle>
-            <CardDescription>{filteredDocuments.length} document(s)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {filteredDocuments.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">Aucun document généré</p>
-              ) : (
-                filteredDocuments.map((document) => (
-                  <div key={document.id} className="border rounded-lg p-4 flex justify-between items-center hover:bg-gray-50">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <FileText className="h-6 w-6 text-blue-600" />
+          ) : (
+            <div className="divide-y divide-[#c5c5d3]/35">
+              {filteredDocuments.map((document) => (
+                <article key={document.id} className="p-3 hover:bg-[#f7f8ff]">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#c5c5d3]/60 bg-[#f2f3ff] text-[#264191]">
+                        <FileText className="h-4 w-4" />
                       </div>
-                      <div>
-                        <p className="font-semibold">{getTypeLabel(document.type)}</p>
-                        <p className="text-sm text-gray-600">Élève: {getEleveNom(document.eleveId)}</p>
-                        <div className="flex gap-2 mt-2">
-                          <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-800">
-                            <Calendar className="h-3 w-3 inline mr-1" />
-                            {new Date(document.dateGeneration).toLocaleDateString()}
+                      <div className="min-w-0">
+                        <p className="truncate text-[13px] font-semibold">{getTypeLabel(document.type)}</p>
+                        <p className="mt-0.5 truncate text-[11px] text-[#515f74]">Élève : {getEleveNom(document.eleveId)}</p>
+                        <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
+                          <span className="inline-flex items-center gap-1 bg-[#f2f3ff] px-2 py-1 text-[#515f74]">
+                            <Calendar className="h-3 w-3" /> {new Date(document.dateGeneration).toLocaleDateString("fr-FR")}
                           </span>
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            document.statut === 'imprime' ? 'bg-green-100 text-green-800' :
-                            document.statut === 'envoye' ? 'bg-blue-100 text-blue-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
+                          <span className={`px-2 py-1 ${document.statut === "imprime" ? "bg-[#dcfce7] text-[#166534]" : document.statut === "envoye" ? "bg-[#dce1ff] text-[#264191]" : "bg-[#f2f3ff] text-[#515f74]"}`}>
                             {document.statut}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2 ml-4">
-                      <Button variant="outline" size="sm" onClick={() => handleImprimer(document)}>
-                        <Printer className="h-4 w-4 mr-1" />
-                        Imprimer
+                    <div className="flex shrink-0 flex-wrap gap-1.5">
+                      <Button variant="outline" size="sm" onClick={() => handleImprimer(document)} className="h-8 rounded text-[11px]">
+                        <Printer className="mr-1.5 h-3.5 w-3.5" /> Imprimer
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleTelecharger(document)}>
-                        <Download className="h-4 w-4 mr-1" />
-                        Télécharger
+                      <Button variant="outline" size="sm" onClick={() => handleTelecharger(document)} className="h-8 rounded text-[11px]">
+                        <Download className="mr-1.5 h-3.5 w-3.5" /> Télécharger
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleSupprimer(document.id)}>
-                        <Trash2 className="h-4 w-4" />
+                      <Button variant="outline" size="sm" onClick={() => handleSupprimer(document.id)} className="h-8 w-8 rounded p-0 text-[#ba1a1a]" aria-label="Supprimer">
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
-                ))
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {showGenerateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#131b2e]/45 p-3" role="dialog" aria-modal="true">
+          <div className="w-full max-w-lg overflow-hidden border border-[#c5c5d3] bg-white shadow-[0_12px_40px_rgba(19,27,46,.18)]">
+            <div className="flex items-start justify-between border-b border-[#c5c5d3]/60 bg-[#f2f3ff] px-4 py-3">
+              <div>
+                <h2 className="text-[15px] font-semibold">Générer un document</h2>
+                <p className="mt-0.5 text-[11px] text-[#515f74]">Sélectionnez le bénéficiaire et le type de document.</p>
+              </div>
+              <button type="button" onClick={() => setShowGenerateModal(false)} className="text-[20px] leading-none text-[#515f74] hover:text-[#131b2e]" aria-label="Fermer">×</button>
+            </div>
+
+            <div className="max-h-[calc(100dvh-10rem)] space-y-4 overflow-y-auto p-4">
+              <div>
+                <label htmlFor="eleve" className="mb-1.5 block text-[11px] font-medium text-[#515f74]">Élève <span className="text-[#ba1a1a]">*</span></label>
+                <select id="eleve" value={selectedEleve} onChange={(e) => setSelectedEleve(e.target.value)} className="h-9 w-full border border-[#c5c5d3]/70 bg-white px-2.5 text-[12px] outline-none focus:border-[#00236f]">
+                  <option value="">Sélectionner un élève</option>
+                  {eleves.map((eleve) => <option key={eleve.id} value={eleve.id}>{eleve.prenom} {eleve.nom}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="type" className="mb-1.5 block text-[11px] font-medium text-[#515f74]">Type de document <span className="text-[#ba1a1a]">*</span></label>
+                <select id="type" value={selectedType} onChange={(e) => setSelectedType(e.target.value as Document["type"])} className="h-9 w-full border border-[#c5c5d3]/70 bg-white px-2.5 text-[12px] outline-none focus:border-[#00236f]">
+                  {TYPES_DOCUMENTS.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+                </select>
+              </div>
+
+              {selectedType === "recu_paiement" && (
+                <div className="grid gap-3 border-t border-[#c5c5d3]/45 pt-3 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="montant" className="mb-1.5 block text-[11px] font-medium text-[#515f74]">Montant (FCFA) <span className="text-[#ba1a1a]">*</span></label>
+                    <input id="montant" type="number" value={montantPaiement} onChange={(e) => setMontantPaiement(e.target.value)} placeholder="50000" className="h-9 w-full border border-[#c5c5d3]/70 bg-white px-2.5 text-[12px] outline-none focus:border-[#00236f]" />
+                  </div>
+                  <div>
+                    <label htmlFor="motif" className="mb-1.5 block text-[11px] font-medium text-[#515f74]">Motif <span className="text-[#ba1a1a]">*</span></label>
+                    <input id="motif" value={motifPaiement} onChange={(e) => setMotifPaiement(e.target.value)} placeholder="Frais d'inscription" className="h-9 w-full border border-[#c5c5d3]/70 bg-white px-2.5 text-[12px] outline-none focus:border-[#00236f]" />
+                  </div>
+                </div>
+              )}
+
+              {selectedType === "convocation" && (
+                <div className="space-y-3 border-t border-[#c5c5d3]/45 pt-3">
+                  <div>
+                    <label htmlFor="typeConvocation" className="mb-1.5 block text-[11px] font-medium text-[#515f74]">Type de convocation <span className="text-[#ba1a1a]">*</span></label>
+                    <input id="typeConvocation" value={typeConvocation} onChange={(e) => setTypeConvocation(e.target.value)} placeholder="Réunion parents-professeurs" className="h-9 w-full border border-[#c5c5d3]/70 bg-white px-2.5 text-[12px] outline-none focus:border-[#00236f]" />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="dateConvocation" className="mb-1.5 block text-[11px] font-medium text-[#515f74]">Date <span className="text-[#ba1a1a]">*</span></label>
+                      <input id="dateConvocation" type="date" value={dateConvocation} onChange={(e) => setDateConvocation(e.target.value)} className="h-9 w-full border border-[#c5c5d3]/70 bg-white px-2.5 text-[12px] outline-none focus:border-[#00236f]" />
+                    </div>
+                    <div>
+                      <label htmlFor="heureConvocation" className="mb-1.5 block text-[11px] font-medium text-[#515f74]">Heure <span className="text-[#ba1a1a]">*</span></label>
+                      <input id="heureConvocation" type="time" value={heureConvocation} onChange={(e) => setHeureConvocation(e.target.value)} className="h-9 w-full border border-[#c5c5d3]/70 bg-white px-2.5 text-[12px] outline-none focus:border-[#00236f]" />
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Modal de génération */}
-        {showGenerateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-              <h3 className="text-lg font-bold mb-4">Générer un Document</h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="eleve">Élève *</Label>
-                  <Select value={selectedEleve} onValueChange={setSelectedEleve}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un élève" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {eleves.map((eleve) => (
-                        <SelectItem key={eleve.id} value={eleve.id}>
-                          {eleve.prenom} {eleve.nom}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="type">Type de document *</Label>
-                  <Select value={selectedType} onValueChange={(value) => setSelectedType(value as any)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TYPES_DOCUMENTS.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {selectedType === "recu_paiement" && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="montant">Montant (FCFA) *</Label>
-                      <Input
-                        id="montant"
-                        type="number"
-                        value={montantPaiement}
-                        onChange={(e) => setMontantPaiement(e.target.value)}
-                        placeholder="50000"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="motif">Motif *</Label>
-                      <Input
-                        id="motif"
-                        value={motifPaiement}
-                        onChange={(e) => setMotifPaiement(e.target.value)}
-                        placeholder="Frais d'inscription"
-                      />
-                    </div>
-                  </>
-                )}
-
-                {selectedType === "convocation" && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="typeConvocation">Type de convocation *</Label>
-                      <Input
-                        id="typeConvocation"
-                        value={typeConvocation}
-                        onChange={(e) => setTypeConvocation(e.target.value)}
-                        placeholder="Réunion parents-professeurs"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="dateConvocation">Date *</Label>
-                      <Input
-                        id="dateConvocation"
-                        type="date"
-                        value={dateConvocation}
-                        onChange={(e) => setDateConvocation(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="heureConvocation">Heure *</Label>
-                      <Input
-                        id="heureConvocation"
-                        type="time"
-                        value={heureConvocation}
-                        onChange={(e) => setHeureConvocation(e.target.value)}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="flex gap-2 mt-6">
-                <Button onClick={handleGenererDocument} className="flex-1">
-                  Générer
-                </Button>
-                <Button variant="outline" onClick={() => setShowGenerateModal(false)} className="flex-1">
-                  Annuler
-                </Button>
-              </div>
+            <div className="flex justify-end gap-2 border-t border-[#c5c5d3]/60 bg-[#f2f3ff] px-4 py-3">
+              <Button type="button" variant="outline" onClick={() => setShowGenerateModal(false)} className="h-8 rounded px-3 text-[11px]">Annuler</Button>
+              <Button type="button" onClick={handleGenererDocument} className="h-8 rounded bg-[#1e3a8a] px-3 text-[11px] hover:bg-[#00236f]">Générer le document</Button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

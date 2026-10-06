@@ -173,11 +173,11 @@ export function GeneralFeesSection({ establishmentId, academicStructure }: Gener
 
       {/* Modal Frais Généraux */}
       <Dialog open={isGeneralModalOpen} onOpenChange={setIsGeneralModalOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-base font-semibold">Modifier les frais généraux</DialogTitle>
+        <DialogContent className="max-w-lg rounded-none border-[#cfd3dc] bg-white p-0 text-[#172033] shadow-[0_12px_32px_rgba(23,32,51,0.16)]">
+          <DialogHeader className="border-b border-[#e3e5ea] px-5 py-4">
+            <DialogTitle className="text-[15px] font-semibold text-[#172033]">Modifier les frais généraux</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 px-5 py-5">
             <div className="space-y-1.5">
               <Label htmlFor="gen-reg" className="text-sm">Frais d'inscription</Label>
               <div className="relative">
@@ -193,7 +193,7 @@ export function GeneralFeesSection({ establishmentId, academicStructure }: Gener
               </div>
             </div>
           </div>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="border-t border-[#e3e5ea] bg-[#fafbfc] px-5 py-3 gap-2">
             <Button variant="outline" size="sm" onClick={() => setIsGeneralModalOpen(false)}>Annuler</Button>
             <Button size="sm" onClick={saveGeneralFees} disabled={isSavingGeneral}>
               <Save className="h-4 w-4 mr-1.5" />{isSavingGeneral ? "Enregistrement..." : "Enregistrer"}
@@ -204,16 +204,16 @@ export function GeneralFeesSection({ establishmentId, academicStructure }: Gener
 
       {/* Modal Frais Spécifiques */}
       <Dialog open={isOverrideModalOpen} onOpenChange={setIsOverrideModalOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-xl rounded-none border-[#cfd3dc] bg-white p-0 text-[#172033] shadow-[0_12px_32px_rgba(23,32,51,0.16)]">
           <DialogHeader>
             <DialogTitle className="text-base font-semibold">Frais spécifiques par Cycle / Niveau</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-gray-500 -mt-2">Ces frais remplacent les frais généraux pour le cycle ou niveau sélectionné.</p>
-          <div className="space-y-4 py-2">
+          <p className="px-5 pt-4 text-xs text-[#657084]">Ces frais remplacent les frais généraux pour le cycle ou niveau sélectionné.</p>
+          <div className="space-y-4 px-5 py-5">
             <div className="flex flex-col gap-3 p-3 bg-gray-50 rounded-md border">
               <div className="space-y-1.5">
                 <Label className="text-xs">Cycle ou Niveau</Label>
-                <select value={overrideIdInput} onChange={(e) => setOverrideIdInput(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                <select value={overrideIdInput} onChange={(e) => setOverrideIdInput(e.target.value)} className="h-9 w-full rounded-md border border-[#cfd3dc] bg-white px-3 text-sm text-[#172033] focus:outline-none focus:border-[#173b8f] focus:ring-2 focus:ring-[#173b8f]/15">
                   <option value="">Sélectionner un cycle ou niveau...</option>
                   {allItems.filter(i => !overrides.find(o => o.scope_id === i.id)).map((item) => (
                     <option key={item.id} value={item.id}>{item.name}</option>
@@ -259,7 +259,7 @@ export function GeneralFeesSection({ establishmentId, academicStructure }: Gener
               </div>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="border-t border-[#e3e5ea] bg-[#fafbfc] px-5 py-3">
             <Button variant="outline" size="sm" onClick={() => setIsOverrideModalOpen(false)}>Fermer</Button>
           </DialogFooter>
         </DialogContent>

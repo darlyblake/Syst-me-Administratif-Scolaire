@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Save, Settings, Calendar, DollarSign, RotateCcw, Plus, Trash2, Edit, HelpCircle, Users, WalletCards } from "lucide-react"
 import Link from "next/link"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -18,9 +17,6 @@ import { updateEstablishment } from "@/lib/supabase/services/establishment.servi
 import type { ParametresEcole } from "@/types/models"
 import type { Establishment } from "@/lib/supabase/types"
 
-import StructureAcademiquePage from "./structure/page"
-import ScolariteSettingsPage from "./scolarite/page"
-import AcademicYearsTab from "@/components/academic/AcademicYearsTab"
 import RolesTab from "@/components/settings/RolesTab"
 import { payrollService } from "@/lib/supabase/services/payroll.service"
 
@@ -458,7 +454,7 @@ export default function SettingsPage() {
                 Paramètres de l'Établissement
               </h1>
               <p className="mt-1 max-w-3xl text-[13px] leading-5 text-[#5d6677]">
-                Configurez les informations administratives, l'année académique, la scolarité et la structure de votre établissement.
+                Configurez les informations administratives et les coordonnées officielles de votre établissement.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -498,23 +494,7 @@ export default function SettingsPage() {
           </div>
         )}
 
-        <Tabs defaultValue="general" className="mt-5 space-y-5">
-          <TabsList className="h-auto w-full justify-start gap-0 overflow-x-auto rounded-none border-b border-[#d7dae3] bg-transparent p-0">
-            <TabsTrigger value="general" className="h-10 rounded-none border-b-2 border-transparent px-4 text-[12px] font-medium text-[#657084] shadow-none data-[state=active]:border-[#173b8f] data-[state=active]:bg-transparent data-[state=active]:text-[#173b8f]">
-              Établissement & Coordonnées
-            </TabsTrigger>
-            <TabsTrigger value="academic" className="h-10 rounded-none border-b-2 border-transparent px-4 text-[12px] font-medium text-[#657084] shadow-none data-[state=active]:border-[#173b8f] data-[state=active]:bg-transparent data-[state=active]:text-[#173b8f]">
-              Année académique & Périodes
-            </TabsTrigger>
-            <TabsTrigger value="scolarite" className="h-10 rounded-none border-b-2 border-transparent px-4 text-[12px] font-medium text-[#657084] shadow-none data-[state=active]:border-[#173b8f] data-[state=active]:bg-transparent data-[state=active]:text-[#173b8f]">
-              Scolarité & Grille tarifaire
-            </TabsTrigger>
-            <TabsTrigger value="structure" className="h-10 rounded-none border-b-2 border-transparent px-4 text-[12px] font-medium text-[#657084] shadow-none data-[state=active]:border-[#173b8f] data-[state=active]:bg-transparent data-[state=active]:text-[#173b8f]">
-              Structure académique
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="general" className="mt-0">
+        
             <div className="space-y-4">
               <section className="border border-[#d7dae3] bg-white shadow-none">
                 <div className="flex items-start justify-between border-b border-[#e3e5ea] px-4 py-3">
@@ -578,38 +558,6 @@ export default function SettingsPage() {
                 </div>
               </section>
             </div>
-          </TabsContent>
-
-          <TabsContent value="academic" className="mt-0">
-            <div className="border border-[#d7dae3] bg-white shadow-none">
-              <div className="border-b border-[#e3e5ea] px-4 py-3">
-                <h2 className="text-[14px] font-semibold text-[#172033]">Année Scolaire Active & Bascule d'Exercice</h2>
-                <p className="mt-0.5 text-[11px] text-[#70798a]">Gérez les années académiques et leur période d'application.</p>
-              </div>
-              <div className="p-4"><AcademicYearsTab /></div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="scolarite" className="mt-0">
-            <div className="border border-[#d7dae3] bg-white shadow-none">
-              <div className="border-b border-[#e3e5ea] px-4 py-3">
-                <h2 className="text-[14px] font-semibold text-[#172033]">Scolarité & Grille tarifaire</h2>
-                <p className="mt-0.5 text-[11px] text-[#70798a]">Configurez les frais, modes de paiement et échéances par niveau.</p>
-              </div>
-              <div className="p-0"><ScolariteSettingsPage /></div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="structure" className="mt-0">
-            <div className="border border-[#d7dae3] bg-white shadow-none">
-              <div className="border-b border-[#e3e5ea] px-4 py-3">
-                <h2 className="text-[14px] font-semibold text-[#172033]">Structure académique</h2>
-                <p className="mt-0.5 text-[11px] text-[#70798a]">Configurez les cycles et niveaux de l'établissement.</p>
-              </div>
-              <div className="p-0"><StructureAcademiquePage /></div>
-            </div>
-          </TabsContent>
-        </Tabs>
       </div>
     </div>
   )

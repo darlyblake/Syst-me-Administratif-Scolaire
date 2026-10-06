@@ -57,7 +57,6 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
       { href: "/ecole/inscriptions", label: "Inscriptions", icon: ClipboardCheck, permission: "enrollment.view" },
       { href: "/ecole/classes", label: "Classes", icon: GraduationCap, permission: "classes.view" },
       { href: "/ecole/matieres", label: "Matières", icon: BookOpen, permission: "subjects.view" },
-      { href: "/ecole/options", label: "Options", icon: Wrench, permission: "settings.view" },
       { href: "/ecole/emploi-du-temps", label: "Emploi du temps", icon: CalendarDays, permission: "timetable.view" },
       { href: "/ecole/cahier", label: "Cahier de textes", icon: BookOpen, permission: "academic.manage" },
       { href: "/ecole/evaluation", label: "Évaluations / Notes", icon: ClipboardList, permission: "grades.view" },

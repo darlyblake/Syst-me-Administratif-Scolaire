@@ -1,7 +1,5 @@
 "use client"
 
-import Link from "next/link"
-import { CalendarDays } from "lucide-react"
 import AcademicYearsTab from "@/components/academic/AcademicYearsTab"
 
 export default function AcademicYearSettingsPage() {
@@ -20,13 +18,6 @@ export default function AcademicYearSettingsPage() {
               Gérez l'année scolaire active et les périodes officielles de l'établissement.
             </p>
           </div>
-          <Link
-            href="/ecole/settings"
-            className="inline-flex h-9 items-center justify-center rounded-md border border-[#cfd3dc] bg-white px-3 text-[12px] font-medium text-[#36445a] hover:bg-[#f5f6f8]"
-          >
-            <CalendarDays className="mr-2 h-4 w-4" />
-            Tous les paramètres
-          </Link>
         </div>
       </div>
 

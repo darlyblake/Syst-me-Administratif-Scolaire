@@ -244,24 +244,24 @@ export default function StructureAcademiquePage() {
               initialData={modal.cycle}
               onSubmit={(data) => handleUpdateCycle(modal.cycle.id, data)}
               onCancel={closeModal}
-            /></div></div></div>
+            /></div>
           )}
           {modal.type === "add-level" && (
-            <div className="px-5 py-5"><div className="px-5 py-5"><GradeLevelForm
+            <div className="px-5 py-5"><GradeLevelForm
               cycleId={modal.cycle.id}
               cycleName={modal.cycle.name}
               onSubmit={(data) => handleCreateLevel(modal.cycle.id, data)}
               onCancel={closeModal}
-            />
+            /></div>
           )}
           {modal.type === "edit-level" && (
-            <GradeLevelForm
+            <div className="px-5 py-5"><GradeLevelForm
               cycleId={modal.cycle.id}
               cycleName={modal.cycle.name}
               initialData={modal.level}
               onSubmit={(data) => handleUpdateLevel(modal.level.id, data)}
               onCancel={closeModal}
-            />
+            /></div>
           )}
         </DialogContent>
       </Dialog>

@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -116,18 +115,16 @@ export default function AcademicYearsTab() {
 
   if (!establishmentId) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Accès non autorisé</CardTitle>
-          <CardDescription>Impossible d'identifier l'établissement.</CardDescription>
-        </CardHeader>
-      </Card>
+      <div className="border border-[#d7dae3] bg-white px-4 py-5">
+        <h2 className="text-[14px] font-semibold text-[#172033]">Accès non autorisé</h2>
+        <p className="mt-1 text-[12px] text-[#657084]">Impossible d'identifier l'établissement.</p>
+      </div>
     )
   }
 
   return (
     <div className="w-full border border-[#d7dae3] bg-white shadow-none">
-      <CardHeader className="border-b border-[#e3e5ea] px-4 py-3">
+      <div className="border-b border-[#e3e5ea] px-4 py-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="text-[14px] font-semibold text-[#172033]">Année scolaire active & bascule d’exercice</CardTitle>
@@ -147,7 +144,7 @@ export default function AcademicYearsTab() {
                   {editingYear ? "Modifiez les informations de l'année académique." : "Créez une nouvelle année académique."}
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 py-4">
+              <div className="space-y-4 px-5 py-5">
                 <div className="space-y-2">
                   <Label htmlFor="name">Nom de l'année</Label>
                   <Input
@@ -192,8 +189,8 @@ export default function AcademicYearsTab() {
             </DialogContent>
           </Dialog>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4 p-4">
+      </div>
+      <div className="space-y-4 p-4">
         {error && (
           <div className="border border-[#e5b7b7] bg-[#fff6f6] p-3 text-sm text-[#9b2c2c]">
             Erreur de chargement : {error}
@@ -252,7 +249,7 @@ export default function AcademicYearsTab() {
             ))}
           </div>
         )}
-      </CardContent>
+      </div>
     </div>
   )
 }

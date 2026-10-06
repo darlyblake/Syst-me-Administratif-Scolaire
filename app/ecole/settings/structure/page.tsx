@@ -231,23 +231,23 @@ export default function StructureAcademiquePage() {
 
       {/* Modale formulaire */}
       <Dialog open={modal.type !== "none"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{modalTitle()}</DialogTitle>
+        <DialogContent className="max-w-lg rounded-none border-[#cfd3dc] bg-white p-0 text-[#172033] shadow-[0_12px_32px_rgba(23,32,51,0.16)]">
+          <DialogHeader className="border-b border-[#e3e5ea] px-5 py-4">
+            <DialogTitle className="text-[15px] font-semibold text-[#172033]">{modalTitle()}</DialogTitle>
           </DialogHeader>
 
           {modal.type === "add-cycle" && (
-            <CycleForm onSubmit={handleCreateCycle} onCancel={closeModal} />
+            <div className="px-5 py-5"><CycleForm onSubmit={handleCreateCycle} onCancel={closeModal} /></div>
           )}
           {modal.type === "edit-cycle" && (
-            <CycleForm
+            <div className="px-5 py-5"><CycleForm
               initialData={modal.cycle}
               onSubmit={(data) => handleUpdateCycle(modal.cycle.id, data)}
               onCancel={closeModal}
-            />
+            /></div></div></div>
           )}
           {modal.type === "add-level" && (
-            <GradeLevelForm
+            <div className="px-5 py-5"><div className="px-5 py-5"><GradeLevelForm
               cycleId={modal.cycle.id}
               cycleName={modal.cycle.name}
               onSubmit={(data) => handleCreateLevel(modal.cycle.id, data)}
@@ -268,12 +268,12 @@ export default function StructureAcademiquePage() {
 
       {/* Modale confirmation suppression */}
       <AlertDialog open={confirm.type !== "none"} onOpenChange={(open) => !open && closeConfirm()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
+        <AlertDialogContent className="rounded-none border-[#cfd3dc] bg-white p-0 text-[#172033] shadow-[0_12px_32px_rgba(23,32,51,0.16)]">
+          <AlertDialogHeader className="border-b border-[#e3e5ea] px-5 py-4">
             <AlertDialogTitle>{title}</AlertDialogTitle>
             <AlertDialogDescription>{description}</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="border-t border-[#e3e5ea] bg-[#fafbfc] px-5 py-3">
             <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
             {canDelete ? (
               <AlertDialogAction

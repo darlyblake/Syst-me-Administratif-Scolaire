@@ -325,14 +325,14 @@ export default function ScolariteSettingsPage() {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6 max-w-4xl mx-auto">
+    <div className="w-full space-y-4 p-4 sm:p-5">
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-[#d7dae3] pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Scolarité</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Configurez les tarifs par niveau pour chaque année scolaire.</p>
+          <div><div className="mb-1 text-[11px] font-medium uppercase tracking-[0.08em] text-[#6b7280]">Paramètres / Scolarité & grille tarifaire</div><h1 className="text-[20px] font-semibold text-[#172033]">Scolarité & Grille tarifaire</h1>
+          <p className="mt-1 text-[12px] text-[#657084]">Configurez les frais et les modalités de paiement par niveau et par année académique.</p></div>
         </div>
-        <div className="w-full sm:w-52">
+        <div className="w-full sm:w-56">
           <AcademicYearSelector value={academicYearId} years={academicYears} onChange={selectYear} placeholder="Année scolaire" />
         </div>
       </div>
@@ -343,10 +343,10 @@ export default function ScolariteSettingsPage() {
       <GeneralFeesSection establishmentId={establishmentId} academicStructure={academicStructure} />
 
       {/* Tarifs par niveau */}
-      <div className="border rounded-md overflow-hidden">
-        <div className="px-4 py-3 border-b bg-gray-50">
-          <h2 className="text-sm font-semibold text-gray-700">Tarifs par niveau</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Le tarif est défini au niveau et s'applique à toutes les classes rattachées.</p>
+      <div className="overflow-hidden border border-[#d7dae3] bg-white shadow-none">
+        <div className="border-b border-[#e3e5ea] bg-[#f7f8fb] px-4 py-3">
+          <h2 className="text-[13px] font-semibold text-[#172033]">Tarifs par niveau</h2>
+          <p className="mt-0.5 text-[11px] text-[#70798a]">Le tarif est défini au niveau et s'applique à toutes les classes rattachées.</p>
         </div>
         {isStructureLoading || isTuitionLoading ? (
           <div className="px-4 py-4 space-y-3">{[1,2,3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
@@ -356,19 +356,19 @@ export default function ScolariteSettingsPage() {
           <div className="divide-y">
             {academicStructure.map((cycle) => (
               <div key={cycle.id}>
-                <div className="px-4 py-2 bg-gray-50/70 border-b">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{cycle.name}</span>
+                <div className="border-b border-[#e8ebf0] bg-[#fafbfc] px-4 py-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-[#657084]">{cycle.name}</span>
                 </div>
                 {!cycle.grade_levels || cycle.grade_levels.length === 0 ? (
                   <div className="px-4 py-3 text-xs text-gray-400 italic">Aucun niveau dans ce cycle.</div>
                 ) : cycle.grade_levels.map((level) => {
                   const plan = tuitionMap.get(level.id) ?? null
                   return (
-                    <div key={level.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+                    <div key={level.id} className="flex items-center justify-between border-b border-[#edf0f4] px-4 py-3 transition-colors hover:bg-[#fafbfc]">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-800">{level.name}</p>
+                        <p className="text-[12px] font-medium text-[#172033]">{level.name}</p>
                         {plan ? (
-                          <p className="text-xs text-gray-500 mt-0.5">
+                          <p className="mt-0.5 text-[11px] text-[#657084]">
                             {formatFCFA(plan.annual_tuition)} / an · {MODE_LABELS[plan.payment_mode]}
                             {plan.payment_mode === "monthly" && plan.installments && plan.installments.length > 0
                               ? ` · ${plan.installments.length} mensualités de ${formatFCFA(plan.installments[0].amount)}`
@@ -377,10 +377,10 @@ export default function ScolariteSettingsPage() {
                               : ""}
                           </p>
                         ) : (
-                          <p className="text-xs text-gray-400 italic mt-0.5">Tarif non configuré</p>
+                          <p className="mt-0.5 text-[11px] italic text-[#8a93a2]">Tarif non configuré</p>
                         )}
                       </div>
-                      <Button variant="outline" size="sm" className="h-7 px-3 text-xs shrink-0 ml-4" onClick={() => openModal(level.id, `${cycle.name} — ${level.name}`)}>
+                      <Button variant="outline" size="sm" className="h-8 shrink-0 rounded-md border-[#cfd3dc] px-3 text-[11px] shadow-none" onClick={() => openModal(level.id, `${cycle.name} — ${level.name}`)}>
                         <Pencil className="h-3 w-3 mr-1.5" />{plan ? "Modifier" : "Configurer"}
                       </Button>
                     </div>

@@ -101,8 +101,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
       { href: "/ecole/settings", label: "Établissement", icon: Wrench, permission: "settings.view" },
       { href: "/ecole/settings/annee-academique", label: "Année académique", icon: CalendarDays, permission: "settings.view" },
       { href: "/ecole/settings/scolarite", label: "Scolarité / Frais", icon: CreditCard, permission: "settings.view" },
-      { href: "/ecole/settings/roles", label: "Rôles & Permissions", icon: UserCog, permission: "settings.view" },
-      { href: "/ecole/settings/finance", label: "Paramètres financiers", icon: Wrench, permission: "settings.view" },
+      { href: "/ecole/settings/structure", label: "Structure académique", icon: Layers, permission: "settings.view" },
     ]},
   ]
 

@@ -66,63 +66,37 @@ export default function CommunicationPage() {
           </div>
         </header>
 
-        <section className="grid grid-cols-1 gap-3 border-b border-[#c5c5d3]/60 py-5 md:grid-cols-3">
-          <div className="border-l-2 border-[#1e3a8a] bg-[#f2f3ff] px-4 py-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-[#64748b]">Communications</p>
-            <p className="mt-1 text-2xl font-semibold">{messages.length}</p>
-          </div>
-          <div className="border-l-2 border-[#64748b] bg-[#f7f8fa] px-4 py-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-[#64748b]">Brouillons</p>
-            <p className="mt-1 text-2xl font-semibold">{messages.filter((m) => m.statut === "Brouillon").length}</p>
-          </div>
-          <div className="border-l-2 border-[#16803c] bg-[#f0fdf4] px-4 py-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-[#64748b]">Envoyées</p>
-            <p className="mt-1 text-2xl font-semibold">{messages.filter((m) => m.statut === "Envoyé").length}</p>
-          </div>
-        </section>
-
         <section className="border-b border-[#c5c5d3]/60 py-5">
-          <div className="relative max-w-xl">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher une communication..."
-              className="h-10 rounded-md border-[#c5c5d3] bg-white pl-9 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-[#1e3a8a]"
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[260px] flex-1 max-w-xl">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher une communication..." className="h-10 rounded-md border-[#c5c5d3] bg-white pl-9 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-[#1e3a8a]" />
+            </div>
+            <select className="h-10 rounded-md border border-[#c5c5d3] bg-white px-3 text-sm text-[#131b2e] outline-none">
+              <option>Toutes les communications</option>
+              <option>Brouillons</option>
+              <option>Envoyées</option>
+            </select>
           </div>
         </section>
 
         <section className="mt-6 border border-[#c5c5d3]/60">
-          <div className="flex items-center justify-between border-b border-[#c5c5d3]/60 bg-[#f7f8fa] px-4 py-3">
-            <div>
-              <h2 className="text-sm font-semibold">Communications</h2>
-              <p className="mt-0.5 text-xs text-[#64748b]">{filtered.length} communication(s)</p>
-            </div>
-            <Megaphone className="h-4 w-4 text-[#64748b]" />
+          <div className="border-b border-[#c5c5d3]/60 px-4 py-3">
+            <h2 className="text-sm font-semibold">Communications</h2>
+            <p className="mt-0.5 text-xs text-[#64748b]">{filtered.length} communication(s)</p>
           </div>
-
           {filtered.length === 0 ? (
             <div className="px-4 py-14 text-center">
               <Megaphone className="mx-auto h-8 w-8 text-[#94a3b8]" />
               <p className="mt-3 text-sm font-medium text-[#515f74]">Aucune communication</p>
-              <p className="mt-1 text-xs text-[#94a3b8]">
-                Créez une nouvelle communication pour commencer.
-              </p>
+              <p className="mt-1 text-xs text-[#94a3b8]">Créez une nouvelle communication pour commencer.</p>
             </div>
           ) : (
             <div className="divide-y divide-[#e2e4ea]">
               {filtered.map((message) => (
                 <div key={message.id} className="flex flex-col gap-3 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold">{message.titre}</p>
-                    <p className="mt-1 text-xs text-[#64748b]">
-                      Destinataires : {message.destinataires} · {message.date}
-                    </p>
-                  </div>
-                  <span className="w-fit border border-[#c5c5d3]/60 bg-[#f7f8fa] px-2 py-1 text-xs text-[#515f74]">
-                    {message.statut}
-                  </span>
+                  <div><p className="text-sm font-semibold">{message.titre}</p><p className="mt-1 text-xs text-[#64748b]">Destinataires : {message.destinataires} · {message.date}</p></div>
+                  <span className="w-fit border border-[#c5c5d3]/60 bg-[#f7f8fa] px-2 py-1 text-xs text-[#515f74]">{message.statut}</span>
                 </div>
               ))}
             </div>

@@ -106,7 +106,7 @@ export default function EvaluationPage() {
   return (
     <div className="min-h-screen p-4">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-3 mb-6">
           <Button variant="outline" size="sm" asChild>
             <Link href="/ecole/tableau-bord">
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -123,7 +123,7 @@ export default function EvaluationPage() {
         </div>
 
         {/* Statistiques */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
           <Card>
             <CardContent className="p-4">
               <p className="text-sm text-gray-600">Total évaluations</p>
@@ -147,7 +147,7 @@ export default function EvaluationPage() {
         {/* Filtres et actions */}
         <Card className="mb-6">
           <CardContent className="p-4">
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               <div className="flex-1">
                 <Input
                   placeholder="Rechercher par nom..."
@@ -298,7 +298,7 @@ export default function EvaluationPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Notes par critère (1-5)</Label>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label htmlFor="pedagogie">Pédagogie</Label>
                       <Input
@@ -363,7 +363,7 @@ export default function EvaluationPage() {
                     value={commentaire}
                     onChange={(e) => setCommentaire(e.target.value)}
                     placeholder="Commentez l'évaluation..."
-                    className="w-full min-h-[100px] p-2 border rounded-md"
+                    className="w-full min-h-[100px] p-2 border rounded"
                   />
                 </div>
               </div>

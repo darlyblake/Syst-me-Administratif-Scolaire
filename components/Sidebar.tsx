@@ -28,12 +28,18 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
   const isActive = (path: string) => pathname === path || pathname.startsWith(path + "/")
   const can = (permission: string) => {
     const isSchoolAccount = contexte?.account_type === "school_member"
-    const organizationRole = etablissementActif?.role ?? contexto?.establishments?.find((e) => e.id === utilisateur?.etablissementId)?.role
-    const runtimeUser = utilisateur ? {
-      ...utilisateur,
-      role: isSchoolAccount ? organizationRole : utilisateur.role,
-      etablissementRole: organizationRole,
-    } : null
+    const organizationRole =
+      etablissementActif?.role ??
+      contexte?.establishments?.find((e) => e.id === utilisateur?.etablissementId)?.role
+
+    const runtimeUser = utilisateur
+      ? {
+          ...utilisateur,
+          role: isSchoolAccount ? organizationRole : utilisateur.role,
+          etablissementRole: organizationRole,
+        }
+      : null
+
     return hasEffectiveSchoolPermission(runtimeUser, permission)
   }
 

@@ -127,8 +127,8 @@ export default function AcademicYearsTab() {
       <div className="border-b border-[#e3e5ea] px-4 py-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="text-[14px] font-semibold text-[#172033]">Année scolaire active & bascule d’exercice</CardTitle>
-            <CardDescription className="text-[11px] text-[#70798a]">Période officielle de l’établissement et gestion des années enregistrées.</CardDescription>
+            <h2 className="text-[14px] font-semibold text-[#172033]">Année scolaire active & bascule d’exercice</h2>
+            <p className="mt-0.5 text-[11px] text-[#70798a]">Période officielle de l’établissement et gestion des années enregistrées.</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>

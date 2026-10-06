@@ -177,7 +177,7 @@ function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYea
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="max-w-xl rounded-none border-[#cfd3dc] bg-white p-0 text-[#172033] shadow-[0_12px_32px_rgba(23,32,51,0.16)]">
         <DialogHeader className="border-b border-[#e3e5ea] px-5 py-4">
-          <DialogTitle className="text-[15px] font-semibold text-[#172033]" className="text-base font-semibold">Configuration — {levelLabel}</DialogTitle>
+          <DialogTitle className="text-[15px] font-semibold text-[#172033]">Configuration — {levelLabel}</DialogTitle>
         </DialogHeader>
         <div className="max-h-[70vh] space-y-5 overflow-y-auto px-5 py-5">
           <div className="space-y-1.5">
@@ -280,7 +280,7 @@ function TuitionModal({ open, onClose, onSaved, levelId, levelLabel, academicYea
           )}
           {error && <p className="text-xs text-red-600 border border-red-200 bg-red-50 rounded px-3 py-2">{error}</p>}
         </div>
-        <DialogFooter className="gap-2">
+        <DialogFooter className="border-t border-[#e3e5ea] bg-[#fafbfc] px-5 py-3 gap-2">
           <Button variant="outline" size="sm" onClick={onClose}>Annuler</Button>
           <Button size="sm" onClick={handleSave} disabled={isSaving||!annualAmount||(paymentMode==="installments"&&!amountsMatch)}>
             <Save className="h-4 w-4 mr-1.5" />{isSaving?"Enregistrement…":"Enregistrer"}

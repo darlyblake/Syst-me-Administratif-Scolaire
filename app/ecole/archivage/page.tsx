@@ -1,13 +1,11 @@
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Archive, Download, Trash2, Search, Calendar } from "lucide-react"
-import Link from "next/link"
+import { Archive, Download, Search, Calendar, RotateCcw, X } from "lucide-react"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useStudents } from "@/hooks/useStudents"
 import { serviceArchivage } from "@/services/archivage.service"
@@ -38,33 +36,16 @@ export default function ArchivagePage() {
       statut: "actif" as const,
       totalAPayer: 0,
       typeInscription: "inscription" as const,
-      informationsContact: {
-        telephone: student.phone || "",
-        email: student.email || "",
-        adresse: "",
-      },
+      informationsContact: { telephone: student.phone || "", email: student.email || "", adresse: "" },
       modePaiement: "mensuel" as const,
-      optionsSupplementaires: {
-        tenueScolaire: false,
-        carteScolaire: false,
-        cooperative: false,
-        tenueEPS: false,
-        assurance: false,
-      },
-      fraisOptionsSupplementaires: {
-        tenueScolaire: 0,
-        carteScolaire: 0,
-        cooperative: 0,
-        tenueEPS: 0,
-        assurance: 0,
-      },
+      optionsSupplementaires: { tenueScolaire: false, carteScolaire: false, cooperative: false, tenueEPS: false, assurance: false },
+      fraisOptionsSupplementaires: { tenueScolaire: 0, carteScolaire: 0, cooperative: 0, tenueEPS: 0, assurance: 0 },
       moisPaiement: [],
       optionsPersonnalisees: [],
     }))
   }, [supabaseStudents])
 
   const allStudents = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()
-
   const [archives, setArchives] = useState<EleveArchive[]>([])
   const [showArchiveModal, setShowArchiveModal] = useState(false)
   const [selectedEleve, setSelectedEleve] = useState("")
@@ -83,19 +64,14 @@ export default function ArchivagePage() {
       alert("Veuillez sélectionner un élève et un motif d'archivage")
       return
     }
-
     const eleve = elevesActifs.find(e => e.id === selectedEleve)
     if (!eleve) {
       alert("Élève non trouvé")
       return
     }
-
     if (confirm(`Êtes-vous sûr de vouloir archiver ${eleve.prenom} ${eleve.nom} ?`)) {
       serviceArchivage.archiverEleve(eleve, motifArchivage)
-
-      // Mettre à jour le statut de l'élève
       serviceEleves.mettreAJourStatut(selectedEleve, "archive")
-
       setArchives(serviceArchivage.obtenirTousLesArchives())
       setElevesActifs(allStudents.filter((e) => e.statut === "actif"))
       setShowArchiveModal(false)
@@ -107,10 +83,7 @@ export default function ArchivagePage() {
   const handleDesarchiver = (id: string) => {
     if (confirm("Êtes-vous sûr de vouloir désarchiver cet élève ?")) {
       serviceArchivage.desarchiverEleve(id)
-      
-      // Réactiver l'élève
       serviceEleves.mettreAJourStatut(id, "actif")
-
       setArchives(serviceArchivage.obtenirTousLesArchives())
       setElevesActifs(allStudents.filter((e) => e.statut === "actif"))
     }
@@ -131,13 +104,10 @@ export default function ArchivagePage() {
     }
   }
 
-  const filteredArchives = archives.filter(archive => {
-    const matchSearch = !searchTerm || 
-      archive.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      archive.prenom.toLowerCase().includes(searchTerm.toLowerCase())
-    
+  const filteredArchives = archives.filter((archive) => {
+    const query = searchTerm.toLowerCase()
+    const matchSearch = !query || archive.nom.toLowerCase().includes(query) || archive.prenom.toLowerCase().includes(query)
     const matchAnnee = filterAnnee === "tous" || archive.anneeScolaire === filterAnnee
-    
     return matchSearch && matchAnnee
   })
 
@@ -145,177 +115,160 @@ export default function ArchivagePage() {
   const statistiques = serviceArchivage.obtenirStatistiques()
 
   return (
-    <div className="min-h-screen p-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/ecole/tableau-bord">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Retour
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Archive className="h-6 w-6" />
-              Archivage des Élèves
-            </h1>
-            <p className="text-gray-600">Gestion des élèves ayant quitté l'école</p>
-          </div>
-        </div>
-
-        {/* Statistiques */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-gray-600">Total archivés</p>
-              <p className="text-2xl font-bold">{statistiques.total}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-gray-600">Années scolaires</p>
-              <p className="text-2xl font-bold text-blue-600">{Object.keys(statistiques.parAnnee).length}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-gray-600">Élèves actifs</p>
-              <p className="text-2xl font-bold text-green-600">{elevesActifs.length}</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filtres et actions */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <Input
-                  placeholder="Rechercher par nom..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full"
-                />
-              </div>
-              <Select value={filterAnnee} onValueChange={setFilterAnnee}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filtrer par année" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tous">Toutes les années</SelectItem>
-                  {anneesDisponibles.map((annee) => (
-                    <SelectItem key={annee} value={annee}>{annee}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button onClick={() => setShowArchiveModal(true)} className="ml-auto">
-                <Archive className="h-4 w-4 mr-2" />
-                Archiver un élève
-              </Button>
+    <div className="min-h-screen bg-white text-[#131b2e]">
+      <div className="mx-auto max-w-[1400px] px-5 py-6 md:px-8">
+        <header className="border-b border-[#c5c5d3]/60 pb-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#64748b]">Scolarité / Dossiers élèves</p>
+              <h1 className="text-[26px] font-semibold tracking-[-0.02em]">Archivage des élèves</h1>
+              <p className="mt-1 text-sm text-[#64748b]">Conservation et gestion administrative des dossiers des élèves ayant quitté l'établissement.</p>
             </div>
-          </CardContent>
-        </Card>
+            <Button onClick={() => setShowArchiveModal(true)} className="h-10 rounded-md bg-[#1e3a8a] px-4 text-sm font-medium text-white hover:bg-[#172f70]">
+              <Archive className="mr-2 h-4 w-4" />
+              Archiver un élève
+            </Button>
+          </div>
+        </header>
 
-        {/* Liste des élèves archivés */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Élèves Archivés</CardTitle>
-            <CardDescription>{filteredArchives.length} élève(s) archivé(s)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {filteredArchives.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">Aucun élève archivé</p>
-              ) : (
-                filteredArchives.map((archive) => (
-                  <div key={archive.id} className="border rounded-lg p-4 flex justify-between items-center hover:bg-gray-50">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <Archive className="h-6 w-6 text-gray-600" />
+        <section className="grid grid-cols-1 gap-3 border-b border-[#c5c5d3]/60 py-5 md:grid-cols-3">
+          <div className="border-l-2 border-[#1e3a8a] bg-[#f2f3ff] px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-[#64748b]">Total archivés</p>
+            <p className="mt-1 text-2xl font-semibold">{statistiques.total}</p>
+          </div>
+          <div className="border-l-2 border-[#64748b] bg-[#f7f8fa] px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-[#64748b]">Années scolaires</p>
+            <p className="mt-1 text-2xl font-semibold">{Object.keys(statistiques.parAnnee).length}</p>
+          </div>
+          <div className="border-l-2 border-[#16803c] bg-[#f0fdf4] px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-[#64748b]">Élèves actifs</p>
+            <p className="mt-1 text-2xl font-semibold">{elevesActifs.length}</p>
+          </div>
+        </section>
+
+        <section className="border-b border-[#c5c5d3]/60 py-5">
+          <div className="flex flex-col gap-3 lg:flex-row">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]" />
+              <Input
+                placeholder="Rechercher par nom ou prénom..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-10 rounded-md border-[#c5c5d3] bg-white pl-9 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-[#1e3a8a]"
+              />
+            </div>
+            <Select value={filterAnnee} onValueChange={setFilterAnnee}>
+              <SelectTrigger className="h-10 w-full rounded-md border-[#c5c5d3] bg-white text-sm shadow-none lg:w-56">
+                <SelectValue placeholder="Toutes les années" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="tous">Toutes les années</SelectItem>
+                {anneesDisponibles.map((annee) => <SelectItem key={annee} value={annee}>{annee}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </section>
+
+        <section className="mt-6 border border-[#c5c5d3]/60">
+          <div className="flex items-center justify-between border-b border-[#c5c5d3]/60 bg-[#f7f8fa] px-4 py-3">
+            <div>
+              <h2 className="text-sm font-semibold">Dossiers archivés</h2>
+              <p className="mt-0.5 text-xs text-[#64748b]">{filteredArchives.length} dossier(s) correspondant aux filtres</p>
+            </div>
+            <Archive className="h-4 w-4 text-[#64748b]" />
+          </div>
+
+          {filteredArchives.length === 0 ? (
+            <div className="px-4 py-14 text-center">
+              <Archive className="mx-auto h-8 w-8 text-[#94a3b8]" />
+              <p className="mt-3 text-sm font-medium text-[#515f74]">Aucun élève archivé</p>
+              <p className="mt-1 text-xs text-[#94a3b8]">Les dossiers archivés apparaîtront ici.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-[#e2e4ea]">
+              {filteredArchives.map((archive) => (
+                <div key={archive.id} className="flex flex-col gap-4 px-4 py-4 transition-colors hover:bg-[#fafbfc] lg:flex-row lg:items-center lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center border border-[#c5c5d3]/60 bg-[#f2f3ff] text-[#1e3a8a]">
+                        <Archive className="h-4 w-4" />
                       </div>
-                      <div>
-                        <p className="font-semibold">{archive.prenom} {archive.nom}</p>
-                        <p className="text-sm text-gray-600">Dernière classe: {archive.classeDerniere}</p>
-                        <div className="flex gap-2 mt-2">
-                          <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-800">
-                            <Calendar className="h-3 w-3 inline mr-1" />
-                            {archive.anneeScolaire}
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{archive.prenom} {archive.nom}</p>
+                        <p className="mt-1 text-xs text-[#64748b]">Dernière classe : {archive.classeDerniere || "Non renseignée"}</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                          <span className="inline-flex items-center gap-1 border border-[#c5c5d3]/60 bg-white px-2 py-1 text-[#515f74]">
+                            <Calendar className="h-3 w-3" />{archive.anneeScolaire}
                           </span>
-                          <span className="text-xs px-2 py-1 rounded bg-red-100 text-red-800">
-                            {archive.motifArchivage}
-                          </span>
+                          <span className="border border-[#fecaca] bg-[#fff5f5] px-2 py-1 text-[#b42318]">{archive.motifArchivage}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="text-right ml-4">
-                      <p className="text-sm text-gray-600">
-                        Archivé le {new Date(archive.dateArchivage).toLocaleDateString()}
-                      </p>
-                      <div className="flex gap-2 mt-2 justify-end">
-                        <Button variant="outline" size="sm" onClick={() => handleExporter(archive.id)}>
-                          <Download className="h-4 w-4 mr-1" />
-                          Exporter
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDesarchiver(archive.id)}>
-                          Désarchiver
-                        </Button>
-                      </div>
+                  </div>
+                  <div className="flex shrink-0 flex-col gap-2 lg:items-end">
+                    <p className="text-xs text-[#64748b]">Archivé le {new Date(archive.dateArchivage).toLocaleDateString()}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleExporter(archive.id)} className="h-9 rounded-md border-[#c5c5d3] bg-white text-xs shadow-none">
+                        <Download className="mr-1.5 h-3.5 w-3.5" />Exporter
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleDesarchiver(archive.id)} className="h-9 rounded-md border-[#c5c5d3] bg-white text-xs shadow-none">
+                        <RotateCcw className="mr-1.5 h-3.5 w-3.5" />Désarchiver
+                      </Button>
                     </div>
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </section>
+      </div>
 
-        {/* Modal d'archivage */}
-        {showArchiveModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <h3 className="text-lg font-bold mb-4">Archiver un Élève</h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="eleve">Élève *</Label>
-                  <Select value={selectedEleve} onValueChange={setSelectedEleve}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un élève" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {elevesActifs.map((eleve) => (
-                        <SelectItem key={eleve.id} value={eleve.id}>
-                          {eleve.prenom} {eleve.nom}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="motif">Motif d'archivage *</Label>
-                  <Select value={motifArchivage} onValueChange={setMotifArchivage}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner le motif" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="diplome">Obtention du diplôme</SelectItem>
-                      <SelectItem value="transfert">Transfert vers une autre école</SelectItem>
-                      <SelectItem value="abandon">Abandon scolaire</SelectItem>
-                      <SelectItem value="autre">Autre</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+      {showArchiveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/45 px-4">
+          <div className="w-full max-w-lg border border-[#c5c5d3] bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-[#c5c5d3]/60 px-5 py-4">
+              <div>
+                <h3 className="text-base font-semibold">Archiver un élève</h3>
+                <p className="mt-0.5 text-xs text-[#64748b]">Déplacer le dossier vers les archives administratives.</p>
               </div>
-              <div className="flex gap-2 mt-6">
-                <Button onClick={handleArchiverEleve} className="flex-1">
-                  Archiver
-                </Button>
-                <Button variant="outline" onClick={() => setShowArchiveModal(false)} className="flex-1">
-                  Annuler
-                </Button>
+              <button type="button" onClick={() => setShowArchiveModal(false)} className="p-1 text-[#64748b] hover:bg-[#f2f3f6] hover:text-[#131b2e]" aria-label="Fermer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-5 px-5 py-5">
+              <div className="space-y-2">
+                <Label htmlFor="eleve" className="text-xs font-medium text-[#515f74]">Élève <span className="text-[#b42318]">*</span></Label>
+                <Select value={selectedEleve} onValueChange={setSelectedEleve}>
+                  <SelectTrigger id="eleve" className="h-10 rounded-md border-[#c5c5d3] bg-white text-sm shadow-none">
+                    <SelectValue placeholder="Sélectionner un élève" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {elevesActifs.map((eleve) => <SelectItem key={eleve.id} value={eleve.id}>{eleve.prenom} {eleve.nom}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="motif" className="text-xs font-medium text-[#515f74]">Motif d'archivage <span className="text-[#b42318]">*</span></Label>
+                <Select value={motifArchivage} onValueChange={setMotifArchivage}>
+                  <SelectTrigger id="motif" className="h-10 rounded-md border-[#c5c5d3] bg-white text-sm shadow-none">
+                    <SelectValue placeholder="Sélectionner le motif" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="diplome">Obtention du diplôme</SelectItem>
+                    <SelectItem value="transfert">Transfert vers une autre école</SelectItem>
+                    <SelectItem value="abandon">Abandon scolaire</SelectItem>
+                    <SelectItem value="autre">Autre</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-[#c5c5d3]/60 bg-[#f7f8fa] px-5 py-4">
+              <Button variant="outline" onClick={() => setShowArchiveModal(false)} className="h-9 rounded-md border-[#c5c5d3] bg-white px-4 text-sm shadow-none">Annuler</Button>
+              <Button onClick={handleArchiverEleve} className="h-9 rounded-md bg-[#1e3a8a] px-4 text-sm text-white hover:bg-[#172f70]">Archiver</Button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

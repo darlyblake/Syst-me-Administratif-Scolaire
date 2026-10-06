@@ -66,7 +66,6 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
       { href: "/ecole/personnel", label: "Personnel", icon: UserCog, permission: "staff.view" },
       { href: "/ecole/personnel/pointage", label: "Pointage / Présence", icon: Fingerprint, permission: "staff.view" },
       { href: "/ecole/heures-vacataires", label: "Heures effectuées", icon: Timer, permission: "staff.view" },
-      { href: "/ecole/finance/paie", label: "État de salaire", icon: ReceiptText, permission: "finance.view" },
     ]},
     { section: "Vie scolaire", items: [
       { href: "/ecole/registre-appel", label: "Registre d'appel", icon: CheckSquare, permission: "attendance.view" },

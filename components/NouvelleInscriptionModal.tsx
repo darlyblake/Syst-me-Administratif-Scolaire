@@ -362,7 +362,7 @@ export default function NouvelleInscriptionModal({
             {isYearLoading ? (
               <p className="text-[11px] text-[#515f74]">Chargement de l'année…</p>
             ) : activeYear ? (
-              <p className="text-xs text-slate-500">Année scolaire : {activeYear.name}</p>
+              <p className="text-[11px] text-[#515f74]">Année scolaire : {activeYear.name}</p>
             ) : (
               <p className="text-[11px] text-[#ba1a1a]">
                 Aucune année scolaire active — Paramètres → Années académiques

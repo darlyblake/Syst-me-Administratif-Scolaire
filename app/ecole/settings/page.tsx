@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Save, Settings, Calendar, DollarSign, RotateCcw, Plus, Trash2, Edit, HelpCircle, Users, WalletCards } from "lucide-react"
+import { ArrowLeft, Save, Settings, Calendar, DollarSign, RotateCcw, Plus, Trash2, Edit, HelpCircle, Users, WalletCards, ListChecks } from "lucide-react"
 import Link from "next/link"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useEstablishment } from "@/hooks/useEstablishment"
@@ -495,6 +495,23 @@ export default function SettingsPage() {
         )}
 
         
+            <section className="border border-[#d7dae3] bg-white shadow-none">
+              <div className="flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <ListChecks className="h-4 w-4 text-[#173b8f]" />
+                    <h2 className="text-[14px] font-semibold text-[#172033]">Options scolaires</h2>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-[#70798a]">
+                    Configurez les services et prestations proposés aux élèves : cantine, transport, tenue, assurance et activités.
+                  </p>
+                </div>
+                <Link href="/ecole/settings/options-scolaires" className="inline-flex h-8 items-center justify-center border border-[#cfd3dc] bg-white px-3 text-[11px] font-medium text-[#173b8f] hover:bg-[#f2f3ff]">
+                  Gérer les options
+                </Link>
+              </div>
+            </section>
+
             <div className="space-y-4">
               <section className="border border-[#d7dae3] bg-white shadow-none">
                 <div className="flex items-start justify-between border-b border-[#e3e5ea] px-4 py-3">

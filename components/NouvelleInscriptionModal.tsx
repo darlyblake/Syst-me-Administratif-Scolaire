@@ -329,8 +329,8 @@ export default function NouvelleInscriptionModal({
   // ─── Écran succès ─────────────────────────────────────────────────────────────
   if (submitted) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="fixed inset-0 bg-black/50" onClick={resetAndClose} />
+      <div className="fixed inset-0 z-50 flex items-stretch justify-end">
+        <div className="fixed inset-0 bg-[#131b2e]/20" onClick={resetAndClose} />
         <div className="relative z-50 bg-white rounded border max-w-lg w-full p-8 text-center space-y-5">
           <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto" />
           <h3 className="text-lg font-semibold">
@@ -351,20 +351,20 @@ export default function NouvelleInscriptionModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/50" onClick={resetAndClose} />
-      <div className="relative z-50 bg-white rounded border max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
+      <div className="relative z-50 flex h-full w-full max-w-[520px] flex-col overflow-y-auto border-l border-[#c5c5d3] bg-white shadow-[-8px_0_24px_rgba(19,27,46,0.08)]">
 
         {/* En-tête */}
-        <div className="border-b px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#c5c5d3]/60 bg-white px-3 py-3">
           <div>
-            <h2 className="font-semibold text-base">
+            <h2 className="text-[16px] font-semibold text-[#131b2e]">
               {typeInscription === "reinscription" ? "Réinscription" : "Nouvelle inscription"}
             </h2>
             {isYearLoading ? (
-              <p className="text-xs text-slate-500">Chargement de l'année…</p>
+              <p className="text-[11px] text-[#515f74]">Chargement de l'année…</p>
             ) : activeYear ? (
               <p className="text-xs text-slate-500">Année scolaire : {activeYear.name}</p>
             ) : (
-              <p className="text-xs text-red-500">
+              <p className="text-[11px] text-[#ba1a1a]">
                 Aucune année scolaire active — Paramètres → Années académiques
               </p>
             )}
@@ -375,11 +375,11 @@ export default function NouvelleInscriptionModal({
         </div>
 
         {/* Fil d'étapes */}
-        <div className="px-6 pt-4 flex gap-1">
+        <div className="sticky top-[57px] z-10 flex gap-1 border-b border-[#c5c5d3]/45 bg-white px-3 pt-3">
           {STEPS.map((s) => (
             <div key={s.id} className="flex-1 text-center">
-              <div className={`h-1 rounded-full mb-1 ${s.id <= step ? "bg-slate-700" : "bg-slate-200"}`} />
-              <span className={`text-[10px] ${s.id === step ? "text-slate-800 font-medium" : "text-slate-400"}`}>
+              <div className={`mb-1 h-1 ${s.id <= step ? "bg-[#00236f]" : "bg-[#dce1ff]"}`} />
+              <span className={`text-[10px] ${s.id === step ? "font-medium text-[#131b2e]" : "text-[#68758a]"}`}>
                 {s.label}
               </span>
             </div>
@@ -387,7 +387,7 @@ export default function NouvelleInscriptionModal({
         </div>
 
         {/* Contenu */}
-        <div className="p-6 space-y-5">
+        <div className="flex-1 space-y-5 p-3 pb-20">
 
           {/* ── Étape 1 : Élève ──────────────────────────────────────────────── */}
           {step === 1 && (

@@ -91,8 +91,8 @@ export default function OptionsPage() {
     : 0
 
   return (
-    <div className="min-h-screen p-4">
-      <div className="max-w-7xl mx-auto">
+    <div className="w-full min-w-0 p-3 md:p-5">
+      <div className="w-full">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="outline" size="sm" asChild>
             <Link href="/ecole/tableau-bord">
@@ -101,11 +101,11 @@ export default function OptionsPage() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-[23px] font-semibold text-[#131b2e] flex items-center gap-2">
               <Activity className="h-6 w-6" />
               Gestion des Options Scolaires
             </h1>
-            <p className="text-gray-600">Cantine, transport, tenue, assurance, activités</p>
+            <p className="text-[#515f74]">Cantine, transport, tenue, assurance, activités</p>
           </div>
         </div>
 
@@ -113,20 +113,20 @@ export default function OptionsPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
-              <p className="text-sm text-gray-600">Total options</p>
+              <p className="text-sm text-[#515f74]">Total options</p>
               <p className="text-2xl font-bold">{totalOptions}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-sm text-gray-600">Options actives</p>
-              <p className="text-2xl font-bold text-green-600">{optionsActives}</p>
+              <p className="text-sm text-[#515f74]">Options actives</p>
+              <p className="text-2xl font-bold text-[#1d6b45]">{optionsActives}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-sm text-gray-600">Coût moyen</p>
-              <p className="text-2xl font-bold text-blue-600">{coutMoyen.toLocaleString()} FCFA</p>
+              <p className="text-sm text-[#515f74]">Coût moyen</p>
+              <p className="text-2xl font-bold text-[#1e3a8a]">{coutMoyen.toLocaleString()} FCFA</p>
             </CardContent>
           </Card>
         </div>
@@ -163,19 +163,19 @@ export default function OptionsPage() {
           <CardContent>
             <div className="space-y-2">
               {filteredOptions.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">Aucune option trouvée</p>
+                <p className="text-[#7b8798] text-center py-8">Aucune option trouvée</p>
               ) : (
                 filteredOptions.map((option) => (
-                  <div key={option.id} className="border rounded-lg p-4 flex justify-between items-center hover:bg-gray-50">
+                  <div key={option.id} className="border border-[#c5c5d3]/60 p-4 flex justify-between items-center hover:bg-[#f2f3ff]">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                         {getTypeIcon(option.type)}
                       </div>
                       <div>
                         <p className="font-semibold">{option.nom}</p>
-                        <p className="text-sm text-gray-600">{option.description}</p>
+                        <p className="text-sm text-[#515f74]">{option.description}</p>
                         <div className="flex gap-2 mt-2">
-                          <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">
+                          <span className="text-xs px-2 py-1 rounded bg-[#eef3ff] text-[#1e3a8a]">
                             {getTypeLabel(option.type)}
                           </span>
                           <span className={`text-xs px-2 py-1 rounded ${

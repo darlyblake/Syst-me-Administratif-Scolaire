@@ -431,14 +431,14 @@ export default function SettingsPage() {
 
   if (noEstablishment) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-[#f7f8fc]">
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle>Erreur de chargement</CardTitle>
             <CardDescription>Impossible de déterminer votre établissement.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-600">Veuillez vous reconnecter ou contacter l'administrateur.</p>
+            <p className="text-sm text-[#36445a]">Veuillez vous reconnecter ou contacter l'administrateur.</p>
           </CardContent>
         </Card>
       </div>
@@ -446,7 +446,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen min-w-0 max-w-full overflow-x-hidden bg-gray-50">
+    <div className="min-h-screen min-w-0 max-w-full overflow-x-hidden bg-[#f7f8fc]">
       <div className="mx-auto max-w-7xl min-w-0 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
@@ -457,11 +457,11 @@ export default function SettingsPage() {
               </Link>
             </Button>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <h1 className="text-xl sm:text-[23px] font-semibold text-[#131b2e] flex items-center gap-2">
                 <Settings className="h-5 w-5 sm:h-6 sm:w-6" />
                 Paramètres du Système
               </h1>
-              <p className="text-sm sm:text-base text-gray-600">Configuration de l'établissement et des tarifs</p>
+              <p className="text-sm sm:text-base text-[#36445a]">Configuration de l'établissement et des tarifs</p>
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -595,7 +595,7 @@ export default function SettingsPage() {
 
                 <div className="border-t pt-6 mt-6">
                   <h3 className="text-lg font-medium mb-4">Identité visuelle de l'établissement</h3>
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-sm text-[#36445a] mb-4">
                     Le logo et le cachet seront utilisés sur les documents officiels (bulletins, certificats, attestations).
                   </p>
 
@@ -604,7 +604,7 @@ export default function SettingsPage() {
                       <Label className="font-medium">Logo officiel</Label>
                       <div className="space-y-2">
                         {settings.logoUrl && (
-                          <div className="relative w-32 h-32 border rounded-lg overflow-hidden bg-gray-50">
+                          <div className="relative w-32 h-32 border rounded-lg overflow-hidden bg-[#f7f8fc]">
                             <img
                               src={settings.logoUrl}
                               alt="Logo officiel de l'établissement"
@@ -640,7 +640,7 @@ export default function SettingsPage() {
                       <Label className="font-medium">Cachet officiel</Label>
                       <div className="space-y-2">
                         {settings.cachetUrl && (
-                          <div className="relative w-32 h-32 border rounded-lg overflow-hidden bg-gray-50">
+                          <div className="relative w-32 h-32 border rounded-lg overflow-hidden bg-[#f7f8fc]">
                             <img
                               src={settings.cachetUrl}
                               alt="Cachet officiel de l'établissement"
@@ -700,21 +700,21 @@ export default function SettingsPage() {
                 <CardDescription>Définissez quand les états de salaire sont préparés et utilisez ensuite la navigation mensuelle dans Finance → Paie.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="rounded-md border bg-gray-50 p-4 text-sm text-gray-600">
-                  <p className="font-medium text-gray-900">Fonctionnement</p>
+                <div className="rounded-md border bg-[#f7f8fc] p-4 text-sm text-[#36445a]">
+                  <p className="font-medium text-[#131b2e]">Fonctionnement</p>
                   <p className="mt-1">Chaque état correspond à un mois de salaire. La navigation dans Finance permet de passer au mois précédent ou suivant sans perdre l'historique des périodes déjà générées.</p>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="payroll-generation-day">Jour de génération automatique</Label>
                     <Input id="payroll-generation-day" type="number" min={1} max={28} value={payrollGenerationDay} onChange={(e) => setPayrollGenerationDay(e.target.value)} disabled={payrollLoading} />
-                    <p className="text-xs text-gray-500">Exemple : le 5 prépare l'état du mois précédent.</p>
+                    <p className="text-xs text-[#515f74]">Exemple : le 5 prépare l'état du mois précédent.</p>
                   </div>
                   <div className="flex items-start gap-3 rounded-md border p-4">
                     <input id="payroll-auto-generate" type="checkbox" checked={payrollAutoGenerate} onChange={(e) => setPayrollAutoGenerate(e.target.checked)} className="mt-1 h-4 w-4" />
                     <div>
                       <Label htmlFor="payroll-auto-generate" className="cursor-pointer">Générer automatiquement les états</Label>
-                      <p className="text-xs text-gray-500 mt-1">Le système prépare l'état mensuel au jour défini.</p>
+                      <p className="text-xs text-[#515f74] mt-1">Le système prépare l'état mensuel au jour défini.</p>
                     </div>
                   </div>
                 </div>
@@ -739,7 +739,7 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <Label>Mois payables dans cet établissement</Label>
-                    <p className="text-xs text-gray-500 mb-3">Seuls les mois compris dans la période de cette année académique peuvent être sélectionnés.</p>
+                    <p className="text-xs text-[#515f74] mb-3">Seuls les mois compris dans la période de cette année académique peuvent être sélectionnés.</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {(academicYears?.find((y) => y.id === payrollYearId) ? payrollMonthOptions(academicYears.find((y) => y.id === payrollYearId)!) : []).map((item) => (
                         <label key={item.year + "-" + item.month} className="flex items-center gap-2 rounded border px-3 py-2 text-sm cursor-pointer">
@@ -784,7 +784,7 @@ export default function SettingsPage() {
                         <img
                           src={settings.logoUrl}
                           alt="Aperçu du logo"
-                          className="w-16 h-16 border-2 border-gray-200 rounded-full object-contain"
+                          className="w-16 h-16 border-2 border-[#c5c5d3]/60 rounded-full object-contain"
                         />
                       </div>
                     )}
@@ -803,9 +803,9 @@ export default function SettingsPage() {
                     </Select>
                   </div>
                 </div>
-                <div className="p-4 bg-blue-50 rounded-lg">
+                <div className="p-4 bg-[#eef3ff] rounded-lg">
                   <h3 className="font-medium text-blue-800 mb-2">Aperçu</h3>
-                  <p className="text-sm text-blue-700">Les changements d'apparence seront appliqués après sauvegarde et redémarrage de l'application.</p>
+                  <p className="text-sm text-[#1e3a8a]">Les changements d'apparence seront appliqués après sauvegarde et redémarrage de l'application.</p>
                 </div>
               </CardContent>
             </Card>

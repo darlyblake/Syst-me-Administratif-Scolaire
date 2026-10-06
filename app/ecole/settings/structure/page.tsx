@@ -186,7 +186,7 @@ export default function StructureAcademiquePage() {
   const { title, description, canDelete } = confirmText()
 
   return (
-    <div className="p-4 sm:p-6 max-w-3xl mx-auto">
+    <div className="w-full space-y-4 p-4 sm:p-5">
 
       {/* En-tête */}
       <div className="mb-6">
@@ -208,7 +208,7 @@ export default function StructureAcademiquePage() {
       {isLoading ? (
         <LoadingSkeleton />
       ) : error ? (
-        <div className="p-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+        <div className="border border-[#e5b7b7] bg-[#fff6f6] p-3 text-sm text-[#9b2c2c]">
           Impossible de charger la structure académique. Vérifiez votre connexion et réessayez.
         </div>
       ) : structure.length === 0 ? (
@@ -308,15 +308,15 @@ function CycleSection({ cycle, onEditCycle, onDeleteCycle, onAddLevel, onEditLev
   const levels = cycle.grade_levels || []
 
   return (
-    <div className="border rounded-md">
+    <div className="overflow-hidden border border-[#d7dae3] bg-white shadow-none">
       {/* En-tête cycle */}
-      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b rounded-t-md">
+      <div className="flex items-center justify-between border-b border-[#e3e5ea] bg-[#f7f8fb] px-4 py-3">
         <div className="flex items-center gap-2 min-w-0">
           <GraduationCap className="h-4 w-4 text-gray-500 shrink-0" />
-          <span className="font-semibold text-sm uppercase tracking-wide text-gray-700 truncate">
+          <span className="truncate text-[12px] font-semibold uppercase tracking-wide text-[#36445a]">
             {cycle.name}
           </span>
-          <span className="text-xs text-gray-400 shrink-0">
+          <span className="shrink-0 text-[11px] text-[#70798a]">
             {levels.length} {levels.length === 1 ? "niveau" : "niveaux"}
           </span>
         </div>
@@ -337,7 +337,7 @@ function CycleSection({ cycle, onEditCycle, onDeleteCycle, onAddLevel, onEditLev
       </div>
 
       {/* Niveaux */}
-      <div className="px-4 py-3 space-y-0.5">
+      <div className="divide-y divide-[#edf0f4] px-4 py-1">
         {levels.length === 0 ? (
           <p className="text-xs text-gray-400 py-2">
             Aucun niveau. Commencez par en ajouter un.
@@ -360,7 +360,7 @@ function CycleSection({ cycle, onEditCycle, onDeleteCycle, onAddLevel, onEditLev
       <div className="px-4 pb-3">
         <button
           onClick={onAddLevel}
-          className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+          className="flex items-center gap-1 text-[11px] font-medium text-[#173b8f] hover:underline"
         >
           <Plus className="h-3 w-3" />
           Ajouter un niveau
@@ -382,11 +382,11 @@ function LevelRow({ level, onEdit, onDelete }: LevelRowProps) {
   const classCount = level.school_classes?.length ?? 0
 
   return (
-    <div className="flex items-center justify-between py-1.5">
+    <div className="flex items-center justify-between py-2.5">
       <div className="flex items-center gap-3 min-w-0">
-        <span className="text-sm text-gray-800 font-medium truncate">{level.name}</span>
+        <span className="truncate text-[12px] font-medium text-[#172033]">{level.name}</span>
         {classCount > 0 && (
-          <span className="text-xs text-gray-400 shrink-0">
+          <span className="shrink-0 text-[11px] text-[#70798a]">
             {classCount} {classCount === 1 ? "classe" : "classes"}
           </span>
         )}

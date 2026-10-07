@@ -50,35 +50,34 @@ function useParentPortalState() {
       const {data:authData,error:authError}=await supabaseBrowser.auth.getUser()
       if(authError||!authData.user) throw new Error("Session parent introuvable.")
       const userId=authData.user.id
-      const {data:links,error:linksError}=await supabaseBrowser.from("student_guardians").select("student_id,establishment_id,relationship,can_view_academic,can_view_finance").eq("guardian_user_id",userId).eq("active",true)
-      if(linksError) throw linksError
-      const studentIds=(links??[]).map(x=>x.student_id), establishmentIds=[...new Set((links??[]).map(x=>x.establishment_id))]
-      const linkMap=new Map((links??[]).map(x=>[x.student_id,x]))
+
+      // Source de vérité des enfants : Edge Function authentifiée.
+      // Le serveur vérifie le compte parent et lit uniquement ses associations.
+      const {data:linkedData,error:linkedError}=await supabaseBrowser.functions.invoke("get-parent-children")
+      if(linkedError) throw linkedError
+      const linkedChildren=Array.isArray(linkedData?.children) ? linkedData.children as ParentChild[] : []
+      const studentIds=linkedChildren.map(x=>x.id)
+      const establishmentIds=Array.isArray(linkedData?.establishment_ids)
+        ? linkedData.establishment_ids as string[]
+        : [...new Set(linkedChildren.map(x=>x.establishment_id))]
+      const linkMap=new Map(linkedChildren.map(x=>[x.id,x]))
       if(!studentIds.length){
         const cached=readCachedChildren()
         if(cached.length){setChildren(cached);setLoading(false);return}
         setChildren([]);setGrades([]);setPayments([]);setAttendance([]);setJustificationRequests([]);setEvents([]);setPaymentSchedules([]);setPaymentAllocations([]);setTimetable([]);setLessons([]);setHomework([]);setDocuments([]);return
       }
 
-      const [sr,er]=await Promise.all([
-        supabaseBrowser.from("students").select("id,establishment_id,student_number,first_name,last_name,birth_date,sex,phone,email,active").in("id",studentIds).order("last_name").limit(100),
-        supabaseBrowser.from("enrollments").select("id,student_id,class_id,status").in("student_id",studentIds).eq("status","active").limit(200),
-      ])
-      if(sr.error) throw sr.error
-      if(er.error) throw er.error
-      if(!(sr.data??[]).length){
-        const cached=readCachedChildren()
-        if(cached.length) setChildren(cached)
-        throw new Error("Les enfants rattachés sont temporairement indisponibles.")
-      }
-      const enrollments=er.data??[], classIds=[...new Set(enrollments.map(x=>x.class_id).filter(Boolean))]
+      const {data:er,error:enrollmentError}=await supabaseBrowser.from("enrollments").select("id,student_id,class_id,status").in("student_id",studentIds).eq("status","active").limit(200)
+      if(enrollmentError) throw enrollmentError
+      const enrollments=er??[], classIds=[...new Set(enrollments.map(x=>x.class_id).filter(Boolean))]
       const {data:classRows,error:classError}=classIds.length
         ?await supabaseBrowser.from("school_classes").select("id,name").in("id",classIds)
         :{data:[],error:null}
       if(classError) throw classError
       const classMap=new Map((classRows??[]).map(x=>[x.id,x.name])), enrollmentMap=new Map(enrollments.map(x=>[x.student_id,x])), enrollmentStudentMap=new Map(enrollments.map(x=>[x.id,x.student_id]))
-      setChildren((sr.data??[]).map(s=>{const e=enrollmentMap.get(s.id),l=linkMap.get(s.id);return {...s,relationship:l?.relationship??null,can_view_academic:l?.can_view_academic??false,can_view_finance:l?.can_view_finance??false,class_id:e?.class_id,class_name:e?.class_id?classMap.get(e.class_id):undefined,enrollment_id:e?.id}}))
-      writeCachedChildren((sr.data??[]).map(s=>{const e=enrollmentMap.get(s.id),l=linkMap.get(s.id);return {...s,relationship:l?.relationship??null,can_view_academic:l?.can_view_academic??false,can_view_finance:l?.can_view_finance??false,class_id:e?.class_id,class_name:e?.class_id?classMap.get(e.class_id):undefined,enrollment_id:e?.id}}))
+      const resolvedChildren=linkedChildren.map(s=>{const e=enrollmentMap.get(s.id);return {...s,class_id:e?.class_id??s.class_id,class_name:e?.class_id?classMap.get(e.class_id):s.class_name,enrollment_id:e?.id??s.enrollment_id}})
+      setChildren(resolvedChildren)
+      writeCachedChildren(resolvedChildren)
 
       // Les informations des enfants sont indépendantes du reste du portail.
       // Ne pas bloquer leur affichage si une requête secondaire échoue.
@@ -162,7 +161,19 @@ function useParentPortalState() {
   const cancelAttendanceJustification=useCallback(async(id:string)=>{const {error}=await supabaseBrowser.from("attendance_justification_requests").update({status:"cancelled"}).eq("id",id).eq("status","pending");if(error)throw error;setJustificationRequests(c=>c.map(x=>x.id===id?{...x,status:"cancelled"}:x))},[])
   const markNotificationRead=useCallback(async(id:string)=>{const {data:u,error:ue}=await supabaseBrowser.auth.getUser();if(ue||!u.user)throw new Error("Session parent introuvable.");const now=new Date().toISOString();const {error}=await supabaseBrowser.from("notifications").update({read_at:now}).eq("id",id).eq("recipient_user_id",u.user.id);if(error)throw error;setNotifications(c=>c.map(x=>x.id===id?{...x,read_at:now}:x))},[])
   const markAllNotificationsRead=useCallback(async()=>{const {data:u,error:ue}=await supabaseBrowser.auth.getUser();if(ue||!u.user)throw new Error("Session parent introuvable.");const now=new Date().toISOString();const {error}=await supabaseBrowser.from("notifications").update({read_at:now}).eq("recipient_user_id",u.user.id).is("read_at",null);if(error)throw error;setNotifications(c=>c.map(x=>x.read_at?x:{...x,read_at:now}))},[])
-  useEffect(()=>{\n    const cached=readCachedChildren()\n    if(cached.length) setChildren(cached)\n    void refresh()\n  },[refresh])
+  useEffect(()=>{
+    const cached=readCachedChildren()
+    if(cached.length) setChildren(cached)
+    void refresh()
+
+    const {data:{subscription}}=supabaseBrowser.auth.onAuthStateChange((event,session)=>{
+      if(!session) return
+      if(event==="INITIAL_SESSION"||event==="SIGNED_IN"||event==="TOKEN_REFRESHED"||event==="USER_UPDATED"){
+        window.setTimeout(()=>void refresh(),0)
+      }
+    })
+    return ()=>subscription.unsubscribe()
+  },[refresh])
   return {loading,error,refresh,children,grades,payments,attendance,justificationRequests,notifications,events,paymentSchedules,paymentAllocations,timetable,lessons,homework,documents,claimChild,unclaimChild,requestAttendanceJustification,cancelAttendanceJustification,markNotificationRead,markAllNotificationsRead}
 }
 

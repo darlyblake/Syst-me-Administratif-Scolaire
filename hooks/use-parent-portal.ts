@@ -66,6 +66,11 @@ function useParentPortalState() {
       ])
       if(sr.error) throw sr.error
       if(er.error) throw er.error
+      if(!(sr.data??[]).length){
+        const cached=readCachedChildren()
+        if(cached.length) setChildren(cached)
+        throw new Error("Les enfants rattachés sont temporairement indisponibles.")
+      }
       const enrollments=er.data??[], classIds=[...new Set(enrollments.map(x=>x.class_id).filter(Boolean))]
       const {data:classRows,error:classError}=classIds.length
         ?await supabaseBrowser.from("school_classes").select("id,name").in("id",classIds)

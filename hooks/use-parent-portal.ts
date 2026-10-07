@@ -3,7 +3,7 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 
-export type ParentChild = { id:string; establishment_id:string; student_number:string|null; first_name:string; last_name:string; birth_date:string|null; sex:string|null; phone:string|null; email:string|null; active:boolean; can_view_academic:boolean; can_view_finance:boolean; relationship:string|null; class_name?:string; class_id?:string; enrollment_id?:string; payment_mode?:string; installment_count?:number }
+export type ParentChild = { id:string; establishment_id:string; student_number:string|null; first_name:string; last_name:string; birth_date:string|null; sex:string|null; phone:string|null; email:string|null; active:boolean; can_view_academic:boolean; can_view_finance:boolean; relationship:string|null; class_name?:string; class_id?:string; level_name?:string; level_code?:string; cycle_name?:string; enrollment_id?:string; academic_year_id?:string; payment_mode?:string; installment_count?:number }
 export type ParentGrade = { id:string; student_id:string; score:number; comment:string|null; assessment_id:string; title?:string; assessment_date?:string; term?:string; max_score?:number; subject?:string }
 export type ParentPayment = { id:string; enrollment_id:string; amount:number; payment_date:string; reference:string|null; method:string|null; notes:string|null; category?:string|null; payer_type?:string|null }
 export type ParentAttendance = { id:string; student_id:string; attendance_date:string; status:string; reason:string|null }
@@ -68,7 +68,7 @@ function useParentPortalState() {
         setChildren([]);setGrades([]);setPayments([]);setAttendance([]);setJustificationRequests([]);setEvents([]);setPaymentSchedules([]);setPaymentAllocations([]);setEnrollmentOptions([]);setTimetable([]);setLessons([]);setHomework([]);setDocuments([]);return
       }
 
-      const {data:er,error:enrollmentError}=await supabaseBrowser.from("enrollments").select("id,student_id,class_id,status,tuition_plan_id").in("student_id",studentIds).eq("status","active").limit(200)
+      const {data:er,error:enrollmentError}=await supabaseBrowser.from("enrollments").select("id,student_id,class_id,status,tuition_plan_id,academic_year_id").in("student_id",studentIds).eq("status","active").limit(200)
       if(enrollmentError) throw enrollmentError
       const enrollments=er??[], classIds=[...new Set(enrollments.map(x=>x.class_id).filter(Boolean))]
       const {data:classRows,error:classError}=classIds.length

@@ -134,7 +134,7 @@ export default function StudentsPage() {
   const handleExportIdentifiants = () => toast.info("Export des identifiants")
   const handleDownloadTemplate = () => toast.info("Téléchargement du modèle")
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => { const reader = new FileReader(); reader.onload = () => toast.info("Import CSV en cours"); const file = e.target.files?.[0]; if (!file) return; reader.readAsText(file) }
-  const handlePrintReceipt = (student: DonneesEleve) => router.push(`/receipt?id=${student.id}`)
+  const handlePrintReceipt = (student: DonneesEleve) => router.push(`/receipt?id=${encodeURIComponent(student.identifiant)}`)
   const handlePrintSchoolCertificate = (student: DonneesEleve) => alert("Impression attestation")
   const getClassStats = () => { const stats: { [key: string]: number } = {}; students.forEach(student => { stats[student.classe] = (stats[student.classe] || 0) + 1 }); return stats }
   const getQuickStats = () => { const activeStudents = students.filter(s => s.statut === 'actif'); const studentsWithoutPhoto = activeStudents.filter(s => !s.photo); return { total: activeStudents.length, withoutPhoto: studentsWithoutPhoto.length, absentToday: 0, byLevel: Object.entries(getClassStats()).reduce((acc, [classe, count]) => { const level = classe.split(' ')[0]; acc[level] = (acc[level] || 0) + count; return acc }, {} as Record<string, number>) } }

@@ -102,7 +102,7 @@ export function useParentPortal() {
   const claimChild=useCallback(async(input:ClaimStudentInput)=>{
     const studentNumber=input.studentNumber?.trim(),studentId=input.studentId?.trim(),birthDate=input.birthDate?.trim()
     if((!studentNumber&&!studentId)||(!input.fromQr&&!birthDate))throw new Error("L'identifiant et la date de naissance sont obligatoires en saisie manuelle.")
-    const {data,error}=await supabaseBrowser.functions.invoke("claim-student",{body:{student_id:studentId||undefined,student_number:studentNumber||undefined,birth_date:birthDate||undefined}})
+    const {data,error}=await supabaseBrowser.functions.invoke("claim-student",{body:{student_id:studentId||undefined,student_number:studentNumber||undefined,birth_date:birthDate||undefined,from_qr:input.fromQr===true}})
     if(error)throw error
     if(!data?.linked||!data?.student?.id)throw new Error("Le rattachement de l'élève n'a pas été confirmé.")
     const linkedStudent=data.student as {id:string;establishment_id:string;student_number:string|null;first_name:string;last_name:string}

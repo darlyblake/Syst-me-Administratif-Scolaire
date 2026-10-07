@@ -36,21 +36,17 @@ export function useParentPortal() {
       if(linksError) throw linksError
       const studentIds=(links??[]).map(x=>x.student_id), establishmentIds=[...new Set((links??[]).map(x=>x.establishment_id))]
       const linkMap=new Map((links??[]).map(x=>[x.student_id,x]))
-      const n=await supabaseBrowser.from("notifications").select("id,title,body,type,read_at,created_at").eq("recipient_user_id",userId).order("created_at",{ascending:false}).limit(50)
-      if(n.error) throw n.error
-      setNotifications(n.data??[])
       if(!studentIds.length){setChildren([]);setGrades([]);setPayments([]);setAttendance([]);setJustificationRequests([]);setEvents([]);setPaymentSchedules([]);setPaymentAllocations([]);setTimetable([]);setLessons([]);setHomework([]);setDocuments([]);return}
 
-      const [sr,er,gr,ar,jr,ev]=await Promise.all([
+      const [sr,er]=await Promise.all([
         supabaseBrowser.from("students").select("id,establishment_id,student_number,first_name,last_name,birth_date,sex,phone,email,active").in("id",studentIds).order("last_name").limit(100),
         supabaseBrowser.from("enrollments").select("id,student_id,class_id,status").in("student_id",studentIds).eq("status","active").limit(200),
         supabaseBrowser.from("grades").select("id,student_id,score,comment,assessment_id,created_at").in("student_id",studentIds).order("created_at",{ascending:false}).limit(500),
         supabaseBrowser.from("attendance_records").select("id,student_id,attendance_date,status,reason").in("student_id",studentIds).order("attendance_date",{ascending:false}).limit(500),
         supabaseBrowser.from("attendance_justification_requests").select("id,attendance_id,student_id,reason,status,reviewer_note,created_at").order("created_at",{ascending:false}).limit(200),
-        establishmentIds.length?supabaseBrowser.from("school_events").select("id,establishment_id,title,description,event_type,starts_at,ends_at,location").in("establishment_id",establishmentIds).order("starts_at").limit(100):Promise.resolve({data:[],error:null})
       ])
       for(const r of [sr,er,gr,ar,jr,ev]) if(r.error) throw r.error
-      const enrollments=er.data??[], classIds=[...new Set(enrollments.map(x=>x.class_id).filter(Boolean))], assessmentIds=[...new Set((gr.data??[]).map(x=>x.assessment_id))]
+      const enrollments=er.data??[], classIds=[...new Set(enrollments.map(x=>x.class_id).filter(Boolean))]
       const [cr,asr]=await Promise.all([
         classIds.length?supabaseBrowser.from("school_classes").select("id,name").in("id",classIds):Promise.resolve({data:[],error:null}),
         assessmentIds.length?supabaseBrowser.from("assessments").select("id,title,assessment_date,term,max_score,subject_id").in("id",assessmentIds):Promise.resolve({data:[],error:null})
@@ -62,6 +58,16 @@ export function useParentPortal() {
       const classMap=new Map((cr.data??[]).map(x=>[x.id,x.name])), assessmentMap=new Map((asr.data??[]).map(x=>[x.id,x])), subjectMap=new Map((subr.data??[]).map(x=>[x.id,x.name]))
       const enrollmentMap=new Map(enrollments.map(x=>[x.student_id,x])), enrollmentStudentMap=new Map(enrollments.map(x=>[x.id,x.student_id]))
       setChildren((sr.data??[]).map(s=>{const e=enrollmentMap.get(s.id),l=linkMap.get(s.id);return {...s,relationship:l?.relationship??null,can_view_academic:l?.can_view_academic??false,can_view_finance:l?.can_view_finance??false,class_id:e?.class_id,class_name:e?.class_id?classMap.get(e.class_id):undefined,enrollment_id:e?.id}}))
+
+      const n=await supabaseBrowser.from("notifications").select("id,title,body,type,read_at,created_at").eq("recipient_user_id",userId).order("created_at",{ascending:false}).limit(50)
+      if(!n.error) setNotifications(n.data??[])
+
+      const [gr,ar,jr,ev]=await Promise.all([
+        supabaseBrowser.from("grades").select("id,student_id,score,comment,assessment_id,created_at").in("student_id",studentIds).order("created_at",{ascending:false}).limit(500),
+        supabaseBrowser.from("attendance_records").select("id,student_id,attendance_date,status,reason").in("student_id",studentIds).order("attendance_date",{ascending:false}).limit(500),
+        supabaseBrowser.from("attendance_justification_requests").select("id,attendance_id,student_id,reason,status,reviewer_note,created_at").order("created_at",{ascending:false}).limit(200),
+        establishmentIds.length?supabaseBrowser.from("school_events").select("id,establishment_id,title,description,event_type,starts_at,ends_at,location").in("establishment_id",establishmentIds).order("starts_at").limit(100):Promise.resolve({data:[],error:null})
+      ])
       setGrades((gr.data??[]).filter(g=>linkMap.get(g.student_id)?.can_view_academic).map(g=>{const a=assessmentMap.get(g.assessment_id);return {...g,score:Number(g.score),title:a?.title,assessment_date:a?.assessment_date,term:a?.term,max_score:a?.max_score?Number(a.max_score):undefined,subject:a?.subject_id?subjectMap.get(a.subject_id):undefined}}))
       const financeEnrollmentIds=enrollments.filter(e=>linkMap.get(e.student_id)?.can_view_finance).map(e=>e.id), academicClassIds=enrollments.filter(e=>linkMap.get(e.student_id)?.can_view_academic).map(e=>e.class_id).filter(Boolean)
       const paymentsR=financeEnrollmentIds.length?await supabaseBrowser.from("payments").select("id,enrollment_id,amount,payment_date,reference,method,notes").in("enrollment_id",financeEnrollmentIds).order("payment_date",{ascending:false}).limit(500):{data:[],error:null}

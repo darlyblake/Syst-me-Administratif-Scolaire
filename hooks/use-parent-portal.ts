@@ -16,7 +16,7 @@ export type ParentTimetableSlot = { id:string; class_subject_id:string; day_of_w
 export type ParentLesson = { id:string; timetable_slot_id:string; lesson_date:string; topic:string; content:string; activities:string|null; subject:string; class_id:string }
 export type ParentHomework = { id:string; timetable_slot_id:string; class_id:string; subject_id:string; title:string; instructions:string; due_date:string|null; created_at:string; subject:string }
 export type ParentDocument = { id:string; publication_id:string; student_id:string; name:string; title:string; document_type:string; mime_type:string|null; size_bytes:number|null; created_at:string; published_at:string; storage_path:string; download_url?:string }
-export type ClaimStudentInput = { studentId?:string; studentNumber?:string; birthDate:string }
+export type ClaimStudentInput = { studentId?:string; studentNumber?:string; birthDate?:string; fromQr?:boolean }
 
 export function useParentPortal() {
   const [loading,setLoading]=useState(true), [error,setError]=useState<string|null>(null)
@@ -100,9 +100,9 @@ export function useParentPortal() {
   },[])
 
   const claimChild=useCallback(async(input:ClaimStudentInput)=>{
-    const studentNumber=input.studentNumber?.trim(),studentId=input.studentId?.trim(),birthDate=input.birthDate.trim()
-    if((!studentNumber&&!studentId)||!birthDate)throw new Error("L'identifiant et la date de naissance sont obligatoires.")
-    const {data,error}=await supabaseBrowser.functions.invoke("claim-student",{body:{student_id:studentId||undefined,student_number:studentNumber||undefined,birth_date:birthDate}})
+    const studentNumber=input.studentNumber?.trim(),studentId=input.studentId?.trim(),birthDate=input.birthDate?.trim()
+    if((!studentNumber&&!studentId)||(!input.fromQr&&!birthDate))throw new Error("L'identifiant et la date de naissance sont obligatoires en saisie manuelle.")
+    const {data,error}=await supabaseBrowser.functions.invoke("claim-student",{body:{student_id:studentId||undefined,student_number:studentNumber||undefined,birth_date:birthDate||undefined}})
     if(error)throw error
     if(!data?.linked||!data?.student?.id)throw new Error("Le rattachement de l'élève n'a pas été confirmé.")
     const linkedStudent=data.student as {id:string;establishment_id:string;student_number:string|null;first_name:string;last_name:string}

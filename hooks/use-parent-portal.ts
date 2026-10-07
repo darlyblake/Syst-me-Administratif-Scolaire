@@ -65,9 +65,7 @@ export function useParentPortal() {
       const subjectIds=[...new Set((asr.data??[]).map(x=>x.subject_id).filter(Boolean))]
       const subr=subjectIds.length?await supabaseBrowser.from("subjects").select("id,name").in("id",subjectIds):{data:[],error:null}
       if(subr.error) throw subr.error
-      const classMap=new Map((cr.data??[]).map(x=>[x.id,x.name])), assessmentMap=new Map((asr.data??[]).map(x=>[x.id,x])), subjectMap=new Map((subr.data??[]).map(x=>[x.id,x.name]))
-      const enrollmentMap=new Map(enrollments.map(x=>[x.student_id,x])), enrollmentStudentMap=new Map(enrollments.map(x=>[x.id,x.student_id]))
-      setChildren((sr.data??[]).map(s=>{const e=enrollmentMap.get(s.id),l=linkMap.get(s.id);return {...s,relationship:l?.relationship??null,can_view_academic:l?.can_view_academic??false,can_view_finance:l?.can_view_finance??false,class_id:e?.class_id,class_name:e?.class_id?classMap.get(e.class_id):undefined,enrollment_id:e?.id}}))
+      const assessmentMap=new Map((asr.data??[]).map(x=>[x.id,x])), subjectMap=new Map((subr.data??[]).map(x=>[x.id,x.name]))
 
       const n=await supabaseBrowser.from("notifications").select("id,title,body,type,read_at,created_at").eq("recipient_user_id",userId).order("created_at",{ascending:false}).limit(50)
       if(!n.error) setNotifications(n.data??[])

@@ -41,11 +41,9 @@ export function useParentPortal() {
       const [sr,er]=await Promise.all([
         supabaseBrowser.from("students").select("id,establishment_id,student_number,first_name,last_name,birth_date,sex,phone,email,active").in("id",studentIds).order("last_name").limit(100),
         supabaseBrowser.from("enrollments").select("id,student_id,class_id,status").in("student_id",studentIds).eq("status","active").limit(200),
-        supabaseBrowser.from("grades").select("id,student_id,score,comment,assessment_id,created_at").in("student_id",studentIds).order("created_at",{ascending:false}).limit(500),
-        supabaseBrowser.from("attendance_records").select("id,student_id,attendance_date,status,reason").in("student_id",studentIds).order("attendance_date",{ascending:false}).limit(500),
-        supabaseBrowser.from("attendance_justification_requests").select("id,attendance_id,student_id,reason,status,reviewer_note,created_at").order("created_at",{ascending:false}).limit(200),
       ])
-      for(const r of [sr,er,gr,ar,jr,ev]) if(r.error) throw r.error
+      if(sr.error) throw sr.error
+      if(er.error) throw er.error
       const enrollments=er.data??[], classIds=[...new Set(enrollments.map(x=>x.class_id).filter(Boolean))]
       const [cr,asr]=await Promise.all([
         classIds.length?supabaseBrowser.from("school_classes").select("id,name").in("id",classIds):Promise.resolve({data:[],error:null}),

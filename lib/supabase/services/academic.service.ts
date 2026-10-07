@@ -149,3 +149,108 @@ export async function getAcademicStructure(establishmentId: string): Promise<Aca
       .sort((a, b) => (a.display_order || 0) - (b.display_order || 0)) || []
   }))
 }
+
+
+export async function moveCycle(cycleId: string, direction: "up" | "down") {
+  const { data: current, error: currentError } = await supabaseBrowser
+    .from("education_cycles")
+    .select("id, establishment_id, display_order")
+    .eq("id", cycleId)
+    .single()
+  if (currentError || !current) throw new Error("Impossible de charger le cycle.")
+
+  const comparison = direction === "up" ? "lt" : "gt"
+  const ascending = direction === "up" ? false : true
+  const { data: adjacent, error: adjacentError } = await supabaseBrowser
+    .from("education_cycles")
+    .select("id, display_order")
+    .eq("establishment_id", current.establishment_id)
+    .eq("active", true)
+    .filter("display_order", comparison, current.display_order)
+    .order("display_order", { ascending })
+    .limit(1)
+    .maybeSingle()
+
+  if (adjacentError) throw new Error("Impossible de déterminer le cycle voisin.")
+  if (!adjacent) return
+
+  const temporaryOrder = 1000000 + Date.now() % 100000
+  const { error: firstError } = await supabaseBrowser
+    .from("education_cycles")
+    .update({ display_order: temporaryOrder })
+    .eq("id", current.id)
+  if (firstError) throw new Error("Impossible de réorganiser les cycles.")
+
+  const { error: secondError } = await supabaseBrowser
+    .from("education_cycles")
+    .update({ display_order: current.display_order })
+    .eq("id", adjacent.id)
+  if (secondError) throw new Error("Impossible de réorganiser les cycles.")
+
+  const { error: thirdError } = await supabaseBrowser
+    .from("education_cycles")
+    .update({ display_order: adjacent.display_order })
+    .eq("id", current.id)
+  if (thirdError) throw new Error("Impossible de finaliser l'ordre des cycles.")
+}
+
+export async function moveLevel(levelId: string, direction: "up" | "down") {
+  const { data: current, error: currentError } = await supabaseBrowser
+    .from("grade_levels")
+    .select("id, cycle_id, display_order")
+    .eq("id", levelId)
+    .single()
+  if (currentError || !current) throw new Error("Impossible de charger le niveau.")
+
+  const comparison = direction === "up" ? "lt" : "gt"
+  const ascending = direction === "up" ? false : true
+  const { data: adjacent, error: adjacentError } = await supabaseBrowser
+    .from("grade_levels")
+    .select("id, display_order")
+    .eq("cycle_id", current.cycle_id)
+    .eq("active", true)
+    .filter("display_order", comparison, current.display_order)
+    .order("display_order", { ascending })
+    .limit(1)
+    .maybeSingle()
+
+  if (adjacentError) throw new Error("Impossible de déterminer le niveau voisin.")
+  if (!adjacent) return
+
+  const temporaryOrder = 1000000 + Date.now() % 100000
+  const { error: firstError } = await supabaseBrowser
+    .from("grade_levels")
+    .update({ display_order: temporaryOrder })
+    .eq("id", current.id)
+  if (firstError) throw new Error("Impossible de réorganiser les niveaux.")
+
+  const { error: secondError } = await supabaseBrowser
+    .from("grade_levels")
+    .update({ display_order: current.display_order })
+    .eq("id", adjacent.id)
+  if (secondError) throw new Error("Impossible de réorganiser les niveaux.")
+
+  const { error: thirdError } = await supabaseBrowser
+    .from("grade_levels")
+    .update({ display_order: adjacent.display_order })
+    .eq("id", current.id)
+  if (thirdError) throw new Error("Impossible de finaliser l'ordre des niveaux.")
+}
+
+export async function getStudentNextAcademicProgression(establishmentId: string, studentId: string) {
+  const { data, error } = await supabaseBrowser.rpc("get_student_next_academic_progression", {
+    p_establishment_id: establishmentId,
+    p_student_id: studentId,
+  })
+  if (error) throw new Error("Impossible de déterminer la progression académique.")
+  return data as {
+    available: boolean
+    transitioned_cycle?: boolean
+    cycle_id?: string
+    cycle_name?: string
+    level_id?: string
+    level_name?: string
+    level_code?: string
+    reason?: string
+  }
+}

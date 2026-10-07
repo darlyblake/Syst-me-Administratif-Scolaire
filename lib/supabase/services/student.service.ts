@@ -142,6 +142,37 @@ export async function findDuplicateStudentForEnrollment(data: {
   }
 }
 
+
+export interface ChangeStudentEnrollmentClassResult {
+  changed: boolean
+  enrollment_id: string
+  student_id: string
+  class_id: string
+  previous_class_id?: string | null
+  message?: string
+}
+
+export async function changeStudentEnrollmentClass(data: {
+  establishmentId: string
+  enrollmentId: string
+  classId: string
+}): Promise<ChangeStudentEnrollmentClassResult> {
+  const { data: result, error } = await supabaseBrowser.rpc("change_student_enrollment_class", {
+    p_establishment_id: data.establishmentId,
+    p_enrollment_id: data.enrollmentId,
+    p_class_id: data.classId,
+  })
+
+  if (error) {
+    if (error.message?.includes("class_level_mismatch")) {
+      throw new Error("La nouvelle classe doit appartenir au même niveau que l'inscription actuelle.")
+    }
+    throw new Error(error.message || "Impossible de changer la classe de l'élève.")
+  }
+
+  return result as ChangeStudentEnrollmentClassResult
+}
+
 export async function createStudent(data: {
   establishmentId: string
   firstName: string

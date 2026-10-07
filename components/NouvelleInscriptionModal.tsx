@@ -11,6 +11,7 @@ import { X, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react"
 import { genererCodeUnique } from "@/utils/codeGenerator"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
+import { findDuplicateStudentForEnrollment, type DuplicateStudentCandidate } from "@/lib/supabase/services/student.service"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { useTuitionPlans } from "@/hooks/useTuitionPlans"
@@ -67,6 +68,9 @@ export default function NouvelleInscriptionModal({
   const [step, setStep] = useState(1)
   const [submitted, setSubmitted] = useState(false)
   const [newEnrollmentId, setNewEnrollmentId] = useState("")
+  const [existingStudentId, setExistingStudentId] = useState<string | null>(null)
+  const [duplicateStudents, setDuplicateStudents] = useState<DuplicateStudentCandidate[]>([])
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false)
 
   // ─── Données élève ──────────────────────────────────────────────────────────
   const [lastName, setLastName] = useState("")
@@ -249,7 +253,7 @@ export default function NouvelleInscriptionModal({
   const handleBack = () => setStep((s) => Math.max(s - 1, 1))
 
   // ─── Soumission ──────────────────────────────────────────────────────────────
-  const handleSubmit = async () => {
+  const handleSubmit = async (studentIdOverride?: string) => {
     if (!activeYear) {
       toast.error("Aucune année scolaire active. Configurez l'année dans Paramètres → Années académiques.")
       return
@@ -259,11 +263,37 @@ export default function NouvelleInscriptionModal({
       return
     }
 
+    // Une réinscription sélectionnée depuis la page dédiée utilise déjà
+    // le dossier existant. Pour une nouvelle inscription, on vérifie
+    // l'identité avant de créer un nouvel élève.
+    if (typeInscription === "inscription" && !studentId && !studentIdOverride && !existingStudentId) {
+      setCheckingDuplicate(true)
+      try {
+        const duplicate = await findDuplicateStudentForEnrollment({
+          establishmentId,
+          firstName,
+          lastName,
+          birthDate,
+        })
+
+        if (duplicate.found) {
+          setDuplicateStudents(duplicate.students)
+          setCheckingDuplicate(false)
+          return
+        }
+      } catch (err) {
+        setCheckingDuplicate(false)
+        toast.error(err instanceof Error ? err.message : "Impossible de vérifier l'existence de l'élève.")
+        return
+      }
+      setCheckingDuplicate(false)
+    }
+
     try {
       // La RPC crée l'élève et l'inscription dans la même transaction.
-      // Ne créons plus l'élève séparément : en cas d'échec de l'inscription,
-      // cela laissait auparavant des élèves orphelins dans la base.
-      const finalStudentId = studentId ?? null
+      // Le contrôle SQL empêche également un doublon en cas de validation
+      // simultanée depuis plusieurs postes.
+      const finalStudentId = studentIdOverride ?? existingStudentId ?? studentId ?? null
 
       const result = await createStudentEnrollment({
         establishmentId,
@@ -292,6 +322,8 @@ export default function NouvelleInscriptionModal({
         return
       }
 
+      setDuplicateStudents([])
+      setExistingStudentId(null)
       setNewEnrollmentId(result.enrollment_id)
       setSubmitted(true)
     } catch (err) {
@@ -302,6 +334,7 @@ export default function NouvelleInscriptionModal({
   // ─── Reset ────────────────────────────────────────────────────────────────────
   const resetAndClose = () => {
     setStep(1); setSubmitted(false); setNewEnrollmentId("")
+    setExistingStudentId(null); setDuplicateStudents([]); setCheckingDuplicate(false)
     setLastName(""); setFirstName(""); setBirthDate(""); setBirthPlace(""); setSex(""); setStudentNumber("")
     setParentLastName(""); setParentFirstName(""); setParentPhone(""); setParentEmail(""); setParentAddress("")
     setSelectedCycleId(""); setSelectedLevelId(""); setSelectedClassId("")
@@ -312,6 +345,78 @@ export default function NouvelleInscriptionModal({
   }
 
   if (!isOpen) return null
+
+  if (duplicateStudents.length > 0) {
+    const hasMultiple = duplicateStudents.length > 1
+    const currentYearEnrollment = duplicateStudents[0]?.current_enrollment ?? null
+
+    return (
+      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#131b2e]/45 p-4">
+        <div className="w-full max-w-lg border border-[#c5c5d3] bg-white shadow-xl">
+          <div className="border-b border-[#c5c5d3] px-5 py-4">
+            <p className="text-sm font-semibold text-[#131b2e]">Élève déjà enregistré</p>
+            <p className="mt-1 text-xs text-[#515f74]">
+              Un dossier correspondant au nom, prénom et à la date de naissance existe déjà dans cet établissement.
+            </p>
+          </div>
+
+          <div className="space-y-3 px-5 py-4">
+            {duplicateStudents.map((candidate) => (
+              <div key={candidate.id} className="border border-[#d9dce5] px-4 py-3">
+                <p className="text-sm font-semibold text-[#131b2e]">
+                  {candidate.first_name} {candidate.last_name}
+                </p>
+                <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-[#515f74]">
+                  <span>Date de naissance : {candidate.birth_date ? new Date(candidate.birth_date + "T00:00:00").toLocaleDateString("fr-FR") : "—"}</span>
+                  <span>Matricule : {candidate.student_number || "—"}</span>
+                  <span>Dossier : {candidate.active ? "Actif" : "Inactif"}</span>
+                  <span>Classe : {candidate.current_enrollment?.class_name || "Aucune pour l'année active"}</span>
+                </div>
+                {candidate.current_enrollment && (
+                  <p className="mt-2 text-xs text-amber-700">
+                    Déjà inscrit(e) en {candidate.current_enrollment.class_name || "classe non renseignée"} pour {candidate.current_enrollment.academic_year_name || "l'année active"}.
+                  </p>
+                )}
+              </div>
+            ))}
+
+            {hasMultiple ? (
+              <div className="border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800">
+                Plusieurs dossiers correspondent à cette identité. La réinscription automatique est désactivée pour éviter de choisir le mauvais dossier. Les dossiers existants doivent être vérifiés avant de continuer.
+              </div>
+            ) : currentYearEnrollment ? (
+              <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                Cet élève possède déjà une inscription pour l'année scolaire active. Il n'est pas nécessaire de créer une nouvelle inscription.
+              </div>
+            ) : (
+              <div className="border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-800">
+                Le dossier existe, mais aucune inscription n'a encore été trouvée pour l'année scolaire active. Vous pouvez réinscrire cet élève sans créer un nouveau dossier.
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-[#c5c5d3] px-5 py-4">
+            <Button variant="outline" onClick={() => setDuplicateStudents([])}>
+              Retour au formulaire
+            </Button>
+            {!hasMultiple && !currentYearEnrollment && duplicateStudents[0] && (
+              <Button
+                disabled={checkingDuplicate || isSubmitting}
+                onClick={() => {
+                  const candidate = duplicateStudents[0]
+                  setExistingStudentId(candidate.id)
+                  setDuplicateStudents([])
+                  void handleSubmit(candidate.id)
+                }}
+              >
+                Réinscrire cet élève
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // ─── Écran succès ─────────────────────────────────────────────────────────────
   if (submitted) {

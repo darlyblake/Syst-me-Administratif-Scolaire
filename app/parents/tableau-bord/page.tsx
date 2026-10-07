@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Bell, CalendarDays, ChevronRight, GraduationCap, RefreshCw, UserX } from "lucide-react"
+import { ChevronRight, RefreshCw } from "lucide-react"
 import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -77,10 +77,18 @@ export default function ParentsDashboard() {
             </div>
           </section>
 
-          <section className="grid overflow-hidden rounded-xl border border-slate-200 bg-white sm:grid-cols-3">
-            <SummaryItem href="/parents/notes" icon={GraduationCap} label="Résultats disponibles" value={String(visibleGrades.length)} />
-            <SummaryItem href="/parents/absences" icon={UserX} label="Absences et retards" value={String(visibleAttendance.length)} />
-            <SummaryItem href="/parents/notifications" icon={Bell} label="Notifications non lues" value={String(unread)} />
+          <section className="border-y border-slate-200">
+            <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Accès rapides</h2>
+                <p className="text-xs text-slate-500">Ouvrez directement les informations qui nécessitent votre attention.</p>
+              </div>
+              <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+                <Link href="/parents/notes" className="font-medium text-blue-700 hover:text-blue-800">Résultats <span className="ml-1 text-slate-500">({visibleGrades.length})</span></Link>
+                <Link href="/parents/absences" className="font-medium text-blue-700 hover:text-blue-800">Présences <span className="ml-1 text-slate-500">({visibleAttendance.length})</span></Link>
+                <Link href="/parents/notifications" className="font-medium text-blue-700 hover:text-blue-800">Notifications <span className="ml-1 text-slate-500">({unread})</span></Link>
+              </div>
+            </div>
           </section>
 
           <div className="grid gap-7 lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,.65fr)]">
@@ -95,10 +103,6 @@ export default function ParentsDashboard() {
 
 function DataValue({ label, value }: { label: string; value: string }) {
   return <div><p className="text-xs text-slate-500">{label}</p><p className="mt-1 font-bold text-slate-950">{value}</p></div>
-}
-
-function SummaryItem({ href, icon: Icon, label, value }: { href: string; icon: typeof GraduationCap; label: string; value: string }) {
-  return <Link href={href} className="group border-b border-slate-100 px-5 py-4 transition-colors hover:bg-slate-50 sm:border-b-0 sm:border-r last:sm:border-r-0"><Icon className="h-4 w-4 text-blue-600" /><p className="mt-2 text-xs text-slate-500">{label}</p><p className="mt-0.5 text-xl font-bold text-slate-950">{value}</p></Link>
 }
 
 function InfoSection({ title, description, href, items, empty }: { title: string; description: string; href: string; items: { id: string; title: string; detail: string; date: string }[]; empty: string }) {

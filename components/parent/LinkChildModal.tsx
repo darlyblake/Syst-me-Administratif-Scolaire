@@ -16,18 +16,21 @@ declare global { interface Window { BarcodeDetector?: BarcodeDetectorConstructor
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (input: { studentNumber?: string; birthDate: string }) => Promise<void>
+  onSubmit: (input: { studentNumber?: string; studentId?: string; birthDate?: string; fromQr?: boolean }) => Promise<void>
 }
 
-function extractStudentNumber(value: string) {
+function extractQrStudent(value: string) {
   const raw = value.trim()
-  if (!raw) return ""
+  if (!raw) return null
   try {
-    const parsed = JSON.parse(raw) as { student_number?: string; studentNumber?: string; matricule?: string }
-    return String(parsed.student_number ?? parsed.studentNumber ?? parsed.matricule ?? "").trim()
+    const parsed = JSON.parse(raw) as { student_id?: string; student_number?: string; studentId?: string; studentNumber?: string; matricule?: string }
+    const studentId = String(parsed.student_id ?? parsed.studentId ?? "").trim()
+    const studentNumber = String(parsed.student_number ?? parsed.studentNumber ?? parsed.matricule ?? "").trim()
+    if (studentId || studentNumber) return { studentId: studentId || undefined, studentNumber: studentNumber || undefined }
   } catch {}
   const match = raw.match(/(?:student[_-]?number|matricule|identifiant)\s*[:=]\s*([A-Za-z0-9._/-]+)/i)
-  return (match?.[1] ?? raw).trim()
+  const studentNumber = (match?.[1] ?? "").trim()
+  return studentNumber ? { studentNumber } : null
 }
 
 function cameraErrorMessage(error: unknown) {
@@ -49,6 +52,8 @@ export function LinkChildModal({ open, onOpenChange, onSubmit }: Props) {
   const startIdRef = useRef(0)
   const [mode, setMode] = useState<"scan" | "manual">("scan")
   const [studentNumber, setStudentNumber] = useState("")
+  const [studentId, setStudentId] = useState<string | undefined>()
+  const [scannedFromQr, setScannedFromQr] = useState(false)
   const [birthDate, setBirthDate] = useState("")
   const [scannerError, setScannerError] = useState<string | null>(null)
   const [scanning, setScanning] = useState(false)
@@ -132,9 +137,12 @@ export function LinkChildModal({ open, onOpenChange, onSubmit }: Props) {
           const codes = await detector.detect(videoRef.current)
           const value = codes.find((code) => code.rawValue)?.rawValue
           if (value) {
-            const extracted = extractStudentNumber(value)
+            const extracted = extractQrStudent(value)
             if (extracted) {
-              setStudentNumber(extracted)
+              setStudentNumber(extracted.studentNumber ?? "")
+              setStudentId(extracted.studentId)
+              setScannedFromQr(true)
+              setBirthDate("")
               stopScanner()
               setMode("manual")
               return
@@ -170,11 +178,11 @@ export function LinkChildModal({ open, onOpenChange, onSubmit }: Props) {
   }, [open])
 
   const submit = async () => {
-    if (!studentNumber.trim() || !birthDate) return
+    if ((!studentNumber.trim() && !studentId) || (!scannedFromQr && !birthDate)) return
     setSubmitting(true)
     setScannerError(null)
     try {
-      await onSubmit({ studentNumber: studentNumber.trim(), birthDate })
+      await onSubmit({ studentNumber: studentNumber.trim() || undefined, studentId, birthDate: birthDate || undefined, fromQr: scannedFromQr })
       setSuccess(true)
       setTimeout(() => onOpenChange(false), 900)
     } catch (error) {
@@ -189,7 +197,7 @@ export function LinkChildModal({ open, onOpenChange, onSubmit }: Props) {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-terre"><ScanLine className="h-5 w-5" /> Ajouter un enfant</DialogTitle>
-          <DialogDescription>Scannez le QR de l'élève ou saisissez son identifiant. Une date de naissance est demandée pour confirmer le rattachement.</DialogDescription>
+          <DialogDescription>Scannez le QR de l'élève ou saisissez son identifiant. Pour un QR de reçu, aucune date de naissance n’est demandée. La date reste requise uniquement en saisie manuelle.</DialogDescription>
         </DialogHeader>
 
         {success ? (
@@ -213,9 +221,9 @@ export function LinkChildModal({ open, onOpenChange, onSubmit }: Props) {
 
             {mode === "scan" && studentNumber && <div className="rounded-lg border bg-slate-50 p-3 text-sm"><span className="text-pierre">Identifiant détecté : </span><strong>{studentNumber}</strong></div>}
 
-            <div className="space-y-2"><Label htmlFor="birth-date">Date de naissance de l'élève</Label><Input id="birth-date" type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} /></div>
+            {!scannedFromQr && <div className="space-y-2"><Label htmlFor="birth-date">Date de naissance de l'élève</Label><Input id="birth-date" type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} /></div>}
             {scannerError && <Alert variant="destructive"><AlertDescription>{scannerError}</AlertDescription></Alert>}
-            <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}><X className="mr-1.5 h-4 w-4" />Annuler</Button><Button onClick={() => void submit()} disabled={submitting || !studentNumber.trim() || !birthDate}>{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Rattacher l'enfant</Button></div>
+            <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}><X className="mr-1.5 h-4 w-4" />Annuler</Button><Button onClick={() => void submit()} disabled={submitting || (!studentNumber.trim() && !studentId) || (!scannedFromQr && !birthDate)}>{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Rattacher l'enfant</Button></div>
           </div>
         )}
       </DialogContent>

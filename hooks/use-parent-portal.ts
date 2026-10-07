@@ -154,16 +154,16 @@ function useParentPortalState() {
       // Ne pas bloquer leur affichage si une requête secondaire échoue.
       try{
       const {data:gradeRows,error:gradeError}=await supabaseBrowser.from("grades").select("id,student_id,score,comment,assessment_id,created_at").in("student_id",studentIds).order("created_at",{ascending:false}).limit(500)
-      if(gradeError) throw gradeError
+      if(gradeError) console.warn("Parent grades query:", gradeError)
       const assessmentIds=[...new Set((gradeRows??[]).map(g=>g.assessment_id).filter(Boolean))]
       const {data:assessmentRows,error:assessmentError}=assessmentIds.length
         ?await supabaseBrowser.from("assessments").select("id,title,assessment_date,term,max_score,subject_id").in("id",assessmentIds)
         :{data:[],error:null}
-      if(assessmentError) throw assessmentError
+      if(assessmentError) console.warn("Parent assessments query:", assessmentError)
       const asr={data:assessmentRows??[],error:null}
       const subjectIds=[...new Set((asr.data??[]).map(x=>x.subject_id).filter(Boolean))]
       const subr=subjectIds.length?await supabaseBrowser.from("subjects").select("id,name").in("id",subjectIds):{data:[],error:null}
-      if(subr.error) throw subr.error
+      if(subr.error) console.warn("Parent subjects query:", subr.error)
       const assessmentMap=new Map((asr.data??[]).map(x=>[x.id,x])), subjectMap=new Map((subr.data??[]).map(x=>[x.id,x.name]))
 
       const n=await supabaseBrowser.from("notifications").select("id,title,body,type,read_at,created_at").eq("recipient_user_id",userId).order("created_at",{ascending:false}).limit(50)
@@ -178,7 +178,7 @@ function useParentPortalState() {
       setGrades((gr.data??[]).filter(g=>linkMap.get(g.student_id)?.can_view_academic).map(g=>{const a=assessmentMap.get(g.assessment_id);return {...g,score:Number(g.score),title:a?.title,assessment_date:a?.assessment_date,term:a?.term,max_score:a?.max_score?Number(a.max_score):undefined,subject:a?.subject_id?subjectMap.get(a.subject_id):undefined}}))
       const financeEnrollments=enrollments.filter(e=>linkMap.get(e.student_id)?.can_view_finance), financeEnrollmentIds=financeEnrollments.map(e=>e.id), academicClassIds=enrollments.filter(e=>linkMap.get(e.student_id)?.can_view_academic).map(e=>e.class_id).filter(Boolean)
       const paymentsR=financeEnrollmentIds.length?await supabaseBrowser.from("payments").select("id,enrollment_id,amount,payment_date,reference,method,notes,category,payer_type").in("enrollment_id",financeEnrollmentIds).order("payment_date",{ascending:false}).limit(500):{data:[],error:null}
-      if(paymentsR.error) throw paymentsR.error
+      if(paymentsR.error) console.warn("Parent payments query:", paymentsR.error)
       const paymentIds=(paymentsR.data??[]).map(x=>x.id)
       const [psr,par,eor,tsr,tlr,thr,pdr]=await Promise.all([
         financeEnrollmentIds.length?supabaseBrowser.from("payment_schedules").select("id,enrollment_id,installment_number,label,due_date,amount_due,amount_paid,status,category").in("enrollment_id",financeEnrollmentIds).order("due_date"):Promise.resolve({data:[],error:null}),
@@ -189,10 +189,10 @@ function useParentPortalState() {
         academicClassIds.length?supabaseBrowser.from("teacher_homework").select("id,timetable_slot_id,class_id,subject_id,title,instructions,due_date,created_at").in("class_id",academicClassIds).eq("active",true).order("due_date").limit(300):Promise.resolve({data:[],error:null}),
         supabaseBrowser.from("parent_document_publications").select("id,student_id,document_id,published_at,title_override").in("student_id",studentIds).eq("active",true).order("published_at",{ascending:false}).limit(200)
       ])
-      for(const r of [psr,par,eor,tsr,tlr,thr,pdr]) if(r.error) throw r.error
+      for(const [name,r] of [["payment_schedules",psr],["payment_allocations",par],["enrollment_options",eor],["timetable",tsr],["lessons",tlr],["homework",thr],["documents",pdr]] as const) if(r.error) console.warn("Parent "+name+" query:",r.error)
       const optionIds=[...new Set((eor.data??[]).map(x=>x.option_id).filter(Boolean))]
       const optionRows=optionIds.length?await supabaseBrowser.from("student_options").select("id,name,description,option_type,required").in("id",optionIds):{data:[],error:null}
-      if(optionRows.error) throw optionRows.error
+      if(optionRows.error) console.warn("Parent student options query:", optionRows.error)
       setEnrollmentOptions((eor.data??[]).map(x=>({
         id:x.id,
         enrollment_id:x.enrollment_id,
@@ -210,7 +210,7 @@ function useParentPortalState() {
         allSubjectIds.length?supabaseBrowser.from("subjects").select("id,name").in("id",allSubjectIds):Promise.resolve({data:[],error:null}),
         (pdr.data??[]).length?supabaseBrowser.from("documents").select("id,name,document_type,mime_type,size_bytes,created_at,storage_path").in("id",(pdr.data??[]).map(x=>x.document_id)):Promise.resolve({data:[],error:null})
       ])
-      for(const r of [csr,tsubr,dr]) if(r.error) throw r.error
+      for(const [name,r] of [["class_subjects",csr],["subjects",tsubr],["documents",dr]] as const) if(r.error) console.warn("Parent "+name+" query:",r.error)
       const csMap=new Map((csr.data??[]).map(x=>[x.id,x])), names=new Map((tsubr.data??[]).map(x=>[x.id,x.name]))
       const visibleSlots=slotRows.filter(s=>academicClassIds.includes(csMap.get(s.class_subject_id)?.class_id??"")), visibleSlotIds=new Set(visibleSlots.map(s=>s.id))
       setTimetable(visibleSlots.map(s=>{const cs=csMap.get(s.class_subject_id);return {...s,class_id:cs?.class_id??"",subject:cs?.subject_id?names.get(cs.subject_id)??"Matière":"Matière",teacher_id:cs?.teacher_id??null}}))

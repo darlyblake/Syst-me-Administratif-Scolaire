@@ -193,6 +193,16 @@ function useParentPortalState() {
       const optionIds=[...new Set((eor.data??[]).map(x=>x.option_id).filter(Boolean))]
       const optionRows=optionIds.length?await supabaseBrowser.from("student_options").select("id,name,description,option_type,required").in("id",optionIds):{data:[],error:null}
       if(optionRows.error) throw optionRows.error
+      setEnrollmentOptions((eor.data??[]).map(x=>({
+        id:x.id,
+        enrollment_id:x.enrollment_id,
+        option_id:x.option_id,
+        amount:Number(x.amount),
+        name:(optionRows.data??[]).find(option=>option.id===x.option_id)?.name??"Option",
+        description:(optionRows.data??[]).find(option=>option.id===x.option_id)?.description??null,
+        option_type:(optionRows.data??[]).find(option=>option.id===x.option_id)?.option_type??null,
+        required:Boolean((optionRows.data??[]).find(option=>option.id===x.option_id)?.required),
+      })))
       const slotRows=tsr.data??[], csIds=[...new Set(slotRows.map(x=>x.class_subject_id))], hwSubjectIds=[...new Set((thr.data??[]).map(x=>x.subject_id))]
       const allSubjectIds=[...new Set([...subjectIds,...hwSubjectIds])]
       const [csr,tsubr,dr]=await Promise.all([
@@ -209,9 +219,20 @@ function useParentPortalState() {
       setPayments((paymentsR.data??[]).filter(p=>enrollmentStudentMap.has(p.enrollment_id)).map(p=>({...p,amount:Number(p.amount)})))
       setPaymentSchedules((psr.data??[]).map(x=>({...x,amount_due:Number(x.amount_due),amount_paid:Number(x.amount_paid)})))
       setPaymentAllocations((par.data??[]).map(x=>({...x,amount:Number(x.amount),payment_date:(paymentsR.data??[]).find(p=>p.id===x.payment_id)?.payment_date})))
-      const pubMap=new Map((pdr.data??[]).map(x=>[x.document_id,x])), docs:ParentDocument[]=[]
-      for(const d of dr.data??[]){const p=pubMap.get(d.id);if(!p||!linkMap.get(p.student_id)?.can_view_academic)continue;let url:string|undefined;if(d.storage_path){const s=await supabaseBrowser.storage.from("school-documents").createSignedUrl(d.storage_path,300);if(!s.error)url=s.data.signedUrl}docs.push({...d,publication_id:p.id,student_id:p.student_id,title:p.title_override??d.name,published_at:p.published_at,size_bytes:d.size_bytes?Number(d.size_bytes):null,download_url:url})}
-      setDocuments(docs); setAttendance((ar.data??[]).filter(x=>linkMap.get(x.student_id)?.can_view_academic)); setJustificationRequests((jr.data??[]) as ParentJustificationRequest[]); setEvents(ev.data??[])
+      setAttendance((ar.data??[]).filter(x=>linkMap.get(x.student_id)?.can_view_academic))
+      setJustificationRequests((jr.data??[]) as ParentJustificationRequest[])
+      setEvents(ev.data??[])
+
+      // Les documents sont secondaires : une erreur de document/storage ne doit jamais masquer
+      // les paiements, la présence ou l'emploi du temps déjà récupérés.
+      try {
+        const pubMap=new Map((pdr.data??[]).map(x=>[x.document_id,x])), docs:ParentDocument[]=[]
+        for(const d of dr.data??[]){const p=pubMap.get(d.id);if(!p||!linkMap.get(p.student_id)?.can_view_academic)continue;let url:string|undefined;if(d.storage_path){const s=await supabaseBrowser.storage.from("school-documents").createSignedUrl(d.storage_path,300);if(!s.error)url=s.data.signedUrl}docs.push({...d,publication_id:p.id,student_id:p.student_id,title:p.title_override??d.name,published_at:p.published_at,size_bytes:d.size_bytes?Number(d.size_bytes):null,download_url:url})}
+        setDocuments(docs)
+      } catch(documentCause) {
+        console.warn("Parent portal documents error:",documentCause)
+        setDocuments([])
+      }
       }catch(secondaryCause){
         console.warn("Parent portal secondary data error:",secondaryCause)
       }

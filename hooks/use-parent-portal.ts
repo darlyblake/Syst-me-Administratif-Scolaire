@@ -137,14 +137,14 @@ function useParentPortalState() {
           ...s,
           class_id:enrollment?.class_id??s.class_id,
           class_name:schoolClass?.name??s.class_name,
-          level_name:level?.name,
-          level_code:level?.code,
-          cycle_name:level?.cycle_id?cycleMap.get(level.cycle_id):undefined,
+          level_name:level?.name??s.level_name,
+          level_code:level?.code??s.level_code,
+          cycle_name:level?.cycle_id?cycleMap.get(level.cycle_id)??s.cycle_name:s.cycle_name,
           enrollment_id:enrollment?.id??s.enrollment_id,
-          academic_year_id:enrollment?.academic_year_id,
-          academic_year_name:enrollment?.academic_year_id?academicYearMap.get(enrollment.academic_year_id):undefined,
-          payment_mode:plan?.payment_mode,
-          installment_count:plan?.installment_count,
+          academic_year_id:enrollment?.academic_year_id??s.academic_year_id,
+          academic_year_name:enrollment?.academic_year_id?academicYearMap.get(enrollment.academic_year_id)??s.academic_year_name:s.academic_year_name,
+          payment_mode:plan?.payment_mode??s.payment_mode,
+          installment_count:plan?.installment_count??s.installment_count,
         }
       })
       setChildren(resolvedChildren)

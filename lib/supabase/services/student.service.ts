@@ -95,6 +95,53 @@ export async function getStudent(studentId: string): Promise<Student | null> {
   return (data as Student | null) ?? null
 }
 
+export interface DuplicateStudentCandidate {
+  id: string
+  student_number: string | null
+  first_name: string
+  last_name: string
+  birth_date: string | null
+  sex: string | null
+  active: boolean
+  current_enrollment: {
+    id: string
+    academic_year_id: string
+    academic_year_name: string | null
+    class_id: string | null
+    class_name: string | null
+    status: string | null
+  } | null
+}
+
+export interface DuplicateStudentResult {
+  found: boolean
+  count: number
+  students: DuplicateStudentCandidate[]
+}
+
+export async function findDuplicateStudentForEnrollment(data: {
+  establishmentId: string
+  firstName: string
+  lastName: string
+  birthDate: string
+}): Promise<DuplicateStudentResult> {
+  const { data: result, error } = await supabaseBrowser.rpc("find_duplicate_student_for_enrollment", {
+    p_establishment_id: data.establishmentId,
+    p_first_name: data.firstName,
+    p_last_name: data.lastName,
+    p_birth_date: data.birthDate,
+  })
+
+  if (error) throw new Error(error.message || "Impossible de vérifier si l'élève existe déjà.")
+
+  const value = (result && typeof result === "object" ? result : {}) as Record<string, unknown>
+  return {
+    found: value.found === true,
+    count: typeof value.count === "number" ? value.count : 0,
+    students: Array.isArray(value.students) ? value.students as DuplicateStudentCandidate[] : [],
+  }
+}
+
 export async function createStudent(data: {
   establishmentId: string
   firstName: string

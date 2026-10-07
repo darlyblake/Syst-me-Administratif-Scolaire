@@ -290,7 +290,7 @@ export default function ReceiptPage() {
                 <div className="flex justify-center">
                   <div className="bg-white p-2 rounded border flex flex-col items-center">
                     <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=Identifiant:${student.identifiant}%0AMot de passe:${student.motDePasse}`}
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(JSON.stringify({type:"school_student",student_id:student.id,student_number:student.identifiant}))}`}
                       alt="QR Code des identifiants"
                       className="w-20 h-20"
                     />

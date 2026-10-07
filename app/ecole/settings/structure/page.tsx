@@ -253,6 +253,7 @@ export default function StructureAcademiquePage() {
               onAddLevel={() => setModal({ type: "add-level", cycle })}
               onEditLevel={(level) => setModal({ type: "edit-level", cycle, level })}
               onMoveLevel={handleMoveLevel}
+              isMoving={isMoving}
               onDeleteLevel={(level) => setConfirm({ type: "delete-level", level })}
             />
           ))}
@@ -334,9 +335,10 @@ interface CycleSectionProps {
   onEditLevel: (level: AcademicStructureLevel) => void
   onMoveLevel: (level: AcademicStructureLevel, direction: "up" | "down") => void
   onDeleteLevel: (level: AcademicStructureLevel) => void
+  isMoving: boolean
 }
 
-function CycleSection({ cycle, onEditCycle, onDeleteCycle, onMoveCycle, onAddLevel, onEditLevel, onMoveLevel, onDeleteLevel }: CycleSectionProps) {
+function CycleSection({ cycle, onEditCycle, onDeleteCycle, onMoveCycle, onAddLevel, onEditLevel, onMoveLevel, isMoving, onDeleteLevel }: CycleSectionProps) {
   const levels = cycle.grade_levels || []
 
   return (
@@ -381,6 +383,7 @@ function CycleSection({ cycle, onEditCycle, onDeleteCycle, onMoveCycle, onAddLev
                 level={level}
                 onEdit={() => onEditLevel(level)}
                 onMove={(direction) => onMoveLevel(level, direction)}
+                isMoving={isMoving}
                 onDelete={() => onDeleteLevel(level)}
               />
               {index < levels.length - 1 && <Separator className="my-0.5" />}
@@ -410,9 +413,10 @@ interface LevelRowProps {
   onEdit: () => void
   onMove: (direction: "up" | "down") => void
   onDelete: () => void
+  isMoving: boolean
 }
 
-function LevelRow({ level, onEdit, onMove, onDelete }: LevelRowProps) {
+function LevelRow({ level, onEdit, onMove, onDelete, isMoving }: LevelRowProps) {
   const classCount = level.school_classes?.length ?? 0
 
   return (

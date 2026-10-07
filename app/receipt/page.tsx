@@ -9,6 +9,7 @@ import Link from "next/link"
 import { serviceEleves } from "@/services/eleves.service"
 import { getStudent } from "@/lib/supabase/services/student.service"
 import { serviceParametres } from "@/services/parametres.service"
+import { servicePaiements } from "@/services/paiements.service"
 import type { DonneesEleve, ParametresEcole } from "@/types/models"
 import type {  OptionsSupplementaires, OptionSupplementaire } from "@/services/parametres.service"
 
@@ -49,6 +50,15 @@ interface StudentData {
   // Propriétés d'identification
   identifiant: string
   motDePasse: string
+  paiements?: Array<{
+    id: string
+    montant: number
+    datePaiement: string
+    typePaiement: string
+    description?: string
+    moisPaiement?: string[]
+  }>
+  paiementEleveId?: string
 }
 
 export default function ReceiptPage() {
@@ -72,25 +82,42 @@ export default function ReceiptPage() {
         try {
           const supabaseStudent = await getStudent(studentId)
 
+          const localStudents = serviceEleves.obtenirTousLesEleves()
+          const localStudent = localStudents.find(
+            (s: DonneesEleve) => s.id === studentId || s.identifiant === studentId
+          )
+          const localPayments = localStudent
+            ? servicePaiements.obtenirPaiementsEleve(localStudent.id)
+            : []
+
           if (supabaseStudent) {
+            // Supabase fournit l'identité officielle. Les informations métier
+            // historiques (classe, parent, options, mois et paiements) peuvent
+            // encore être présentes dans le stockage local de l'inscription.
             const mappedStudent: StudentData = {
+              ...(localStudent as Partial<StudentData>),
               id: supabaseStudent.id,
-              identifiant: supabaseStudent.student_number ?? "",
-              motDePasse: "",
-              nom: supabaseStudent.last_name ?? "",
-              prenom: supabaseStudent.first_name ?? "",
-              dateNaissance: supabaseStudent.birth_date ?? "",
-              lieuNaissance: "",
-              classe: "",
-              nomParent: "",
-              contactParent: supabaseStudent.phone ?? "",
-              adresse: "",
-              dateInscription: supabaseStudent.created_at ?? new Date().toISOString(),
-              typeInscription: "inscription",
-              fraisInscription: 0,
+              paiementEleveId: localStudent?.id,
+              identifiant: supabaseStudent.student_number ?? localStudent?.identifiant ?? "",
+              motDePasse: localStudent?.motDePasse ?? "",
+              nom: supabaseStudent.last_name ?? localStudent?.nom ?? "",
+              prenom: supabaseStudent.first_name ?? localStudent?.prenom ?? "",
+              dateNaissance: supabaseStudent.birth_date ?? localStudent?.dateNaissance ?? "",
+              lieuNaissance: localStudent?.lieuNaissance ?? "",
+              classe: localStudent?.classe ?? "",
+              nomParent: localStudent?.nomParent ?? "",
+              contactParent: localStudent?.contactParent ?? supabaseStudent.phone ?? "",
+              adresse: localStudent?.adresse ?? localStudent?.informationsContact?.adresse ?? "",
+              dateInscription: localStudent?.dateInscription ?? supabaseStudent.created_at ?? new Date().toISOString(),
+              typeInscription: localStudent?.typeInscription ?? "inscription",
+              fraisInscription: localStudent?.fraisOptionsSupplementaires ? (localStudent.totalAPayer || 0) : (localStudent?.totalAPayer || 0),
               fraisScolarite: 0,
-              totalAPayer: 0,
+              totalAPayer: localStudent?.totalAPayer ?? 0,
+              paiements: localPayments,
             }
+            // Les paiements locaux sont la source de détail pour les anciennes
+            // inscriptions tant que la migration financière Supabase n'est pas
+            // complète.
             if (!cancelled) setStudent(mappedStudent)
           } else {
             const students = serviceEleves.obtenirTousLesEleves()
@@ -337,6 +364,57 @@ export default function ReceiptPage() {
               </table>
             </div>
           </div>
+
+          {/* Paiements réellement enregistrés */}
+          {student.paiements && student.paiements.length > 0 && (
+            <div className="mb-6">
+              <h3 className="font-bold text-gray-800 mb-4 border-b-2 border-gray-300 pb-1 text-sm uppercase tracking-wide">
+                PAIEMENTS ENREGISTRÉS
+              </h3>
+              <div className="border border-gray-300 rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Date</th>
+                      <th className="px-3 py-2 text-left">Désignation</th>
+                      <th className="px-3 py-2 text-left">Mois / période</th>
+                      <th className="px-3 py-2 text-right">Montant payé</th>
+                      <th className="px-3 py-2 text-center">État</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {student.paiements.map((paiement) => (
+                      <tr key={paiement.id} className="border-t border-gray-200">
+                        <td className="px-3 py-2">{new Date(paiement.datePaiement).toLocaleDateString("fr-FR")}</td>
+                        <td className="px-3 py-2">
+                          {paiement.description ||
+                            (paiement.typePaiement === "inscription"
+                              ? "Frais d'inscription"
+                              : paiement.typePaiement === "scolarite"
+                                ? "Frais de scolarité"
+                                : "Option")}
+                        </td>
+                        <td className="px-3 py-2">
+                          {paiement.moisPaiement?.length ? paiement.moisPaiement.join(", ") : "—"}
+                        </td>
+                        <td className="px-3 py-2 text-right font-semibold">
+                          {paiement.montant.toLocaleString("fr-FR")} FCFA
+                        </td>
+                        <td className="px-3 py-2 text-center font-semibold text-green-700">PAYÉ</td>
+                      </tr>
+                    ))}
+                    <tr className="bg-gray-50 border-t-2 border-gray-300">
+                      <td colSpan={3} className="px-3 py-3 font-bold">TOTAL DÉJÀ PAYÉ</td>
+                      <td className="px-3 py-3 text-right font-bold text-green-700">
+                        {student.paiements.reduce((sum, p) => sum + p.montant, 0).toLocaleString("fr-FR")} FCFA
+                      </td>
+                      <td className="px-3 py-3 text-center">—</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Signature */}
           <div className="flex justify-between items-end mb-6 pt-4 border-t-2 border-gray-300">

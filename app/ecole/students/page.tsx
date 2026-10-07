@@ -22,6 +22,7 @@ import ImportExportTools from "@/components/ImportExportTools"
 import ClassSection from "@/components/ClassSection"
 import StudentListItem from "@/components/StudentListItem"
 import StudentDetailsModal from "@/components/StudentDetailsModal"
+import EditStudentModal from "@/components/students/EditStudentModal"
 import StudentImportGuideModal from "@/components/students/StudentImportGuideModal"
 
 export default function StudentsPage() {
@@ -40,8 +41,24 @@ export default function StudentsPage() {
     page: currentPage,
     pageSize: 50,
     search: searchTerm,
+    classId: selectedClass !== "all" ? selectedClass : null,
     active: selectedStatus !== "inactif",
   })
+
+  const assignmentClasses = useMemo(() =>
+    academicStructure.flatMap((cycle) => (cycle.grade_levels ?? []).flatMap((level) => (level.school_classes ?? []).map((sc) => ({ id: sc.id, name: sc.name, gradeLevelId: level.id })))),
+    [academicStructure]
+  )
+
+  const realGradeLevels = useMemo(() =>
+    academicStructure.flatMap((cycle) => (cycle.grade_levels ?? []).map((level) => ({ id: level.id, name: level.name }))),
+    [academicStructure]
+  )
+
+  const realClasses = useMemo(() =>
+    selectedLevel === "all" ? assignmentClasses : assignmentClasses.filter((c) => c.gradeLevelId === selectedLevel),
+    [assignmentClasses, selectedLevel]
+  )
 
   const supabseStudentsConverted = useMemo(() => {
     return supabaseStudents.map(s => ({
@@ -50,10 +67,10 @@ export default function StudentsPage() {
       motDePasse: "",
       nom: s.last_name ?? "",
       prenom: s.first_name ?? "",
-      dateNaissance: s.birth_date ?? "",
-      lieuNaissance: "",
-      sexe: s.gender ?? "",
-      classe: "",
+      dateNaissance: s.birth_date ?? s.date_of_birth ?? "",
+      lieuNaissance: (s as any).place_of_birth ?? "",
+      sexe: s.gender ?? s.sex ?? "",
+      classe: assignmentClasses.find(c => c.id === s.class_id)?.name ?? "",
       nomParent: "",
       contactParent: s.phone ?? "",
       adresse: "",
@@ -66,41 +83,33 @@ export default function StudentsPage() {
       optionsSupplementaires: { tenueScolaire: false, carteScolaire: false, cooperative: false, tenueEPS: false, assurance: false },
       fraisOptionsSupplementaires: { tenueScolaire: 0, carteScolaire: 0, cooperative: 0, tenueEPS: 0, assurance: 0 },
     } as DonneesEleve))
-  }, [supabaseStudents])
+  }, [supabaseStudents, assignmentClasses])
 
   const displayStudents = supabseStudentsConverted
   const [students, setStudents] = useState<DonneesEleve[]>([])
   const [filteredStudents, setFilteredStudents] = useState<DonneesEleve[]>([])
   const [selectedStudent, setSelectedStudent] = useState<DonneesEleve | null>(null)
+  const [editingStudent, setEditingStudent] = useState<DonneesEleve | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
-  const [filterOptions, setFilterOptions] = useState<"all" | "cantine" | "transport" | "tenue">("all")
   const [filterAgeMin, setFilterAgeMin] = useState("")
   const [filterAgeMax, setFilterAgeMax] = useState("")
   const itemsPerPage = 50
 
-  const levels = { maternelle: ["Maternelle"], primaire: ["CP1", "CP2", "CE1", "CE2", "CM1", "CM2"], college: ["6ème", "5ème", "4ème", "3ème"], lycee: ["2nde L", "2nde S", "1ère A1", "1ère A2", "1ère B", "Terminale A1", "Terminale B", "Terminale D", "Terminale S"] }
-  const allClasses = ["Maternelle", "CP1", "CP2", "CE1", "CE2", "CM1", "CM2", "6ème", "5ème", "4ème", "3ème", "2nde L", "2nde S", "1ère A1", "1ère A2", "1ère B", "Terminale A1", "Terminale B", "Terminale D", "Terminale S"]
-  const classes = selectedLevel === "all" ? allClasses : levels[selectedLevel as keyof typeof levels] || []
-  const assignmentClasses = academicStructure.flatMap((cycle) => (cycle.grade_levels ?? []).flatMap((level) => (level.school_classes ?? []).map((schoolClass) => ({ id: schoolClass.id, name: schoolClass.name, gradeLevelId: level.id }))))
-
   useEffect(() => { setStudents(displayStudents); setFilteredStudents(displayStudents) }, [displayStudents])
   useEffect(() => { setSelectedClass("all") }, [selectedLevel])
   useEffect(() => {
-    let filtered = students
-    if (selectedLevel !== "all") filtered = filtered.filter(student => levels[selectedLevel as keyof typeof levels]?.includes(student.classe))
-    if (selectedClass !== "all") filtered = filtered.filter(student => student.classe === selectedClass)
-    if (selectedStatus !== "all") filtered = filtered.filter(student => student.statut === selectedStatus)
-    if (filterOptions !== "all") {
-      if (filterOptions === "cantine") filtered = filtered.filter(s => s.optionsSupplementaires?.cooperative || false)
-      else if (filterOptions === "transport") filtered = filtered.filter(s => false)
-      else if (filterOptions === "tenue") filtered = filtered.filter(s => s.optionsSupplementaires?.tenueScolaire || false)
-    }
-    if (filterAgeMin || filterAgeMax) filtered = filtered.filter(student => { const birthDate = new Date(student.dateNaissance); const age = new Date().getFullYear() - birthDate.getFullYear(); const minAge = filterAgeMin ? parseInt(filterAgeMin) : 0; const maxAge = filterAgeMax ? parseInt(filterAgeMax) : 100; return age >= minAge && age <= maxAge })
-    setFilteredStudents(filtered)
-  }, [students, selectedClass, selectedStatus, selectedLevel, searchTerm, filterOptions, filterAgeMin, filterAgeMax])
-  useEffect(() => { setCurrentPage(1) }, [selectedClass, selectedStatus, selectedLevel, searchTerm, filterOptions, filterAgeMin, filterAgeMax])
+    if (!filterAgeMin && !filterAgeMax) { setFilteredStudents(students); return }
+    setFilteredStudents(students.filter(student => {
+      const birthDate = new Date(student.dateNaissance)
+      const age = new Date().getFullYear() - birthDate.getFullYear()
+      const minAge = filterAgeMin ? parseInt(filterAgeMin) : 0
+      const maxAge = filterAgeMax ? parseInt(filterAgeMax) : 100
+      return age >= minAge && age <= maxAge
+    }))
+  }, [students, filterAgeMin, filterAgeMax])
+  useEffect(() => { setCurrentPage(1) }, [selectedClass, selectedStatus, selectedLevel, searchTerm, filterAgeMin, filterAgeMax])
 
   const handleDeleteStudent = async (id: string) => { if (confirm("Désactiver cet élève ?\n\nSon historique sera conservé.")) { const success = await deactivate(id); if (success) { toast.success("Élève désactivé avec succès"); setSelectedStudent(null) } else toast.error("Impossible de désactiver cet élève") } }
   const handleToggleStatus = async (student: DonneesEleve) => {
@@ -138,7 +147,7 @@ export default function StudentsPage() {
   const handlePrintSchoolCertificate = (student: DonneesEleve) => alert("Impression attestation")
   const getClassStats = () => { const stats: { [key: string]: number } = {}; students.forEach(student => { stats[student.classe] = (stats[student.classe] || 0) + 1 }); return stats }
   const getQuickStats = () => { const activeStudents = students.filter(s => s.statut === 'actif'); const studentsWithoutPhoto = activeStudents.filter(s => !s.photo); return { total: activeStudents.length, withoutPhoto: studentsWithoutPhoto.length, absentToday: 0, byLevel: Object.entries(getClassStats()).reduce((acc, [classe, count]) => { const level = classe.split(' ')[0]; acc[level] = (acc[level] || 0) + count; return acc }, {} as Record<string, number>) } }
-  const quickStats = getQuickStats(); const classStats = getClassStats(); const studentsByClass = filteredStudents.reduce((acc, student) => { if (!acc[student.classe]) acc[student.classe] = []; acc[student.classe].push(student); return acc }, {} as { [key: string]: DonneesEleve[] }); const totalPages = backendTotalPages || Math.ceil(filteredStudents.length / itemsPerPage); const startIndex = (currentPage - 1) * itemsPerPage; const endIndex = startIndex + itemsPerPage; const paginatedStudents = filteredStudents.slice(startIndex, endIndex)
+  const totalPages = backendTotalPages || Math.ceil(filteredStudents.length / itemsPerPage); const startIndex = (currentPage - 1) * itemsPerPage; const endIndex = startIndex + itemsPerPage; const paginatedStudents = filteredStudents
   function handlePrintSchoolCard(student: DonneesEleve): void { throw new Error("Function not implemented.") }
 
   return (
@@ -167,7 +176,7 @@ export default function StudentsPage() {
           <Button variant="outline" className="h-8 rounded px-2.5 text-[11px]" onClick={handleExportCSV}>
             <Download className="mr-1.5 h-3.5 w-3.5" /> Exporter (.xlsx)
           </Button>
-          <Button asChild className="h-8 rounded bg-[#1e3a8a] px-3 text-[11px] hover:bg-[#00236f]">
+          <Button asChild className="h-8 rounded bg-[#1e3a8a] px-3 text-[11px] text-white hover:bg-[#00236f]">
             <Link href="/ecole/inscriptions"><UserPlus className="mr-1.5 h-3.5 w-3.5" /> Nouvel élève</Link>
           </Button>
         </div>
@@ -188,17 +197,16 @@ export default function StudentsPage() {
 
           <select value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)} className="h-9 border border-[#c5c5d3]/70 bg-white px-2 text-[12px] text-[#131b2e]">
             <option value="all">Tous les niveaux</option>
-            {Object.keys(levels).map((level) => <option key={level} value={level}>{level.charAt(0).toUpperCase() + level.slice(1)}</option>)}
+            {realGradeLevels.map((level) => <option key={level.id} value={level.id}>{level.name}</option>)}
           </select>
 
           <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} className="h-9 border border-[#c5c5d3]/70 bg-white px-2 text-[12px] text-[#131b2e]">
             <option value="all">Toutes les classes</option>
-            {classes.map((classe) => <option key={classe} value={classe}>{classe} ({classStats[classe] || 0})</option>)}
+            {realClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
 
           <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className="h-9 border border-[#c5c5d3]/70 bg-white px-2 text-[12px] text-[#131b2e]">
-            <option value="all">Inscrit / Actif</option>
-            <option value="actif">Actifs</option>
+            <option value="all">Actifs</option>
             <option value="inactif">Inactifs</option>
           </select>
         </div>
@@ -291,7 +299,18 @@ export default function StudentsPage() {
           onDelete={handleDeleteStudent}
           onToggleStatus={handleToggleStatus}
           onPrintReceipt={handlePrintReceipt}
-          onEdit={(student) => router.push(`/ecole/students/${student.id}`)}
+          onEdit={(student) => {
+            setSelectedStudent(null)
+            setEditingStudent(student)
+          }}
+        />
+      )}
+
+      {editingStudent && (
+        <EditStudentModal
+          student={editingStudent}
+          onClose={() => setEditingStudent(null)}
+          onSave={update}
         />
       )}
 

@@ -24,13 +24,15 @@ class TransfertService {
   }
 
   /** Crée un dossier SANS aucune info de paiement */
-  creerDossier(eleve: DonneesEleve, motif: string, ecoleOrigine = "Mon établissement"): DossierTransfert {
+  creerDossier(eleve: DonneesEleve, motif: string, ecoleOrigine = "Mon établissement", ecoleDestination?: string, niveauDestination?: string): DossierTransfert {
     const dossier: DossierTransfert = {
       id: `trf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       code: genererCodeUnique(),
       dateCreation: new Date().toISOString(),
       motif,
       ecoleOrigine,
+      ecoleDestination,
+      niveauDestination,
       eleve: {
         nom: eleve.nom,
         prenom: eleve.prenom,

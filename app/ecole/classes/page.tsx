@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Users, Plus, Trash2, Edit, Search, Settings, Shuffle, Check, X } from "lucide-react"
 import { AcademicStructureTree } from "@/components/academic/AcademicStructureTree"
 import { useAuthentification } from "@/providers/authentification.provider"
+import { supabaseBrowser } from "@/lib/supabase/client"
 import { useClasses } from "@/hooks/useClasses"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { serviceParametres } from "@/services/parametres.service"
@@ -56,7 +57,53 @@ export default function ClassesPage() {
     )
   }, [academicStructure])
 
-  const displayClasses = classes.length ? classes : academicClasses
+  const displayClasses = useMemo(() => {
+    if (classes.length) {
+      return classes.map(c => {
+        let cycleName = ""
+        let levelName = c.niveau || ""
+        for (const cycle of (academicStructure || [])) {
+          const level = (cycle.grade_levels ?? []).find(l => l.id === c.gradeLevelId)
+          if (level) {
+            cycleName = cycle.name
+            levelName = level.name
+            break
+          }
+        }
+        return {
+          ...c,
+          typeEcole: cycleName,
+          niveau: levelName
+        }
+      })
+    }
+    return academicClasses
+  }, [classes, academicStructure, academicClasses])
+
+  const [studentCounts, setStudentCounts] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    if (!establishmentId) return
+    const fetchCounts = async () => {
+      const { data, error } = await supabaseBrowser
+        .from("students")
+        .select("class_id")
+        .eq("establishment_id", establishmentId)
+        .eq("status", "active")
+      
+      if (!error && data) {
+        const counts: Record<string, number> = {}
+        data.forEach((row: any) => {
+          if (row.class_id) {
+            counts[row.class_id] = (counts[row.class_id] || 0) + 1
+          }
+        })
+        setStudentCounts(counts)
+      }
+    }
+    fetchCounts()
+  }, [establishmentId, refresh])
+
   const [activeTab, setActiveTab] = useState<Tab>("liste")
   const [tarificationTypesEcole, setTarificationTypesEcole] = useState<TarificationTypeEcole[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
@@ -258,7 +305,7 @@ export default function ClassesPage() {
           <h1 className="text-[23px] font-semibold leading-7 text-[#131b2e]">Classes</h1>
           <p className="mt-0.5 text-[12px] text-[#515f74]">Organisation des divisions, effectifs et répartition des élèves</p>
         </div>
-        <Button onClick={() => setShowAddModal(true)} className="h-8 rounded bg-[#1e3a8a] px-3 text-[11px] hover:bg-[#00236f]"><Plus className="mr-1.5 h-3.5 w-3.5" /> Nouvelle classe</Button>
+        <Button onClick={() => setShowAddModal(true)} className="h-8 rounded bg-terre text-white px-3 text-[11px] hover:bg-terre/90"><Plus className="mr-1.5 h-3.5 w-3.5" /> Nouvelle classe</Button>
       </header>
 
       <div className="mt-3 flex flex-wrap items-center gap-0 border-b border-[#c5c5d3]/60">
@@ -339,7 +386,7 @@ export default function ClassesPage() {
                     <option key={niveau} value={niveau}>{niveau}</option>
                   ))}
                 </select>
-                <Button onClick={() => setShowAddModal(true)}>
+                <Button className="bg-terre text-white hover:bg-terre/90" onClick={() => setShowAddModal(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Nouvelle classe
                 </Button>
@@ -360,7 +407,7 @@ export default function ClassesPage() {
               </TableHeader>
               <TableBody>
                 {filteredClasses.map((classe) => {
-                  const nombreEleves = getEleves(classe.id).length
+                  const nombreEleves = studentCounts[classe.id] || 0
 
                   return (
                     <TableRow key={classe.id}>

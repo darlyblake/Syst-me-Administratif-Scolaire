@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, Calendar, ChevronDown, Clock3, Plus, Trash2, UserRound, X } from "lucide-react"
+import { ArrowLeft, Calendar, ChevronDown, Clock3, Plus, Trash2, UserRound, X, Printer } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -30,7 +30,7 @@ const JOURS = [
   { value: 6, label: "Samedi" },
 ]
 
-interface TimeRow { startsAt: string; endsAt: string }
+interface TimeRow { startsAt: string; endsAt: string; isBreak?: boolean; breakLabel?: string }
 
 const formatTime = (value: string) => value.slice(0, 5)
 const rowKey = (row: TimeRow) => `${row.startsAt}-${row.endsAt}`
@@ -63,6 +63,11 @@ export default function EmploiDuTempsPage() {
   const [newTimeOpen, setNewTimeOpen] = useState(false)
   const [newStartsAt, setNewStartsAt] = useState("")
   const [newEndsAt, setNewEndsAt] = useState("")
+  // Pauses / récréations
+  const [newBreakOpen, setNewBreakOpen] = useState(false)
+  const [newBreakStart, setNewBreakStart] = useState("")
+  const [newBreakEnd, setNewBreakEnd] = useState("")
+  const [newBreakLabel, setNewBreakLabel] = useState("Récréation")
 
   const selectedClass = useMemo(() => classes.find(item => item.id === selectedClassId), [classes, selectedClassId])
   const activeYear = useMemo(() => academicYears.find(item => item.id === selectedYearId), [academicYears, selectedYearId])
@@ -273,6 +278,22 @@ export default function EmploiDuTempsPage() {
     setTimeRows(current => current.filter(item => rowKey(item) !== rowKey(row)))
   }
 
+  const handleAddBreak = () => {
+    if (!newBreakStart || !newBreakEnd) return setError("Renseignez l'heure de début et l'heure de fin de la pause.")
+    if (newBreakStart >= newBreakEnd) return setError("L'heure de fin doit être après l'heure de début.")
+    const next: TimeRow = { startsAt: newBreakStart, endsAt: newBreakEnd, isBreak: true, breakLabel: newBreakLabel.trim() || "Récréation" }
+    if (timeRows.some(row => rowKey(row) === rowKey(next))) {
+      setError("Cette plage horaire existe déjà.")
+      return
+    }
+    setTimeRows(current => [...current, next].sort((a, b) => a.startsAt.localeCompare(b.startsAt)))
+    setNewBreakStart("")
+    setNewBreakEnd("")
+    setNewBreakLabel("Récréation")
+    setNewBreakOpen(false)
+    setError(null)
+  }
+
   if (loading) {
     return <main className="min-h-screen p-4 md:p-6"><div className="mx-auto max-w-7xl animate-pulse rounded border bg-card p-8 text-[#515f74]">Chargement de l'emploi du temps…</div></main>
   }
@@ -280,7 +301,7 @@ export default function EmploiDuTempsPage() {
   return (
     <main className="w-full min-w-0 bg-white p-3 sm:p-4 md:p-5">
       <div className="w-full space-y-4">
-        <header className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <header className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between print:hidden">
           <div className="flex items-start gap-3">
             <Button variant="outline" size="icon" asChild className="shrink-0">
               <Link href="/ecole/tableau-bord" aria-label="Retour au tableau de bord"><ArrowLeft className="h-4 w-4" /></Link>
@@ -290,20 +311,65 @@ export default function EmploiDuTempsPage() {
               <p className="mt-0.5 text-[12px] text-[#515f74]">Planification des cours par classe, enseignant et matière</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 text-[11px] text-[#515f74]">
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#515f74]">
             <span className="rounded border border-[#c5c5d3]/70 bg-white px-3 py-1 text-[11px] text-[#36445a]">{selectedClass?.nom ?? "Aucune classe"}</span>
             <span className="rounded border border-[#c5c5d3]/70 bg-white px-3 py-1 text-[11px] text-[#36445a]">{activeYear?.name ?? "Aucune année"}</span>
+            <Button 
+              onClick={() => {
+                const tableEl = document.getElementById("timetable-print-zone")
+                if (!tableEl) return
+                const className = selectedClass?.nom ?? ""
+                const yearName = activeYear?.name ?? ""
+                const win = window.open("", "_blank", "width=1100,height=800")
+                if (!win) return
+                win.document.write(`
+                  <!DOCTYPE html>
+                  <html lang="fr">
+                  <head>
+                    <meta charset="UTF-8" />
+                    <title>Emploi du temps – ${className}</title>
+                    <style>
+                      @page { size: A4 landscape; margin: 1.5cm; }
+                      body { font-family: Arial, sans-serif; font-size: 11px; color: #000; }
+                      h1 { font-size: 16px; margin-bottom: 4px; }
+                      p { margin: 0 0 12px 0; color: #555; font-size: 11px; }
+                      table { width: 100%; border-collapse: collapse; }
+                      th { background: #f0f0f0; font-weight: 700; text-align: center; padding: 6px 4px; border: 1px solid #999; }
+                      th:first-child { text-align: left; }
+                      td { border: 1px solid #aaa; padding: 5px 4px; vertical-align: top; min-height: 60px; }
+                      td:first-child { font-weight: 600; white-space: nowrap; width: 80px; font-size: 10px; }
+                      .break-row td { background: #fffbea !important; text-align: center; font-weight: 600; color: #92400e; }
+                      button { display: none; }
+                      .print\\:hidden { display: none; }
+                    </style>
+                  </head>
+                  <body>
+                    <h1>Emploi du temps — ${className}</h1>
+                    <p>Année scolaire : ${yearName}</p>
+                    ${tableEl.outerHTML}
+                    <script>window.onload = () => { window.print(); window.close(); }<\/script>
+                  </body>
+                  </html>
+                `)
+                win.document.close()
+              }}
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs bg-white text-terre border-terre hover:bg-terre hover:text-white transition-colors"
+            >
+              <Printer className="mr-1.5 h-3.5 w-3.5" /> Imprimer le PDF
+            </Button>
           </div>
         </header>
 
         {(error || success) && (
-          <div className={`flex items-start justify-between gap-3 border px-4 py-3 text-sm ${error ? "border-destructive/30 bg-destructive/5 text-destructive" : "border-emerald-500/30 bg-emerald-500/5 text-emerald-700"}`}>
+          <div className={`flex items-start justify-between gap-3 border px-4 py-3 text-sm print:hidden ${error ? "border-destructive/30 bg-destructive/5 text-destructive" : "border-emerald-500/30 bg-emerald-500/5 text-emerald-700"}`}>
             <span>{error ?? success}</span>
             <button onClick={() => { setError(null); setSuccess(null) }} aria-label="Fermer"><X className="h-4 w-4" /></button>
           </div>
         )}
 
-        <Card>
+        <Card className="print:hidden">
           <CardContent className="p-4">
             <div className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_auto] md:items-end">
               <div className="space-y-2">
@@ -320,27 +386,36 @@ export default function EmploiDuTempsPage() {
                   <SelectContent>{classes.map(item => <SelectItem key={item.id} value={item.id}>{item.nom}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <Button variant="outline" onClick={() => setNewTimeOpen(true)} disabled={!selectedClassId || !selectedYearId}>
-                <Clock3 className="mr-2 h-4 w-4" />Ajouter une plage horaire
-              </Button>
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="outline" onClick={() => setNewTimeOpen(true)} disabled={!selectedClassId || !selectedYearId}>
+                  <Clock3 className="mr-2 h-4 w-4" />Ajouter une plage horaire
+                </Button>
+                <Button variant="outline" onClick={() => setNewBreakOpen(true)} disabled={!selectedClassId || !selectedYearId} className="border-amber-500/40 text-amber-700 hover:bg-amber-50">
+                  <Plus className="mr-2 h-4 w-4" />Ajouter une pause / récréation
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
 
         {!selectedClassId || !selectedYearId ? (
-          <Card><CardContent className="p-10 text-center text-[#515f74]">Sélectionnez une année et une classe pour commencer.</CardContent></Card>
+          <Card className="print:hidden"><CardContent className="p-10 text-center text-[#515f74]">Sélectionnez une année et une classe pour commencer.</CardContent></Card>
         ) : loadingGrid ? (
-          <Card><CardContent className="p-10 text-center text-[#515f74]">Chargement des affectations et des cours…</CardContent></Card>
+          <Card className="print:hidden"><CardContent className="p-10 text-center text-[#515f74]">Chargement des affectations et des cours…</CardContent></Card>
         ) : (
-          <Card className="overflow-hidden">
-            <div className="border-b bg-[#f2f3ff]/40 px-4 py-3">
+          <div className="print:block print:m-0 print:border-none print:shadow-none bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="border-b bg-[#f2f3ff]/40 px-4 py-3 print:bg-transparent print:border-b-2 print:border-gray-800">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <div><h2 className="font-semibold">Planning de {selectedClass?.nom}</h2><p className="text-xs text-[#515f74]">Cliquez sur une cellule vide pour créer un cours. Cliquez sur un cours pour le modifier.</p></div>
-                <div className="text-xs text-[#515f74]">{assignments.length} affectation(s) disponible(s)</div>
+                <div>
+                  <h2 className="font-semibold text-xl">Emploi du Temps : {selectedClass?.nom}</h2>
+                  <p className="text-xs text-[#515f74] print:hidden">Cliquez sur une cellule vide pour créer un cours. Cliquez sur un cours pour le modifier.</p>
+                  <p className="text-sm font-medium hidden print:block text-gray-700 mt-1">Année Scolaire : {activeYear?.name}</p>
+                </div>
+                <div className="text-xs text-[#515f74] print:hidden">{assignments.length} affectation(s) disponible(s)</div>
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1050px] border-collapse text-sm">
+              <table id="timetable-print-zone" className="w-full min-w-[1050px] border-collapse text-sm">
                 <thead>
                   <tr>
                     <th className="sticky left-0 z-20 w-28 border-b border-r bg-[#f2f3ff]/70 p-3 text-left font-semibold">Horaire</th>
@@ -350,24 +425,40 @@ export default function EmploiDuTempsPage() {
                 <tbody>
                   {timeRows.length === 0 ? (
                     <tr><td colSpan={7} className="p-12 text-center text-[#515f74]">Aucune plage horaire. Utilisez « Ajouter une plage horaire » pour définir vos horaires.</td></tr>
-                  ) : timeRows.map(row => (
+                  ) : timeRows.map(row => {
+                    if (row.isBreak) {
+                      return (
+                        <tr key={rowKey(row)} className="break-row h-10 bg-amber-50 print:bg-yellow-50">
+                          <td className="sticky left-0 z-10 border-b border-r bg-amber-50 px-3 py-2 font-medium text-amber-800 text-sm print:bg-yellow-50">
+                            <div className="flex items-center justify-between gap-1">
+                              <span>{row.startsAt} – {row.endsAt}</span>
+                              <button className="text-xs text-amber-600 hover:text-red-600 print:hidden" onClick={() => handleRemoveTimeRow(row)}>✕</button>
+                            </div>
+                          </td>
+                          <td colSpan={6} className="border-b border-r px-4 py-2 text-center text-sm font-semibold text-amber-700 tracking-wide print:text-amber-900">
+                            ☕ {row.breakLabel || "Récréation"}
+                          </td>
+                        </tr>
+                      )
+                    }
+                    return (
                     <tr key={rowKey(row)} className="h-28">
                       <td className="sticky left-0 z-10 border-b border-r bg-white p-3 align-top font-medium">
                         <div className="flex items-center justify-between gap-1"><span>{row.startsAt}</span><span className="text-[#515f74]">–</span><span>{row.endsAt}</span></div>
-                        {!slots.some(slot => slot.starts_at === row.startsAt && slot.ends_at === row.endsAt) && <button className="mt-3 text-xs text-[#515f74] hover:text-foreground" onClick={() => handleRemoveTimeRow(row)}>Supprimer la ligne</button>}
+                        {!slots.some(slot => slot.starts_at === row.startsAt && slot.ends_at === row.endsAt) && <button className="mt-3 text-xs text-[#515f74] hover:text-foreground print:hidden" onClick={() => handleRemoveTimeRow(row)}>Supprimer la ligne</button>}
                       </td>
                       {JOURS.map(day => {
                         const slot = slotByCell.get(`${day.value}-${row.startsAt}-${row.endsAt}`)
                         return (
                           <td key={day.value} className="border-b border-r p-1 align-top">
                             {slot ? (
-                              <button onClick={() => openEditSlot(slot)} className="group h-full min-h-24 w-full rounded border border-[#c5c5d3]/60 bg-white p-3 text-left shadow-none transition hover:-translate-y-px hover:shadow-none">
+                              <button onClick={() => openEditSlot(slot)} className="group h-full min-h-24 w-full rounded border border-[#c5c5d3]/60 bg-white p-3 text-left shadow-none transition hover:-translate-y-px hover:shadow-none print:border-gray-300 print:shadow-none print:bg-transparent">
                                 <div className="font-semibold leading-tight">{slot.subject_name}</div>
-                                <div className="mt-2 flex items-center gap-1 text-xs text-[#515f74]"><UserRound className="h-3.5 w-3.5" />{slot.teacher_name}</div>
-                                {slot.room && <div className="mt-1 text-xs text-[#515f74]">Salle · {slot.room}</div>}
+                                <div className="mt-2 flex items-center gap-1 text-xs text-[#515f74] print:text-black"><UserRound className="h-3.5 w-3.5 print:hidden" />{slot.teacher_name}</div>
+                                {slot.room && <div className="mt-1 text-xs text-[#515f74] print:text-black">Salle · {slot.room}</div>}
                               </button>
                             ) : (
-                              <button onClick={() => openNewSlot(day.value, row)} className="flex min-h-24 w-full items-center justify-center rounded border border-dashed bg-[#f2f3ff]/10 text-[#515f74] transition hover:border-foreground/30 hover:bg-[#f7f8fc]">
+                              <button onClick={() => openNewSlot(day.value, row)} className="flex min-h-24 w-full items-center justify-center rounded border border-dashed bg-[#f2f3ff]/10 text-[#515f74] transition hover:border-foreground/30 hover:bg-[#f7f8fc] print:hidden">
                                 <Plus className="h-5 w-5" />
                                 <span className="sr-only">Ajouter un cours le {day.label}</span>
                               </button>
@@ -376,11 +467,11 @@ export default function EmploiDuTempsPage() {
                         )
                       })}
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>
-          </Card>
+          </div>
         )}
       </div>
 
@@ -393,6 +484,38 @@ export default function EmploiDuTempsPage() {
               <div className="space-y-2"><Label>Fin *</Label><Input type="time" value={newEndsAt} onChange={e => setNewEndsAt(e.target.value)} /></div>
             </div>
             <div className="mt-6 flex gap-2"><Button className="flex-1" onClick={handleAddTimeRow}>Ajouter</Button><Button variant="outline" className="flex-1" onClick={() => setNewTimeOpen(false)}>Annuler</Button></div>
+          </div>
+        </div>
+      )}
+
+      {newBreakOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={() => setNewBreakOpen(false)}>
+          <div className="w-full max-w-md rounded bg-white p-6" onMouseDown={event => event.stopPropagation()}>
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold">Pause / Récréation</h3>
+                <p className="text-sm text-[#515f74]">Cette plage sera affichée comme une pause dans l'emploi du temps.</p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setNewBreakOpen(false)}><X className="h-4 w-4" /></Button>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Libellé</Label>
+                <Input
+                  value={newBreakLabel}
+                  onChange={e => setNewBreakLabel(e.target.value)}
+                  placeholder="Ex : Récréation, Pause déjeuner…"
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2"><Label>Début *</Label><Input type="time" value={newBreakStart} onChange={e => setNewBreakStart(e.target.value)} /></div>
+                <div className="space-y-2"><Label>Fin *</Label><Input type="time" value={newBreakEnd} onChange={e => setNewBreakEnd(e.target.value)} /></div>
+              </div>
+            </div>
+            <div className="mt-6 flex gap-2">
+              <Button className="flex-1 bg-amber-600 hover:bg-amber-700 text-white" onClick={handleAddBreak}>Ajouter la pause</Button>
+              <Button variant="outline" className="flex-1" onClick={() => setNewBreakOpen(false)}>Annuler</Button>
+            </div>
           </div>
         </div>
       )}

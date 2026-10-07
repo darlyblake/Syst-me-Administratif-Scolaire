@@ -1357,3 +1357,53 @@
 .ecole-shell main section > .flex.items-center {
   gap: .375rem;
 }
+
+/* ── Impression / PDF ─────────────────────────────────────────────── */
+@media print {
+  /* Masquer le chrome de l'appli */
+  nav, aside, header, .print\:hidden { display: none !important; }
+
+  body, html {
+    background: white !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Grille emploi du temps */
+  .ecole-shell main {
+    padding: 0 !important;
+  }
+
+  table {
+    width: 100% !important;
+    min-width: unset !important;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  table th, table td {
+    border: 1px solid #aaa !important;
+    padding: 6px !important;
+  }
+
+  table th {
+    background: #f0f0f0 !important;
+    font-weight: 700;
+  }
+
+  /* Cellules cours */
+  table td button {
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: transparent;
+    padding: 4px;
+    font-size: 11px;
+  }
+
+  /* Éviter les coupures de page dans le tableau */
+  tr { page-break-inside: avoid; }
+
+  /* Titre PDF */
+  h2 { font-size: 16px; margin-bottom: 8px; }
+}

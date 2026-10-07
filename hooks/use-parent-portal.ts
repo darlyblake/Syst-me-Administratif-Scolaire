@@ -45,11 +45,23 @@ export function useParentPortal() {
       if(sr.error) throw sr.error
       if(er.error) throw er.error
       const enrollments=er.data??[], classIds=[...new Set(enrollments.map(x=>x.class_id).filter(Boolean))]
-      const [cr,asr]=await Promise.all([
-        classIds.length?supabaseBrowser.from("school_classes").select("id,name").in("id",classIds):Promise.resolve({data:[],error:null}),
-        assessmentIds.length?supabaseBrowser.from("assessments").select("id,title,assessment_date,term,max_score,subject_id").in("id",assessmentIds):Promise.resolve({data:[],error:null})
-      ])
-      if(cr.error) throw cr.error; if(asr.error) throw asr.error
+      const {data:classRows,error:classError}=classIds.length
+        ?await supabaseBrowser.from("school_classes").select("id,name").in("id",classIds)
+        :{data:[],error:null}
+      if(classError) throw classError
+      const classMap=new Map((classRows??[]).map(x=>[x.id,x.name])), enrollmentMap=new Map(enrollments.map(x=>[x.student_id,x])), enrollmentStudentMap=new Map(enrollments.map(x=>[x.id,x.student_id]))
+      setChildren((sr.data??[]).map(s=>{const e=enrollmentMap.get(s.id),l=linkMap.get(s.id);return {...s,relationship:l?.relationship??null,can_view_academic:l?.can_view_academic??false,can_view_finance:l?.can_view_finance??false,class_id:e?.class_id,class_name:e?.class_id?classMap.get(e.class_id):undefined,enrollment_id:e?.id}}))
+
+      // Les informations des enfants sont indépendantes du reste du portail.
+      // Ne pas bloquer leur affichage si une requête secondaire échoue.
+      const {data:gradeRows,error:gradeError}=await supabaseBrowser.from("grades").select("id,student_id,score,comment,assessment_id,created_at").in("student_id",studentIds).order("created_at",{ascending:false}).limit(500)
+      if(gradeError) throw gradeError
+      const assessmentIds=[...new Set((gradeRows??[]).map(g=>g.assessment_id).filter(Boolean))]
+      const {data:assessmentRows,error:assessmentError}=assessmentIds.length
+        ?await supabaseBrowser.from("assessments").select("id,title,assessment_date,term,max_score,subject_id").in("id",assessmentIds)
+        :{data:[],error:null}
+      if(assessmentError) throw assessmentError
+      const asr={data:assessmentRows??[],error:null}
       const subjectIds=[...new Set((asr.data??[]).map(x=>x.subject_id).filter(Boolean))]
       const subr=subjectIds.length?await supabaseBrowser.from("subjects").select("id,name").in("id",subjectIds):{data:[],error:null}
       if(subr.error) throw subr.error
@@ -61,7 +73,7 @@ export function useParentPortal() {
       if(!n.error) setNotifications(n.data??[])
 
       const [gr,ar,jr,ev]=await Promise.all([
-        supabaseBrowser.from("grades").select("id,student_id,score,comment,assessment_id,created_at").in("student_id",studentIds).order("created_at",{ascending:false}).limit(500),
+        Promise.resolve({data:gradeRows,error:null}),
         supabaseBrowser.from("attendance_records").select("id,student_id,attendance_date,status,reason").in("student_id",studentIds).order("attendance_date",{ascending:false}).limit(500),
         supabaseBrowser.from("attendance_justification_requests").select("id,attendance_id,student_id,reason,status,reviewer_note,created_at").order("created_at",{ascending:false}).limit(200),
         establishmentIds.length?supabaseBrowser.from("school_events").select("id,establishment_id,title,description,event_type,starts_at,ends_at,location").in("establishment_id",establishmentIds).order("starts_at").limit(100):Promise.resolve({data:[],error:null})

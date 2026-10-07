@@ -231,9 +231,9 @@ export default function NouvelleInscriptionModal({
         if (!selectedPlan) return { ok: false, message: `Aucun forfait configuré pour ce niveau pour ${activeYear?.name ?? "l'année active"}.` }
         return { ok: true }
       case 4:
-        if (selectedPlan?.payment_mode !== "single" && selectedInstallmentIds.size === 0) {
-          return { ok: false, message: "Sélectionnez au moins une échéance à payer maintenant." }
-        }
+        // Le paiement est facultatif lors de l'inscription.
+        // Un parent peut inscrire son enfant sans payer immédiatement une
+        // échéance, une tranche ou la scolarité annuelle.
         return { ok: true }
       default:
         return { ok: true }

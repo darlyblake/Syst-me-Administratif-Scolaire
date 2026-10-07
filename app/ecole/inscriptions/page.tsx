@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import NouvelleInscriptionModal from "@/components/NouvelleInscriptionModal"
+import ChangerClasseModal from "@/components/ChangerClasseModal"
 import { serviceTransfert } from "@/services/transfert.service"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
@@ -37,6 +38,7 @@ type Row = {
   date: string
   status: string
   annualAmount: number
+  gradeLevelId: string
 }
 
 export default function InscriptionsPage() {
@@ -53,6 +55,7 @@ export default function InscriptionsPage() {
   const [period, setPeriod] = useState("all")
   const [page, setPage] = useState(1)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [classChangeRow, setClassChangeRow] = useState<Row | null>(null)
 
   const { enrollments, total, totalPages, isLoading, error } = useEnrollments({
     establishmentId,
@@ -97,12 +100,21 @@ export default function InscriptionsPage() {
       date: raw.enrollment_date ?? raw.created_at ?? "",
       status: raw.status ?? "active",
       annualAmount: Number(raw.tuition_plan?.annual_tuition ?? raw.annual_tuition ?? 0),
+      gradeLevelId: raw.class?.grade_level_id ?? raw.grade_level_id ?? raw.tuition_plan?.grade_level_id ?? "",
     }
   }), [enrollments, classMap, activeYear?.name])
 
   const classes = useMemo(
-    () => Array.from(new Map(rows.filter((row) => row.classId).map((row) => [row.classId, row.className] as const)).entries()),
-    [rows],
+    () => academicStructure.flatMap((cycle) =>
+      (cycle.grade_levels ?? []).flatMap((level) =>
+        (level.school_classes ?? []).filter((schoolClass) => schoolClass.active !== false).map((schoolClass) => ({
+          id: schoolClass.id,
+          name: schoolClass.name,
+          gradeLevelId: level.id,
+        }))
+      )
+    ),
+    [academicStructure],
   )
 
   const activeCount = rows.filter((row) => row.status === "active").length
@@ -375,6 +387,15 @@ export default function InscriptionsPage() {
                     </td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setClassChangeRow(row)}
+                          className="inline-flex h-6 items-center gap-1 border border-[#c5c5d3]/70 px-2 text-[10px] text-[#515f74] hover:bg-[#f2f3ff] hover:text-[#131b2e]"
+                          title={row.classId ? "Changer de classe" : "Affecter une classe"}
+                        >
+                          <ArrowRightLeft className="h-3.5 w-3.5" />
+                          {row.classId ? "Classe" : "Affecter"}
+                        </button>
                         {isActive && (
                           <button
                             type="button"
@@ -447,6 +468,21 @@ export default function InscriptionsPage() {
           </div>
         </div>
       </section>
+
+      <ChangerClasseModal
+        isOpen={classChangeRow !== null}
+        onClose={() => setClassChangeRow(null)}
+        onSuccess={() => {
+          setClassChangeRow(null)
+          setRefreshKey((value) => value + 1)
+        }}
+        establishmentId={establishmentId}
+        enrollmentId={classChangeRow?.id ?? ""}
+        studentName={classChangeRow ? `${classChangeRow.lastName} ${classChangeRow.firstName}` : ""}
+        currentClassName={classChangeRow?.className ?? "Aucune classe"}
+        currentGradeLevelId={classChangeRow?.gradeLevelId || null}
+        classes={classes}
+      />
 
       <NouvelleInscriptionModal
         isOpen={showModal}

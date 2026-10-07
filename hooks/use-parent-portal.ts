@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import { createContext, useCallback, useContext, useEffect, useState } from "react"
+import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 
 export type ParentChild = { id:string; establishment_id:string; student_number:string|null; first_name:string; last_name:string; birth_date:string|null; sex:string|null; phone:string|null; email:string|null; active:boolean; can_view_academic:boolean; can_view_finance:boolean; relationship:string|null; class_name?:string; class_id?:string; enrollment_id?:string }
@@ -143,9 +142,9 @@ function useParentPortalState() {
 // Cela évite que chaque navigation recrée un état enfants vide.
 const ParentPortalContext = createContext<ReturnType<typeof useParentPortalState> | null>(null)
 
-export function ParentPortalProvider({ children }: { children: React.ReactNode }) {
+export function ParentPortalProvider({ children }: { children: ReactNode }) {
   const portal = useParentPortalState()
-  return <ParentPortalContext.Provider value={portal}>{children}</ParentPortalContext.Provider>
+  return createElement(ParentPortalContext.Provider, { value: portal }, children)
 }
 
 export function useParentPortal() {

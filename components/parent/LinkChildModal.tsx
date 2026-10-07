@@ -204,7 +204,7 @@ export function LinkChildModal({ open, onOpenChange, onSubmit }: Props) {
           <div className="flex flex-col items-center gap-3 py-10 text-center"><CheckCircle2 className="h-12 w-12 text-emerald-600" /><h3 className="text-lg font-semibold">Enfant ajouté</h3><p className="text-sm text-pierre">Les informations autorisées sont maintenant disponibles dans votre espace.</p></div>
         ) : (
           <div className="space-y-5">
-            <Tabs value={mode} onValueChange={(value) => { stopScanner(); setMode(value as "scan" | "manual") }}>
+            <Tabs value={mode} onValueChange={(value) => { stopScanner(); setMode(value as "scan" | "manual"); if (value === "manual") { setScannedFromQr(false); setStudentId(undefined) } }}>
               <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="scan"><QrCode className="mr-2 h-4 w-4" />Scanner</TabsTrigger><TabsTrigger value="manual"><IdCard className="mr-2 h-4 w-4" />Identifiant</TabsTrigger></TabsList>
               <TabsContent value="scan" className="space-y-3">
                 <div className="relative aspect-video overflow-hidden rounded-xl bg-slate-950">

@@ -106,8 +106,13 @@ export function useParentPortal() {
     if(error)throw error
     if(!data?.linked||!data?.student?.id)throw new Error("Le rattachement de l'élève n'a pas été confirmé.")
     const linkedStudent=data.student as {id:string;establishment_id:string;student_number:string|null;first_name:string;last_name:string}
+    // Recharge d'abord les données serveur. Si le refresh retourne momentanément
+    // une liste vide (RLS/session en cours de synchronisation), on conserve ensuite
+    // le rattachement confirmé par l'Edge Function au lieu de l'écraser.
+    await refresh()
     setChildren(current=>{
-      if(current.some(child=>child.id===linkedStudent.id)) return current
+      const existing=current.find(child=>child.id===linkedStudent.id)
+      if(existing) return current
       return [...current,{
         id:linkedStudent.id, establishment_id:linkedStudent.establishment_id,
         student_number:linkedStudent.student_number??null, first_name:linkedStudent.first_name,
@@ -115,7 +120,6 @@ export function useParentPortal() {
         active:true, can_view_academic:true, can_view_finance:true, relationship:"Parent",
       }]
     })
-    await refresh()
     return data
   },[refresh])
   const unclaimChild=useCallback(async(studentId:string)=>{const {data,error}=await supabaseBrowser.rpc("unclaim_student",{p_student_id:studentId.trim()});if(error)throw error;if(data!==true)throw new Error("Cette association n'est plus active ou n'appartient pas à votre compte.");setChildren(c=>c.filter(x=>x.id!==studentId));return true},[])

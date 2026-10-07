@@ -30,48 +30,104 @@ function extractStudentNumber(value: string) {
   return (match?.[1] ?? raw).trim()
 }
 
+function cameraErrorMessage(error: unknown) {
+  const name = error instanceof DOMException ? error.name : error instanceof Error ? error.name : ""
+  if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+    return "L'accès à la caméra est refusé. Autorisez la caméra pour ce site dans les paramètres du navigateur, puis appuyez sur « Relancer »."
+  }
+  if (name === "NotFoundError") return "Aucune caméra n'est disponible sur cet appareil."
+  if (name === "NotReadableError") return "La caméra est déjà utilisée par une autre application ou n'est pas disponible."
+  if (name === "SecurityError") return "Le navigateur bloque l'accès à la caméra. Ouvrez le portail en HTTPS et autorisez la caméra."
+  if (name === "AbortError") return "L'ouverture de la caméra a été interrompue. Réessayez."
+  return error instanceof Error && error.message ? error.message : "Impossible d'accéder à la caméra."
+}
+
 export function LinkChildModal({ open, onOpenChange, onSubmit }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const animationRef = useRef<number | null>(null)
+  const startIdRef = useRef(0)
   const [mode, setMode] = useState<"scan" | "manual">("scan")
   const [studentNumber, setStudentNumber] = useState("")
   const [birthDate, setBirthDate] = useState("")
   const [scannerError, setScannerError] = useState<string | null>(null)
   const [scanning, setScanning] = useState(false)
+  const [starting, setStarting] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
 
   const stopScanner = () => {
+    startIdRef.current += 1
     if (animationRef.current !== null) cancelAnimationFrame(animationRef.current)
     animationRef.current = null
     streamRef.current?.getTracks().forEach((track) => track.stop())
     streamRef.current = null
     if (videoRef.current) videoRef.current.srcObject = null
     setScanning(false)
+    setStarting(false)
   }
 
   const startScanner = async () => {
+    const startId = ++startIdRef.current
     stopScanner()
+    const currentStartId = ++startIdRef.current
     setScannerError(null)
-    if (!window.BarcodeDetector) {
-      setScannerError("Le scanner QR n'est pas disponible sur ce navigateur. Utilisez la saisie manuelle.")
-      setMode("manual")
+    setStarting(true)
+
+    if (!window.isSecureContext) {
+      setScannerError("La caméra nécessite une connexion sécurisée (HTTPS). Utilisez l'adresse officielle du portail.")
+      setStarting(false)
       return
     }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setScannerError("Ce navigateur ne permet pas l'accès à la caméra. Utilisez Chrome, Edge ou Safari, ou saisissez l'identifiant manuellement.")
+      setStarting(false)
+      return
+    }
+    if (!window.BarcodeDetector) {
+      setScannerError("Le scanner QR natif n'est pas disponible sur ce navigateur. Utilisez la saisie manuelle.")
+      setMode("manual")
+      setStarting(false)
+      return
+    }
+
     try {
       const supported = await window.BarcodeDetector.getSupportedFormats?.()
-      if (supported && !supported.includes("qr_code")) throw new Error("Les QR codes ne sont pas pris en charge par ce navigateur.")
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false })
+      if (currentStartId !== startIdRef.current) return
+      if (supported && !supported.includes("qr_code")) {
+        setScannerError("Ce navigateur ne prend pas en charge la lecture des QR codes. Utilisez la saisie manuelle.")
+        setMode("manual")
+        setStarting(false)
+        return
+      }
+
+      const cameraPromise = navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      })
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        window.setTimeout(() => reject(new Error("La demande d'accès à la caméra n'a pas reçu de réponse. Vérifiez l'autorisation caméra du navigateur.")), 12000)
+      )
+      const stream = await Promise.race([cameraPromise, timeoutPromise])
+      if (currentStartId !== startIdRef.current) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
+
       streamRef.current = stream
-      if (!videoRef.current) return
+      if (!videoRef.current) {
+        stream.getTracks().forEach((track) => track.stop())
+        throw new Error("Impossible d'initialiser l'aperçu caméra.")
+      }
       videoRef.current.srcObject = stream
       await videoRef.current.play()
+
       const detector = new window.BarcodeDetector({ formats: ["qr_code"] })
       setScanning(true)
+      setStarting(false)
 
       const scan = async () => {
-        if (!videoRef.current || !streamRef.current) return
+        if (currentStartId !== startIdRef.current || !videoRef.current || !streamRef.current) return
         try {
           const codes = await detector.detect(videoRef.current)
           const value = codes.find((code) => code.rawValue)?.rawValue
@@ -87,12 +143,15 @@ export function LinkChildModal({ open, onOpenChange, onSubmit }: Props) {
         } catch (error) {
           console.warn("QR scan error", error)
         }
-        animationRef.current = requestAnimationFrame(() => { void scan() })
+        if (currentStartId === startIdRef.current) {
+          animationRef.current = requestAnimationFrame(() => { void scan() })
+        }
       }
       void scan()
     } catch (error) {
+      if (currentStartId !== startIdRef.current) return
       stopScanner()
-      setScannerError(error instanceof Error ? error.message : "Impossible d'accéder à la caméra.")
+      setScannerError(cameraErrorMessage(error))
     }
   }
 
@@ -100,12 +159,15 @@ export function LinkChildModal({ open, onOpenChange, onSubmit }: Props) {
     if (!open) {
       stopScanner()
       setSuccess(false)
+      setScannerError(null)
+      setStarting(false)
       return
     }
-    if (mode === "scan") void startScanner()
+    // Ne pas demander silencieusement la caméra à chaque rendu : le bouton
+    // d'activation permet au navigateur de présenter clairement sa demande.
     return stopScanner
-    // mode is intentionally included: switching to manual must stop the camera.
-  }, [open, mode])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   const submit = async () => {
     if (!studentNumber.trim() || !birthDate) return
@@ -134,15 +196,15 @@ export function LinkChildModal({ open, onOpenChange, onSubmit }: Props) {
           <div className="flex flex-col items-center gap-3 py-10 text-center"><CheckCircle2 className="h-12 w-12 text-emerald-600" /><h3 className="text-lg font-semibold">Enfant ajouté</h3><p className="text-sm text-pierre">Les informations autorisées sont maintenant disponibles dans votre espace.</p></div>
         ) : (
           <div className="space-y-5">
-            <Tabs value={mode} onValueChange={(value) => setMode(value as "scan" | "manual")}>
+            <Tabs value={mode} onValueChange={(value) => { stopScanner(); setMode(value as "scan" | "manual") }}>
               <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="scan"><QrCode className="mr-2 h-4 w-4" />Scanner</TabsTrigger><TabsTrigger value="manual"><IdCard className="mr-2 h-4 w-4" />Identifiant</TabsTrigger></TabsList>
               <TabsContent value="scan" className="space-y-3">
                 <div className="relative aspect-video overflow-hidden rounded-xl bg-slate-950">
                   <video ref={videoRef} className="h-full w-full object-cover" muted playsInline />
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center"><div className="h-44 w-64 rounded-2xl border-2 border-white/80 shadow-[0_0_0_999px_rgba(0,0,0,0.28)]" /></div>
-                  {!scanning && <div className="absolute inset-0 flex items-center justify-center bg-slate-950/70 text-center text-sm text-white"><div><Camera className="mx-auto mb-2 h-8 w-8" />Préparation de la caméra…</div></div>}
+                  {!scanning && <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 px-6 text-center text-sm text-white"><div><Camera className="mx-auto mb-2 h-8 w-8" />{starting ? "Ouverture de la caméra…" : scannerError ? "Caméra indisponible" : "Caméra prête à être activée"}<div className="mt-3"><Button size="sm" variant="secondary" onClick={() => void startScanner()} disabled={starting}><RefreshCw className="mr-1.5 h-3.5 w-3.5" />{starting ? "Ouverture…" : "Activer / relancer la caméra"}</Button></div></div></div>}
                 </div>
-                <div className="flex items-center justify-between text-xs text-pierre"><span>Placez le QR de l'élève dans le cadre.</span><Button size="sm" variant="outline" onClick={() => void startScanner()}><RefreshCw className="mr-1.5 h-3.5 w-3.5" />Relancer</Button></div>
+                <div className="flex items-center justify-between gap-3 text-xs text-pierre"><span>Placez le QR de l'élève dans le cadre.</span><Button size="sm" variant="outline" onClick={() => void startScanner()} disabled={starting}><RefreshCw className="mr-1.5 h-3.5 w-3.5" />Relancer</Button></div>
               </TabsContent>
               <TabsContent value="manual" className="space-y-4">
                 <div className="space-y-2"><Label htmlFor="student-number">Identifiant / matricule de l'élève</Label><Input id="student-number" value={studentNumber} onChange={(event) => setStudentNumber(event.target.value)} placeholder="Ex. ELEVE-2026-0012" autoComplete="off" /></div>

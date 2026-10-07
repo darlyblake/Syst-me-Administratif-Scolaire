@@ -26,19 +26,14 @@ type UtilisateurAvecRoleEtablissement = Utilisateur & { etablissementRole?: stri
 
 function roleUtilisateurPourEtablissement(accountType: AuthContext["account_type"], establishmentRole?: string): Utilisateur["role"] {
   if (accountType !== "school_member") return ({ platform_admin: "admin", parent: "parent", teacher: "enseignant", school_member: "ecole" } as const)[accountType!]
-  // Un compte d'établissement reste un compte d'établissement au niveau global.
-  // Le rôle métier est conservé séparément dans etablissementRole.
-  // Cela évite de confondre un administrateur d'école avec un administrateur de plateforme.
   return "ecole"
 }
 
-function construireUtilisateur(
-  base: Utilisateur,
-  accountType: AuthContext["account_type"],
-  establishment?: AuthEstablishment,
-): UtilisateurAvecRoleEtablissement {
+function construireUtilisateur(base: Utilisateur, accountType: AuthContext["account_type"], establishment?: AuthEstablishment, authContext?: AuthContext): UtilisateurAvecRoleEtablissement {
+  const displayName = [authContext?.first_name?.trim(), authContext?.last_name?.trim()].filter(Boolean).join(" ").trim()
   return {
     ...base,
+    nomUtilisateur: displayName || base.nomUtilisateur,
     role: roleUtilisateurPourEtablissement(accountType, establishment?.role),
     etablissementRole: establishment?.role,
     etablissementId: establishment?.id ?? base.etablissementId,
@@ -53,9 +48,7 @@ function lireEtablissementPersisté(etablissements: AuthEstablishment[] = []) {
       const trouvé = etablissements.find((etablissement) => etablissement.id === id)
       if (trouvé) return trouvé
     }
-  } catch {
-    // localStorage peut être indisponible (navigation privée / politique navigateur).
-  }
+  } catch {}
   return etablissements[0]
 }
 
@@ -64,9 +57,7 @@ function persisterEtablissement(etablissementId: string | null) {
   try {
     if (etablissementId) window.localStorage.setItem(CLE_ETABLISSEMENT_ACTIF, etablissementId)
     else window.localStorage.removeItem(CLE_ETABLISSEMENT_ACTIF)
-  } catch {
-    // La persistance est uniquement un confort UX, jamais une source d'autorisation.
-  }
+  } catch {}
 }
 
 function ProviderAuthentification({ children }: { children: React.ReactNode }) {
@@ -78,7 +69,7 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
   const appliquerContexte = (nextContext: AuthContext, baseUtilisateur: Utilisateur) => {
     const establishments = nextContext.establishments ?? []
     const selected = nextContext.account_type === "teacher" ? lireEtablissementPersisté(establishments) : establishments[0]
-    const nextUser = construireUtilisateur(baseUtilisateur, nextContext.account_type, selected)
+    const nextUser = construireUtilisateur(baseUtilisateur, nextContext.account_type, selected, nextContext)
     setUtilisateur(nextUser)
     setContexte(nextContext)
     setEtablissementActif(selected ?? null)
@@ -91,16 +82,13 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
       if (sessionError || !session?.user) {
         setUtilisateur(null); setContexte(null); setEtablissementActif(null); persisterEtablissement(null); return
       }
-
       const nextContext = await Promise.race([
         serviceAuthentification.obtenirContexte(),
         new Promise<AuthContext | null>((resolve) => window.setTimeout(() => resolve(null), 8000)),
       ])
-
       if (!nextContext?.authenticated || !nextContext.account_type) {
         setUtilisateur(null); setContexte(null); setEtablissementActif(null); return
       }
-
       appliquerContexte(nextContext, {
         id: session.user.id,
         nomUtilisateur: nextContext.email ?? session.user.email ?? "",
@@ -122,9 +110,7 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
 
   const connecter = async (email: string, motDePasse: string) => {
     const result = await serviceAuthentification.connecter(email, motDePasse)
-    if (result.succes && result.contexte && result.utilisateur) {
-      appliquerContexte(result.contexte, result.utilisateur)
-    }
+    if (result.succes && result.contexte && result.utilisateur) appliquerContexte(result.contexte, result.utilisateur)
     return { succes: result.succes, erreur: result.erreur }
   }
 
@@ -138,18 +124,14 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
     const found = contexte.establishments?.find((etablissement) => etablissement.id === etablissementId)
     if (!found) return false
     setEtablissementActif(found)
-    setUtilisateur((previous) => previous ? construireUtilisateur(previous, contexte.account_type, found) : previous)
+    setUtilisateur((previous) => previous ? construireUtilisateur(previous, contexte.account_type, found, contexte) : previous)
     persisterEtablissement(found.id)
     return true
   }
 
   const obtenirCheminRedirection = () => serviceAuthentification.getRedirectionPath(contexte?.account_type)
 
-  return (
-    <ContexteAuthentification.Provider value={{ utilisateur, contexte, etablissementActif, estConnecte: !!utilisateur, estEnCoursDeChargement, connecter, deconnecter, actualiser, selectionnerEtablissement, obtenirCheminRedirection }}>
-      {children}
-    </ContexteAuthentification.Provider>
-  )
+  return <ContexteAuthentification.Provider value={{ utilisateur, contexte, etablissementActif, estConnecte: !!utilisateur, estEnCoursDeChargement, connecter, deconnecter, actualiser, selectionnerEtablissement, obtenirCheminRedirection }}>{children}</ContexteAuthentification.Provider>
 }
 
 function useAuthentification() {

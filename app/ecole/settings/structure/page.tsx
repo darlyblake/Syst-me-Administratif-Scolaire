@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Plus, Pencil, ChevronRight, GraduationCap, Trash2 } from "lucide-react"
+import { Plus, Pencil, ChevronRight, GraduationCap, Trash2, ArrowUp, ArrowDown } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -34,6 +34,8 @@ import {
   createLevel,
   updateLevel,
   deleteLevel,
+  moveCycle,
+  moveLevel,
 } from "@/lib/supabase/services/academic.service"
 import type { AcademicStructureCycle, AcademicStructureLevel } from "@/lib/supabase/types"
 
@@ -66,9 +68,35 @@ export default function StructureAcademiquePage() {
   const [modal, setModal] = useState<ModalState>({ type: "none" })
   const [confirm, setConfirm] = useState<ConfirmState>({ type: "none" })
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isMoving, setIsMoving] = useState(false)
 
   const closeModal = () => setModal({ type: "none" })
   const closeConfirm = () => setConfirm({ type: "none" })
+
+
+  const handleMoveCycle = async (cycle: AcademicStructureCycle, direction: "up" | "down") => {
+    try {
+      setIsMoving(true)
+      await moveCycle(cycle.id, direction)
+      await refresh()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Impossible de réorganiser les cycles.")
+    } finally {
+      setIsMoving(false)
+    }
+  }
+
+  const handleMoveLevel = async (level: AcademicStructureLevel, direction: "up" | "down") => {
+    try {
+      setIsMoving(true)
+      await moveLevel(level.id, direction)
+      await refresh()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Impossible de réorganiser les niveaux.")
+    } finally {
+      setIsMoving(false)
+    }
+  }
 
   // ── Cycles ──────────────────────────────────────────────────────────────────
 
@@ -192,7 +220,7 @@ export default function StructureAcademiquePage() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-gray-900">Structure académique</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Configurez les cycles et les niveaux de votre établissement avant de créer les classes.
+          Définissez l’ordre des cycles et des niveaux. Cet ordre détermine la progression normale des élèves : le dernier niveau d’un cycle mène au premier niveau du cycle suivant.
         </p>
       </div>
 
@@ -221,8 +249,10 @@ export default function StructureAcademiquePage() {
               cycle={cycle}
               onEditCycle={() => setModal({ type: "edit-cycle", cycle })}
               onDeleteCycle={() => setConfirm({ type: "delete-cycle", cycle })}
+              onMoveCycle={handleMoveCycle}
               onAddLevel={() => setModal({ type: "add-level", cycle })}
               onEditLevel={(level) => setModal({ type: "edit-level", cycle, level })}
+              onMoveLevel={handleMoveLevel}
               onDeleteLevel={(level) => setConfirm({ type: "delete-level", level })}
             />
           ))}
@@ -299,12 +329,14 @@ interface CycleSectionProps {
   cycle: AcademicStructureCycle
   onEditCycle: () => void
   onDeleteCycle: () => void
+  onMoveCycle: (cycle: AcademicStructureCycle, direction: "up" | "down") => void
   onAddLevel: () => void
   onEditLevel: (level: AcademicStructureLevel) => void
+  onMoveLevel: (level: AcademicStructureLevel, direction: "up" | "down") => void
   onDeleteLevel: (level: AcademicStructureLevel) => void
 }
 
-function CycleSection({ cycle, onEditCycle, onDeleteCycle, onAddLevel, onEditLevel, onDeleteLevel }: CycleSectionProps) {
+function CycleSection({ cycle, onEditCycle, onDeleteCycle, onMoveCycle, onAddLevel, onEditLevel, onMoveLevel, onDeleteLevel }: CycleSectionProps) {
   const levels = cycle.grade_levels || []
 
   return (
@@ -348,6 +380,7 @@ function CycleSection({ cycle, onEditCycle, onDeleteCycle, onAddLevel, onEditLev
               <LevelRow
                 level={level}
                 onEdit={() => onEditLevel(level)}
+                onMove={(direction) => onMoveLevel(level, direction)}
                 onDelete={() => onDeleteLevel(level)}
               />
               {index < levels.length - 1 && <Separator className="my-0.5" />}
@@ -375,10 +408,11 @@ function CycleSection({ cycle, onEditCycle, onDeleteCycle, onAddLevel, onEditLev
 interface LevelRowProps {
   level: AcademicStructureLevel
   onEdit: () => void
+  onMove: (direction: "up" | "down") => void
   onDelete: () => void
 }
 
-function LevelRow({ level, onEdit, onDelete }: LevelRowProps) {
+function LevelRow({ level, onEdit, onMove, onDelete }: LevelRowProps) {
   const classCount = level.school_classes?.length ?? 0
 
   return (
@@ -393,6 +427,13 @@ function LevelRow({ level, onEdit, onDelete }: LevelRowProps) {
       </div>
 
       <div className="flex items-center gap-1 shrink-0 ml-2">
+        <span className="text-[10px] text-[#7b8494] mr-1">Étape {level.display_order}</span>
+        <Button variant="ghost" size="sm" onClick={() => onMove("up")} disabled={isMoving} title="Monter le niveau" className="h-7 w-7 p-0 text-gray-500 hover:text-gray-700">
+          <ArrowUp className="h-3 w-3" />
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => onMove("down")} disabled={isMoving} title="Descendre le niveau" className="h-7 w-7 p-0 text-gray-500 hover:text-gray-700">
+          <ArrowDown className="h-3 w-3" />
+        </Button>
         <Button variant="ghost" size="sm" onClick={onEdit} className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700">
           <Pencil className="h-3 w-3 mr-1" />
           Modifier

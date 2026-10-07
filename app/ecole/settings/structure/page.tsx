@@ -102,7 +102,8 @@ export default function StructureAcademiquePage() {
 
   const handleCreateCycle = async (data: { name: string; code?: string; display_order?: number }) => {
     if (!establishmentId) return
-    await createCycle({ ...data, establishment_id: establishmentId, active: true })
+    const nextOrder = data.display_order ?? (structure.length > 0 ? Math.max(...structure.map((item) => item.display_order ?? 0)) + 1 : 1)
+    await createCycle({ ...data, establishment_id: establishmentId, display_order: nextOrder, active: true })
     toast.success("Cycle créé")
     await refresh()
     closeModal()
@@ -134,7 +135,9 @@ export default function StructureAcademiquePage() {
   // ── Niveaux ─────────────────────────────────────────────────────────────────
 
   const handleCreateLevel = async (cycleId: string, data: { name: string; code?: string; display_order?: number }) => {
-    await createLevel({ ...data, cycle_id: cycleId, active: true })
+    const existingLevels = structure.find((item) => item.id === cycleId)?.grade_levels ?? []
+    const nextOrder = data.display_order ?? (existingLevels.length > 0 ? Math.max(...existingLevels.map((item) => item.display_order ?? 0)) + 1 : 1)
+    await createLevel({ ...data, cycle_id: cycleId, display_order: nextOrder, active: true })
     toast.success("Niveau créé")
     await refresh()
     closeModal()
@@ -374,7 +377,7 @@ function CycleSection({ cycle, onEditCycle, onDeleteCycle, onMoveCycle, onAddLev
       <div className="divide-y divide-[#edf0f4] px-4 py-1">
         {levels.length === 0 ? (
           <p className="text-xs text-gray-400 py-2">
-            Aucun niveau. Commencez par en ajouter un.
+            Aucun niveau. Ajoutez le premier niveau de ce cycle.
           </p>
         ) : (
           levels.map((level, index) => (

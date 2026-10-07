@@ -48,7 +48,7 @@ export default function ParentsDashboard() {
         <ParentEmptyState title="Aucun enfant associé à votre compte" description="Associez votre enfant depuis « Mes enfants » avec le code ou le QR remis par l’établissement." action={<Button className="rounded-lg" asChild><Link href="/parents/enfants">Mes enfants</Link></Button>} />
       ) : (
         <>
-          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <section className="overflow-hidden border-y border-slate-200">
             <div className="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
               <div><h2 className="text-base font-bold text-slate-950">Mes enfants</h2><p className="text-sm text-slate-500">Accédez directement à leur suivi scolaire.</p></div>
               <Link href="/parents/enfants" className="inline-flex items-center text-sm font-semibold text-blue-700 hover:text-blue-800">Gérer les enfants<ChevronRight className="ml-1 h-4 w-4" /></Link>
@@ -106,5 +106,5 @@ function DataValue({ label, value }: { label: string; value: string }) {
 }
 
 function InfoSection({ title, description, href, items, empty }: { title: string; description: string; href: string; items: { id: string; title: string; detail: string; date: string }[]; empty: string }) {
-  return <section className="overflow-hidden rounded-xl border border-slate-200 bg-white"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="text-base font-bold text-slate-950">{title}</h2><p className="text-sm text-slate-500">{description}</p></div><Link href={href} className="text-sm font-semibold text-blue-700 hover:text-blue-800">Voir tout</Link></div>{items.length ? <div className="divide-y divide-slate-100">{items.map((item) => <Link key={item.id} href={href} className="block px-5 py-4 transition-colors hover:bg-slate-50"><p className="truncate text-sm font-semibold text-slate-900">{item.title}</p><p className="mt-1 line-clamp-2 text-sm text-slate-500">{item.detail}</p><p className="mt-1 text-xs text-slate-400">{dateTime(item.date)}</p></Link>)}</div> : <p className="px-5 py-8 text-sm text-slate-500">{empty}</p>}</section>
+  return <section className="overflow-hidden border-y border-slate-200"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="text-base font-bold text-slate-950">{title}</h2><p className="text-sm text-slate-500">{description}</p></div><Link href={href} className="text-sm font-semibold text-blue-700 hover:text-blue-800">Voir tout</Link></div>{items.length ? <div className="divide-y divide-slate-100">{items.map((item) => <Link key={item.id} href={href} className="block px-5 py-4 transition-colors hover:bg-slate-50"><p className="truncate text-sm font-semibold text-slate-900">{item.title}</p><p className="mt-1 line-clamp-2 text-sm text-slate-500">{item.detail}</p><p className="mt-1 text-xs text-slate-400">{dateTime(item.date)}</p></Link>)}</div> : <p className="px-5 py-8 text-sm text-slate-500">{empty}</p>}</section>
 }

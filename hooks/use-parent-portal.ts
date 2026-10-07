@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import type React from "react"
+import { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 
 export type ParentChild = { id:string; establishment_id:string; student_number:string|null; first_name:string; last_name:string; birth_date:string|null; sex:string|null; phone:string|null; email:string|null; active:boolean; can_view_academic:boolean; can_view_finance:boolean; relationship:string|null; class_name?:string; class_id?:string; enrollment_id?:string }
@@ -18,7 +19,7 @@ export type ParentHomework = { id:string; timetable_slot_id:string; class_id:str
 export type ParentDocument = { id:string; publication_id:string; student_id:string; name:string; title:string; document_type:string; mime_type:string|null; size_bytes:number|null; created_at:string; published_at:string; storage_path:string; download_url?:string }
 export type ClaimStudentInput = { studentId?:string; studentNumber?:string; birthDate?:string; fromQr?:boolean }
 
-export function useParentPortal() {
+function useParentPortalState() {
   const [loading,setLoading]=useState(true), [error,setError]=useState<string|null>(null)
   const [children,setChildren]=useState<ParentChild[]>([]), [grades,setGrades]=useState<ParentGrade[]>([]), [payments,setPayments]=useState<ParentPayment[]>([])
   const [attendance,setAttendance]=useState<ParentAttendance[]>([]), [justificationRequests,setJustificationRequests]=useState<ParentJustificationRequest[]>([])
@@ -135,4 +136,20 @@ export function useParentPortal() {
   const markAllNotificationsRead=useCallback(async()=>{const {data:u,error:ue}=await supabaseBrowser.auth.getUser();if(ue||!u.user)throw new Error("Session parent introuvable.");const now=new Date().toISOString();const {error}=await supabaseBrowser.from("notifications").update({read_at:now}).eq("recipient_user_id",u.user.id).is("read_at",null);if(error)throw error;setNotifications(c=>c.map(x=>x.read_at?x:{...x,read_at:now}))},[])
   useEffect(()=>{void refresh()},[refresh])
   return {loading,error,refresh,children,grades,payments,attendance,justificationRequests,notifications,events,paymentSchedules,paymentAllocations,timetable,lessons,homework,documents,claimChild,unclaimChild,requestAttendanceJustification,cancelAttendanceJustification,markNotificationRead,markAllNotificationsRead}
+}
+
+
+// Une seule instance du portail parent est partagée par toutes les pages.
+// Cela évite que chaque navigation recrée un état enfants vide.
+const ParentPortalContext = createContext<ReturnType<typeof useParentPortalState> | null>(null)
+
+export function ParentPortalProvider({ children }: { children: React.ReactNode }) {
+  const portal = useParentPortalState()
+  return <ParentPortalContext.Provider value={portal}>{children}</ParentPortalContext.Provider>
+}
+
+export function useParentPortal() {
+  const context = useContext(ParentPortalContext)
+  if (!context) throw new Error("useParentPortal doit être utilisé dans ParentPortalProvider.")
+  return context
 }

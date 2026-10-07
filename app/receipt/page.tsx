@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Printer, Home, Users } from "lucide-react"
 import Link from "next/link"
 import { serviceEleves } from "@/services/eleves.service"
+import { getStudent } from "@/lib/supabase/services/student.service"
 import { serviceParametres } from "@/services/parametres.service"
 import type { DonneesEleve, ParametresEcole } from "@/types/models"
 import type {  OptionsSupplementaires, OptionSupplementaire } from "@/services/parametres.service"
@@ -57,35 +58,105 @@ export default function ReceiptPage() {
   const [schoolParams, setSchoolParams] = useState<ParametresEcole | null>(null)
   const [standardOptions, setStandardOptions] = useState<OptionsSupplementaires | null>(null)
   const [customOptions, setCustomOptions] = useState<OptionSupplementaire[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (studentId) {
-      const students = serviceEleves.obtenirTousLesEleves()
-      const foundStudent = students.find((s: DonneesEleve) => s.identifiant === studentId)
-      setStudent(foundStudent as StudentData)
+    let cancelled = false
+
+    const loadReceipt = async () => {
+      setIsLoading(true)
+      setLoadError(null)
+
+      if (studentId) {
+        try {
+          const supabaseStudent = await getStudent(studentId)
+
+          if (supabaseStudent) {
+            const mappedStudent: StudentData = {
+              id: supabaseStudent.id,
+              identifiant: supabaseStudent.student_number ?? "",
+              motDePasse: "",
+              nom: supabaseStudent.last_name ?? "",
+              prenom: supabaseStudent.first_name ?? "",
+              dateNaissance: supabaseStudent.birth_date ?? "",
+              lieuNaissance: "",
+              classe: "",
+              nomParent: "",
+              contactParent: supabaseStudent.phone ?? "",
+              adresse: "",
+              dateInscription: supabaseStudent.created_at ?? new Date().toISOString(),
+              typeInscription: "inscription",
+              fraisInscription: 0,
+              fraisScolarite: 0,
+              totalAPayer: 0,
+            }
+            if (!cancelled) setStudent(mappedStudent)
+          } else {
+            const students = serviceEleves.obtenirTousLesEleves()
+            const foundStudent = students.find((s: DonneesEleve) => s.id === studentId || s.identifiant === studentId)
+            if (!cancelled) {
+              if (foundStudent) setStudent(foundStudent as StudentData)
+              else setLoadError("Élève introuvable. Vérifiez que le lien du reçu est valide.")
+            }
+          }
+        } catch (error) {
+          const students = serviceEleves.obtenirTousLesEleves()
+          const foundStudent = students.find((s: DonneesEleve) => s.id === studentId || s.identifiant === studentId)
+          if (!cancelled) {
+            if (foundStudent) setStudent(foundStudent as StudentData)
+            else setLoadError(error instanceof Error ? error.message : "Impossible de charger le reçu.")
+          }
+        }
+      } else if (!cancelled) {
+        setLoadError("Identifiant de l’élève manquant dans le lien du reçu.")
+      }
+
+      if (!cancelled) {
+        setSchoolParams(serviceParametres.obtenirParametres())
+        setStandardOptions(serviceParametres.obtenirOptionsSupplementaires())
+        setCustomOptions(serviceParametres.obtenirOptionsSupplementairesPersonnalisees())
+        setIsLoading(false)
+      }
     }
-    // Fetch school parameters
-    const params = serviceParametres.obtenirParametres()
-    setSchoolParams(params)
 
-    // Fetch all options
-    const standardOpts = serviceParametres.obtenirOptionsSupplementaires()
-    setStandardOptions(standardOpts)
+    void loadReceipt()
 
-    const customOpts = serviceParametres.obtenirOptionsSupplementairesPersonnalisees()
-    setCustomOptions(customOpts)
+    return () => {
+      cancelled = true
+    }
   }, [studentId])
 
   const handlePrint = () => {
     window.print()
   }
 
-  if (!student) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-creme flex items-center justify-center">
+      <div className="min-h-screen bg-creme flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
-            <p className="text-center text-gray-600">Chargement...</p>
+            <p className="text-center text-gray-600">Chargement du reçu d'inscription...</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (!student) {
+    return (
+      <div className="min-h-screen bg-creme flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <p className="text-center font-medium text-gray-800">{loadError ?? "Reçu introuvable."}</p>
+            <p className="mt-2 text-center text-sm text-gray-500">
+              Vérifiez le lien ou retournez à la liste des élèves.
+            </p>
+            <div className="mt-4 flex justify-center">
+              <Button asChild size="sm">
+                <Link href="/ecole/students">Retour aux élèves</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

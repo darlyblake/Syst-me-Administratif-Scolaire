@@ -70,19 +70,75 @@ function useParentPortalState() {
 
       const {data:er,error:enrollmentError}=await supabaseBrowser.from("enrollments").select("id,student_id,class_id,status,tuition_plan_id,academic_year_id").in("student_id",studentIds).eq("status","active").limit(200)
       if(enrollmentError) throw enrollmentError
-      const enrollments=er??[], classIds=[...new Set(enrollments.map(x=>x.class_id).filter(Boolean))]
+      const enrollments=er??[]
+      const classIds=[...new Set(enrollments.map(x=>x.class_id).filter(Boolean))]
       const {data:classRows,error:classError}=classIds.length
-        ?await supabaseBrowser.from("school_classes").select("id,name").in("id",classIds)
+        ?await supabaseBrowser.from("school_classes").select("id,name,grade_level_id").in("id",classIds)
         :{data:[],error:null}
       if(classError) throw classError
-      const classMap=new Map((classRows??[]).map(x=>[x.id,x.name])), enrollmentMap=new Map(enrollments.map(x=>[x.student_id,x])), enrollmentStudentMap=new Map(enrollments.map(x=>[x.id,x.student_id]))
+
+      const classMap=new Map((classRows??[]).map(x=>[x.id,x]))
+      const enrollmentMap=new Map(enrollments.map(x=>[x.student_id,x]))
+      const enrollmentStudentMap=new Map(enrollments.map(x=>[x.id,x.student_id]))
+
+      const gradeLevelIds=[...new Set((classRows??[]).map(x=>x.grade_level_id).filter(Boolean))]
+      const {data:gradeLevels,error:gradeLevelsError}=gradeLevelIds.length
+        ?await supabaseBrowser.from("grade_levels").select("id,name,code,cycle_id").in("id",gradeLevelIds)
+        :{data:[],error:null}
+      if(gradeLevelsError) throw gradeLevelsError
+
+      const cycleIds=[...new Set((gradeLevels??[]).map(x=>x.cycle_id).filter(Boolean))]
+      const {data:cycles,error:cyclesError}=cycleIds.length
+        ?await supabaseBrowser.from("education_cycles").select("id,name").in("id",cycleIds)
+        :{data:[],error:null}
+      if(cyclesError) throw cyclesError
+
+      const gradeMap=new Map((gradeLevels??[]).map(x=>[x.id,x]))
+      const cycleMap=new Map((cycles??[]).map(x=>[x.id,x.name]))
+
       const tuitionPlanIds=[...new Set(enrollments.map(x=>x.tuition_plan_id).filter(Boolean))]
       const {data:tuitionPlans,error:tuitionPlansError}=tuitionPlanIds.length
-        ?await supabaseBrowser.from("tuition_plans").select("id,payment_mode,installment_count").in("id",tuitionPlanIds)
+        ?await supabaseBrowser.from("tuition_plans").select("id,grade_level_id,academic_year_id,payment_mode,installment_count,annual_tuition").in("id",tuitionPlanIds)
         :{data:[],error:null}
       if(tuitionPlansError) throw tuitionPlansError
+
       const tuitionPlanMap=new Map((tuitionPlans??[]).map(x=>[x.id,x]))
-      const resolvedChildren=linkedChildren.map(s=>{const e=enrollmentMap.get(s.id),plan=e?.tuition_plan_id?tuitionPlanMap.get(e.tuition_plan_id):undefined;return {...s,class_id:e?.class_id??s.class_id,class_name:e?.class_id?classMap.get(e.class_id):s.class_name,enrollment_id:e?.id??s.enrollment_id,payment_mode:plan?.payment_mode,installment_count:plan?.installment_count}})
+      const fallbackPairs=enrollments
+        .filter(e=>!e.tuition_plan_id)
+        .map(e=>({gradeLevelId:classMap.get(e.class_id)?.grade_level_id,academicYearId:e.academic_year_id}))
+        .filter(x=>x.gradeLevelId&&x.academicYearId)
+
+      const fallbackResults=await Promise.all(
+        fallbackPairs.map(pair=>supabaseBrowser.from("tuition_plans").select("id,grade_level_id,academic_year_id,payment_mode,installment_count,annual_tuition").eq("grade_level_id",pair.gradeLevelId).eq("academic_year_id",pair.academicYearId).eq("active",true).limit(1))
+      )
+      for(const result of fallbackResults) if(result.error) throw result.error
+      const fallbackPlans=fallbackResults.flatMap(result=>result.data??[])
+      const allTuitionPlans=[...(tuitionPlans??[]),...fallbackPlans]
+      const tuitionPlanByLevelYear=new Map(allTuitionPlans.map(plan=>[`${plan.grade_level_id}:${plan.academic_year_id}`,plan]))
+
+      const resolvedChildren=linkedChildren.map(s=>{
+        const enrollment=enrollmentMap.get(s.id)
+        const schoolClass=enrollment?.class_id?classMap.get(enrollment.class_id):undefined
+        const level=schoolClass?.grade_level_id?gradeMap.get(schoolClass.grade_level_id):undefined
+        const plan=enrollment?.tuition_plan_id
+          ?tuitionPlanMap.get(enrollment.tuition_plan_id)
+          :(schoolClass?.grade_level_id&&enrollment?.academic_year_id
+            ?tuitionPlanByLevelYear.get(`${schoolClass.grade_level_id}:${enrollment.academic_year_id}`)
+            :undefined)
+
+        return {
+          ...s,
+          class_id:enrollment?.class_id??s.class_id,
+          class_name:schoolClass?.name??s.class_name,
+          level_name:level?.name,
+          level_code:level?.code,
+          cycle_name:level?.cycle_id?cycleMap.get(level.cycle_id):undefined,
+          enrollment_id:enrollment?.id??s.enrollment_id,
+          academic_year_id:enrollment?.academic_year_id,
+          payment_mode:plan?.payment_mode,
+          installment_count:plan?.installment_count,
+        }
+      })
       setChildren(resolvedChildren)
       writeCachedChildren(resolvedChildren)
 

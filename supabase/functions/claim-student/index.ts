@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
     if (existing && !existing.active) {
       const { error: reactivateError } = await admin
         .from("student_guardians")
-        .update({ active: true })
+        .update({ active: true, can_view_academic: true, can_view_finance: true })
         .eq("id", existing.id)
         .eq("guardian_user_id", user.id)
         .eq("student_id", student.id)

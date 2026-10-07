@@ -43,7 +43,7 @@ export default function EvenementsPage() {
     heureDebut: "",
     heureFin: "",
     lieu: "",
-    classeId: "",
+    classeId: "all",
     statut: "planifie" as Evenement["statut"]
   })
 
@@ -69,7 +69,7 @@ export default function EvenementsPage() {
       heureDebut: "",
       heureFin: "",
       lieu: "",
-      classeId: "",
+      classeId: "all",
       statut: "planifie"
     })
   }
@@ -236,7 +236,7 @@ export default function EvenementsPage() {
                 <div className="space-y-2"><Label htmlFor="heureDebut">Heure début</Label><Input id="heureDebut" type="time" value={nouvelEvenement.heureDebut} onChange={(e) => setNouvelEvenement({ ...nouvelEvenement, heureDebut: e.target.value })} className="border-[#c5c5d3] bg-white" /></div>
                 <div className="space-y-2"><Label htmlFor="heureFin">Heure fin</Label><Input id="heureFin" type="time" value={nouvelEvenement.heureFin} onChange={(e) => setNouvelEvenement({ ...nouvelEvenement, heureFin: e.target.value })} className="border-[#c5c5d3] bg-white" /></div>
                 <div className="space-y-2"><Label htmlFor="lieu">Lieu</Label><Input id="lieu" value={nouvelEvenement.lieu} onChange={(e) => setNouvelEvenement({ ...nouvelEvenement, lieu: e.target.value })} placeholder="Ex. Salle de réunion" className="border-[#c5c5d3] bg-white" /></div>
-                <div className="space-y-2"><Label htmlFor="classe">Classe</Label><Select value={nouvelEvenement.classeId} onValueChange={(value) => setNouvelEvenement({ ...nouvelEvenement, classeId: value })}><SelectTrigger className="border-[#c5c5d3] bg-white"><SelectValue placeholder="Toutes les classes" /></SelectTrigger><SelectContent><SelectItem value="">Toutes les classes</SelectItem>{classes.map((classe) => <SelectItem key={classe.id} value={classe.id}>{classe.nom}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-2"><Label htmlFor="classe">Classe</Label><Select value={nouvelEvenement.classeId} onValueChange={(value) => setNouvelEvenement({ ...nouvelEvenement, classeId: value === "all" ? "" : value })}><SelectTrigger className="border-[#c5c5d3] bg-white"><SelectValue placeholder="Toutes les classes" /></SelectTrigger><SelectContent><SelectItem value="all">Toutes les classes</SelectItem>{classes.map((classe) => <SelectItem key={classe.id} value={classe.id}>{classe.nom}</SelectItem>)}</SelectContent></Select></div>
               </div>
               <div className="flex justify-end gap-2 border-t border-[#d9dce5] px-5 py-4">
                 <Button variant="outline" onClick={() => setShowAddModal(false)} className="border-[#c5c5d3]">Annuler</Button>

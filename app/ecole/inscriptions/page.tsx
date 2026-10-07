@@ -480,6 +480,7 @@ export default function InscriptionsPage() {
         enrollmentId={classChangeRow?.id ?? ""}
         studentName={classChangeRow ? `${classChangeRow.lastName} ${classChangeRow.firstName}` : ""}
         currentClassName={classChangeRow?.className ?? "Aucune classe"}
+        currentClassId={classChangeRow?.classId || null}
         currentGradeLevelId={classChangeRow?.gradeLevelId || null}
         classes={classes}
       />

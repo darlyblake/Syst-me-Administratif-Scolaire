@@ -110,8 +110,8 @@ export default function ReceiptPage() {
               adresse: localStudent?.adresse ?? localStudent?.informationsContact?.adresse ?? "",
               dateInscription: localStudent?.dateInscription ?? supabaseStudent.created_at ?? new Date().toISOString(),
               typeInscription: localStudent?.typeInscription ?? "inscription",
-              fraisInscription: localStudent?.fraisOptionsSupplementaires ? (localStudent.totalAPayer || 0) : (localStudent?.totalAPayer || 0),
-              fraisScolarite: 0,
+              fraisInscription: localPayments.filter((p) => p.typePaiement === "inscription").reduce((sum, p) => sum + p.montant, 0),
+              fraisScolarite: localPayments.filter((p) => p.typePaiement === "scolarite").reduce((sum, p) => sum + p.montant, 0),
               totalAPayer: localStudent?.totalAPayer ?? 0,
               paiements: localPayments,
             }
@@ -353,11 +353,18 @@ export default function ReceiptPage() {
                         }
                       });
                     }
+                    const totalPaye = student.paiements?.reduce((sum, paiement) => sum + paiement.montant, 0) ?? 0;
                     return (
-                      <tr className="bg-blue-50 border-t-2 border-blue-200">
-                        <td className="px-4 py-4 font-bold text-lg">TOTAL À PAYER</td>
-                        <td className="px-4 py-4 text-right font-bold text-lg text-blue-600">{total.toLocaleString('fr-FR')} FCFA</td>
-                      </tr>
+                      <>
+                        <tr className="bg-gray-50 border-t-2 border-gray-300">
+                          <td className="px-4 py-3 font-bold">TOTAL PRÉVU</td>
+                          <td className="px-4 py-3 text-right font-bold">{(student.totalAPayer || total).toLocaleString('fr-FR')} FCFA</td>
+                        </tr>
+                        <tr className="bg-green-50 border-t border-green-200">
+                          <td className="px-4 py-4 font-bold text-lg">TOTAL DÉJÀ PAYÉ</td>
+                          <td className="px-4 py-4 text-right font-bold text-lg text-green-700">{totalPaye.toLocaleString('fr-FR')} FCFA</td>
+                        </tr>
+                      </>
                     );
                   })()}
                 </tbody>

@@ -72,7 +72,21 @@ export async function listStudentsPaginated(
 }
 
 export async function getStudent(studentId: string): Promise<Student | null> {
-  const { data, error } = await supabaseBrowser.from("students").select("*").eq("id", studentId).maybeSingle()
+  const value = studentId.trim()
+  if (!value) return null
+
+  // Le reçu historique peut contenir soit l'UUID Supabase,
+  // soit le matricule de l'élève. On accepte volontairement les deux.
+  const looksLikeUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+
+  const query = supabaseBrowser
+    .from("students")
+    .select("*")
+
+  const { data, error } = looksLikeUuid
+    ? await query.eq("id", value).maybeSingle()
+    : await query.eq("student_number", value).maybeSingle()
 
   if (error && error.code !== "PGRST116") {
     throw new Error("Impossible de charger l’élève.")

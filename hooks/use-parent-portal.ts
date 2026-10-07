@@ -81,6 +81,7 @@ function useParentPortalState() {
 
       // Les informations des enfants sont indépendantes du reste du portail.
       // Ne pas bloquer leur affichage si une requête secondaire échoue.
+      try{
       const {data:gradeRows,error:gradeError}=await supabaseBrowser.from("grades").select("id,student_id,score,comment,assessment_id,created_at").in("student_id",studentIds).order("created_at",{ascending:false}).limit(500)
       if(gradeError) throw gradeError
       const assessmentIds=[...new Set((gradeRows??[]).map(g=>g.assessment_id).filter(Boolean))]
@@ -136,6 +137,9 @@ function useParentPortalState() {
       const pubMap=new Map((pdr.data??[]).map(x=>[x.document_id,x])), docs:ParentDocument[]=[]
       for(const d of dr.data??[]){const p=pubMap.get(d.id);if(!p||!linkMap.get(p.student_id)?.can_view_academic)continue;let url:string|undefined;if(d.storage_path){const s=await supabaseBrowser.storage.from("school-documents").createSignedUrl(d.storage_path,300);if(!s.error)url=s.data.signedUrl}docs.push({...d,publication_id:p.id,student_id:p.student_id,title:p.title_override??d.name,published_at:p.published_at,size_bytes:d.size_bytes?Number(d.size_bytes):null,download_url:url})}
       setDocuments(docs); setAttendance((ar.data??[]).filter(x=>linkMap.get(x.student_id)?.can_view_academic)); setJustificationRequests((jr.data??[]) as ParentJustificationRequest[]); setEvents(ev.data??[])
+      }catch(secondaryCause){
+        console.warn("Parent portal secondary data error:",secondaryCause)
+      }
     }catch(cause){console.error("Parent portal error:",cause);setError(cause instanceof Error?cause.message:"Impossible de charger vos informations.")}
     finally{setLoading(false)}
   },[])

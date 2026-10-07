@@ -3,7 +3,7 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 
-export type ParentChild = { id:string; establishment_id:string; student_number:string|null; first_name:string; last_name:string; birth_date:string|null; sex:string|null; phone:string|null; email:string|null; active:boolean; can_view_academic:boolean; can_view_finance:boolean; relationship:string|null; class_name?:string; class_id?:string; enrollment_id?:string }
+export type ParentChild = { id:string; establishment_id:string; student_number:string|null; first_name:string; last_name:string; birth_date:string|null; sex:string|null; phone:string|null; email:string|null; active:boolean; can_view_academic:boolean; can_view_finance:boolean; relationship:string|null; class_name?:string; class_id?:string; enrollment_id?:string; payment_mode?:string; installment_count?:number }
 export type ParentGrade = { id:string; student_id:string; score:number; comment:string|null; assessment_id:string; title?:string; assessment_date?:string; term?:string; max_score?:number; subject?:string }
 export type ParentPayment = { id:string; enrollment_id:string; amount:number; payment_date:string; reference:string|null; method:string|null; notes:string|null }
 export type ParentAttendance = { id:string; student_id:string; attendance_date:string; status:string; reason:string|null }
@@ -76,7 +76,13 @@ function useParentPortalState() {
         :{data:[],error:null}
       if(classError) throw classError
       const classMap=new Map((classRows??[]).map(x=>[x.id,x.name])), enrollmentMap=new Map(enrollments.map(x=>[x.student_id,x])), enrollmentStudentMap=new Map(enrollments.map(x=>[x.id,x.student_id]))
-      const resolvedChildren=linkedChildren.map(s=>{const e=enrollmentMap.get(s.id);return {...s,class_id:e?.class_id??s.class_id,class_name:e?.class_id?classMap.get(e.class_id):s.class_name,enrollment_id:e?.id??s.enrollment_id}})
+      const tuitionPlanIds=[...new Set(enrollments.map(x=>x.tuition_plan_id).filter(Boolean))]
+      const {data:tuitionPlans,error:tuitionPlansError}=tuitionPlanIds.length
+        ?await supabaseBrowser.from("tuition_plans").select("id,payment_mode,installment_count").in("id",tuitionPlanIds)
+        :{data:[],error:null}
+      if(tuitionPlansError) throw tuitionPlansError
+      const tuitionPlanMap=new Map((tuitionPlans??[]).map(x=>[x.id,x]))
+      const resolvedChildren=linkedChildren.map(s=>{const e=enrollmentMap.get(s.id),plan=e?.tuition_plan_id?tuitionPlanMap.get(e.tuition_plan_id):undefined;return {...s,class_id:e?.class_id??s.class_id,class_name:e?.class_id?classMap.get(e.class_id):s.class_name,enrollment_id:e?.id??s.enrollment_id,payment_mode:plan?.payment_mode,installment_count:plan?.installment_count}})
       setChildren(resolvedChildren)
       writeCachedChildren(resolvedChildren)
 

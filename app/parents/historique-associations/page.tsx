@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { History, RefreshCw, UserPlus, UserMinus, UserCheck } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { supabaseBrowser } from "@/lib/supabase/client"
@@ -80,7 +79,7 @@ export default function ParentAssociationHistoryPage() {
         <Button variant="outline" onClick={() => void loadHistory()}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
       </header>
 
-      {error && <Card className="border-red-200 bg-red-50"><CardContent className="p-4 text-sm text-red-700">{error}</CardContent></Card>}
+      {error && <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       {!error && rows.length === 0 && (
         <Card className="border-dashed border-terre/20 bg-papier"><CardContent className="flex flex-col items-center py-14 text-center"><History className="mb-3 h-9 w-9 text-terre/60" /><h2 className="font-semibold text-terre">Aucun historique</h2><p className="mt-1 text-sm text-pierre">Les prochaines modifications de vos associations apparaîtront ici.</p></CardContent></Card>
@@ -91,21 +90,19 @@ export default function ParentAssociationHistoryPage() {
           const name = `${row.student_first_name ?? "Élève"} ${row.student_last_name ?? ""}`.trim()
           const Icon = row.event_type === "linked" ? UserPlus : row.event_type === "reactivated" ? UserCheck : UserMinus
           return (
-            <Card key={row.id} className="border-terre/10 bg-papier shadow-sm">
-              <CardHeader className="pb-3">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-terre/10 text-terre"><Icon className="h-4 w-4" /></div>
-                  <div className="min-w-0 flex-1">
-                    <CardTitle className="text-base text-terre">{name}</CardTitle>
+            <article key={row.id} className="border-b border-terre/10 bg-papier px-5 py-4 first:border-t">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-terre/10 text-terre"><Icon className="h-4 w-4" /></div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-terre">{name}</p>
                     <p className="mt-1 text-xs text-pierre">{formatDate(row.occurred_at)}</p>
+                    {row.relationship && <p className="mt-1 text-sm text-pierre">Relation : {row.relationship}</p>}
                   </div>
-                  <Badge variant="outline">{eventLabels[row.event_type]}</Badge>
                 </div>
-              </CardHeader>
-              <CardContent className="pt-0 text-sm text-pierre">
-                {row.relationship && <span>Relation : {row.relationship}</span>}
-              </CardContent>
-            </Card>
+                <Badge variant="outline" className="w-fit">{eventLabels[row.event_type]}</Badge>
+              </div>
+            </article>
           )
         })}
       </div>

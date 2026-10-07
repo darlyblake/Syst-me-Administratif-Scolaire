@@ -20,6 +20,7 @@ type Props = {
   enrollmentId: string
   studentName: string
   currentClassName: string
+  currentClassId: string | null
   currentGradeLevelId: string | null
   classes: ClassOption[]
 }
@@ -32,6 +33,7 @@ export default function ChangerClasseModal({
   enrollmentId,
   studentName,
   currentClassName,
+  currentClassId,
   currentGradeLevelId,
   classes,
 }: Props) {
@@ -43,7 +45,7 @@ export default function ChangerClasseModal({
       ? classes.filter((item) => item.gradeLevelId === currentGradeLevelId)
       : classes
 
-    return filtered.filter((item) => item.id !== selectedClassId || item.id !== "")
+    return filtered.filter((item) => item.id !== currentClassId)
   }, [classes, currentGradeLevelId, selectedClassId])
 
   if (!isOpen) return null

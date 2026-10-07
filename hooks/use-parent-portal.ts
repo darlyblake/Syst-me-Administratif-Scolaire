@@ -3,7 +3,7 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 
-export type ParentChild = { id:string; establishment_id:string; student_number:string|null; first_name:string; last_name:string; birth_date:string|null; sex:string|null; phone:string|null; email:string|null; active:boolean; can_view_academic:boolean; can_view_finance:boolean; relationship:string|null; class_name?:string; class_id?:string; level_name?:string; level_code?:string; cycle_name?:string; enrollment_id?:string; academic_year_id?:string; payment_mode?:string; installment_count?:number }
+export type ParentChild = { id:string; establishment_id:string; student_number:string|null; first_name:string; last_name:string; birth_date:string|null; sex:string|null; phone:string|null; email:string|null; active:boolean; can_view_academic:boolean; can_view_finance:boolean; relationship:string|null; class_name?:string; class_id?:string; level_name?:string; level_code?:string; cycle_name?:string; enrollment_id?:string; academic_year_id?:string; academic_year_name?:string; payment_mode?:string; installment_count?:number }
 export type ParentGrade = { id:string; student_id:string; score:number; comment:string|null; assessment_id:string; title?:string; assessment_date?:string; term?:string; max_score?:number; subject?:string }
 export type ParentPayment = { id:string; enrollment_id:string; amount:number; payment_date:string; reference:string|null; method:string|null; notes:string|null; category?:string|null; payer_type?:string|null }
 export type ParentAttendance = { id:string; student_id:string; attendance_date:string; status:string; reason:string|null }
@@ -81,6 +81,13 @@ function useParentPortalState() {
       const enrollmentMap=new Map(enrollments.map(x=>[x.student_id,x]))
       const enrollmentStudentMap=new Map(enrollments.map(x=>[x.id,x.student_id]))
 
+      const academicYearIds=[...new Set(enrollments.map(x=>x.academic_year_id).filter(Boolean))]
+      const {data:academicYears,error:academicYearsError}=academicYearIds.length
+        ?await supabaseBrowser.from("academic_years").select("id,name").in("id",academicYearIds)
+        :{data:[],error:null}
+      if(academicYearsError) throw academicYearsError
+      const academicYearMap=new Map((academicYears??[]).map(x=>[x.id,x.name]))
+
       const gradeLevelIds=[...new Set((classRows??[]).map(x=>x.grade_level_id).filter(Boolean))]
       const {data:gradeLevels,error:gradeLevelsError}=gradeLevelIds.length
         ?await supabaseBrowser.from("grade_levels").select("id,name,code,cycle_id").in("id",gradeLevelIds)
@@ -135,6 +142,7 @@ function useParentPortalState() {
           cycle_name:level?.cycle_id?cycleMap.get(level.cycle_id):undefined,
           enrollment_id:enrollment?.id??s.enrollment_id,
           academic_year_id:enrollment?.academic_year_id,
+          academic_year_name:enrollment?.academic_year_id?academicYearMap.get(enrollment.academic_year_id):undefined,
           payment_mode:plan?.payment_mode,
           installment_count:plan?.installment_count,
         }

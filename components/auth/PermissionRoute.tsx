@@ -16,6 +16,7 @@ const ROUTE_PERMISSIONS: Array<[string, string]> = [
   ["/ecole/emploi-du-temps", "timetable.view"],
   ["/ecole/registre-appel", "attendance.view"],
   ["/ecole/absences", "attendance.view"],
+  ["/ecole/absences/justifications", "attendance.view"],
   ["/ecole/matieres", "subjects.view"],
   ["/ecole/evaluation", "grades.view"],
   ["/ecole/cahier", "academic.manage"],

@@ -99,7 +99,25 @@ export function useParentPortal() {
     finally{setLoading(false)}
   },[])
 
-  const claimChild=useCallback(async(input:ClaimStudentInput)=>{const studentNumber=input.studentNumber?.trim(),studentId=input.studentId?.trim(),birthDate=input.birthDate.trim();if((!studentNumber&&!studentId)||!birthDate)throw new Error("L'identifiant et la date de naissance sont obligatoires.");const {data,error}=await supabaseBrowser.functions.invoke("claim-student",{body:{student_id:studentId||undefined,student_number:studentNumber||undefined,birth_date:birthDate}});if(error)throw error;if(!data?.linked)throw new Error("Le rattachement de l'élève n'a pas été confirmé.");await refresh();return data},[refresh])
+  const claimChild=useCallback(async(input:ClaimStudentInput)=>{
+    const studentNumber=input.studentNumber?.trim(),studentId=input.studentId?.trim(),birthDate=input.birthDate.trim()
+    if((!studentNumber&&!studentId)||!birthDate)throw new Error("L'identifiant et la date de naissance sont obligatoires.")
+    const {data,error}=await supabaseBrowser.functions.invoke("claim-student",{body:{student_id:studentId||undefined,student_number:studentNumber||undefined,birth_date:birthDate}})
+    if(error)throw error
+    if(!data?.linked||!data?.student?.id)throw new Error("Le rattachement de l'élève n'a pas été confirmé.")
+    const linkedStudent=data.student as {id:string;establishment_id:string;student_number:string|null;first_name:string;last_name:string}
+    setChildren(current=>{
+      if(current.some(child=>child.id===linkedStudent.id)) return current
+      return [...current,{
+        id:linkedStudent.id, establishment_id:linkedStudent.establishment_id,
+        student_number:linkedStudent.student_number??null, first_name:linkedStudent.first_name,
+        last_name:linkedStudent.last_name, birth_date:birthDate, sex:null, phone:null, email:null,
+        active:true, can_view_academic:true, can_view_finance:true, relationship:"Parent",
+      }]
+    })
+    await refresh()
+    return data
+  },[refresh])
   const unclaimChild=useCallback(async(studentId:string)=>{const {data,error}=await supabaseBrowser.rpc("unclaim_student",{p_student_id:studentId.trim()});if(error)throw error;if(data!==true)throw new Error("Cette association n'est plus active ou n'appartient pas à votre compte.");setChildren(c=>c.filter(x=>x.id!==studentId));return true},[])
   const requestAttendanceJustification=useCallback(async(a:ParentAttendance,reason:string)=>{const r=reason.trim();const child=children.find(x=>x.id===a.student_id);if(r.length<3||r.length>2000)throw new Error("Le motif doit contenir entre 3 et 2000 caractères.");if(!child?.can_view_academic)throw new Error("Vous n'êtes pas autorisé à justifier cette absence.");const {data:u,error:ue}=await supabaseBrowser.auth.getUser();if(ue||!u.user)throw new Error("Session parent introuvable.");const {data,error}=await supabaseBrowser.from("attendance_justification_requests").insert({attendance_id:a.id,student_id:a.student_id,establishment_id:child.establishment_id,parent_user_id:u.user.id,reason:r}).select("id,attendance_id,student_id,reason,status,reviewer_note,created_at").single();if(error)throw error;setJustificationRequests(c=>[data as ParentJustificationRequest,...c]);return data},[children])
   const cancelAttendanceJustification=useCallback(async(id:string)=>{const {error}=await supabaseBrowser.from("attendance_justification_requests").update({status:"cancelled"}).eq("id",id).eq("status","pending");if(error)throw error;setJustificationRequests(c=>c.map(x=>x.id===id?{...x,status:"cancelled"}:x))},[])

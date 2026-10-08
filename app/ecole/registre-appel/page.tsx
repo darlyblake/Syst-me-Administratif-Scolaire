@@ -165,7 +165,16 @@ export default function RegistreAppelPage() {
     return nowSeconds >= starts && nowSeconds <= ends + TEACHER_CALL_GRACE_SECONDS
   }, [currentTime, date, selectedLesson])
 
-  const canRecordSelectedLesson = canManageAll || selectedLessonIsWithinTeacherWindow
+  const canAdministrativeRecordSelectedLesson = useMemo(() => {
+    if (!canManageAll || !selectedLesson) return false
+    const today = getLocalDateString(currentTime)
+    if (date < today) return true
+    if (date > today) return false
+    return getCurrentSeconds(currentTime) >= toSeconds(selectedLesson.heureDebut)
+  }, [canManageAll, currentTime, date, selectedLesson])
+
+  const canRecordSelectedLesson =
+    canAdministrativeRecordSelectedLesson || (!canManageAll && selectedLessonIsWithinTeacherWindow)
 
   const loadLessonStates = useCallback(async (lessonList: CreneauEmploiDuTemps[]) => {
     if (!selectedClassId || !date || !lessonList.length) {
@@ -591,7 +600,7 @@ export default function RegistreAppelPage() {
                     L'appel enseignant est fermé. Il est possible pendant le cours et jusqu'à {TEACHER_CALL_GRACE_MINUTES} minutes après sa fin.
                   </p>
                 )}
-                {canManageAll && selectedLessonState?.status !== "fait" && !selectedLessonIsCurrent && (
+                {canManageAll && selectedLessonState?.status !== "fait" && canAdministrativeRecordSelectedLesson && !selectedLessonIsCurrent && (
                   <p className="mt-1 text-xs text-blue-700">
                     Mode administratif : vous pouvez enregistrer ou rattraper cet appel, même si le cours est terminé.
                   </p>

@@ -283,7 +283,7 @@ export default function InscriptionsPage() {
               className="h-8 w-full rounded border border-[#c5c5d3]/70 bg-white px-2.5 text-[12px] outline-none focus:border-[#00236f]"
             >
               <option value="">Toutes les classes</option>
-              {classes.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+              {classes.map((schoolClass) => <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.name}</option>)}
             </select>
           </div>
 

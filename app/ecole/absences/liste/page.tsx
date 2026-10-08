@@ -84,10 +84,8 @@ export default function ListePresences(){
  async function requestJustification(studentId:string){
    const record=byStudent.get(studentId)
    if(!record||record.status==="present")return
-   const {data:auth}=await supabaseBrowser.auth.getUser()
-   if(!auth.user){setMessage("Session administrative introuvable.");return}
-   const {error}=await supabaseBrowser.from("attendance_justification_requests").insert({attendance_id:record.id,student_id:studentId,establishment_id:establishmentId,parent_user_id:auth.user.id,reason:"Demande de justification initiée par l'administration",status:"pending"})
-   if(error)setMessage(error.message);else{setMessage("Demande créée.");await load()}
+   const {error}=await supabaseBrowser.rpc("request_attendance_justification",{p_attendance_id:record.id})
+   if(error)setMessage(error.message);else{setMessage("Demande envoyée au parent.");await load()}
  }
 
  return <div className="min-h-screen bg-[#faf8ff]">

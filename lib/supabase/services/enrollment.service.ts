@@ -167,3 +167,18 @@ export async function getEnrollmentSchedule(enrollmentId: string) {
 
   return (data ?? []) as any[]
 }
+
+
+export async function saveStudentGuardianContact(data: { establishmentId: string; studentId: string; firstName?: string; lastName?: string; phone?: string; email?: string; address?: string; relationship?: string }) {
+  const { error } = await supabaseBrowser.rpc("save_student_guardian_contact", {
+    p_establishment_id: data.establishmentId,
+    p_student_id: data.studentId,
+    p_parent_first_name: data.firstName || null,
+    p_parent_last_name: data.lastName || null,
+    p_parent_phone: data.phone || null,
+    p_parent_email: data.email || null,
+    p_parent_address: data.address || null,
+    p_relationship: data.relationship || "Parent",
+  })
+  if (error) throw new Error(error.message || "Impossible d'enregistrer les coordonnées du responsable.")
+}

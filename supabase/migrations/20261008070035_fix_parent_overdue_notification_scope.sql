@@ -1,0 +1,3 @@
+-- Correction de la portée de l'établissement pour les échéances de paiement.
+-- La version précédente utilisait payment_schedules.establishment_id, colonne absente du schéma.
+-- La fonction finale est déjà définie dans la migration précédente avec enrollments.establishment_id.

@@ -16,6 +16,7 @@ export type ParentEnrollmentOption = { id:string; enrollment_id:string; option_i
 export type ParentTimetableSlot = { id:string; class_subject_id:string; day_of_week:number; starts_at:string; ends_at:string; room:string|null; class_id:string; subject:string; teacher_id:string|null }
 export type ParentLesson = { id:string; timetable_slot_id:string; lesson_date:string; topic:string; content:string; activities:string|null; subject:string; class_id:string }
 export type ParentHomework = { id:string; timetable_slot_id:string; class_id:string; subject_id:string; title:string; instructions:string; due_date:string|null; created_at:string; subject:string }
+export type ParentSchoolDocumentRequest = { id: string; establishment_id: string; student_id: string; document_type: string; message: string | null; status: string; rejection_reason: string | null; created_at: string; updated_at: string }
 export type ParentDocument = { id:string; publication_id:string; student_id:string; name:string; title:string; document_type:string; mime_type:string|null; size_bytes:number|null; created_at:string; published_at:string; storage_path:string; download_url?:string }
 export type ClaimStudentInput = { studentId?:string; studentNumber?:string; birthDate?:string; fromQr?:boolean }
 
@@ -43,7 +44,7 @@ function useParentPortalState() {
   const [attendance,setAttendance]=useState<ParentAttendance[]>([]), [justificationRequests,setJustificationRequests]=useState<ParentJustificationRequest[]>([])
   const [notifications,setNotifications]=useState<ParentNotification[]>([]), [events,setEvents]=useState<ParentEvent[]>([])
   const [paymentSchedules,setPaymentSchedules]=useState<ParentPaymentSchedule[]>([]), [paymentAllocations,setPaymentAllocations]=useState<ParentPaymentAllocation[]>([]), [enrollmentOptions,setEnrollmentOptions]=useState<ParentEnrollmentOption[]>([])
-  const [timetable,setTimetable]=useState<ParentTimetableSlot[]>([]), [lessons,setLessons]=useState<ParentLesson[]>([]), [homework,setHomework]=useState<ParentHomework[]>([]), [documents,setDocuments]=useState<ParentDocument[]>([])
+  const [timetable,setTimetable]=useState<ParentTimetableSlot[]>([]), [lessons,setLessons]=useState<ParentLesson[]>([]), [homework,setHomework]=useState<ParentHomework[]>([]), [documents,setDocuments]=useState<ParentDocument[]>([]), [schoolDocumentRequests,setSchoolDocumentRequests]=useState<ParentSchoolDocumentRequest[]>([])
 
   const refresh=useCallback(async()=>{
     setLoading(true); setError(null)
@@ -197,9 +198,10 @@ function useParentPortalState() {
           : Promise.resolve({data:[],error:null}),
         academicClassIds.length?supabaseBrowser.from("teacher_lesson_entries").select("id,timetable_slot_id,lesson_date,topic,content,activities").in("establishment_id",establishmentIds).order("lesson_date",{ascending:false}).limit(300):Promise.resolve({data:[],error:null}),
         academicClassIds.length?supabaseBrowser.from("teacher_homework").select("id,timetable_slot_id,class_id,subject_id,title,instructions,due_date,created_at").in("class_id",academicClassIds).eq("active",true).order("due_date").limit(300):Promise.resolve({data:[],error:null}),
-        supabaseBrowser.from("parent_document_publications").select("id,student_id,document_id,published_at,title_override").in("student_id",studentIds).eq("active",true).order("published_at",{ascending:false}).limit(200)
+        supabaseBrowser.from("parent_document_publications").select("id,student_id,document_id,published_at,title_override").in("student_id",studentIds).eq("active",true).order("published_at",{ascending:false}).limit(200),
+        supabaseBrowser.from("school_document_requests").select("id,establishment_id,student_id,document_type,message,status,rejection_reason,created_at,updated_at").in("student_id",studentIds).order("created_at",{ascending:false}).limit(200)
       ])
-      for(const [name,r] of [["payment_schedules",psr],["payment_allocations",par],["enrollment_options",eor],["timetable",tsr],["lessons",tlr],["homework",thr],["documents",pdr]] as const) if(r.error) console.warn("Parent "+name+" query:",r.error)
+      for(const [name,r] of [["payment_schedules",psr],["payment_allocations",par],["enrollment_options",eor],["timetable",tsr],["lessons",tlr],["homework",thr],["documents",pdr],["school_document_requests",sdr]] as const) if(r.error) console.warn("Parent "+name+" query:",r.error)
       const optionIds=[...new Set((eor.data??[]).map(x=>x.option_id).filter(Boolean))]
       const optionRows=optionIds.length?await supabaseBrowser.from("student_options").select("id,name,description,option_type,required").in("id",optionIds):{data:[],error:null}
       if(optionRows.error) console.warn("Parent student options query:", optionRows.error)
@@ -250,6 +252,10 @@ function useParentPortalState() {
         for(const d of dr.data??[]){const p=pubMap.get(d.id);if(!p||!linkMap.get(p.student_id)?.can_view_academic)continue;let url:string|undefined;if(d.storage_path){const s=await supabaseBrowser.storage.from("school-documents").createSignedUrl(d.storage_path,300);if(!s.error)url=s.data.signedUrl}docs.push({...d,publication_id:p.id,student_id:p.student_id,title:p.title_override??d.name,published_at:p.published_at,size_bytes:d.size_bytes?Number(d.size_bytes):null,download_url:url})}
         setDocuments(docs)
       } catch(documentCause) {
+        console.warn("Parent portal documents error:",documentCause)
+        setDocuments([])
+      }
+      try { setSchoolDocumentRequests((sdr.data??[]) as ParentSchoolDocumentRequest[]) } catch(e) {}
         console.warn("Parent portal documents error:",documentCause)
         setDocuments([])
       }
@@ -314,7 +320,7 @@ function useParentPortalState() {
       if(notificationChannel) void supabaseBrowser.removeChannel(notificationChannel)
     }
   },[refresh])
-  return {loading,error,refresh,children,grades,payments,attendance,justificationRequests,notifications,events,paymentSchedules,paymentAllocations,enrollmentOptions,timetable,lessons,homework,documents,claimChild,unclaimChild,requestAttendanceJustification,cancelAttendanceJustification,markNotificationRead,markAllNotificationsRead}
+  return {loading,error,refresh,children,grades,payments,attendance,justificationRequests,notifications,events,paymentSchedules,paymentAllocations,enrollmentOptions,timetable,lessons,homework,documents,schoolDocumentRequests,claimChild,unclaimChild,requestAttendanceJustification,cancelAttendanceJustification,markNotificationRead,markAllNotificationsRead}
 }
 
 

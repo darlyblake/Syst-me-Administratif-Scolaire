@@ -1,4 +1,6 @@
-"use client"
+const fs = require('fs');
+
+const content = `"use client"
 
 import { useEffect, useMemo, useState } from "react"
 import { CheckCircle2, FileText, Loader2, Search, Upload, Eye, EyeOff, FileUp, XCircle, FilePlus, ExternalLink } from "lucide-react"
@@ -87,8 +89,8 @@ export default function DossiersPapierPage() {
     setUploadingDoc(true)
     try {
       const ext = file.name.split('.').pop()
-      const safeName = file.name.replace(/[^a-zA-Z0-9.-_]/g, "_")
-      const path = `${establishmentId}/students/${selectedStudent.id}/${Date.now()}_${safeName}`
+      const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")
+      const path = \`\${establishmentId}/students/\${selectedStudent.id}/\${Date.now()}_\${safeName}\`
       const { error: uploadError } = await supabaseBrowser.storage.from("school-documents").upload(path, file)
       if (uploadError) throw uploadError
 
@@ -208,7 +210,7 @@ export default function DossiersPapierPage() {
           ) : (
             <div className="space-y-1">
               {filteredStudents.map(s => (
-                <button key={s.id} onClick={() => setSelectedStudent(s)} className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${selectedStudent?.id === s.id ? "bg-indigo-50 text-indigo-700 font-medium" : "text-slate-700 hover:bg-slate-100"}`}>
+                <button key={s.id} onClick={() => setSelectedStudent(s)} className={\`w-full text-left px-3 py-2 rounded-md text-sm transition-colors \${selectedStudent?.id === s.id ? "bg-indigo-50 text-indigo-700 font-medium" : "text-slate-700 hover:bg-slate-100"}\`}>
                   {s.first_name} {s.last_name}
                   {s.student_number && <span className="block text-xs text-slate-500 font-normal">{s.student_number}</span>}
                 </button>
@@ -383,3 +385,5 @@ export default function DossiersPapierPage() {
     </div>
   )
 }
+`
+fs.writeFileSync('app/ecole/dossiers-papier/page.tsx', content);

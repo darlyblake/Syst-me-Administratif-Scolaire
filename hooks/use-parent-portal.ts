@@ -255,11 +255,13 @@ function useParentPortalState() {
         console.warn("Parent portal documents error:",documentCause)
         setDocuments([])
       }
-      try { setSchoolDocumentRequests((sdr.data??[]) as ParentSchoolDocumentRequest[]) } catch(e) {}
-        console.warn("Parent portal documents error:",documentCause)
-        setDocuments([])
+      try {
+        setSchoolDocumentRequests((sdr.data??[]) as ParentSchoolDocumentRequest[])
+      } catch(requestCause) {
+        console.warn("Parent school document requests error:", requestCause)
+        setSchoolDocumentRequests([])
       }
-      }catch(secondaryCause){
+      } catch(secondaryCause){
         console.warn("Parent portal secondary data error:",secondaryCause)
       }
     }catch(cause){console.error("Parent portal error:",cause);setError(cause instanceof Error?cause.message:"Impossible de charger vos informations.")}

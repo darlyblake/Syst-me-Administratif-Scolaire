@@ -87,12 +87,12 @@ export default function EmploiDuTempsPage() {
 
   const teacherSubjects = useMemo(
     () => safeAssignments.filter(item => item.teacher_id === teacherId).sort((a, b) => a.subject_name.localeCompare(b.subject_name)),
-    [assignments, teacherId],
+    [safeAssignments, teacherId],
   )
 
   const slotByCell = useMemo(() => {
     const map = new Map<string, TimetableSlot>()
-    slots.forEach(slot => map.set(`${slot.day_of_week}-${slot.starts_at}-${slot.ends_at}`, slot))
+    safeSlots.forEach(slot => map.set(`${slot.day_of_week}-${slot.starts_at}-${slot.ends_at}`, slot))
     return map
   }, [safeSlots])
 

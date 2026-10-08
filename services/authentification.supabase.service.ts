@@ -55,7 +55,12 @@ class SupabaseAuthentificationService {
         }
       }
       if (error) {
-        console.error("Erreur contexte authentification:", error)
+        console.error("Erreur contexte authentification:", {
+          code: error.code ?? null,
+          message: error.message ?? null,
+          details: error.details ?? null,
+          hint: error.hint ?? null,
+        })
         return null
       }
       return data as AuthContext

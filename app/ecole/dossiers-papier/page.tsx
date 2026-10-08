@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { CheckCircle2, FileText, Loader2, Search, Upload, Eye, EyeOff, FileUp, XCircle, FilePlus, ExternalLink } from "lucide-react"
+import { FileText, FolderOpen, Loader2, Search, Upload, Eye, EyeOff, FileUp, FilePlus, ExternalLink } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useAuthentification } from "@/providers/authentification.provider"
+import { jsPDF } from "jspdf"
 
 type Student = { id: string; first_name: string; last_name: string; student_number: string | null }
 type Document = { id: string; name: string; document_type: string; mime_type: string | null; storage_path: string; created_at: string }
@@ -79,10 +80,45 @@ export default function DossiersPapierPage() {
     })
   }, [students, search])
 
+  const handleGenerateAttestation = async () => {
+    if (!selectedStudent || !establishmentId) return
+    setUploadingDoc(true)
+    try {
+      const doc = new jsPDF()
+      const schoolName = etablissementActif?.nom ?? "Établissement scolaire"
+      doc.setFontSize(16)
+      doc.text(schoolName, 105, 25, { align: "center" })
+      doc.setFontSize(18)
+      doc.text("ATTESTATION DE SCOLARITÉ", 105, 45, { align: "center" })
+      doc.setFontSize(12)
+      doc.text(`Nous attestons que l'élève ${selectedStudent.first_name} ${selectedStudent.last_name}`, 20, 75)
+      if (selectedStudent.student_number) doc.text(`Matricule : ${selectedStudent.student_number}`, 20, 88)
+      doc.text("est régulièrement inscrit(e) dans notre établissement.", 20, 101)
+      doc.text(`Fait le ${new Date().toLocaleDateString("fr-FR")}`, 20, 130)
+      doc.text("Signature et cachet de l'établissement", 125, 160)
+      const blob = doc.output("blob")
+      const path = `${establishmentId}/students/${selectedStudent.id}/attestation-scolarite-${Date.now()}.pdf`
+      const { error: uploadError } = await supabaseBrowser.storage.from("school-documents").upload(path, blob, { contentType: "application/pdf" })
+      if (uploadError) throw uploadError
+      const { error: insertError } = await supabaseBrowser.from("documents").insert({
+        establishment_id: establishmentId, owner_type: "student", owner_id: selectedStudent.id,
+        document_type: "Attestation de scolarité", name: "Attestation de scolarité.pdf",
+        storage_path: path, mime_type: "application/pdf", size_bytes: blob.size
+      })
+      if (insertError) throw insertError
+      toast.success("Attestation générée et ajoutée au dossier.")
+      loadStudentData()
+    } catch (err: any) {
+      toast.error(err.message || "Impossible de générer l'attestation.")
+    } finally {
+      setUploadingDoc(false)
+    }
+  }
+
   const handleUploadDocument = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !selectedStudent) return
-    if (file.size > 2 * 1024 * 1024) return toast.error("Le fichier dépasse 2 Mo.")
+    if (file.size > 1024 * 1024) return toast.error("Le fichier dépasse 1 Mo.")
     
     setUploadingDoc(true)
     try {
@@ -249,6 +285,9 @@ export default function DossiersPapierPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         <input type="file" id="upload-doc" className="hidden" accept=".pdf,image/*" onChange={handleUploadDocument} />
+                        <Button variant="outline" size="sm" onClick={handleGenerateAttestation} disabled={uploadingDoc}>
+                          <FilePlus className="h-4 w-4 mr-2" /> Générer une attestation
+                        </Button>
                         <Button variant="outline" size="sm" onClick={() => document.getElementById("upload-doc")?.click()} disabled={uploadingDoc}>
                           {uploadingDoc ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />} Ajouter
                         </Button>

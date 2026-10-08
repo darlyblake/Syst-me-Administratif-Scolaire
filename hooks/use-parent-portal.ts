@@ -286,13 +286,33 @@ function useParentPortalState() {
     if(cached.length) setChildren(cached)
     void refresh()
 
+    let notificationChannel: ReturnType<typeof supabaseBrowser.channel> | null = null
+    void supabaseBrowser.auth.getUser().then(({data})=>{
+      const user=data.user
+      if(!user) return
+      notificationChannel=supabaseBrowser
+        .channel(`parent-notifications:${user.id}`)
+        .on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications",filter:`recipient_user_id=eq.${user.id}`},payload=>{
+          const notification=payload.new as ParentNotification
+          setNotifications(current=>current.some(item=>item.id===notification.id)?current:[notification,...current].slice(0,50))
+        })
+        .on("postgres_changes",{event:"UPDATE",schema:"public",table:"notifications",filter:`recipient_user_id=eq.${user.id}`},payload=>{
+          const notification=payload.new as ParentNotification
+          setNotifications(current=>current.map(item=>item.id===notification.id?notification:item))
+        })
+        .subscribe()
+    })
+
     const {data:{subscription}}=supabaseBrowser.auth.onAuthStateChange((event,session)=>{
       if(!session) return
       if(event==="INITIAL_SESSION"||event==="SIGNED_IN"||event==="TOKEN_REFRESHED"||event==="USER_UPDATED"){
         window.setTimeout(()=>void refresh(),0)
       }
     })
-    return ()=>subscription.unsubscribe()
+    return ()=>{
+      subscription.unsubscribe()
+      if(notificationChannel) void supabaseBrowser.removeChannel(notificationChannel)
+    }
   },[refresh])
   return {loading,error,refresh,children,grades,payments,attendance,justificationRequests,notifications,events,paymentSchedules,paymentAllocations,enrollmentOptions,timetable,lessons,homework,documents,claimChild,unclaimChild,requestAttendanceJustification,cancelAttendanceJustification,markNotificationRead,markAllNotificationsRead}
 }

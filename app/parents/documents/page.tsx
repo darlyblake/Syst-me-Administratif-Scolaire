@@ -30,7 +30,7 @@ export default function ParentDocuments() {
     try {
       const ext = file.name.split('.').pop()
       const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")
-      const path = \`school-requests/\${establishmentId}/\${studentId}/\${Date.now()}_\${safeName}\`
+      const path = `school-requests/${establishmentId}/${studentId}/${Date.now()}_${safeName}`
       const { error: uploadError } = await supabaseBrowser.storage.from("parent-documents").upload(path, file)
       if (uploadError) throw uploadError
 
@@ -107,8 +107,8 @@ export default function ParentDocuments() {
                       <div className="flex flex-col sm:items-end">
                         {(r.status === "pending" || r.status === "rejected") && (
                           <>
-                            <input type="file" id={\`upload-\${r.id}\`} className="hidden" accept=".pdf,image/jpeg,image/png,image/webp" onChange={(e) => handleUpload(r.id, r.student_id, r.establishment_id, e)} />
-                            <Button size="sm" onClick={() => document.getElementById(\`upload-\${r.id}\`)?.click()} disabled={uploadingId === r.id}>
+                            <input type="file" id={`upload-${r.id}`} className="hidden" accept=".pdf,image/jpeg,image/png,image/webp" onChange={(e) => handleUpload(r.id, r.student_id, r.establishment_id, e)} />
+                            <Button size="sm" onClick={() => document.getElementById(`upload-${r.id}`)?.click()} disabled={uploadingId === r.id}>
                               {uploadingId === r.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />} 
                               Envoyer (max 1 Mo)
                             </Button>

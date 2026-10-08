@@ -82,6 +82,9 @@ const toSeconds = (value: string) => {
 const getCurrentSeconds = (date: Date) =>
   date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds()
 
+const TEACHER_CALL_GRACE_MINUTES = 15
+const TEACHER_CALL_GRACE_SECONDS = TEACHER_CALL_GRACE_MINUTES * 60
+
 export default function RegistreAppelPage() {
   const { primaryEstablishment, utilisateur } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
@@ -153,6 +156,16 @@ export default function RegistreAppelPage() {
       nowSeconds < toSeconds(selectedLesson.heureFin)
     )
   }, [currentTime, date, selectedLesson])
+
+  const selectedLessonIsWithinTeacherWindow = useMemo(() => {
+    if (!selectedLesson || date !== getLocalDateString(currentTime)) return false
+    const nowSeconds = getCurrentSeconds(currentTime)
+    const starts = toSeconds(selectedLesson.heureDebut)
+    const ends = toSeconds(selectedLesson.heureFin)
+    return nowSeconds >= starts && nowSeconds <= ends + TEACHER_CALL_GRACE_SECONDS
+  }, [currentTime, date, selectedLesson])
+
+  const canRecordSelectedLesson = canManageAll || selectedLessonIsWithinTeacherWindow
 
   const loadLessonStates = useCallback(async (lessonList: CreneauEmploiDuTemps[]) => {
     if (!selectedClassId || !date || !lessonList.length) {
@@ -379,8 +392,8 @@ export default function RegistreAppelPage() {
   const saveCall = async () => {
     if (!establishmentId || !selectedClassId || !selectedLesson || !selectedSubject || !students.length) return
 
-    if (!selectedLessonIsCurrent) {
-      setError("L'appel est disponible uniquement pendant le créneau de cours en cours.")
+    if (!canManageAll && !selectedLessonIsWithinTeacherWindow) {
+      setError("En tant qu'enseignant, l'appel doit être fait pendant le cours ou dans les " + TEACHER_CALL_GRACE_MINUTES + " minutes qui suivent. Après ce délai, le rattrapage est réservé au compte administratif habilité.")
       return
     }
 
@@ -565,6 +578,7 @@ export default function RegistreAppelPage() {
                 {selectedLessonState?.status === "non_fait" && (
                   <div className="mt-2 border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800">
                     Le cours est terminé et aucun appel n'a été enregistré par l'enseignant.
+                    {canManageAll ? " Le compte administratif habilité peut maintenant faire le rattrapage." : ""}
                   </div>
                 )}
                 {selectedLessonState?.status === "fait" && (
@@ -572,9 +586,14 @@ export default function RegistreAppelPage() {
                     L'appel a été enregistré pour ce cours.
                   </div>
                 )}
-                {!selectedLessonIsCurrent && selectedLessonState?.status !== "non_fait" && (
+                {!canManageAll && !selectedLessonIsWithinTeacherWindow && selectedLessonState?.status !== "non_fait" && (
                   <p className="mt-1 text-xs text-amber-700">
-                    L'appel sera disponible lorsque ce cours sera en cours.
+                    L'appel enseignant est fermé. Il est possible pendant le cours et jusqu'à {TEACHER_CALL_GRACE_MINUTES} minutes après sa fin.
+                  </p>
+                )}
+                {canManageAll && selectedLessonState?.status !== "fait" && !selectedLessonIsCurrent && (
+                  <p className="mt-1 text-xs text-blue-700">
+                    Mode administratif : vous pouvez enregistrer ou rattraper cet appel, même si le cours est terminé.
                   </p>
                 )}
               </div>
@@ -585,9 +604,9 @@ export default function RegistreAppelPage() {
                 <span className="border px-2.5 py-1 text-amber-700">Retards {counts.late}</span>
                 <span className="border px-2.5 py-1 text-blue-700">Justifiés {counts.justified}</span>
                 <Button variant="outline" size="sm" onClick={markAllPresent} disabled={!students.length || isSaving}>Tous présents</Button>
-                <Button size="sm" onClick={saveCall} disabled={!students.length || isSaving || !selectedSubject || !selectedLessonIsCurrent}>
+                <Button size="sm" onClick={saveCall} disabled={!students.length || isSaving || !selectedSubject || !canRecordSelectedLesson}>
                   <Save className="mr-2 h-4 w-4" />
-                  {isSaving ? "Enregistrement…" : "Enregistrer l'appel"}
+                  {isSaving ? "Enregistrement…" : canManageAll && !selectedLessonIsCurrent ? "Rattraper l'appel" : "Enregistrer l'appel"}
                 </Button>
               </div>
             </div>

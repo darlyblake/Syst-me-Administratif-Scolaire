@@ -69,17 +69,24 @@ export default function EmploiDuTempsPage() {
   const [newBreakEnd, setNewBreakEnd] = useState("")
   const [newBreakLabel, setNewBreakLabel] = useState("Récréation")
 
-  const selectedClass = useMemo(() => classes.find(item => item.id === selectedClassId), [classes, selectedClassId])
-  const activeYear = useMemo(() => academicYears.find(item => item.id === selectedYearId), [academicYears, selectedYearId])
+  // Les services Supabase doivent toujours renvoyer des tableaux. On normalise ici
+  // pour éviter qu'une réponse inattendue fasse planter la page avec "e is not iterable".
+  const safeClasses = Array.isArray(classes) ? classes : []
+  const safeAcademicYears = Array.isArray(academicYears) ? academicYears : []
+  const safeSlots = Array.isArray(slots) ? slots : []
+  const safeAssignments = Array.isArray(assignments) ? assignments : []
+
+  const selectedClass = useMemo(() => safeClasses.find(item => item.id === selectedClassId), [safeClasses, selectedClassId])
+  const activeYear = useMemo(() => safeAcademicYears.find(item => item.id === selectedYearId), [safeAcademicYears, selectedYearId])
 
   const teachers = useMemo(() => {
     const map = new Map<string, { id: string; name: string }>()
-    assignments.forEach(item => map.set(item.teacher_id, { id: item.teacher_id, name: item.teacher_name }))
+    safeAssignments.forEach(item => map.set(item.teacher_id, { id: item.teacher_id, name: item.teacher_name }))
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
-  }, [assignments])
+  }, [safeAssignments])
 
   const teacherSubjects = useMemo(
-    () => assignments.filter(item => item.teacher_id === teacherId).sort((a, b) => a.subject_name.localeCompare(b.subject_name)),
+    () => safeAssignments.filter(item => item.teacher_id === teacherId).sort((a, b) => a.subject_name.localeCompare(b.subject_name)),
     [assignments, teacherId],
   )
 
@@ -87,7 +94,7 @@ export default function EmploiDuTempsPage() {
     const map = new Map<string, TimetableSlot>()
     slots.forEach(slot => map.set(`${slot.day_of_week}-${slot.starts_at}-${slot.ends_at}`, slot))
     return map
-  }, [slots])
+  }, [safeSlots])
 
   useEffect(() => {
     if (!establishmentId) {
@@ -270,7 +277,7 @@ export default function EmploiDuTempsPage() {
   }
 
   const handleRemoveTimeRow = (row: TimeRow) => {
-    const hasCourses = timeRows.length && slots.some(slot => slot.starts_at === row.startsAt && slot.ends_at === row.endsAt)
+    const hasCourses = timeRows.length > 0 && safeSlots.some(slot => slot.starts_at === row.startsAt && slot.ends_at === row.endsAt)
     if (hasCourses) {
       setError("Cette plage contient déjà un cours. Supprimez ou déplacez d'abord les cours concernés.")
       return
@@ -381,14 +388,14 @@ export default function EmploiDuTempsPage() {
                 <Label>Année scolaire</Label>
                 <Select value={selectedYearId} onValueChange={setSelectedYearId}>
                   <SelectTrigger><SelectValue placeholder="Choisir l'année" /></SelectTrigger>
-                  <SelectContent>{academicYears.map(year => <SelectItem key={year.id} value={year.id}>{year.name}{year.status === "active" ? " · active" : ""}</SelectItem>)}</SelectContent>
+                  <SelectContent>{safeAcademicYears.map(year => <SelectItem key={year.id} value={year.id}>{year.name}{year.status === "active" ? " · active" : ""}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Classe</Label>
                 <Select value={selectedClassId} onValueChange={setSelectedClassId}>
                   <SelectTrigger><SelectValue placeholder="Choisir une classe" /></SelectTrigger>
-                  <SelectContent>{classes.map(item => <SelectItem key={item.id} value={item.id}>{item.nom}</SelectItem>)}</SelectContent>
+                  <SelectContent>{safeClasses.map(item => <SelectItem key={item.id} value={item.id}>{item.nom}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="flex gap-2 flex-wrap">
@@ -416,7 +423,7 @@ export default function EmploiDuTempsPage() {
                   <p className="text-xs text-[#515f74] print:hidden">Cliquez sur une cellule vide pour créer un cours. Cliquez sur un cours pour le modifier.</p>
                   <p className="text-sm font-medium hidden print:block text-gray-700 mt-1">Année Scolaire : {activeYear?.name}</p>
                 </div>
-                <div className="text-xs text-[#515f74] print:hidden">{assignments.length} affectation(s) disponible(s)</div>
+                <div className="text-xs text-[#515f74] print:hidden">{safeAssignments.length} affectation(s) disponible(s)</div>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -450,7 +457,7 @@ export default function EmploiDuTempsPage() {
                     <tr key={rowKey(row)} className="h-28">
                       <td className="sticky left-0 z-10 border-b border-r bg-white p-3 align-top font-medium">
                         <div className="flex items-center justify-between gap-1"><span>{row.startsAt}</span><span className="text-[#515f74]">–</span><span>{row.endsAt}</span></div>
-                        {!slots.some(slot => slot.starts_at === row.startsAt && slot.ends_at === row.endsAt) && <button className="mt-3 text-xs text-[#515f74] hover:text-foreground print:hidden" onClick={() => handleRemoveTimeRow(row)}>Supprimer la ligne</button>}
+                        {!safeSlots.some(slot => slot.starts_at === row.startsAt && slot.ends_at === row.endsAt) && <button className="mt-3 text-xs text-[#515f74] hover:text-foreground print:hidden" onClick={() => handleRemoveTimeRow(row)}>Supprimer la ligne</button>}
                       </td>
                       {JOURS.map(day => {
                         const slot = slotByCell.get(`${day.value}-${row.startsAt}-${row.endsAt}`)

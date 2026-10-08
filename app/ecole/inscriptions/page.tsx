@@ -39,6 +39,11 @@ type Row = {
   status: string
   annualAmount: number
   gradeLevelId: string
+  parentFirstName: string
+  parentLastName: string
+  parentPhone: string
+  parentEmail: string
+  parentRelationship: string
 }
 
 export default function InscriptionsPage() {
@@ -101,6 +106,11 @@ export default function InscriptionsPage() {
       status: raw.status ?? "active",
       annualAmount: Number(raw.tuition_plan?.annual_tuition ?? raw.annual_tuition ?? 0),
       gradeLevelId: raw.class?.grade_level_id ?? raw.grade_level_id ?? raw.tuition_plan?.grade_level_id ?? "",
+      parentFirstName: raw.linked_guardian_first_name ?? raw.guardian_first_name ?? "",
+      parentLastName: raw.linked_guardian_last_name ?? raw.guardian_last_name ?? "",
+      parentPhone: raw.linked_guardian_phone ?? raw.guardian_phone ?? "",
+      parentEmail: raw.linked_guardian_email ?? raw.guardian_email ?? "",
+      parentRelationship: raw.linked_guardian_relationship ?? raw.guardian_relationship ?? "Parent",
     }
   }), [enrollments, classMap, activeYear?.name])
 
@@ -366,8 +376,12 @@ export default function InscriptionsPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2">
-                      <div className="text-[12px] font-medium text-[#131b2e]">—</div>
-                      <div className="font-mono text-[10px] text-[#68758a]">Contact non renseigné</div>
+                      <div className="text-[12px] font-medium text-[#131b2e]">
+                        {row.parentFirstName || row.parentLastName ? (row.parentFirstName + " " + row.parentLastName).trim() : "—"}
+                      </div>
+                      <div className="text-[11px] text-[#515f74]">
+                        {row.parentPhone || row.parentEmail || "Contact non renseigné"}
+                      </div>
                     </td>
                     <td className="px-3 py-2">
                       {row.annualAmount > 0 ? (

@@ -154,6 +154,50 @@ export default function RegistreAppelPage() {
     )
   }, [currentTime, date, selectedLesson])
 
+  const loadLessonStates = useCallback(async (lessonList: CreneauEmploiDuTemps[]) => {
+    if (!selectedClassId || !date || !lessonList.length) {
+      setLessonStates({})
+      return
+    }
+
+    try {
+      const records = await listAttendanceForLessons(
+        selectedClassId,
+        date,
+        lessonList.map((lesson) => lesson.id),
+      )
+
+      const recordCounts = new Map<string, number>()
+      records.forEach((record) => {
+        recordCounts.set(record.lesson_key, (recordCounts.get(record.lesson_key) ?? 0) + 1)
+      })
+
+      const now = new Date()
+      const today = getLocalDateString(now)
+      const nowSeconds = getCurrentSeconds(now)
+      const next: Record<string, LessonCallState> = {}
+
+      lessonList.forEach((lesson) => {
+        const recordCount = recordCounts.get(lesson.id) ?? 0
+        const starts = toSeconds(lesson.heureDebut)
+        const ends = toSeconds(lesson.heureFin)
+
+        let status: LessonCallState["status"] = "a_venir"
+        if (date === today && nowSeconds >= starts && nowSeconds < ends) {
+          status = recordCount > 0 ? "fait" : "en_cours"
+        } else if (date !== today || nowSeconds >= ends) {
+          status = recordCount > 0 ? "fait" : "non_fait"
+        }
+
+        next[lesson.id] = { recordCount, status }
+      })
+
+      setLessonStates(next)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de vérifier l'état des appels.")
+    }
+  }, [date, selectedClassId])
+
   const loadBaseAccess = useCallback(async () => {
     if (!establishmentId) return
     try {
@@ -263,50 +307,6 @@ export default function RegistreAppelPage() {
       if (clock) window.clearInterval(clock)
     }
   }, [academicYear?.id, canManageAll, date, isTeacher, selectedClass, teacherAssignments, loadLessonStates])
-
-  const loadLessonStates = useCallback(async (lessonList: CreneauEmploiDuTemps[]) => {
-    if (!selectedClassId || !date || !lessonList.length) {
-      setLessonStates({})
-      return
-    }
-
-    try {
-      const records = await listAttendanceForLessons(
-        selectedClassId,
-        date,
-        lessonList.map((lesson) => lesson.id),
-      )
-
-      const recordCounts = new Map<string, number>()
-      records.forEach((record) => {
-        recordCounts.set(record.lesson_key, (recordCounts.get(record.lesson_key) ?? 0) + 1)
-      })
-
-      const now = new Date()
-      const today = getLocalDateString(now)
-      const nowSeconds = getCurrentSeconds(now)
-      const next: Record<string, LessonCallState> = {}
-
-      lessonList.forEach((lesson) => {
-        const recordCount = recordCounts.get(lesson.id) ?? 0
-        const starts = toSeconds(lesson.heureDebut)
-        const ends = toSeconds(lesson.heureFin)
-
-        let status: LessonCallState["status"] = "a_venir"
-        if (date === today && nowSeconds >= starts && nowSeconds < ends) {
-          status = recordCount > 0 ? "fait" : "en_cours"
-        } else if (date !== today || nowSeconds >= ends) {
-          status = recordCount > 0 ? "fait" : "non_fait"
-        }
-
-        next[lesson.id] = { recordCount, status }
-      })
-
-      setLessonStates(next)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de vérifier l'état des appels.")
-    }
-  }, [date, selectedClassId])
 
   const loadCall = useCallback(async () => {
     if (!establishmentId || !academicYear?.id || !selectedClassId || !selectedLesson) {

@@ -88,7 +88,18 @@ export default function ParentPaiements() {
   const options = enrollmentOptions.filter((option) =>
     enrollmentIds.has(option.enrollment_id),
   )
-  const tuitionSchedules = schedules.filter((schedule) => schedule.category !== "option")
+  const tuitionSchedules = useMemo(() => {
+    const rows = schedules.filter((schedule) => schedule.category !== "option")
+    return [...rows].sort((a, b) => {
+      const aRegistration = a.category === "registration" || /inscription/i.test(a.label)
+      const bRegistration = b.category === "registration" || /inscription/i.test(b.label)
+
+      // Présentation de la scolarité : inscription en premier,
+      // puis les échéances mensuelles dans l'ordre chronologique.
+      if (aRegistration !== bRegistration) return aRegistration ? -1 : 1
+      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+    })
+  }, [schedules])
   const optionSchedules = schedules.filter((schedule) => schedule.category === "option")
 
   const modes = [...new Set(selectedChildren.map((child) => child.payment_mode).filter(Boolean))]

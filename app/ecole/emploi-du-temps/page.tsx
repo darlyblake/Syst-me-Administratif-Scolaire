@@ -339,7 +339,8 @@ export default function EmploiDuTempsPage() {
                       td { border: 1px solid #aaa; padding: 5px 4px; vertical-align: top; min-height: 60px; }
                       td:first-child { font-weight: 600; white-space: nowrap; width: 80px; font-size: 10px; }
                       .break-row td { background: #fffbea !important; text-align: center; font-weight: 600; color: #92400e; }
-                      button { display: none; }
+                      /* Les boutons de cours contiennent les informations à imprimer. */
+                      .print-only-hide { display: none !important; }
                       .print\\:hidden { display: none; }
                     </style>
                   </head>
@@ -347,7 +348,11 @@ export default function EmploiDuTempsPage() {
                     <h1>Emploi du temps — ${className}</h1>
                     <p>Année scolaire : ${yearName}</p>
                     ${tableEl.outerHTML}
-                    <script>window.onload = () => { window.print(); window.close(); }<\/script>
+                    <script>window.onload = () => {
+                      document.querySelectorAll('#timetable-print-zone button.print\\:hidden').forEach(el => el.remove());
+                      window.print();
+                      window.close();
+                    }<\/script>
                   </body>
                   </html>
                 `)

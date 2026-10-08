@@ -184,7 +184,17 @@ function useParentPortalState() {
         financeEnrollmentIds.length?supabaseBrowser.from("payment_schedules").select("id,enrollment_id,installment_number,label,due_date,amount_due,amount_paid,status,category").in("enrollment_id",financeEnrollmentIds).order("due_date"):Promise.resolve({data:[],error:null}),
         paymentIds.length?supabaseBrowser.from("payment_allocations").select("id,payment_id,payment_schedule_id,amount,created_at").in("payment_id",paymentIds):Promise.resolve({data:[],error:null}),
         financeEnrollmentIds.length?supabaseBrowser.from("enrollment_options").select("id,enrollment_id,option_id,amount").in("enrollment_id",financeEnrollmentIds):Promise.resolve({data:[],error:null}),
-        academicClassIds.length?supabaseBrowser.from("timetable_slots").select("id,class_subject_id,day_of_week,starts_at,ends_at,room").in("establishment_id",establishmentIds).order("day_of_week").order("starts_at"):Promise.resolve({data:[],error:null}),
+        // Emploi du temps : filtre directement par class_id (connus depuis les enrollments)
+        // + JOIN inline avec class_subjects pour récupérer subject_id et teacher_id en une seule requête
+        // Cela évite la dépendance à csMap (qui était vide si la RLS sur class_subjects bloquait)
+        academicClassIds.length
+          ? supabaseBrowser
+              .from("timetable_slots")
+              .select("id,class_subject_id,day_of_week,starts_at,ends_at,room,class_subjects!inner(class_id,subject_id,teacher_id)")
+              .in("class_subjects.class_id", academicClassIds)
+              .order("day_of_week")
+              .order("starts_at")
+          : Promise.resolve({data:[],error:null}),
         academicClassIds.length?supabaseBrowser.from("teacher_lesson_entries").select("id,timetable_slot_id,lesson_date,topic,content,activities").in("establishment_id",establishmentIds).order("lesson_date",{ascending:false}).limit(300):Promise.resolve({data:[],error:null}),
         academicClassIds.length?supabaseBrowser.from("teacher_homework").select("id,timetable_slot_id,class_id,subject_id,title,instructions,due_date,created_at").in("class_id",academicClassIds).eq("active",true).order("due_date").limit(300):Promise.resolve({data:[],error:null}),
         supabaseBrowser.from("parent_document_publications").select("id,student_id,document_id,published_at,title_override").in("student_id",studentIds).eq("active",true).order("published_at",{ascending:false}).limit(200)
@@ -203,7 +213,14 @@ function useParentPortalState() {
         option_type:(optionRows.data??[]).find(option=>option.id===x.option_id)?.option_type??null,
         required:Boolean((optionRows.data??[]).find(option=>option.id===x.option_id)?.required),
       })))
-      const slotRows=tsr.data??[], csIds=[...new Set(slotRows.map(x=>x.class_subject_id))], hwSubjectIds=[...new Set((thr.data??[]).map(x=>x.subject_id))]
+      // slotRows contient déjà class_subjects grâce au !inner join dans la requête
+      // On construit csMap depuis ces données embarquées (plus fiable que la requête séparée)
+      const slotRows=(tsr.data??[]) as any[]
+      // csMap depuis les données embarquées dans chaque slot row
+      const embeddedCsMap=new Map(slotRows.map(x=>[x.class_subject_id, x.class_subjects as {class_id:string;subject_id:string;teacher_id:string|null}|undefined]))
+      // Garder la requête class_subjects séparée uniquement pour les slots si nécessaire (fallback)
+      const csIds=[...new Set(slotRows.filter(x=>!x.class_subjects).map((x:any)=>x.class_subject_id))]
+      const hwSubjectIds=[...new Set((thr.data??[]).map(x=>x.subject_id))]
       const allSubjectIds=[...new Set([...subjectIds,...hwSubjectIds])]
       const [csr,tsubr,dr]=await Promise.all([
         csIds.length?supabaseBrowser.from("class_subjects").select("id,class_id,subject_id,teacher_id").in("id",csIds):Promise.resolve({data:[],error:null}),
@@ -211,9 +228,12 @@ function useParentPortalState() {
         (pdr.data??[]).length?supabaseBrowser.from("documents").select("id,name,document_type,mime_type,size_bytes,created_at,storage_path").in("id",(pdr.data??[]).map(x=>x.document_id)):Promise.resolve({data:[],error:null})
       ])
       for(const [name,r] of [["class_subjects",csr],["subjects",tsubr],["documents",dr]] as const) if(r.error) console.warn("Parent "+name+" query:",r.error)
-      const csMap=new Map((csr.data??[]).map(x=>[x.id,x])), names=new Map((tsubr.data??[]).map(x=>[x.id,x.name]))
-      const visibleSlots=slotRows.filter(s=>academicClassIds.includes(csMap.get(s.class_subject_id)?.class_id??"")), visibleSlotIds=new Set(visibleSlots.map(s=>s.id))
-      setTimetable(visibleSlots.map(s=>{const cs=csMap.get(s.class_subject_id);return {...s,class_id:cs?.class_id??"",subject:cs?.subject_id?names.get(cs.subject_id)??"Matière":"Matière",teacher_id:cs?.teacher_id??null}}))
+      // Fusionner : données embarquées en priorité, fallback sur requête séparée
+      const fallbackCsMap=new Map((csr.data??[]).map(x=>[x.id,x]))
+      const csMap=new Map(slotRows.map((x:any)=>[x.class_subject_id, x.class_subjects ?? fallbackCsMap.get(x.class_subject_id)]))
+      const names=new Map((tsubr.data??[]).map(x=>[x.id,x.name]))
+      const visibleSlots=slotRows.filter(s=>academicClassIds.includes((csMap.get(s.class_subject_id) as any)?.class_id??"")), visibleSlotIds=new Set(visibleSlots.map((s:any)=>s.id))
+      setTimetable(visibleSlots.map((s:any)=>{const cs=csMap.get(s.class_subject_id) as any;return {...s,class_id:cs?.class_id??"",subject:cs?.subject_id?names.get(cs.subject_id)??"Matière":"Matière",teacher_id:cs?.teacher_id??null}}))
       setLessons((tlr.data??[]).filter(x=>visibleSlotIds.has(x.timetable_slot_id)).map(x=>{const slot=slotRows.find(s=>s.id===x.timetable_slot_id),cs=slot?csMap.get(slot.class_subject_id):undefined;return {...x,subject:cs?.subject_id?names.get(cs.subject_id)??"Matière":"Matière",class_id:cs?.class_id??""}}))
       setHomework((thr.data??[]).filter(x=>academicClassIds.includes(x.class_id)).map(x=>({...x,subject:names.get(x.subject_id)??"Matière"})))
       setPayments((paymentsR.data??[]).filter(p=>enrollmentStudentMap.has(p.enrollment_id)).map(p=>({...p,amount:Number(p.amount)})))

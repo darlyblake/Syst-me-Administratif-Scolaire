@@ -17,6 +17,7 @@ import { jsPDF } from "jspdf"
 type Student = { id: string; first_name: string; last_name: string; student_number: string | null }
 type Document = { id: string; name: string; document_type: string; mime_type: string | null; storage_path: string; created_at: string }
 type Publication = { id: string; document_id: string; active: boolean; published_at: string }
+type SchoolClass = { id: string; name: string }
 type SchoolRequest = { id: string; document_type: string; message: string | null; status: string; rejection_reason: string | null; submitted_storage_path: string | null; submitted_file_name: string | null; created_at: string; updated_at: string }
 
 export default function DossiersPapierPage() {
@@ -31,6 +32,9 @@ export default function DossiersPapierPage() {
   const [documents, setDocuments] = useState<Document[]>([])
   const [publications, setPublications] = useState<Publication[]>([])
   const [requests, setRequests] = useState<SchoolRequest[]>([])
+  const [classes, setClasses] = useState<SchoolClass[]>([])
+  const [requestTarget, setRequestTarget] = useState<"student" | "class">("student")
+  const [requestClassId, setRequestClassId] = useState("")
   const [loadingData, setLoadingData] = useState(false)
 
   const [uploadingDoc, setUploadingDoc] = useState(false)
@@ -53,6 +57,11 @@ export default function DossiersPapierPage() {
       setLoadingStudents(false)
     }
     loadStudents()
+  }, [establishmentId])
+
+  useEffect(() => {
+    if (!establishmentId) return
+    supabaseBrowser.from("school_classes").select("id,name").eq("establishment_id", establishmentId).order("name").then(({ data }) => setClasses((data ?? []) as SchoolClass[]))
   }, [establishmentId])
 
   useEffect(() => {
@@ -172,16 +181,31 @@ export default function DossiersPapierPage() {
     if (!requestType.trim()) return toast.error("Le type de document est requis.")
     setCreatingRequest(true)
     try {
-      const { error } = await supabaseBrowser.from("school_document_requests").insert({
-        establishment_id: establishmentId,
-        student_id: selectedStudent!.id,
-        document_type: requestType,
-        message: requestMessage || null
-      })
+      let studentIds: string[] = []
+      if (requestTarget === "student") {
+        if (!selectedStudent) throw new Error("Aucun élève sélectionné.")
+        studentIds = [selectedStudent.id]
+      } else {
+        if (!requestClassId) throw new Error("Sélectionnez une classe.")
+        const { data: enrolled, error: enrollmentError } = await supabaseBrowser
+          .from("enrollments").select("student_id").eq("establishment_id", establishmentId).eq("class_id", requestClassId).eq("status", "active")
+        if (enrollmentError) throw enrollmentError
+        studentIds = (enrolled ?? []).map(row => row.student_id)
+        if (!studentIds.length) throw new Error("Aucun élève actif dans cette classe.")
+      }
+
+      const { error } = await supabaseBrowser.from("school_document_requests").insert(
+        studentIds.map(studentId => ({
+          establishment_id: establishmentId,
+          student_id: studentId,
+          document_type: requestType,
+          message: requestMessage || null
+        }))
+      )
       if (error) throw error
-      toast.success("Demande envoyée au parent.")
+      toast.success(requestTarget === "class" ? `Demande envoyée à ${studentIds.length} parent(s).` : "Demande envoyée au parent.")
       setRequestDialogOpen(false)
-      setRequestType(""); setRequestMessage("")
+      setRequestType(""); setRequestMessage(""); setRequestTarget("student"); setRequestClassId("")
       loadStudentData()
     } catch (err: any) {
       toast.error(err.message || "Erreur de création.")
@@ -387,6 +411,19 @@ export default function DossiersPapierPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Demander un document</DialogTitle><DialogDescription>Le parent recevra une notification pour soumettre ce document (1 Mo max).</DialogDescription></DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Demande pour</Label>
+              <div className="flex gap-2">
+                <Button type="button" variant={requestTarget === "student" ? "default" : "outline"} onClick={() => setRequestTarget("student")}>Cet élève</Button>
+                <Button type="button" variant={requestTarget === "class" ? "default" : "outline"} onClick={() => setRequestTarget("class")}>Toute une classe</Button>
+              </div>
+              {requestTarget === "class" && (
+                <select className="w-full h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" value={requestClassId} onChange={e => setRequestClassId(e.target.value)}>
+                  <option value="">Sélectionner une classe</option>
+                  {classes.map(cl => <option key={cl.id} value={cl.id}>{cl.name}</option>)}
+                </select>
+              )}
+            </div>
             <div className="space-y-2">
               <Label>Nom de la pièce (ex: Acte de naissance)</Label>
               <Input value={requestType} onChange={e => setRequestType(e.target.value)} placeholder="Type de document" />

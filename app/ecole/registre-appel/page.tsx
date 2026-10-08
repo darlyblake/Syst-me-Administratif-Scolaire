@@ -11,6 +11,7 @@ import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { listStudentsPaginated } from "@/lib/supabase/services/student.service"
 import {
   listAttendanceForLesson,
+  listAttendanceForLessons,
   listAttendanceSubjects,
   listTeacherClassSubjects,
   recordLessonAttendance,
@@ -31,6 +32,11 @@ type CallStudent = {
 type AttendanceEntry = {
   status: AttendanceStatus
   reason: string
+}
+
+type LessonCallState = {
+  recordCount: number
+  status: "a_venir" | "en_cours" | "fait" | "non_fait"
 }
 
 const statusLabels: Record<AttendanceStatus, string> = {
@@ -100,6 +106,7 @@ export default function RegistreAppelPage() {
   const [subjects, setSubjects] = useState<AttendanceSubject[]>([])
   const [students, setStudents] = useState<CallStudent[]>([])
   const [attendance, setAttendance] = useState<Record<string, AttendanceEntry>>({})
+  const [lessonStates, setLessonStates] = useState<Record<string, LessonCallState>>({})
   const [search, setSearch] = useState("")
   const [currentTime, setCurrentTime] = useState(() => new Date())
   const [isLoading, setIsLoading] = useState(false)
@@ -135,6 +142,8 @@ export default function RegistreAppelPage() {
   const selectedSubject = selectedLesson
     ? subjects.find((subject) => subject.id === selectedLesson.matiereId)
     : null
+
+  const selectedLessonState = selectedLesson ? lessonStates[selectedLesson.id] : null
 
   const selectedLessonIsCurrent = useMemo(() => {
     if (!selectedLesson || date !== getLocalDateString(currentTime)) return false
@@ -213,6 +222,7 @@ export default function RegistreAppelPage() {
 
         if (cancelled) return
         setLessons(allowedLessons)
+        void loadLessonStates(allowedLessons)
 
         const selectCurrentLesson = () => {
           const now = new Date()
@@ -241,6 +251,7 @@ export default function RegistreAppelPage() {
         if (!cancelled) {
           setLessons([])
           setSelectedLessonKey("")
+          setLessonStates({})
           setError(err instanceof Error ? err.message : "Impossible de charger l'emploi du temps.")
         }
       }
@@ -251,7 +262,51 @@ export default function RegistreAppelPage() {
       cancelled = true
       if (clock) window.clearInterval(clock)
     }
-  }, [academicYear?.id, canManageAll, date, isTeacher, selectedClass, teacherAssignments])
+  }, [academicYear?.id, canManageAll, date, isTeacher, selectedClass, teacherAssignments, loadLessonStates])
+
+  const loadLessonStates = useCallback(async (lessonList: CreneauEmploiDuTemps[]) => {
+    if (!selectedClassId || !date || !lessonList.length) {
+      setLessonStates({})
+      return
+    }
+
+    try {
+      const records = await listAttendanceForLessons(
+        selectedClassId,
+        date,
+        lessonList.map((lesson) => lesson.id),
+      )
+
+      const recordCounts = new Map<string, number>()
+      records.forEach((record) => {
+        recordCounts.set(record.lesson_key, (recordCounts.get(record.lesson_key) ?? 0) + 1)
+      })
+
+      const now = new Date()
+      const today = getLocalDateString(now)
+      const nowSeconds = getCurrentSeconds(now)
+      const next: Record<string, LessonCallState> = {}
+
+      lessonList.forEach((lesson) => {
+        const recordCount = recordCounts.get(lesson.id) ?? 0
+        const starts = toSeconds(lesson.heureDebut)
+        const ends = toSeconds(lesson.heureFin)
+
+        let status: LessonCallState["status"] = "a_venir"
+        if (date === today && nowSeconds >= starts && nowSeconds < ends) {
+          status = recordCount > 0 ? "fait" : "en_cours"
+        } else if (date !== today || nowSeconds >= ends) {
+          status = recordCount > 0 ? "fait" : "non_fait"
+        }
+
+        next[lesson.id] = { recordCount, status }
+      })
+
+      setLessonStates(next)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de vérifier l'état des appels.")
+    }
+  }, [date, selectedClassId])
 
   const loadCall = useCallback(async () => {
     if (!establishmentId || !academicYear?.id || !selectedClassId || !selectedLesson) {
@@ -468,6 +523,11 @@ export default function RegistreAppelPage() {
                 <span className="text-sm text-slate-500">{lessons.length} créneau{lessons.length > 1 ? "x" : ""}</span>
               </div>
 
+              {Object.values(lessonStates).filter((state) => state.status === "non_fait").length > 0 && (
+                <div className="mb-3 border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                  <span className="font-semibold">Attention :</span> un ou plusieurs cours sont terminés sans appel enregistré.
+                </div>
+              )}
               <div className="overflow-x-auto">
                 <div className="flex min-w-max gap-2">
                   {lessons.map((lesson) => {
@@ -481,6 +541,8 @@ export default function RegistreAppelPage() {
                       >
                         <div className="flex items-center justify-between gap-2 text-xs opacity-70">
                           <span>{lesson.heureDebut}–{lesson.heureFin}</span>
+                          {lessonStates[lesson.id]?.status === "non_fait" && <span className="font-semibold text-red-600">NON FAIT</span>}
+                          {lessonStates[lesson.id]?.status === "fait" && <span className="font-semibold text-green-600">FAIT</span>}
                           {date === getLocalDateString(currentTime) && getCurrentSeconds(currentTime) >= toSeconds(lesson.heureDebut) && getCurrentSeconds(currentTime) < toSeconds(lesson.heureFin) && <span className="font-semibold">EN COURS</span>}
                         </div>
                         <div className="mt-1 font-medium">{lesson.matiere || "Cours"}</div>
@@ -500,7 +562,17 @@ export default function RegistreAppelPage() {
                   {selectedLesson?.heureDebut}–{selectedLesson?.heureFin}{selectedLesson?.salle ? ` · ${selectedLesson.salle}` : ""}
                   {" · "}{counts.total} élève(s)
                 </p>
-                {!selectedLessonIsCurrent && (
+                {selectedLessonState?.status === "non_fait" && (
+                  <div className="mt-2 border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800">
+                    Le cours est terminé et aucun appel n'a été enregistré par l'enseignant.
+                  </div>
+                )}
+                {selectedLessonState?.status === "fait" && (
+                  <div className="mt-2 border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+                    L'appel a été enregistré pour ce cours.
+                  </div>
+                )}
+                {!selectedLessonIsCurrent && selectedLessonState?.status !== "non_fait" && (
                   <p className="mt-1 text-xs text-amber-700">
                     L'appel sera disponible lorsque ce cours sera en cours.
                   </p>

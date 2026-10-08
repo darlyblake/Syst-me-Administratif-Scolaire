@@ -111,9 +111,11 @@ export default function EmploiDuTempsPage() {
           getAcademicYears(establishmentId),
         ])
         if (!active) return
-        setClasses(classRows.map(item => ({ id: item.id, nom: item.nom })))
-        setAcademicYears(years)
-        const current = years.find(year => year.status === "active") ?? null
+        const normalizedClasses = Array.isArray(classRows) ? classRows : []
+        const normalizedYears = Array.isArray(years) ? years : []
+        setClasses(normalizedClasses.map(item => ({ id: item.id, nom: item.nom })))
+        setAcademicYears(normalizedYears)
+        const current = normalizedYears.find(year => year.status === "active") ?? null
         if (current) setSelectedYearId(current.id)
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : "Impossible de charger les données.")
@@ -140,10 +142,13 @@ export default function EmploiDuTempsPage() {
           obtenirAffectationsClasse(establishmentId, selectedClassId),
         ])
         if (!active) return
-        setSlots(nextSlots)
-        setAssignments(nextAssignments)
+        const normalizedSlots = Array.isArray(nextSlots) ? nextSlots : []
+        const normalizedAssignments = Array.isArray(nextAssignments) ? nextAssignments : []
+        setSlots(normalizedSlots)
+        setAssignments(normalizedAssignments)
         setTimeRows(current => {
-          const merged = [...current, ...nextSlots.map(slot => ({ startsAt: slot.starts_at, endsAt: slot.ends_at }))]
+          const currentRows = Array.isArray(current) ? current : []
+          const merged = [...currentRows, ...normalizedSlots.map(slot => ({ startsAt: slot.starts_at, endsAt: slot.ends_at }))]
           const unique = new Map(merged.map(row => [rowKey(row), row]))
           return Array.from(unique.values()).sort((a, b) => a.startsAt.localeCompare(b.startsAt))
         })

@@ -18,6 +18,7 @@ import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import { useEnrollment } from "@/hooks/useEnrollment"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { financeService } from "@/lib/supabase/services/finance.service"
+import { saveStudentGuardianContact } from "@/lib/supabase/services/enrollment.service"
 import type { TuitionPlanInstallment, TuitionPlanWithInstallments } from "@/lib/supabase/types"
 
 interface StudentOption {
@@ -324,6 +325,15 @@ export default function NouvelleInscriptionModal({
 
       setDuplicateStudents([])
       setExistingStudentId(null)
+      await saveStudentGuardianContact({
+        establishmentId,
+        studentId: result.student_id,
+        firstName: parentFirstName,
+        lastName: parentLastName,
+        phone: parentPhone,
+        email: parentEmail,
+        address: parentAddress,
+      })
       setNewEnrollmentId(result.enrollment_id)
       setSubmitted(true)
     } catch (err) {

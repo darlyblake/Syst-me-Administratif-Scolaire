@@ -20,6 +20,23 @@ const nextConfig = {
     unoptimized: true,
   },
   output: 'standalone',
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Permissions-Policy',
+            // On ne liste que les features reconnues par Chrome — on écrase
+            // les headers Vercel qui incluent des features obsolètes/expérimentales
+            // comme attribution-reporting, private-aggregation, join-ad-interest-group, run-ad-auction
+            value: 'camera=(), microphone=(), geolocation=(), fullscreen=(self)',
+          },
+        ],
+      },
+    ]
+  },
 }
 
 module.exports = nextConfig
+

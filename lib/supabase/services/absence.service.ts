@@ -115,6 +115,24 @@ export async function listAttendanceForLesson(classId: string, date: string, les
   return (data ?? []) as LessonAttendanceRecord[]
 }
 
+export async function listAttendanceForLessons(
+  classId: string,
+  date: string,
+  lessonKeys: string[],
+): Promise<LessonAttendanceRecord[]> {
+  if (!lessonKeys.length) return []
+
+  const { data, error } = await supabaseBrowser
+    .from("attendance_records")
+    .select("id, student_id, class_id, attendance_date, status, reason, subject_id, lesson_key")
+    .eq("class_id", classId)
+    .eq("attendance_date", date)
+    .in("lesson_key", lessonKeys)
+
+  if (error) throw new Error("Impossible de vérifier les appels de la journée.")
+  return (data ?? []) as LessonAttendanceRecord[]
+}
+
 export async function listAttendanceSubjects(establishmentId: string): Promise<AttendanceSubject[]> {
   const { data, error } = await supabaseBrowser
     .from("subjects")

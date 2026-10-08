@@ -1407,3 +1407,27 @@
   /* Titre PDF */
   h2 { font-size: 16px; margin-bottom: 8px; }
 }
+
+
+/* Lisibilité des actions bleues dans l'interface École.
+   Certains boutons utilisent des classes Tailwind bleues directement au lieu du composant Button. */
+.ecole-shell button[class*="bg-blue-"],
+.ecole-shell button[class*="bg-[#1e3a8a]"],
+.ecole-shell button[class*="bg-[#1d4ed8]"],
+.ecole-shell button[class*="bg-[#2563eb]"],
+.ecole-shell button[class*="bg-[#1e40af]"],
+.ecole-shell [role="button"][class*="bg-blue-"],
+.ecole-shell [role="button"][class*="bg-[#1e3a8a]"],
+.ecole-shell [role="button"][class*="bg-[#1d4ed8]"],
+.ecole-shell [role="button"][class*="bg-[#2563eb]"],
+.ecole-shell [role="button"][class*="bg-[#1e40af]"] {
+  color: #fff !important;
+}
+
+.ecole-shell button[class*="bg-blue-"] svg,
+.ecole-shell button[class*="bg-[#1e3a8a]"] svg,
+.ecole-shell button[class*="bg-[#1d4ed8]"] svg,
+.ecole-shell button[class*="bg-[#2563eb]"] svg,
+.ecole-shell button[class*="bg-[#1e40af]"] svg {
+  color: #fff !important;
+}

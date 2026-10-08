@@ -98,6 +98,17 @@ begin
     values (new.establishment_id, guardian.guardian_user_id, 'school_document_request', title_text, body_text, 'school_document_request', new.id);
   end loop;
 
+  if tg_op = 'UPDATE' and new.status = 'submitted' and old.status <> 'submitted' then
+    insert into public.notifications(establishment_id, recipient_user_id, type, title, body, entity_type, entity_id)
+    select new.establishment_id, em.user_id, 'school_document_submission',
+      'Document reçu',
+      'Le parent a transmis : ' || new.document_type,
+      'school_document_request', new.id
+    from public.establishment_members em
+    where em.establishment_id = new.establishment_id
+      and em.active = true;
+  end if;
+
   return new;
 end;
 $$;
@@ -106,3 +117,41 @@ drop trigger if exists trg_notify_school_document_request_update on public.schoo
 create trigger trg_notify_school_document_request_update
 after insert or update on public.school_document_requests
 for each row execute function public.notify_school_document_request_update();
+
+
+-- Notify parents when the school publishes a document for their child.
+create or replace function public.notify_parent_on_document_publication()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+declare guardian record;
+begin
+  if new.active = true and (tg_op = 'INSERT' or old.active = false) then
+    for guardian in
+      select guardian_user_id
+      from public.student_guardians
+      where student_id = new.student_id
+        and establishment_id = new.establishment_id
+        and active = true
+        and can_view_academic = true
+    loop
+      insert into public.notifications(establishment_id, recipient_user_id, type, title, body, entity_type, entity_id)
+      select new.establishment_id, guardian.guardian_user_id, 'school_document_published',
+        'Nouveau document disponible',
+        coalesce(new.title_override, d.name) || ' est disponible dans votre espace parent.',
+        'parent_document_publication', new.id
+      from public.documents d
+      where d.id = new.document_id
+      on conflict do nothing;
+    end loop;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_notify_parent_on_document_publication on public.parent_document_publications;
+create trigger trg_notify_parent_on_document_publication
+after insert or update of active on public.parent_document_publications
+for each row execute function public.notify_parent_on_document_publication();

@@ -142,7 +142,12 @@ export default function NouvelleInscriptionModal({
     .filter((o) => selectedOptionIds.has(o.id))
     .reduce((sum, o) => sum + o.amount, 0)
 
-  const totalNow = registrationFee + installmentTotal + optionTotal
+  // Seules les sommes réellement prévues pour un encaissement immédiat familial
+  // apparaissent ici. Une exonération/prise en charge ne doit pas être réclamée au parent.
+  const totalNow =
+    fundingSource === "family" && !waiveRegistration && !waiveTuition
+      ? registrationFee + installmentTotal + optionTotal
+      : 0
 
   // ─── Chargement options depuis Supabase ─────────────────────────────────────
   const loadOptions = useCallback(async () => {
@@ -786,11 +791,40 @@ export default function NouvelleInscriptionModal({
           {step === 4 && selectedPlan && (fundingSource !== "family" || waiveRegistration || waiveTuition) && (
             <div className="space-y-4">
               <h3 className="font-medium text-sm border-b pb-2">Prise en charge financière</h3>
-              <p className="text-sm text-slate-700">L'inscription sera enregistrée sans simuler un encaissement. Les échéances seront affectées selon les règles configurées et les paiements réellement reçus pourront ensuite être saisis dans Finance.</p>
+              <p className="text-sm text-slate-700">L'inscription sera enregistrée sans simuler un encaissement. Les frais couverts ne seront pas réclamés à la famille. Les options scolaires restent consultables et seront suivies séparément dans Finance.</p>
               <div className="divide-y border-y border-slate-200">
                 <div className="flex justify-between gap-4 py-3 text-sm"><span>Frais d'inscription</span><span className="font-medium">{waiveRegistration || fundingSource === "other" ? "Exonérés" : fundingSource === "state" && stateFinanceSettings?.state_covers_registration ? "Pris en charge par l'État" : "À la charge de la famille"}</span></div>
                 <div className="flex justify-between gap-4 py-3 text-sm"><span>Scolarité</span><span className="font-medium">{waiveTuition || fundingSource === "other" ? "Exonérée" : fundingSource === "state" && stateFinanceSettings?.state_covers_tuition ? "Prise en charge par l'État" : "À la charge de la famille"}</span></div>
                 {selectedOptionIds.size > 0 && <div className="flex justify-between gap-4 py-3 text-sm"><span>Options sélectionnées</span><span className="font-medium">À régler séparément</span></div>}
+              </div>
+
+              <div>
+                <p className="text-sm font-medium mb-2">Options scolaires</p>
+                {isLoadingOptions ? (
+                  <p className="text-sm text-slate-500">Chargement des options…</p>
+                ) : availableOptions.length > 0 ? (
+                  <div className="border rounded divide-y text-sm">
+                    {availableOptions.map((opt) => (
+                      <label key={opt.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50">
+                        <Checkbox
+                          checked={selectedOptionIds.has(opt.id)}
+                          onCheckedChange={(checked) => {
+                            setSelectedOptionIds((prev) => {
+                              const next = new Set(prev)
+                              if (checked) next.add(opt.id)
+                              else next.delete(opt.id)
+                              return next
+                            })
+                          }}
+                        />
+                        <span className="flex-1">{opt.name}</span>
+                        <span className="font-medium">{fmt(opt.amount)}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">Aucune option supplémentaire configurée pour cet établissement.</p>
+                )}
               </div>
             </div>
           )}
@@ -1005,7 +1039,7 @@ export default function NouvelleInscriptionModal({
                 </tbody>
               </table>
 
-              {totalNow > 0 && (
+              {totalNow > 0 ? (
                 <div className="border rounded bg-slate-50 p-3">
                   <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">À payer maintenant</p>
                   <div className="space-y-1 text-sm">
@@ -1039,6 +1073,28 @@ export default function NouvelleInscriptionModal({
                     </div>
                   </div>
                 </div>
+              ) : (
+                <div className="border rounded bg-slate-50 p-3 text-sm text-slate-700">
+                  <p className="font-medium">Aucun paiement à encaisser maintenant</p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {fundingSource === "other"
+                      ? "Les frais d'inscription et de scolarité sont affectés à l'exonération / à l'autre organisme."
+                      : fundingSource === "state"
+                        ? "La prise en charge et les éventuels frais restant à la famille seront enregistrés dans les échéances financières."
+                        : "Les frais exonérés ne seront pas réclamés maintenant."}
+                    {" "}Aucun paiement ne sera enregistré automatiquement.
+                  </p>
+                  {selectedOptionIds.size > 0 && (
+                    <div className="mt-3 border-t pt-2">
+                      <p className="text-xs font-medium">Options scolaires sélectionnées</p>
+                      {availableOptions.filter((o) => selectedOptionIds.has(o.id)).map((o) => (
+                        <div key={o.id} className="mt-1 flex justify-between gap-3 text-xs">
+                          <span>{o.name}</span><span>{fmt(o.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -1055,7 +1111,7 @@ export default function NouvelleInscriptionModal({
               Suivant <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           ) : (
-            <Button onClick={handleSubmit} disabled={isSubmitting || !activeYear}>
+            <Button onClick={() => void handleSubmit()} disabled={isSubmitting || !activeYear}>
               {isSubmitting ? "Enregistrement…" : typeInscription === "reinscription" ? "Confirmer la réinscription" : "Confirmer l'inscription"}
             </Button>
           )}

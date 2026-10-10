@@ -148,7 +148,9 @@ export default function NouvelleInscriptionModal({
   // Une exonération partielle ne doit pas effacer les autres frais encore dus.
   const registrationDue = fundingSource === "family" && !waiveRegistration ? registrationFee : 0
   const tuitionDue = fundingSource === "family" && !waiveTuition ? installmentTotal : 0
-  const optionsDue = fundingSource === "family" ? optionTotal : 0
+  // Les options choisies restent à la charge de la famille, même si la scolarité
+  // ou les frais d'inscription sont exonérés / pris en charge par un organisme.
+  const optionsDue = optionTotal
   const totalNow = registrationDue + tuitionDue + optionsDue
 
   // ─── Chargement options depuis Supabase ─────────────────────────────────────
@@ -838,8 +840,27 @@ export default function NouvelleInscriptionModal({
               <div className="divide-y border-y border-slate-200">
                 <div className="flex justify-between gap-4 py-3 text-sm"><span>Frais d'inscription</span><span className="font-medium">{waiveRegistration || fundingSource === "other" ? "Exonérés" : fundingSource === "state" && stateFinanceSettings?.state_covers_registration ? "Pris en charge par l'État" : "À la charge de la famille"}</span></div>
                 <div className="flex justify-between gap-4 py-3 text-sm"><span>Scolarité</span><span className="font-medium">{waiveTuition || fundingSource === "other" ? "Exonérée" : fundingSource === "state" && stateFinanceSettings?.state_covers_tuition ? "Prise en charge par l'État" : "À la charge de la famille"}</span></div>
-                {selectedOptionIds.size > 0 && <div className="flex justify-between gap-4 py-3 text-sm"><span>Options sélectionnées</span><span className="font-medium">À régler séparément</span></div>}
+                {selectedOptionIds.size > 0 && (
+                  <div className="py-3 text-sm">
+                    <div className="flex justify-between gap-4 font-medium">
+                      <span>Options scolaires à payer par la famille</span><span>{fmt(optionsDue)}</span>
+                    </div>
+                    {availableOptions.filter((o) => selectedOptionIds.has(o.id)).map((o) => (
+                      <div key={o.id} className="mt-1 flex justify-between gap-3 pl-2 text-xs text-slate-600">
+                        <span>{o.name}</span><span>{fmt(o.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+              {selectedOptionIds.size > 0 && (
+                <div className="border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  <div className="flex justify-between gap-3 font-semibold">
+                    <span>Total des options à payer</span><span>{fmt(optionsDue)}</span>
+                  </div>
+                  <p className="mt-1 text-xs">L'exonération de la scolarité ne couvre pas les options sélectionnées. Leur montant reste dû par la famille et sera suivi dans Finance.</p>
+                </div>
+              )}
 
               <div>
                 <p className="text-sm font-medium mb-2">Options scolaires</p>
@@ -851,10 +872,12 @@ export default function NouvelleInscriptionModal({
                       <label key={opt.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50">
                         <Checkbox
                           checked={selectedOptionIds.has(opt.id)}
+                          className="bg-white border-slate-400 data-[state=unchecked]:bg-white data-[state=unchecked]:border-slate-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                           onCheckedChange={(checked) => {
+                            const isChecked = checked === true
                             setSelectedOptionIds((prev) => {
                               const next = new Set(prev)
-                              if (checked) next.add(opt.id)
+                              if (isChecked) next.add(opt.id)
                               else next.delete(opt.id)
                               return next
                             })

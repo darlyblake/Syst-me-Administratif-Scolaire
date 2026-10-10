@@ -144,10 +144,12 @@ export default function NouvelleInscriptionModal({
 
   // Seules les sommes réellement prévues pour un encaissement immédiat familial
   // apparaissent ici. Une exonération/prise en charge ne doit pas être réclamée au parent.
-  const totalNow =
-    fundingSource === "family" && !waiveRegistration && !waiveTuition
-      ? registrationFee + installmentTotal + optionTotal
-      : 0
+  // Calculer uniquement les montants réellement dus par la famille.
+  // Une exonération partielle ne doit pas effacer les autres frais encore dus.
+  const registrationDue = fundingSource === "family" && !waiveRegistration ? registrationFee : 0
+  const tuitionDue = fundingSource === "family" && !waiveTuition ? installmentTotal : 0
+  const optionsDue = fundingSource === "family" ? optionTotal : 0
+  const totalNow = registrationDue + tuitionDue + optionsDue
 
   // ─── Chargement options depuis Supabase ─────────────────────────────────────
   const loadOptions = useCallback(async () => {
@@ -275,6 +277,9 @@ export default function NouvelleInscriptionModal({
 
   // ─── Soumission ──────────────────────────────────────────────────────────────
   const handleSubmit = async (studentIdOverride?: string) => {
+    // Un clic React transmet un événement ; ne jamais le traiter comme un identifiant
+    // ni laisser un objet DOM atteindre les données envoyées à Supabase.
+    const safeStudentIdOverride = typeof studentIdOverride === "string" ? studentIdOverride : undefined
     if (!activeYear) {
       toast.error("Aucune année scolaire active. Configurez l'année dans Paramètres → Années académiques.")
       return
@@ -287,7 +292,7 @@ export default function NouvelleInscriptionModal({
     // Une réinscription sélectionnée depuis la page dédiée utilise déjà
     // le dossier existant. Pour une nouvelle inscription, on vérifie
     // l'identité avant de créer un nouvel élève.
-    if (typeInscription === "inscription" && !studentId && !studentIdOverride && !existingStudentId) {
+    if (typeInscription === "inscription" && !studentId && !safeStudentIdOverride && !existingStudentId) {
       setCheckingDuplicate(true)
       try {
         const duplicate = await findDuplicateStudentForEnrollment({
@@ -314,7 +319,7 @@ export default function NouvelleInscriptionModal({
       // La RPC crée l'élève et l'inscription dans la même transaction.
       // Le contrôle SQL empêche également un doublon en cas de validation
       // simultanée depuis plusieurs postes.
-      const finalStudentId = studentIdOverride ?? existingStudentId ?? studentId ?? null
+      const finalStudentId = safeStudentIdOverride ?? existingStudentId ?? studentId ?? null
 
       const result = await createStudentEnrollment({
         establishmentId,
@@ -679,6 +684,44 @@ export default function NouvelleInscriptionModal({
                   </p>
                 )}
               </div>
+
+              <section className="space-y-2 border border-[#d7dae3] p-3">
+                <div>
+                  <h4 className="text-sm font-medium">Options scolaires</h4>
+                  <p className="text-xs text-slate-500">Sélectionnez ici les options à associer à l'élève. Elles restent distinctes des frais d'inscription et de scolarité.</p>
+                </div>
+                {isLoadingOptions ? (
+                  <p className="text-sm text-slate-500">Chargement des options…</p>
+                ) : availableOptions.length > 0 ? (
+                  <div className="divide-y border text-sm">
+                    {availableOptions.map((opt) => (
+                      <label key={opt.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50">
+                        <Checkbox
+                          checked={selectedOptionIds.has(opt.id)}
+                          onCheckedChange={(checked) => {
+                            const isChecked = checked === true
+                            setSelectedOptionIds((prev) => {
+                              const next = new Set(prev)
+                              if (isChecked) next.add(opt.id)
+                              else next.delete(opt.id)
+                              return next
+                            })
+                          }}
+                        />
+                        <span className="flex-1">{opt.name}</span>
+                        <span className="font-medium">{fmt(opt.amount)}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">Aucune option active n'est configurée dans cet établissement. Vérifiez Paramètres → Scolarité.</p>
+                )}
+                {selectedOptionIds.size > 0 && (
+                  <p className="text-xs font-medium text-slate-700">
+                    {selectedOptionIds.size} option(s) sélectionnée(s) — {fmt(optionTotal)}
+                  </p>
+                )}
+              </section>
 
               {!activeYear && !isYearLoading && (
                 <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">

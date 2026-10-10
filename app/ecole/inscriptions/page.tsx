@@ -44,6 +44,7 @@ type Row = {
   parentPhone: string
   parentEmail: string
   parentRelationship: string
+  fundingSource: "family" | "state" | "other"
 }
 
 export default function InscriptionsPage() {
@@ -111,6 +112,7 @@ export default function InscriptionsPage() {
       parentPhone: raw.linked_guardian_phone ?? raw.guardian_phone ?? "",
       parentEmail: raw.linked_guardian_email ?? raw.guardian_email ?? "",
       parentRelationship: raw.linked_guardian_relationship ?? raw.guardian_relationship ?? "Parent",
+      fundingSource: raw.funding_source === "state" || raw.funding_source === "other" ? raw.funding_source : "family",
     }
   }), [enrollments, classMap, activeYear?.name])
 
@@ -340,7 +342,7 @@ export default function InscriptionsPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1040px] border-collapse text-left">
+          <table className="w-full min-w-[1160px] border-collapse text-left">
             <thead>
               <tr className="border-b border-[#c5c5d3]/50 bg-[#eaedff]">
                 {[
@@ -348,6 +350,7 @@ export default function InscriptionsPage() {
                   ["Dépôt", "w-32"],
                   ["Futur élève", ""],
                   ["Niveau / classe", "w-32"],
+                  ["Prise en charge", "w-40"],
                   ["Responsable", ""],
                   ["Frais dossier", "w-32"],
                   ["Statut dossier", "w-40"],
@@ -373,6 +376,11 @@ export default function InscriptionsPage() {
                     <td className="px-3 py-2">
                       <span className="inline-flex border border-[#c5c5d3]/40 bg-[#eaedff] px-1.5 py-0.5 text-[11px] font-medium">
                         {row.className}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className={`inline-flex border px-2 py-0.5 text-[11px] font-medium ${row.fundingSource === "state" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : row.fundingSource === "other" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-[#c5c5d3]/60 bg-white text-[#515f74]"}`}>
+                        {row.fundingSource === "state" ? "État" : row.fundingSource === "other" ? "Exonération / organisme" : "Famille"}
                       </span>
                     </td>
                     <td className="px-3 py-2">

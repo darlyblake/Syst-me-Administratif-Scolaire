@@ -90,6 +90,7 @@ export default function ParentChildren() {
                 <div>
                   <p className="text-xs text-pierre sm:hidden">Classe</p>
                   <p className="text-sm text-slate-700">{child.class_name ?? "Classe non attribuée"}</p>
+                  {child.funding_source && <p className="mt-1 text-xs text-slate-500">{child.funding_source === "state" ? "Prise en charge État" : child.funding_source === "other" ? "Exonération / organisme" : "À la charge de la famille"}</p>}
                 </div>
 
                 <div>
@@ -134,6 +135,7 @@ export default function ParentChildren() {
               <div className="divide-y divide-slate-200 border-y border-slate-200">
                 <DetailRow label="Matricule" value={selectedChild.student_number ?? "Non renseigné"} />
                 <DetailRow label="Classe" value={selectedChild.class_name ?? "Non attribuée"} />
+                <DetailRow label="Prise en charge" value={selectedChild.funding_source === "state" ? "État" : selectedChild.funding_source === "other" ? "Exonération / autre organisme" : selectedChild.funding_source === "family" ? "Famille" : "Non renseignée"} />
                 <DetailRow label="Statut" value={selectedChild.active ? "Actif" : "Inactif"} />
                 {selectedChild.phone && <DetailRow label="Téléphone" value={selectedChild.phone} icon={<Phone className="h-4 w-4" />} />}
                 {selectedChild.email && <DetailRow label="E-mail" value={selectedChild.email} icon={<Mail className="h-4 w-4" />} />}

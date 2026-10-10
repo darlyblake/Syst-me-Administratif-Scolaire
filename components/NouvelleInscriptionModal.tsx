@@ -19,6 +19,7 @@ import { useEnrollment } from "@/hooks/useEnrollment"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { financeService } from "@/lib/supabase/services/finance.service"
 import { saveStudentGuardianContact } from "@/lib/supabase/services/enrollment.service"
+import { getStateFinanceSettings, type StateFinanceSettings } from "@/lib/supabase/services/state-financing.service"
 import type { TuitionPlanInstallment, TuitionPlanWithInstallments } from "@/lib/supabase/types"
 
 interface StudentOption {
@@ -72,6 +73,11 @@ export default function NouvelleInscriptionModal({
   const [existingStudentId, setExistingStudentId] = useState<string | null>(null)
   const [duplicateStudents, setDuplicateStudents] = useState<DuplicateStudentCandidate[]>([])
   const [checkingDuplicate, setCheckingDuplicate] = useState(false)
+  const [fundingSource, setFundingSource] = useState<"family" | "state" | "other">("family")
+  const [waiveRegistration, setWaiveRegistration] = useState(false)
+  const [waiveTuition, setWaiveTuition] = useState(false)
+  const [stateFinanceSettings, setStateFinanceSettings] = useState<StateFinanceSettings | null>(null)
+  const [stateSettingsError, setStateSettingsError] = useState<string | null>(null)
 
   // ─── Données élève ──────────────────────────────────────────────────────────
   const [lastName, setLastName] = useState("")
@@ -160,6 +166,15 @@ export default function NouvelleInscriptionModal({
   useEffect(() => {
     if (isOpen) loadOptions()
   }, [isOpen, loadOptions])
+
+  useEffect(() => {
+    if (!isOpen || !establishmentId) return
+    let cancelled = false
+    getStateFinanceSettings(establishmentId)
+      .then((settings) => { if (!cancelled) { setStateFinanceSettings(settings); setStateSettingsError(null) } })
+      .catch(() => { if (!cancelled) { setStateFinanceSettings(null); setStateSettingsError("Les règles de prise en charge ne sont pas disponibles. Vérifiez Paramètres → Scolarité.") } })
+    return () => { cancelled = true }
+  }, [isOpen, establishmentId])
 
   // ─── Vérification des impayés des années précédentes ─────────────────────────
   useEffect(() => {
@@ -315,7 +330,10 @@ export default function NouvelleInscriptionModal({
           selectedPlan.payment_mode === "single"
             ? (paySingleTuitionNow && installments[0] ? [installments[0].id] : [])
             : Array.from(selectedInstallmentIds),
-        payOptions: selectedOptionIds.size > 0,
+        payOptions: fundingSource === "family" && !waiveRegistration && !waiveTuition && selectedOptionIds.size > 0,
+        fundingSource,
+        waiveRegistration,
+        waiveTuition,
       })
 
       if (!result) {
@@ -350,6 +368,7 @@ export default function NouvelleInscriptionModal({
     setSelectedCycleId(""); setSelectedLevelId(""); setSelectedClassId("")
     setSelectedInstallmentIds(new Set()); setSelectedOptionIds(new Set())
     setPaySingleTuitionNow(false)
+    setFundingSource("family"); setWaiveRegistration(false); setWaiveTuition(false)
     setBirthCertificate(null); setMedicalCertificate(null)
     onClose()
   }
@@ -613,7 +632,48 @@ export default function NouvelleInscriptionModal({
           {/* ── Étape 3 : Scolarité ──────────────────────────────────────────── */}
           {step === 3 && (
             <div className="space-y-5">
-              <h3 className="font-medium text-sm border-b pb-2">Scolarité</h3>
+              <h3 className="font-medium text-sm border-b pb-2">Scolarité et prise en charge</h3>
+
+              <div className="space-y-3 border border-[#d7dae3] p-3">
+                <div>
+                  <Label>Qui prend en charge les frais de l'élève ?</Label>
+                  <Select value={fundingSource} onValueChange={(value) => setFundingSource(value as "family" | "state" | "other")}>
+                    <SelectTrigger><SelectValue placeholder="Choisir la prise en charge" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="family">Famille — paiement normal</SelectItem>
+                      {stateFinanceSettings?.state_students_enabled && <SelectItem value="state">Élève envoyé / pris en charge par l'État</SelectItem>}
+                      <SelectItem value="other">Exonération ou autre organisme</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {stateSettingsError && <p className="mt-1 text-xs text-amber-700">{stateSettingsError}</p>}
+                  {fundingSource === "state" && stateFinanceSettings && (
+                    <p className="mt-2 text-xs text-slate-600">
+                      Selon les paramètres de l'établissement, l'État couvre {[
+                        stateFinanceSettings.state_covers_registration ? "les frais d'inscription" : null,
+                        stateFinanceSettings.state_covers_tuition ? "la scolarité" : null,
+                      ].filter(Boolean).join(" et ") || "aucun de ces deux frais"}. Les autres frais restent à la charge de la famille.
+                    </p>
+                  )}
+                </div>
+                {fundingSource !== "other" && (
+                  <div className="space-y-2 border-t border-slate-200 pt-3">
+                    <p className="text-xs font-medium text-slate-700">Exonérations particulières pour cet élève</p>
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={waiveRegistration} onCheckedChange={(checked) => setWaiveRegistration(!!checked)} />
+                      Exonérer les frais d'inscription / réinscription
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={waiveTuition} onCheckedChange={(checked) => setWaiveTuition(!!checked)} />
+                      Exonérer la scolarité
+                    </label>
+                  </div>
+                )}
+                {(fundingSource !== "family" || waiveRegistration || waiveTuition) && (
+                  <p className="text-xs text-slate-600">
+                    Les échéances seront créées avec leur responsable de paiement. Les paiements immédiats se feront ensuite dans Finance afin de ne pas enregistrer par erreur un paiement non encaissé.
+                  </p>
+                )}
+              </div>
 
               {!activeYear && !isYearLoading && (
                 <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
@@ -723,7 +783,18 @@ export default function NouvelleInscriptionModal({
           )}
 
           {/* ── Étape 4 : Paiement ───────────────────────────────────────────── */}
-          {step === 4 && selectedPlan && (
+          {step === 4 && selectedPlan && (fundingSource !== "family" || waiveRegistration || waiveTuition) && (
+            <div className="space-y-4">
+              <h3 className="font-medium text-sm border-b pb-2">Prise en charge financière</h3>
+              <p className="text-sm text-slate-700">L'inscription sera enregistrée sans simuler un encaissement. Les échéances seront affectées selon les règles configurées et les paiements réellement reçus pourront ensuite être saisis dans Finance.</p>
+              <div className="divide-y border-y border-slate-200">
+                <div className="flex justify-between gap-4 py-3 text-sm"><span>Frais d'inscription</span><span className="font-medium">{waiveRegistration || fundingSource === "other" ? "Exonérés" : fundingSource === "state" && stateFinanceSettings?.state_covers_registration ? "Pris en charge par l'État" : "À la charge de la famille"}</span></div>
+                <div className="flex justify-between gap-4 py-3 text-sm"><span>Scolarité</span><span className="font-medium">{waiveTuition || fundingSource === "other" ? "Exonérée" : fundingSource === "state" && stateFinanceSettings?.state_covers_tuition ? "Prise en charge par l'État" : "À la charge de la famille"}</span></div>
+                {selectedOptionIds.size > 0 && <div className="flex justify-between gap-4 py-3 text-sm"><span>Options sélectionnées</span><span className="font-medium">À régler séparément</span></div>}
+              </div>
+            </div>
+          )}
+          {step === 4 && selectedPlan && fundingSource === "family" && !waiveRegistration && !waiveTuition && (
             <div className="space-y-5">
               <h3 className="font-medium text-sm border-b pb-2">Paiement</h3>
 

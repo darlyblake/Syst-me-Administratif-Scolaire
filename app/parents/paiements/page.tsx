@@ -110,8 +110,13 @@ export default function ParentPaiements() {
         ? "Mode selon le niveau de chaque enfant"
         : paymentModeLabel()
 
-  const due = schedules.reduce((sum, schedule) => sum + schedule.amount_due, 0)
-  const paid = schedules.reduce((sum, schedule) => sum + schedule.amount_paid, 0)
+  const familySchedules = schedules.filter((schedule) => (schedule.payer_type ?? "family") === "family")
+  const stateSchedules = schedules.filter((schedule) => schedule.payer_type === "state")
+  const otherSchedules = schedules.filter((schedule) => schedule.payer_type === "other")
+  const due = familySchedules.reduce((sum, schedule) => sum + schedule.amount_due, 0)
+  const paid = familySchedules.reduce((sum, schedule) => sum + schedule.amount_paid, 0)
+  const stateCovered = stateSchedules.reduce((sum, schedule) => sum + schedule.amount_due, 0)
+  const exempted = otherSchedules.reduce((sum, schedule) => sum + schedule.amount_due, 0)
 
   return (
     <div className="space-y-7">
@@ -153,13 +158,19 @@ export default function ParentPaiements() {
                   Payé <strong className="text-emerald-700">{money(paid)}</strong>
                 </span>
                 <span>
-                  Reste{" "}
-                  <strong className="text-slate-900">
-                    {money(Math.max(due - paid, 0))}
-                  </strong>
+                  Reste à charge familial{" "}
+                  <strong className="text-slate-900">{money(Math.max(due - paid, 0))}</strong>
                 </span>
               </div>
             </div>
+
+            {(stateCovered > 0 || exempted > 0) && (
+              <p className="text-xs text-slate-500">
+                {stateCovered > 0 && <>Montant pris en charge par l’État : <strong className="text-slate-800">{money(stateCovered)}</strong>. </>}
+                {exempted > 0 && <>Montant exonéré ou couvert par un autre organisme : <strong className="text-slate-800">{money(exempted)}</strong>.</>}
+                Ces montants ne sont pas ajoutés à la dette de la famille.
+              </p>
+            )}
 
             {selectedChildren.length === 1 && (
               <p className="text-sm text-slate-500">
@@ -234,22 +245,16 @@ export default function ParentPaiements() {
                   </thead>
                   <tbody className="divide-y divide-terre/10">
                     {tuitionSchedules.map((schedule) => {
-                      const rest = Math.max(schedule.amount_due - schedule.amount_paid, 0)
-                      const status =
-                        schedule.status === "paid" || rest === 0
-                          ? "Payée"
-                          : schedule.amount_paid > 0
-                            ? "Partielle"
-                            : new Date(schedule.due_date) < new Date()
-                              ? "En retard"
-                              : "À venir"
+                      const payer = schedule.payer_type ?? "family"
+                      const rest = payer === "family" ? Math.max(schedule.amount_due - schedule.amount_paid, 0) : 0
+                      const status = payer === "state" ? "Prise en charge État" : payer === "other" ? "Exonérée / autre organisme" : schedule.status === "paid" || rest === 0 ? "Payée" : schedule.amount_paid > 0 ? "Partielle" : new Date(schedule.due_date) < new Date() ? "En retard" : "À venir"
                       return (
                         <tr key={schedule.id}>
-                          <td className="px-4 py-3 font-medium text-slate-900">{frenchLabel(schedule.label)}</td>
+                          <td className="px-4 py-3 font-medium text-slate-900">{frenchLabel(schedule.label)}{payer !== "family" && <span className="mt-1 block text-xs font-normal text-slate-500">{payer === "state" ? "Payeur : État" : "Exonération / autre organisme"}</span>}</td>
                           <td className="px-4 py-3">{new Date(schedule.due_date).toLocaleDateString("fr-FR")}</td>
                           <td className="px-4 py-3">{money(schedule.amount_due)}</td>
-                          <td className="px-4 py-3 text-emerald-700">{money(schedule.amount_paid)}</td>
-                          <td className="px-4 py-3 font-semibold">{money(rest)}</td>
+                          <td className="px-4 py-3 text-emerald-700">{payer === "family" ? money(schedule.amount_paid) : "—"}</td>
+                          <td className="px-4 py-3 font-semibold">{payer === "family" ? money(rest) : "—"}</td>
                           <td className={"px-4 py-3 font-medium " + statusClass(status)}>{status}</td>
                         </tr>
                       )

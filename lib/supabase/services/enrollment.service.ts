@@ -64,8 +64,11 @@ export async function createStudentEnrollmentWithSchedule(data: {
   optionIds?: string[]
   paidInstallmentIds?: string[]
   payOptions?: boolean
+  fundingSource?: "family" | "state" | "other"
+  waiveRegistration?: boolean
+  waiveTuition?: boolean
 }): Promise<StudentEnrollmentResult> {
-  const { data: result, error } = await supabaseBrowser.rpc("create_student_enrollment_with_schedule", {
+  const { data: result, error } = await supabaseBrowser.rpc("create_student_enrollment_with_funding", {
     p_establishment_id: data.establishmentId,
     p_student_id: data.studentId || null,
     p_academic_year_id: data.academicYearId,
@@ -82,6 +85,9 @@ export async function createStudentEnrollmentWithSchedule(data: {
     p_option_ids: data.optionIds || [],
     p_paid_installment_ids: data.paidInstallmentIds || [],
     p_pay_options: data.payOptions ?? false,
+    p_funding_source: data.fundingSource ?? "family",
+    p_waive_registration: data.waiveRegistration ?? false,
+    p_waive_tuition: data.waiveTuition ?? false,
   })
 
   if (error) throw new Error(error.message || "Impossible d'enregistrer l'inscription.")

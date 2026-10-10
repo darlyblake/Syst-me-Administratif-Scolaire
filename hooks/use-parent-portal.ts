@@ -3,7 +3,7 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 
-export type ParentChild = { id:string; establishment_id:string; student_number:string|null; first_name:string; last_name:string; birth_date:string|null; sex:string|null; phone:string|null; email:string|null; active:boolean; can_view_academic:boolean; can_view_finance:boolean; relationship:string|null; class_name?:string; class_id?:string; level_name?:string; level_code?:string; cycle_name?:string; enrollment_id?:string; academic_year_id?:string; academic_year_name?:string; payment_mode?:string; installment_count?:number }
+export type ParentChild = { id:string; establishment_id:string; student_number:string|null; first_name:string; last_name:string; birth_date:string|null; sex:string|null; phone:string|null; email:string|null; active:boolean; can_view_academic:boolean; can_view_finance:boolean; relationship:string|null; class_name?:string; class_id?:string; level_name?:string; level_code?:string; cycle_name?:string; enrollment_id?:string; academic_year_id?:string; academic_year_name?:string; payment_mode?:string; installment_count?:number; funding_source?:"family"|"state"|"other" }
 export type ParentGrade = { id:string; student_id:string; score:number; comment:string|null; assessment_id:string; title?:string; assessment_date?:string; term?:string; max_score?:number; subject?:string }
 export type ParentPayment = { id:string; enrollment_id:string; amount:number; payment_date:string; reference:string|null; method:string|null; notes:string|null; category?:string|null; payer_type?:string|null }
 export type ParentAttendance = { id:string; student_id:string; attendance_date:string; status:string; reason:string|null; lesson_key:string|null; subject_id:string|null }
@@ -69,7 +69,7 @@ function useParentPortalState() {
         setChildren([]);setGrades([]);setPayments([]);setAttendance([]);setJustificationRequests([]);setEvents([]);setPaymentSchedules([]);setPaymentAllocations([]);setEnrollmentOptions([]);setTimetable([]);setLessons([]);setHomework([]);setDocuments([]);return
       }
 
-      const {data:er,error:enrollmentError}=await supabaseBrowser.from("enrollments").select("id,student_id,class_id,status,tuition_plan_id,academic_year_id").in("student_id",studentIds).eq("status","active").limit(200)
+      const {data:er,error:enrollmentError}=await supabaseBrowser.from("enrollments").select("id,student_id,class_id,status,tuition_plan_id,academic_year_id,funding_source").in("student_id",studentIds).eq("status","active").limit(200)
       if(enrollmentError) throw enrollmentError
       const enrollments=er??[]
       const classIds=[...new Set(enrollments.map(x=>x.class_id).filter(Boolean))]
@@ -142,6 +142,7 @@ function useParentPortalState() {
           level_code:level?.code??s.level_code,
           cycle_name:level?.cycle_id?cycleMap.get(level.cycle_id)??s.cycle_name:s.cycle_name,
           enrollment_id:enrollment?.id??s.enrollment_id,
+          funding_source:enrollment?.funding_source??s.funding_source,
           academic_year_id:enrollment?.academic_year_id??s.academic_year_id,
           academic_year_name:enrollment?.academic_year_id?academicYearMap.get(enrollment.academic_year_id)??s.academic_year_name:s.academic_year_name,
           payment_mode:plan?.payment_mode??s.payment_mode,
@@ -182,7 +183,7 @@ function useParentPortalState() {
       if(paymentsR.error) console.warn("Parent payments query:", paymentsR.error)
       const paymentIds=(paymentsR.data??[]).map(x=>x.id)
       const [psr,par,eor,tsr,tlr,thr,pdr,sdr]=await Promise.all([
-        financeEnrollmentIds.length?supabaseBrowser.from("payment_schedules").select("id,enrollment_id,installment_number,label,due_date,amount_due,amount_paid,status,category").in("enrollment_id",financeEnrollmentIds).order("due_date"):Promise.resolve({data:[],error:null}),
+        financeEnrollmentIds.length?supabaseBrowser.from("payment_schedules").select("id,enrollment_id,installment_number,label,due_date,amount_due,amount_paid,status,category,payer_type").in("enrollment_id",financeEnrollmentIds).order("due_date"):Promise.resolve({data:[],error:null}),
         paymentIds.length?supabaseBrowser.from("payment_allocations").select("id,payment_id,payment_schedule_id,amount,created_at").in("payment_id",paymentIds):Promise.resolve({data:[],error:null}),
         financeEnrollmentIds.length?supabaseBrowser.from("enrollment_options").select("id,enrollment_id,option_id,amount").in("enrollment_id",financeEnrollmentIds):Promise.resolve({data:[],error:null}),
         // Emploi du temps : filtre directement par class_id (connus depuis les enrollments)

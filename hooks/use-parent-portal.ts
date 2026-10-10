@@ -183,7 +183,7 @@ function useParentPortalState() {
       if(paymentsR.error) console.warn("Parent payments query:", paymentsR.error)
       const paymentIds=(paymentsR.data??[]).map(x=>x.id)
       const [psr,par,eor,tsr,tlr,thr,pdr,sdr]=await Promise.all([
-        financeEnrollmentIds.length?supabaseBrowser.from("payment_schedules").select("id,enrollment_id,installment_number,label,due_date,amount_due,amount_paid,status,category").in("enrollment_id",financeEnrollmentIds).order("due_date"):Promise.resolve({data:[],error:null}),
+        financeEnrollmentIds.length?supabaseBrowser.from("payment_schedules").select("id,enrollment_id,installment_number,label,due_date,amount_due,amount_paid,status,category,payer_type").in("enrollment_id",financeEnrollmentIds).order("due_date"):Promise.resolve({data:[],error:null}),
         paymentIds.length?supabaseBrowser.from("payment_allocations").select("id,payment_id,payment_schedule_id,amount,created_at").in("payment_id",paymentIds):Promise.resolve({data:[],error:null}),
         financeEnrollmentIds.length?supabaseBrowser.from("enrollment_options").select("id,enrollment_id,option_id,amount").in("enrollment_id",financeEnrollmentIds):Promise.resolve({data:[],error:null}),
         // Emploi du temps : filtre directement par class_id (connus depuis les enrollments)

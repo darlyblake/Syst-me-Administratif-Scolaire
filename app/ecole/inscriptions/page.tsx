@@ -72,6 +72,7 @@ export default function InscriptionsPage() {
     status: filterStatut || null,
     refreshKey,
     search,
+    fetchAll: period !== "all",
   })
 
   const { total: allMatchingTotal } = useEnrollments({
@@ -138,7 +139,7 @@ export default function InscriptionsPage() {
     [academicStructure],
   )
 
-  const visibleRows = useMemo(() => {
+  const periodFilteredRows = useMemo(() => {
     if (period === "all") return rows
     const now = new Date()
     const start = new Date(now)
@@ -153,6 +154,13 @@ export default function InscriptionsPage() {
       return !Number.isNaN(date.getTime()) && date >= start && date <= now
     })
   }, [rows, period])
+
+  const visibleRows = useMemo(
+    () => period === "all" ? periodFilteredRows : periodFilteredRows.slice((page - 1) * 25, page * 25),
+    [period, periodFilteredRows, page],
+  )
+  const displayedTotal = period === "all" ? total : periodFilteredRows.length
+  const displayedTotalPages = period === "all" ? totalPages : Math.ceil(periodFilteredRows.length / 25)
 
   const activeCount = activeMatchingTotal
   const inactiveCount = Math.max(0, allMatchingTotal - activeMatchingTotal)
@@ -474,7 +482,7 @@ export default function InscriptionsPage() {
           <div className="px-4 py-14 text-center">
             <XCircle className="mx-auto h-8 w-8 text-[#68758a]" />
             <p className="mt-2 text-[12px] font-medium text-[#131b2e]">Aucune inscription trouvée</p>
-            <p className="mt-1 text-[11px] text-[#515f74]">{period !== "all" ? "Aucune inscription ne correspond à la période choisie sur cette page." : "Modifiez les filtres ou créez un nouveau dossier."}</p>
+            <p className="mt-1 text-[11px] text-[#515f74]">{period !== "all" ? "Aucune inscription ne correspond à la période choisie." : "Modifiez les filtres ou créez un nouveau dossier."}</p>
             <button
               type="button"
               onClick={openInscription}
@@ -488,7 +496,7 @@ export default function InscriptionsPage() {
 
         <div className="flex flex-col gap-2 border-t border-[#c5c5d3]/40 px-3 py-2 text-[11px] text-[#515f74] sm:flex-row sm:items-center sm:justify-between">
           <span>
-            Affichage de {visibleRows.length ? ((page - 1) * 25) + 1 : 0} à {((page - 1) * 25) + visibleRows.length} sur {total} inscriptions
+            Affichage de {visibleRows.length ? ((page - 1) * 25) + 1 : 0} à {((page - 1) * 25) + visibleRows.length} sur {displayedTotal} inscriptions
           </span>
           <div className="flex items-center gap-1.5">
             <span>Lignes :</span>
@@ -502,12 +510,12 @@ export default function InscriptionsPage() {
             >
               Précédent
             </Button>
-            <span className="inline-flex h-7 min-w-7 items-center justify-center bg-[#00236f] px-2 text-[11px] font-medium text-white">{page}</span>
+            <span className="inline-flex h-7 min-w-7 items-center justify-center bg-[#00236f] px-2 text-[11px] font-medium text-white">{page} / {Math.max(displayedTotalPages, 1)}</span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-              disabled={page >= totalPages || totalPages === 0}
+              onClick={() => setPage((value) => Math.min(displayedTotalPages, value + 1))}
+              disabled={page >= displayedTotalPages || displayedTotalPages === 0}
               className="h-7 rounded px-2 text-[11px]"
             >
               Suivant

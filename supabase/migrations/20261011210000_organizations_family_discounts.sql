@@ -210,7 +210,7 @@ begin
     order by r.min_children desc,(r.academic_year_id is not null) desc,r.created_at desc limit 1;
 
     if v_rule.id is not null then
-      for v_schedule in select * from public.payment_schedules ps where ps.enrollment_id=v_enrollment_id and ps.category='tuition' and ps.payer_type='family' order by ps.installment_number for update loop
+      for v_schedule in select * from public.payment_schedules ps where ps.enrollment_id=v_enrollment_id and ps.category = any(v_rule.applies_to_categories) and ps.payer_type='family' order by ps.installment_number for update loop
         v_original:=v_schedule.amount_due;
         v_discount:=case when v_rule.discount_type='percentage' then round(v_original*v_rule.discount_value/100,2) else least(v_original,v_rule.discount_value) end;
         v_net:=greatest(v_original-v_discount,0);
@@ -357,8 +357,10 @@ create or replace view public.v_finance_student_payment_board as
 select e.id as enrollment_id,e.establishment_id,e.student_id,e.class_id,e.academic_year_id,e.funding_source,e.state_expected_amount,e.parent_payable_amount,
   ps.id as schedule_id,ps.installment_number,ps.label,ps.due_date,ps.amount_due,ps.amount_paid,greatest(ps.amount_due-ps.amount_paid,0::numeric) as remaining_amount,ps.status,
   case when ps.status='paid' then 'paid'::text when ps.amount_paid>0 then case when current_date>ps.due_date then 'partial_late'::text else 'partial'::text end when current_date>ps.due_date then 'late'::text else 'pending'::text end as payment_state,
-  current_date-ps.due_date as days_overdue,ps.category
-from public.enrollments e join public.payment_schedules ps on ps.enrollment_id=e.id where ps.payer_type='family';
+  current_date-ps.due_date as days_overdue,ps.category,s.first_name,s.last_name,s.student_number,c.name as class_name
+from public.enrollments e join public.payment_schedules ps on ps.enrollment_id=e.id
+join public.students s on s.id=e.student_id join public.school_classes c on c.id=e.class_id
+where ps.payer_type='family';
 
 create or replace view public.v_finance_organization_coverage_board with (security_invoker=true) as
 select e.id as enrollment_id,e.establishment_id,e.student_id,e.class_id,e.academic_year_id,e.funding_source,e.state_expected_amount,e.parent_payable_amount,

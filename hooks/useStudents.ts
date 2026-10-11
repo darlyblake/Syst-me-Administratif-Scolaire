@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { assignStudentsToClass, createStudent, deactivateStudent, listStudentsPaginated, updateStudent } from "@/lib/supabase/services/student.service"
 import type { Student, StudentFilters } from "@/lib/supabase/types"
 
-export function useStudents(establishmentId: string | null, filters: StudentFilters & { page?: number; pageSize?: number; active?: boolean } = {}) {
+export function useStudents(establishmentId: string | null, filters: StudentFilters & { page?: number; pageSize?: number; active?: boolean | null; gradeLevelId?: string | null; minAge?: number | null; maxAge?: number | null } = {}) {
   const [data, setData] = useState<Student[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
@@ -30,7 +30,7 @@ export function useStudents(establishmentId: string | null, filters: StudentFilt
       try {
         setIsLoading(true)
         setError(null)
-        const result = await listStudentsPaginated(establishmentId, filters.page ?? 1, filters.pageSize ?? 50, filters.search ?? "", filters.active ?? true, filters.classId, filters.academicYearId)
+        const result = await listStudentsPaginated(establishmentId, filters.page ?? 1, filters.pageSize ?? 50, filters.search ?? "", filters.active ?? true, filters.classId, filters.academicYearId, filters.gradeLevelId, filters.minAge, filters.maxAge, filters.active)
         if (active) {
           setData(result.items)
           setTotal(result.total)
@@ -50,7 +50,7 @@ export function useStudents(establishmentId: string | null, filters: StudentFilt
     return () => {
       active = false
     }
-  }, [establishmentId, filters.search, filters.classId, filters.gradeLevelId, filters.academicYearId, filters.status, filters.page, filters.pageSize, filters.active, refreshKey])
+  }, [establishmentId, filters.search, filters.classId, filters.gradeLevelId, filters.academicYearId, filters.status, filters.page, filters.pageSize, filters.active, filters.gradeLevelId, filters.minAge, filters.maxAge, refreshKey])
 
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), [])
   const create = useCallback(async (student: Parameters<typeof createStudent>[0]) => {

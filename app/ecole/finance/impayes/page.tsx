@@ -30,7 +30,12 @@ export default function ImpayesPage() {
   const [classFilter, setClassFilter] = useState("all")
 
   const load = async () => {
-    if (!establishmentId || !academicYear) return
+    if (!establishmentId || !academicYear) {
+      setRows([])
+      setError(null)
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
     try {

@@ -717,7 +717,7 @@ export default function NouvelleInscriptionModal({
                       </div>}
                     </>
                   )}
-                  {selectedSibling && <div className="space-y-1"><Label>Lien entre les enfants</Label><Select value={siblingRelationship} onValueChange={(value) => setSiblingRelationship(value as "frere" | "soeur" | "autre")}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="frere">Frère</SelectItem><SelectItem value="soeur">Sœur</SelectItem><SelectItem value="autre">Autre lien familial</SelectItem></SelectContent></Select></div>}
+                  {selectedSibling && <><p className="text-xs text-emerald-800">La réduction familiale sera vérifiée automatiquement à l’enregistrement selon le nombre d’enfants éligibles et les barèmes configurés.</p><div className="space-y-1"><Label>Lien entre les enfants</Label><Select value={siblingRelationship} onValueChange={(value) => setSiblingRelationship(value as "frere" | "soeur" | "autre")}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="frere">Frère</SelectItem><SelectItem value="soeur">Sœur</SelectItem><SelectItem value="autre">Autre lien familial</SelectItem></SelectContent></Select></div></>}
                 </section>
               )}
             </div>
@@ -731,7 +731,7 @@ export default function NouvelleInscriptionModal({
               <div className="space-y-3 border border-[#d7dae3] p-3">
                 <div>
                   <Label>Qui prend en charge les frais de l'élève ?</Label>
-                  <Select value={fundingSource} onValueChange={(value) => setFundingSource(value as "family" | "state" | "other")}>
+                  <Select value={fundingSource} onValueChange={(value) => { setFundingSource(value as "family" | "state" | "other"); if (value !== "family") setSelectedOrganizationId("") }}>
                     <SelectTrigger><SelectValue placeholder="Choisir la prise en charge" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="family">Famille — paiement normal</SelectItem>

@@ -30,7 +30,7 @@ export function useStudents(establishmentId: string | null, filters: StudentFilt
       try {
         setIsLoading(true)
         setError(null)
-        const result = await listStudentsPaginated(establishmentId, filters.page ?? 1, filters.pageSize ?? 50, filters.search ?? "", filters.active ?? true, filters.classId, filters.academicYearId, filters.gradeLevelId, filters.minAge, filters.maxAge, filters.active)
+        const result = await listStudentsPaginated(establishmentId, filters.page ?? 1, filters.pageSize ?? 50, filters.search ?? "", filters.active === undefined ? true : filters.active, filters.classId, filters.academicYearId, filters.gradeLevelId, filters.minAge, filters.maxAge, filters.active)
         if (active) {
           setData(result.items)
           setTotal(result.total)

@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge"
-import { FolderTree, GraduationCap, Building2, ChevronRight } from "lucide-react"
+import { FolderTree, GraduationCap, Building2 } from "lucide-react"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import type { AcademicStructureCycle } from "@/lib/supabase/types"
 

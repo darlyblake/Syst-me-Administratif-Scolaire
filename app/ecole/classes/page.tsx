@@ -82,26 +82,72 @@ export default function ClassesPage() {
 
   const [studentCounts, setStudentCounts] = useState<Record<string, number>>({})
 
+  // Les élèves sont rattachés à une classe via l'inscription de l'année,
+  // pas via students.class_id (colonne inexistante dans le schéma).
   useEffect(() => {
-    if (!establishmentId) return
+    let cancelled = false
     const fetchCounts = async () => {
-      const { data, error } = await supabaseBrowser
-        .from("students")
-        .select("class_id")
+      if (!establishmentId) {
+        setStudentCounts({})
+        return
+      }
+
+      const { data: year, error: yearError } = await supabaseBrowser
+        .from("academic_years")
+        .select("id")
         .eq("establishment_id", establishmentId)
         .eq("status", "active")
-      
-      if (!error && data) {
-        const counts: Record<string, number> = {}
-        data.forEach((row: any) => {
-          if (row.class_id) {
-            counts[row.class_id] = (counts[row.class_id] || 0) + 1
-          }
-        })
-        setStudentCounts(counts)
+        .maybeSingle()
+
+      if (yearError) {
+        console.error("Chargement de l'année académique impossible:", yearError)
+        return
       }
+      if (!year) {
+        if (!cancelled) setStudentCounts({})
+        return
+      }
+
+      const { data: enrollments, error: enrollmentError } = await supabaseBrowser
+        .from("enrollments")
+        .select("class_id, student_id")
+        .eq("establishment_id", establishmentId)
+        .eq("academic_year_id", year.id)
+        .eq("status", "active")
+        .not("class_id", "is", null)
+
+      if (enrollmentError) {
+        console.error("Chargement des effectifs impossible:", enrollmentError)
+        return
+      }
+
+      const studentIds = [...new Set((enrollments ?? []).map((row: any) => row.student_id).filter(Boolean))]
+      let activeStudentIds = new Set<string>()
+      if (studentIds.length) {
+        const { data: students, error: studentsError } = await supabaseBrowser
+          .from("students")
+          .select("id")
+          .eq("establishment_id", establishmentId)
+          .eq("active", true)
+          .in("id", studentIds)
+        if (studentsError) {
+          console.error("Vérification des élèves actifs impossible:", studentsError)
+          return
+        }
+        activeStudentIds = new Set((students ?? []).map((student: any) => student.id))
+      }
+
+      const counts: Record<string, number> = {}
+      ;(enrollments ?? []).forEach((row: any) => {
+        if (row.class_id && activeStudentIds.has(row.student_id)) {
+          counts[row.class_id] = (counts[row.class_id] || 0) + 1
+        }
+      })
+      if (!cancelled) setStudentCounts(counts)
     }
-    fetchCounts()
+
+    void fetchCounts()
+    return () => { cancelled = true }
   }, [establishmentId, refresh])
 
   const [activeTab, setActiveTab] = useState<Tab>("liste")
@@ -215,10 +261,13 @@ export default function ClassesPage() {
     }
   }
 
-  const handleSupprimerClasse = (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer cette classe ?")) {
-      supprimer(id)
-      toast.success("Classe supprimée")
+  const handleSupprimerClasse = async (id: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir archiver cette classe ?")) return
+    try {
+      await supprimer(id)
+      toast.success("Classe archivée")
+    } catch (erreur) {
+      toast.error(erreur instanceof Error ? erreur.message : "Impossible d'archiver la classe")
     }
   }
 
@@ -227,32 +276,187 @@ export default function ClassesPage() {
     setShowEditModal(true)
   }
 
-  const handlePrevisualiserRepartition = () => {
+  const handlePrevisualiserRepartition = async () => {
+    if (!establishmentId) {
+      toast.error("Aucun établissement actif n'est sélectionné.")
+      return
+    }
     if (!selectedNiveau) {
       toast.error("Sélectionnez un niveau")
       return
     }
-    const preview = serviceRepartition.repartirNiveau(selectedNiveau, repartitionMode, {
-      depuisZero: repartitionDepuisZero
-    })
-    setRepartitionPreview(preview)
+    if (repartitionMode === "manuel") {
+      toast.error("Le mode manuel ne peut pas calculer une répartition automatique.")
+      return
+    }
+
+    try {
+      const classesNiveau = displayClasses.filter((classe) => classe.niveau === selectedNiveau)
+      if (!classesNiveau.length) throw new Error("Aucune classe active n'est configurée pour ce niveau.")
+
+      const { data: year, error: yearError } = await supabaseBrowser
+        .from("academic_years")
+        .select("id")
+        .eq("establishment_id", establishmentId)
+        .eq("status", "active")
+        .maybeSingle()
+      if (yearError) throw yearError
+      if (!year) throw new Error("Aucune année académique active n'est configurée.")
+
+      const { data: enrollments, error: enrollmentError } = await supabaseBrowser
+        .from("enrollments")
+        .select("id, student_id, class_id")
+        .eq("establishment_id", establishmentId)
+        .eq("academic_year_id", year.id)
+        .eq("status", "active")
+      if (enrollmentError) throw enrollmentError
+
+      const { data: students, error: studentsError } = await supabaseBrowser
+        .from("students")
+        .select("id, first_name, last_name, sex, birth_date")
+        .eq("establishment_id", establishmentId)
+        .eq("active", true)
+      if (studentsError) throw studentsError
+
+      const studentById = new Map((students ?? []).map((student: any) => [student.id, student]))
+      const classIds = new Set(classesNiveau.map((classe) => classe.id))
+      const eligible = (enrollments ?? []).filter((enrollment: any) => {
+        const student = studentById.get(enrollment.student_id)
+        if (!student) return false
+        return repartitionDepuisZero
+          ? (!enrollment.class_id || classIds.has(enrollment.class_id))
+          : !enrollment.class_id
+      })
+
+      const eligibleIds = new Set(eligible.map((enrollment: any) => enrollment.id))
+      const counts: Record<string, { total: number; M: number; F: number; autre: number }> = {}
+      classesNiveau.forEach((classe) => { counts[classe.id] = { total: 0, M: 0, F: 0, autre: 0 } })
+      ;(enrollments ?? []).forEach((enrollment: any) => {
+        if (!enrollment.class_id || !counts[enrollment.class_id] || eligibleIds.has(enrollment.id)) return
+        const student = studentById.get(enrollment.student_id)
+        if (!student) return
+        counts[enrollment.class_id].total += 1
+        const sex = String(student.sex ?? "").trim().toUpperCase()
+        if (["M", "MASCULIN", "H", "GARÇON", "GARCON"].includes(sex)) counts[enrollment.class_id].M += 1
+        else if (["F", "FÉMININ", "FEMININ", "FILLE"].includes(sex)) counts[enrollment.class_id].F += 1
+        else counts[enrollment.class_id].autre += 1
+      })
+
+      const toPlace = eligible.map((enrollment: any) => ({
+        enrollmentId: enrollment.id,
+        studentId: enrollment.student_id,
+        student: studentById.get(enrollment.student_id),
+      }))
+      if (repartitionMode === "par_age") {
+        toPlace.sort((a, b) => String(a.student.birth_date ?? "0000").localeCompare(String(b.student.birth_date ?? "0000")))
+      } else if (repartitionMode === "equilibre_genre") {
+        toPlace.sort((a, b) => {
+          const sexRank = (sex: unknown) => {
+            const s = String(sex ?? "").toUpperCase()
+            return s.startsWith("F") ? 0 : s.startsWith("M") || s === "H" ? 1 : 2
+          }
+          return sexRank(a.student.sex) - sexRank(b.student.sex)
+        })
+      } else {
+        toPlace.sort(() => Math.random() - 0.5)
+      }
+
+      const affectations: any[] = []
+      const nonAffectes: any[] = []
+      for (const item of toPlace) {
+        const candidates = classesNiveau.filter((classe) => {
+          const current = counts[classe.id]
+          const capacity = Number(classe.capacite) || 30
+          return current.total < capacity
+        })
+        if (!candidates.length) {
+          nonAffectes.push({ eleveId: item.studentId, raison: "Capacité des classes atteinte" })
+          continue
+        }
+        let target = candidates[0]
+        if (repartitionMode === "equilibre_genre") {
+          const isGirl = String(item.student.sex ?? "").toUpperCase().startsWith("F")
+          target = [...candidates].sort((a, b) => {
+            const aSame = isGirl ? counts[a.id].F : counts[a.id].M
+            const bSame = isGirl ? counts[b.id].F : counts[b.id].M
+            return aSame - bSame || counts[b.id].total - counts[a.id].total
+          })[0]
+        } else if (repartitionMode === "par_age") {
+          target = [...candidates].sort((a, b) => counts[a.id].total - counts[b.id].total)[0]
+        } else {
+          target = candidates[Math.floor(Math.random() * candidates.length)]
+        }
+        const bucket = counts[target.id]
+        bucket.total += 1
+        const sex = String(item.student.sex ?? "").trim().toUpperCase()
+        if (["M", "MASCULIN", "H", "GARÇON", "GARCON"].includes(sex)) bucket.M += 1
+        else if (["F", "FÉMININ", "FEMININ", "FILLE"].includes(sex)) bucket.F += 1
+        else bucket.autre += 1
+        affectations.push({
+          enrollmentId: item.enrollmentId,
+          studentId: item.studentId,
+          classeId: target.id,
+          classeNom: target.nom,
+        })
+      }
+
+      setRepartitionPreview({
+        affectations,
+        nonAffectes,
+        resume: classesNiveau.map((classe) => ({
+          classeId: classe.id,
+          classeNom: classe.nom,
+          total: counts[classe.id].total,
+          capacite: Number(classe.capacite) || 30,
+          M: counts[classe.id].M,
+          F: counts[classe.id].F,
+          autre: counts[classe.id].autre,
+        })),
+      })
+      if (!eligible.length) toast.message("Aucun élève à répartir pour ce niveau.")
+    } catch (erreur) {
+      console.error("Prévisualisation de la répartition impossible:", erreur)
+      toast.error(erreur instanceof Error ? erreur.message : "Impossible de préparer la répartition.")
+    }
   }
 
-  const handleAppliquerRepartition = () => {
-    if (!repartitionPreview) return
-    const { ok, erreurs } = serviceRepartition.appliquerAffectations(repartitionPreview.affectations)
-    toast.success(`${ok} élèves répartis`)
-    if (erreurs > 0) toast.error(`${erreurs} erreurs`)
-    if (repartitionPreview.nonAffectes.length > 0) {
-      toast.message(`${repartitionPreview.nonAffectes.length} non affectés (capacité)`)
+  const handleAppliquerRepartition = async () => {
+    if (!repartitionPreview || !establishmentId) return
+    if (!repartitionPreview.affectations.length) {
+      toast.message("Aucune affectation à appliquer.")
+      return
     }
-    setRepartitionPreview(null)
-    refresh()
+
+    try {
+      let ok = 0
+      for (const affectation of repartitionPreview.affectations) {
+        const { error: updateError } = await supabaseBrowser
+          .from("enrollments")
+          .update({ class_id: affectation.classeId })
+          .eq("id", affectation.enrollmentId)
+          .eq("establishment_id", establishmentId)
+        if (updateError) throw updateError
+        ok += 1
+      }
+      toast.success(`${ok} inscription(s) répartie(s) dans Supabase.`)
+      if (repartitionPreview.nonAffectes.length > 0) {
+        toast.message(`${repartitionPreview.nonAffectes.length} élève(s) non affecté(s) : capacité atteinte.`)
+      }
+      setRepartitionPreview(null)
+      await refresh()
+    } catch (erreur) {
+      console.error("Application de la répartition impossible:", erreur)
+      toast.error(erreur instanceof Error ? erreur.message : "La répartition n'a pas pu être enregistrée.")
+    }
   }
 
   const handleSauvegarderParametres = () => {
-    serviceRepartition.sauvegarderParametres(params)
-    toast.success("Paramètres sauvegardés")
+    try {
+      serviceRepartition.sauvegarderParametres(params)
+      toast.success("Paramètres sauvegardés sur cet appareil")
+    } catch (erreur) {
+      toast.error("Impossible de sauvegarder les paramètres sur cet appareil.")
+    }
   }
 
   const handleAjouterOverride = () => {

@@ -38,7 +38,7 @@ export default function ClassesPage() {
     supprimer,
     getEleves,
     getEnseignants,
-  } = useClasses()
+  } = useClasses(establishmentId)
   const { data: academicStructure, isLoading: isAcademicLoading, error: academicError } = useAcademicStructure(establishmentId)
   const academicClasses = useMemo(() => {
     if (!academicStructure.length) return []
@@ -138,10 +138,16 @@ export default function ClassesPage() {
       }
 
       const counts: Record<string, number> = {}
+      const countedStudentsByClass = new Map<string, Set<string>>()
       ;(enrollments ?? []).forEach((row: any) => {
-        if (row.class_id && activeStudentIds.has(row.student_id)) {
-          counts[row.class_id] = (counts[row.class_id] || 0) + 1
-        }
+        if (!row.class_id || !row.student_id || !activeStudentIds.has(row.student_id)) return
+        const counted = countedStudentsByClass.get(row.class_id) ?? new Set<string>()
+        // Évite de compter deux fois le même élève dans une classe si des inscriptions
+        // actives en double existent dans la base.
+        if (counted.has(row.student_id)) return
+        counted.add(row.student_id)
+        countedStudentsByClass.set(row.class_id, counted)
+        counts[row.class_id] = counted.size
       })
       if (!cancelled) setStudentCounts(counts)
     }

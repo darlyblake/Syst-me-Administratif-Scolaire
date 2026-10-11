@@ -94,3 +94,39 @@ revoke all on function public.review_student_transfer(uuid,text,uuid,uuid,text) 
 grant execute on function public.create_student_transfer(uuid,uuid,uuid,uuid,text) to authenticated;
 grant execute on function public.list_student_transfers(uuid) to authenticated;
 grant execute on function public.review_student_transfer(uuid,text,uuid,uuid,text) to authenticated;
+
+ 
+-- N'autorise qu'un seul transfert en attente par élève.
+create unique index if not exists idx_student_transfer_one_pending_per_student
+  on public.student_transfer_requests(source_student_id)
+  where status = 'pending';
+
+-- Une fois le transfert accepté, clôture l'inscription d'origine sans supprimer l'historique.
+create or replace function public.complete_source_after_student_transfer()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if new.status = 'accepted' and old.status = 'pending' then
+    update public.enrollments
+       set status = 'cancelled', updated_at = now()
+     where student_id = new.source_student_id
+       and establishment_id = new.source_establishment_id
+       and status = 'active';
+
+    update public.students
+       set active = false, updated_at = now()
+     where id = new.source_student_id
+       and establishment_id = new.source_establishment_id;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.complete_source_after_student_transfer() from public, anon, authenticated;
+drop trigger if exists trg_complete_source_after_student_transfer on public.student_transfer_requests;
+create trigger trg_complete_source_after_student_transfer
+after update of status on public.student_transfer_requests
+for each row execute function public.complete_source_after_student_transfer();

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Edit, Plus, Trash2 } from "lucide-react"
+import { Edit, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +11,10 @@ import { supabaseBrowser } from "@/lib/supabase/client"
 import { serviceMatieres } from "@/services/matieres.service"
 import { getEnabledEstablishmentScopes, getEnabledGradeLevels, type EstablishmentLevelScope, type GradeLevel } from "@/services/establishment-levels.service"
 import type { Matiere } from "@/types/models"
+
+type SchoolClass = { id: string; name: string; grade_level_id: string }
+type Teacher = { id: string; first_name: string; last_name: string }
+type ClassSubjectAssignment = { id: string; class_id: string; subject_id: string; teacher_id: string; weekly_hours: number }
 
 type FormState = {
   code: string
@@ -46,6 +50,16 @@ export default function MatieresPage() {
   const [scopes, setScopes] = useState<EstablishmentLevelScope[]>([])
   const [gradeLevels, setGradeLevels] = useState<GradeLevel[]>([])
   const [matieres, setMatieres] = useState<Matiere[]>([])
+  const [classes, setClasses] = useState<SchoolClass[]>([])
+  const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [assignments, setAssignments] = useState<ClassSubjectAssignment[]>([])
+  const [selectedClassId, setSelectedClassId] = useState("")
+  const [assignmentSubjectId, setAssignmentSubjectId] = useState("")
+  const [assignmentTeacherId, setAssignmentTeacherId] = useState("")
+  const [assignmentHours, setAssignmentHours] = useState(2)
+  const [editingAssignmentId, setEditingAssignmentId] = useState<string | null>(null)
+  const [assignmentSaving, setAssignmentSaving] = useState(false)
+  const [assignmentError, setAssignmentError] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [editing, setEditing] = useState<Matiere | null>(null)
   const [open, setOpen] = useState(false)
@@ -60,6 +74,10 @@ export default function MatieresPage() {
     () => gradeLevels.filter((level) => selectedScope === "all" || level.scope === selectedScope),
     [gradeLevels, selectedScope]
   )
+
+  const selectedClass = useMemo(() => classes.find((item) => item.id === selectedClassId) ?? null, [classes, selectedClassId])
+  const compatibleSubjects = useMemo(() => matieres.filter((subject) => selectedClass && subject.niveau.includes(selectedClass.grade_level_id)), [matieres, selectedClass])
+  const classAssignments = useMemo(() => assignments.filter((item) => item.class_id === selectedClassId), [assignments, selectedClassId])
 
   const filteredMatieres = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
@@ -92,14 +110,33 @@ export default function MatieresPage() {
     try {
       const id = etablissementId ?? await resolveEstablishmentId()
       setEtablissementId(id)
-      const [enabledScopes, levels, subjects] = await Promise.all([
+      const [enabledScopes, levels, subjects, classResult, teacherResult] = await Promise.all([
         getEnabledEstablishmentScopes(id),
         getEnabledGradeLevels(id),
         serviceMatieres.obtenirToutesLesMatieres(id),
+        supabaseBrowser.from("school_classes").select("id,name,grade_level_id").eq("establishment_id", id).eq("active", true).order("name"),
+        supabaseBrowser.from("teachers").select("id,first_name,last_name").eq("establishment_id", id).eq("active", true).order("last_name"),
       ])
+      if (classResult.error) throw new Error("Impossible de charger les classes: " + classResult.error.message)
+      if (teacherResult.error) throw new Error("Impossible de charger les enseignants: " + teacherResult.error.message)
+      const loadedClasses = (classResult.data ?? []) as SchoolClass[]
       setScopes(enabledScopes)
       setGradeLevels(levels)
       setMatieres(subjects)
+      setClasses(loadedClasses)
+      setTeachers((teacherResult.data ?? []) as Teacher[])
+      if (!selectedClassId && loadedClasses.length) setSelectedClassId(loadedClasses[0].id)
+      const classIds = loadedClasses.map((item) => item.id)
+      if (classIds.length) {
+        const { data: assignmentRows, error: assignmentLoadError } = await supabaseBrowser
+          .from("class_subjects")
+          .select("id,class_id,subject_id,teacher_id,weekly_hours")
+          .in("class_id", classIds)
+        if (assignmentLoadError) throw new Error("Impossible de charger les affectations: " + assignmentLoadError.message)
+        setAssignments((assignmentRows ?? []) as ClassSubjectAssignment[])
+      } else {
+        setAssignments([])
+      }
       if (selectedScope !== "all" && !enabledScopes.includes(selectedScope)) setSelectedScope("all")
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible de charger les matières.")

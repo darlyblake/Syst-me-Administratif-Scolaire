@@ -23,6 +23,8 @@ export default function StatistiquesInscriptions() {
     enrollment_date: string
     class_name: string
     birth_date: string
+    academic_year_name: string
+    academic_year_rank: number | null
   }>>([])
   const [revenueRows, setRevenueRows] = useState<Array<{ date: string; amount: number }>>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -72,8 +74,31 @@ export default function StatistiquesInscriptions() {
             enrollment_date: row.enrollment_date || "",
             class_name: row.class?.name || "Classe non renseignée",
             birth_date: row.student?.date_of_birth || "",
+            academic_year_name: "",
+            academic_year_rank: null,
           })))
           if (batch.length < pageSize) break
+        }
+        // Utiliser les années académiques configurées dans Paramètres pour les comparaisons.
+        const academicYearIds = [...new Set(allEnrollments.map((row) => row.academic_year_id).filter((id): id is string => Boolean(id)))]
+        if (academicYearIds.length) {
+          const { data: academicYears, error: academicYearsError } = await supabaseBrowser
+            .from("academic_years")
+            .select("id, name, start_date")
+            .in("id", academicYearIds)
+          if (academicYearsError) throw academicYearsError
+          const yearRank = new Map(
+            [...(academicYears ?? [])]
+              .sort((a, b) => String(a.start_date ?? "").localeCompare(String(b.start_date ?? "")))
+              .map((year, index) => [year.id, index]),
+          )
+          const yearName = new Map((academicYears ?? []).map((year) => [year.id, year.name]))
+          allEnrollments.forEach((row) => {
+            row.academic_year_name = row.academic_year_id
+              ? yearName.get(row.academic_year_id) ?? "Année académique non renseignée"
+              : "Année académique non renseignée"
+            row.academic_year_rank = row.academic_year_id ? yearRank.get(row.academic_year_id) ?? null : null
+          })
         }
         const movements = await financeService.getMovements(establishmentId)
         const revenues = movements
@@ -105,14 +130,18 @@ export default function StatistiquesInscriptions() {
     }
     const filtered = enrollments.filter((row) => inDateRange(row.enrollment_date))
     const filteredRevenues = revenueRows.filter((row) => inDateRange(row.date))
-    const yearsByStudent = new Map<string, Set<string>>()
+    const firstYearRankByStudent = new Map<string, number>()
     enrollments.forEach((row) => {
-      if (!row.student_id || !row.academic_year_id) return
-      const years = yearsByStudent.get(row.student_id) ?? new Set<string>()
-      years.add(row.academic_year_id)
-      yearsByStudent.set(row.student_id, years)
+      if (!row.student_id || row.academic_year_rank === null) return
+      const previousRank = firstYearRankByStudent.get(row.student_id)
+      if (previousRank === undefined || row.academic_year_rank < previousRank) {
+        firstYearRankByStudent.set(row.student_id, row.academic_year_rank)
+      }
     })
-    const reinscriptions = filtered.filter((row) => (yearsByStudent.get(row.student_id)?.size ?? 0) > 1).length
+    const reinscriptions = filtered.filter((row) => {
+      const firstRank = firstYearRankByStudent.get(row.student_id)
+      return row.academic_year_rank !== null && firstRank !== undefined && row.academic_year_rank > firstRank
+    }).length
     const parClasse: Record<string, number> = {}
     const parAge: Record<string, number> = { "3-5 ans": 0, "6-8 ans": 0, "9-11 ans": 0, "12-15 ans": 0, "16+ ans": 0 }
     const parJour: Record<string, number> = {}
@@ -138,8 +167,8 @@ export default function StatistiquesInscriptions() {
         const day = new Date(date + "T12:00:00")
         const key = day.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })
         parJour[key] = (parJour[key] || 0) + 1
-        const year = date.slice(0, 4)
-        if (year) parAnnee[year] = (parAnnee[year] || 0) + 1
+        const year = row.academic_year_name || "Année académique non renseignée"
+        parAnnee[year] = (parAnnee[year] || 0) + 1
       }
     })
     const parJourArray = Object.entries(parJour).map(([date, nombre]) => ({ date, nombre })).slice(-7)

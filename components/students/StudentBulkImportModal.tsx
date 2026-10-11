@@ -15,7 +15,7 @@ type Props = {
   academicYearId: string | null
   classes: SchoolClass[]
   tuitionPlans: TuitionPlan[]
-  createStudent: (student: { establishmentId: string; firstName: string; lastName: string; studentNumber: string; birthDate?: string; sex?: string; phone?: string; email?: string; active?: boolean }) => Promise<boolean>
+  createStudent: (student: { establishmentId: string; firstName: string; lastName: string; studentNumber: string; birthDate?: string; sex?: string; phone?: string; email?: string; active?: boolean }) => Promise<string | false>
   assignToClass: (data: { establishmentId: string; studentIds: string[]; academicYearId: string; classId: string; tuitionPlanId: string; enrollmentDate: string }) => Promise<{ created: number; updated: number; total: number } | null>
   onImported: () => void
 }
@@ -129,17 +129,34 @@ export default function StudentBulkImportModal({ establishmentId, academicYearId
     try {
       for (const row of validRows) {
         const studentNumber = row.studentNumber || makeStudentNumber()
-        const success = await createStudent({ establishmentId, firstName: row.firstName, lastName: row.lastName, studentNumber, birthDate: row.birthDate, sex: row.sex, phone: row.phone, email: row.email, active: true })
-        if (!success) { failedAt = `ligne ${row.line} (${row.firstName} ${row.lastName})`; break }
-        // Le service createStudent actuel renvoie seulement un booléen dans le hook.
-        // La récupération de l'identifiant est faite après création via la liste rechargée uniquement si disponible.
+        const studentId = await createStudent({ establishmentId, firstName: row.firstName, lastName: row.lastName, studentNumber, birthDate: row.birthDate, sex: row.sex, phone: row.phone, email: row.email, active: true })
+        if (!studentId) { failedAt = `ligne ${row.line} (${row.firstName} ${row.lastName})`; break }
+        createdIds.push(studentId)
       }
+
+      if (createdIds.length > 0) {
+        const assignment = await assignToClass({
+          establishmentId,
+          studentIds: createdIds,
+          academicYearId,
+          classId: selectedClass.id,
+          tuitionPlanId: selectedPlanId,
+          enrollmentDate: new Date().toISOString().slice(0, 10),
+        })
+        if (!assignment) {
+          toast.error(`${createdIds.length} élève(s) créé(s), mais l'affectation à la classe a échoué. Ouvrez la liste des élèves et utilisez « Affecter à une classe » avant de relancer l'import.`)
+          onImported()
+          return
+        }
+      }
+
       if (failedAt) {
-        toast.error(`Import interrompu à ${failedAt}. Les élèves déjà créés restent enregistrés ; vérifiez la liste avant de recommencer.`)
+        toast.error(`Import interrompu à ${failedAt}. ${createdIds.length} élève(s) ont été créés et affectés à la classe. Vérifiez la liste avant de recommencer.`)
         onImported()
         return
       }
-      toast.success(`Les ${validRows.length} élèves ont été créés. L'affectation à la classe doit être confirmée dans la liste des élèves.`)
+
+      toast.success(`Import terminé : ${createdIds.length} élève(s) créé(s) et affecté(s) à ${selectedClass.name}.`)
       onImported()
       reset()
       setOpen(false)

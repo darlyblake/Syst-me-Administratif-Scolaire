@@ -37,6 +37,7 @@ export type StudentTransfer = {
   rejection_reason: string | null
   destination_student_id: string | null
   destination_enrollment_id: string | null
+  destination_enrollment_status: "pending" | "active" | "cancelled" | null
 }
 
 export type TransferClass = { id: string; name: string; grade_level_id: string }
@@ -89,7 +90,36 @@ export async function reviewStudentTransfer(input: {
     p_rejection_reason: input.rejectionReason ?? null,
   })
   if (error) throw new Error(error.message || "Impossible de traiter le transfert.")
-  return data as { id: string; status: "accepted" | "rejected"; student_id?: string; enrollment_id?: string; academic_year_id?: string }
+  return data as { id: string; status: "accepted" | "rejected"; next_step?: string }
+}
+
+export async function finalizeStudentTransfer(input: {
+  transferId: string
+  classId: string
+  tuitionPlanId: string
+}) {
+  const { data, error } = await supabaseBrowser.rpc("finalize_student_transfer", {
+    p_transfer_id: input.transferId,
+    p_class_id: input.classId,
+    p_tuition_plan_id: input.tuitionPlanId,
+  })
+  if (error) throw new Error(error.message || "Impossible de préparer l’inscription.")
+  return data as {
+    id: string
+    status: "accepted"
+    student_id: string
+    enrollment_id: string
+    enrollment_status: "pending" | "active"
+    academic_year_id: string
+  }
+}
+
+export async function canFinalizeStudentTransfers(establishmentId: string): Promise<boolean> {
+  const { data, error } = await supabaseBrowser.rpc("can_finalize_student_transfers", {
+    p_establishment_id: establishmentId,
+  })
+  if (error) throw new Error(error.message || "Impossible de vérifier les droits de finalisation.")
+  return data === true
 }
 
 export async function getTransferDestinationOptions(

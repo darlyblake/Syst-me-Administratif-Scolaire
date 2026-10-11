@@ -20,23 +20,6 @@ export type ParentSchoolDocumentRequest = { id: string; establishment_id: string
 export type ParentDocument = { id:string; publication_id:string; student_id:string; name:string; title:string; document_type:string; mime_type:string|null; size_bytes:number|null; created_at:string; published_at:string; storage_path:string; download_url?:string }
 export type ClaimStudentInput = { studentId?:string; studentNumber?:string; birthDate?:string; fromQr?:boolean }
 
-const PARENT_CHILDREN_CACHE_KEY = "parent-portal:linked-children"
-
-function readCachedChildren(): ParentChild[] {
-  if (typeof window === "undefined") return []
-  try {
-    const raw = window.localStorage.getItem(PARENT_CHILDREN_CACHE_KEY)
-    const parsed = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-function writeCachedChildren(children: ParentChild[]) {
-  if (typeof window === "undefined") return
-  try { window.localStorage.setItem(PARENT_CHILDREN_CACHE_KEY, JSON.stringify(children)) } catch {}
-}
 
 function useParentPortalState() {
   const [loading,setLoading]=useState(true), [error,setError]=useState<string|null>(null)
@@ -64,9 +47,24 @@ function useParentPortalState() {
         : [...new Set(linkedChildren.map(x=>x.establishment_id))]
       const linkMap=new Map(linkedChildren.map(x=>[x.id,x]))
       if(!studentIds.length){
-        const cached=readCachedChildren()
-        if(cached.length){setChildren(cached);setLoading(false);return}
-        setChildren([]);setGrades([]);setPayments([]);setAttendance([]);setJustificationRequests([]);setEvents([]);setPaymentSchedules([]);setPaymentAllocations([]);setEnrollmentOptions([]);setTimetable([]);setLessons([]);setHomework([]);setDocuments([]);return
+        // La réponse serveur est la source de vérité. Ne jamais réafficher
+        // une ancienne liste locale : elle peut appartenir à un autre compte parent.
+        setChildren([])
+        setGrades([])
+        setPayments([])
+        setAttendance([])
+        setJustificationRequests([])
+        setNotifications([])
+        setEvents([])
+        setPaymentSchedules([])
+        setPaymentAllocations([])
+        setEnrollmentOptions([])
+        setTimetable([])
+        setLessons([])
+        setHomework([])
+        setDocuments([])
+        setSchoolDocumentRequests([])
+        return
       }
 
       const {data:er,error:enrollmentError}=await supabaseBrowser.from("enrollments").select("id,student_id,class_id,status,tuition_plan_id,academic_year_id,funding_source").in("student_id",studentIds).eq("status","active").limit(200)
@@ -150,7 +148,6 @@ function useParentPortalState() {
         }
       })
       setChildren(resolvedChildren)
-      writeCachedChildren(resolvedChildren)
 
       // Les informations des enfants sont indépendantes du reste du portail.
       // Ne pas bloquer leur affichage si une requête secondaire échoue.
@@ -280,19 +277,16 @@ function useParentPortalState() {
     setChildren(current=>{
       const existing=current.find(child=>child.id===linkedStudent.id)
       const next=existing ? current : [...current,{id:linkedStudent.id,establishment_id:linkedStudent.establishment_id,student_number:linkedStudent.student_number??null,first_name:linkedStudent.first_name,last_name:linkedStudent.last_name,birth_date:birthDate,sex:null,phone:null,email:null,active:true,can_view_academic:true,can_view_finance:true,relationship:"Parent"}]
-      writeCachedChildren(next)
       return next
     })
     return data
   },[refresh])
-  const unclaimChild=useCallback(async(studentId:string)=>{const {data,error}=await supabaseBrowser.rpc("unclaim_student",{p_student_id:studentId.trim()});if(error)throw error;if(data!==true)throw new Error("Cette association n'est plus active ou n'appartient pas à votre compte.");setChildren(c=>{const next=c.filter(x=>x.id!==studentId);writeCachedChildren(next);return next});return true},[])
+  const unclaimChild=useCallback(async(studentId:string)=>{const {data,error}=await supabaseBrowser.rpc("unclaim_student",{p_student_id:studentId.trim()});if(error)throw error;if(data!==true)throw new Error("Cette association n'est plus active ou n'appartient pas à votre compte.");setChildren(c=>c.filter(x=>x.id!==studentId));return true},[])
   const requestAttendanceJustification=useCallback(async(a:ParentAttendance,reason:string)=>{const r=reason.trim();const child=children.find(x=>x.id===a.student_id);if(r.length<3||r.length>2000)throw new Error("Le motif doit contenir entre 3 et 2000 caractères.");if(!child?.can_view_academic)throw new Error("Vous n'êtes pas autorisé à justifier cette absence.");const {data:u,error:ue}=await supabaseBrowser.auth.getUser();if(ue||!u.user)throw new Error("Session parent introuvable.");const {data,error}=await supabaseBrowser.from("attendance_justification_requests").insert({attendance_id:a.id,student_id:a.student_id,establishment_id:child.establishment_id,parent_user_id:u.user.id,reason:r}).select("id,attendance_id,student_id,reason,status,reviewer_note,created_at").single();if(error)throw error;setJustificationRequests(c=>[data as ParentJustificationRequest,...c]);return data},[children])
   const cancelAttendanceJustification=useCallback(async(id:string)=>{const {error}=await supabaseBrowser.from("attendance_justification_requests").update({status:"cancelled"}).eq("id",id).eq("status","pending");if(error)throw error;setJustificationRequests(c=>c.map(x=>x.id===id?{...x,status:"cancelled"}:x))},[])
   const markNotificationRead=useCallback(async(id:string)=>{const {data:u,error:ue}=await supabaseBrowser.auth.getUser();if(ue||!u.user)throw new Error("Session parent introuvable.");const now=new Date().toISOString();const {error}=await supabaseBrowser.from("notifications").update({read_at:now}).eq("id",id).eq("recipient_user_id",u.user.id);if(error)throw error;setNotifications(c=>c.map(x=>x.id===id?{...x,read_at:now}:x))},[])
   const markAllNotificationsRead=useCallback(async()=>{const {data:u,error:ue}=await supabaseBrowser.auth.getUser();if(ue||!u.user)throw new Error("Session parent introuvable.");const now=new Date().toISOString();const {error}=await supabaseBrowser.from("notifications").update({read_at:now}).eq("recipient_user_id",u.user.id).is("read_at",null);if(error)throw error;setNotifications(c=>c.map(x=>x.read_at?x:{...x,read_at:now}))},[])
   useEffect(()=>{
-    const cached=readCachedChildren()
-    if(cached.length) setChildren(cached)
     void refresh()
 
     let notificationChannel: ReturnType<typeof supabaseBrowser.channel> | null = null

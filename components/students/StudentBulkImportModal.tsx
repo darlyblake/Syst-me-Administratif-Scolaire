@@ -2,10 +2,9 @@
 
 import { useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
-import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, Download } from "lucide-react"
+import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import type { DonneesEleve } from "@/types/models"
 
 type SchoolClass = { id: string; name: string; gradeLevelId: string }
 type TuitionPlan = { id: string; grade_level_id: string; annual_tuition: number }
@@ -25,15 +24,15 @@ function parseCsv(text: string): string[][] {
   let row: string[] = []
   let cell = ""
   let quoted = false
-  const input = text.replace(/^\\uFEFF/, "")
+  const input = text.replace(/^\uFEFF/, "")
   for (let i = 0; i < input.length; i++) {
     const char = input[i]
     if (char === '"') {
       if (quoted && input[i + 1] === '"') { cell += '"'; i++ } else quoted = !quoted
-    } else if ((char === "," || char === ";" || char === "\\t") && !quoted) {
+    } else if ((char === "," || char === ";" || char === "\t") && !quoted) {
       row.push(cell.trim()); cell = ""
-    } else if ((char === "\\n" || char === "\\r") && !quoted) {
-      if (char === "\\r" && input[i + 1] === "\\n") i++
+    } else if ((char === "\n" || char === "\r") && !quoted) {
+      if (char === "\r" && input[i + 1] === "\n") i++
       row.push(cell.trim()); cell = ""
       if (row.some((value) => value !== "")) rows.push(row)
       row = []
@@ -45,19 +44,19 @@ function parseCsv(text: string): string[][] {
 }
 
 function normalizeHeader(value: string) {
-  return value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().trim().replace(/[_-]+/g, " ")
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/[_-]+/g, " ")
 }
 
 function parseDate(value: string): string | undefined {
   if (!value.trim()) return undefined
-  const match = value.trim().match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/)
+  const match = value.trim().match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/)
   if (match) {
     const day = Number(match[1]), month = Number(match[2]), year = Number(match[3])
     const date = new Date(year, month - 1, day)
     if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return undefined
     return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
   }
-  const iso = value.trim().match(/^(\\d{4})-(\\d{2})-(\\d{2})$/)
+  const iso = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/)
   if (iso) return value.trim()
   return undefined
 }
@@ -82,7 +81,7 @@ export default function StudentBulkImportModal({ establishmentId, academicYearId
   const reset = () => { setRows([]); setFileName(""); setSelectedClassId(""); setSelectedPlanId(""); if (inputRef.current) inputRef.current.value = "" }
   const handleFile = async (file?: File) => {
     if (!file) return
-    if (!/\\.csv$/i.test(file.name)) { toast.error("Choisissez un fichier CSV."); return }
+    if (!/\.csv$/i.test(file.name)) { toast.error("Choisissez un fichier CSV."); return }
     try {
       const content = await file.text()
       const matrix = parseCsv(content)

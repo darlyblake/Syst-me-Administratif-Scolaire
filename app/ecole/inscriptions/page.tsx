@@ -83,6 +83,10 @@ export default function InscriptionsPage() {
     establishmentId, page: 1, pageSize: 1, academicYearId: activeYear?.id ?? null,
     classId: filterClasse || null, status: "active", refreshKey, search,
   })
+  const { total: pendingMatchingTotal } = useEnrollments({
+    establishmentId, page: 1, pageSize: 1, academicYearId: activeYear?.id ?? null,
+    classId: filterClasse || null, status: "pending", refreshKey, search,
+  })
 
   const classMap = useMemo(() => {
     const map = new Map<string, string>()
@@ -163,7 +167,8 @@ export default function InscriptionsPage() {
   const displayedTotalPages = period === "all" ? totalPages : Math.ceil(periodFilteredRows.length / 25)
 
   const activeCount = activeMatchingTotal
-  const inactiveCount = Math.max(0, allMatchingTotal - activeMatchingTotal)
+  const pendingCount = pendingMatchingTotal
+  const otherStatusCount = Math.max(0, allMatchingTotal - activeMatchingTotal - pendingMatchingTotal)
   const transferCount = useMemo(() => serviceTransfert.getEnAttente().length, [refreshKey])
 
   const resetFilters = () => {
@@ -269,7 +274,8 @@ export default function InscriptionsPage() {
         {[
           { label: "Dossiers de la session", value: allMatchingTotal, icon: FileText, tone: "text-[#00236f] bg-[#dce1ff]" },
           { label: "Inscrits & validés", value: activeCount, icon: CheckCircle2, tone: "text-[#166534] bg-[#dcfce7]" },
-          { label: "En attente / autres", value: inactiveCount, icon: Clock3, tone: "text-[#92400e] bg-[#fef3c7]" },
+          { label: "En attente", value: pendingCount, icon: Clock3, tone: "text-[#92400e] bg-[#fef3c7]" },
+          { label: "Autres statuts", value: otherStatusCount, icon: XCircle, tone: "text-[#515f74] bg-[#f2f3ff]" },
           { label: "Transferts en attente", value: transferCount, icon: ArrowRightLeft, tone: "text-[#7a5600] bg-[#fff7dc]" },
         ].map((item, index) => {
           const Icon = item.icon
@@ -293,7 +299,7 @@ export default function InscriptionsPage() {
             Toutes les demandes <span className="ml-1 text-[11px] text-[#515f74]">{allMatchingTotal}</span>
           </button>
           <button type="button" onClick={() => { setFilterStatut("pending"); setPage(1) }} className={`border-b-2 px-3 py-2 text-[12px] ${filterStatut === "pending" ? "border-[#00236f] font-medium text-[#00236f]" : "border-transparent text-[#515f74] hover:bg-[#f2f3ff]"}`}>
-            En attente <span className="ml-1 text-[11px]">{inactiveCount}</span>
+            En attente <span className="ml-1 text-[11px]">{pendingCount}</span>
           </button>
           <button type="button" onClick={() => { setFilterStatut("active"); setPage(1) }} className={`border-b-2 px-3 py-2 text-[12px] ${filterStatut === "active" ? "border-[#00236f] font-medium text-[#00236f]" : "border-transparent text-[#515f74] hover:bg-[#f2f3ff]"}`}>
             Validées / Inscrit <span className="ml-1 text-[11px] text-[#166534]">{activeCount}</span>

@@ -61,28 +61,36 @@ export default function StudentsPage() {
   )
 
   const supabseStudentsConverted = useMemo(() => {
-    return supabaseStudents.map(s => ({
-      id: s.id,
-      identifiant: s.student_number ?? "",
-      motDePasse: "",
-      nom: s.last_name ?? "",
-      prenom: s.first_name ?? "",
-      dateNaissance: s.birth_date ?? s.date_of_birth ?? "",
-      lieuNaissance: (s as any).place_of_birth ?? "",
-      sexe: s.gender ?? s.sex ?? "",
-      classe: assignmentClasses.find(c => c.id === s.class_id)?.name ?? "",
-      nomParent: "",
-      contactParent: s.phone ?? "",
-      adresse: "",
-      dateInscription: s.created_at ?? new Date().toISOString(),
-      statut: s.status === "active" ? "actif" : (s.status === "inactive" ? "inactif" : "transfere") as "actif" | "inactif" | "transfere",
-      totalAPayer: 0,
-      typeInscription: "inscription" as const,
-      informationsContact: { telephone: s.phone ?? "", email: s.email ?? "", adresse: "" },
-      modePaiement: "mensuel" as const,
-      optionsSupplementaires: { tenueScolaire: false, carteScolaire: false, cooperative: false, tenueEPS: false, assurance: false },
-      fraisOptionsSupplementaires: { tenueScolaire: 0, carteScolaire: 0, cooperative: 0, tenueEPS: 0, assurance: 0 },
-    } as DonneesEleve))
+    return supabaseStudents.map((s) => {
+      const parentFirstName = (s as any).guardian_first_name ?? ""
+      const parentLastName = (s as any).guardian_last_name ?? ""
+      const parentName = [parentFirstName, parentLastName].filter(Boolean).join(" ").trim()
+      const parentPhone = (s as any).guardian_phone ?? s.phone ?? ""
+      const parentEmail = (s as any).guardian_email ?? s.email ?? ""
+      const parentAddress = (s as any).guardian_address ?? ""
+      return {
+        id: s.id,
+        identifiant: s.student_number ?? "",
+        motDePasse: "",
+        nom: s.last_name ?? "",
+        prenom: s.first_name ?? "",
+        dateNaissance: s.birth_date ?? s.date_of_birth ?? "",
+        lieuNaissance: (s as any).place_of_birth ?? "",
+        sexe: s.sex ?? (s as any).gender ?? "",
+        classe: (s as any).class_name ?? assignmentClasses.find((c) => c.id === (s as any).class_id)?.name ?? "",
+        nomParent: parentName,
+        contactParent: parentPhone,
+        adresse: parentAddress,
+        dateInscription: (s as any).enrollment_date ?? s.created_at ?? new Date().toISOString(),
+        statut: s.active === true ? "actif" : "inactif",
+        totalAPayer: 0,
+        typeInscription: "inscription" as const,
+        informationsContact: { telephone: parentPhone, email: parentEmail, adresse: parentAddress },
+        modePaiement: "mensuel" as const,
+        optionsSupplementaires: { tenueScolaire: false, carteScolaire: false, cooperative: false, tenueEPS: false, assurance: false },
+        fraisOptionsSupplementaires: { tenueScolaire: 0, carteScolaire: 0, cooperative: 0, tenueEPS: 0, assurance: 0 },
+      } as DonneesEleve
+    })
   }, [supabaseStudents, assignmentClasses])
 
   const displayStudents = supabseStudentsConverted

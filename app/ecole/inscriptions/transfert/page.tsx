@@ -31,26 +31,6 @@ export default function TransfertPage() {
       .catch(console.error)
   }, [])
 
-  useEffect(() => {
-    let active = true
-    if (!ecoleDestination) {
-      setDestinationGradeLevels([])
-      return () => { active = false }
-    }
-    getAcademicStructure(ecoleDestination)
-      .then((cycles) => {
-        if (!active) return
-        setDestinationGradeLevels(cycles.flatMap((cycle) => (cycle.grade_levels ?? []).map((level) => ({ id: level.id, name: level.name }))))
-      })
-      .catch((error) => {
-        if (!active) return
-        console.error("Chargement des niveaux de destination impossible:", error)
-        setDestinationGradeLevels([])
-        toast.error("Impossible de charger les niveaux de l’école de destination.")
-      })
-    return () => { active = false }
-  }, [ecoleDestination])
-
   const assignmentClasses = useMemo(() =>
     (academicStructure || []).flatMap((cycle) => (cycle.grade_levels ?? []).flatMap((level) => (level.school_classes ?? []).map((sc) => ({ id: sc.id, name: sc.name, gradeLevelId: level.id })))),
     [academicStructure]
@@ -129,6 +109,27 @@ export default function TransfertPage() {
   const [niveauDestination, setNiveauDestination] = useState("")
   const [motif, setMotif] = useState("")
   const [dossierCree, setDossierCree] = useState<DossierTransfert | null>(null)
+
+  useEffect(() => {
+    let active = true
+    if (!ecoleDestination) {
+      setDestinationGradeLevels([])
+      return () => { active = false }
+    }
+    getAcademicStructure(ecoleDestination)
+      .then((cycles) => {
+        if (!active) return
+        setDestinationGradeLevels(cycles.flatMap((cycle) => (cycle.grade_levels ?? []).map((level) => ({ id: level.id, name: level.name }))))
+      })
+      .catch((error) => {
+        if (!active) return
+        console.error("Chargement des niveaux de destination impossible:", error)
+        setDestinationGradeLevels([])
+        toast.error("Impossible de charger les niveaux de l’école de destination.")
+      })
+    return () => { active = false }
+  }, [ecoleDestination])
+
 
   const handleEnvoyer = () => {
     const eleve = mappedSupabaseStudents.find((e) => e.id === eleveId)

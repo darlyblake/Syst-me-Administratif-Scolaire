@@ -202,24 +202,31 @@ begin
     join public.enrollments e on e.student_id=sfm.student_id and e.establishment_id=sfm.establishment_id
     where sfm.family_id=v_family_id and sfm.establishment_id=p_establishment_id and sfm.active=true and e.academic_year_id=p_academic_year_id and e.status='active';
 
-    select * into v_rule from public.family_discount_rules r where r.establishment_id=p_establishment_id and r.active
-      and (r.academic_year_id is null or r.academic_year_id=p_academic_year_id)
-      and r.min_children<=v_children_count and (r.max_children is null or r.max_children>=v_children_count)
-      and cardinality(r.applies_to_categories)>0
-      and (r.valid_from is null or r.valid_from<=p_enrollment_date) and (r.valid_until is null or r.valid_until>=p_enrollment_date)
-    order by r.min_children desc,(r.academic_year_id is not null) desc,r.created_at desc limit 1;
-
-    if v_rule.id is not null then
-      for v_schedule in select * from public.payment_schedules ps where ps.enrollment_id=v_enrollment_id and ps.category = any(v_rule.applies_to_categories) and ps.payer_type='family' order by ps.installment_number for update loop
-        v_original:=v_schedule.amount_due;
-        v_discount:=case when v_rule.discount_type='percentage' then round(v_original*v_rule.discount_value/100,2) else least(v_original,v_rule.discount_value) end;
-        v_net:=greatest(v_original-v_discount,0);
-        insert into public.enrollment_discount_snapshots(establishment_id,enrollment_id,schedule_id,family_id,rule_id,rule_name,category,discount_type,discount_value,original_amount,discount_amount)
-        values(p_establishment_id,v_enrollment_id,v_schedule.id,v_family_id,v_rule.id,v_rule.name,v_schedule.category,v_rule.discount_type,v_rule.discount_value,v_original,v_discount);
-        if v_net<=0 then delete from public.payment_schedules where id=v_schedule.id;
-        else update public.payment_schedules set amount_due=v_net,updated_at=now() where id=v_schedule.id; end if;
-      end loop;
-    end if;
+    for v_schedule in
+      select * from public.payment_schedules ps
+      where ps.enrollment_id=v_enrollment_id and ps.payer_type='family'
+      order by ps.installment_number for update
+    loop
+      select * into v_rule from public.family_discount_rules r
+      where r.establishment_id=p_establishment_id and r.active
+        and (r.academic_year_id is null or r.academic_year_id=p_academic_year_id)
+        and r.min_children<=v_children_count and (r.max_children is null or r.max_children>=v_children_count)
+        and r.applies_to_categories @> array[v_schedule.category]::text[]
+        and (r.valid_from is null or r.valid_from<=p_enrollment_date)
+        and (r.valid_until is null or r.valid_until>=p_enrollment_date)
+      order by r.min_children desc,(r.academic_year_id is not null) desc,r.created_at desc limit 1;
+      if v_rule.id is null then continue; end if;
+      v_original:=v_schedule.amount_due;
+      v_discount:=case when v_rule.discount_type='percentage' then round(v_original*v_rule.discount_value/100,2) else least(v_original,v_rule.discount_value) end;
+      v_net:=greatest(v_original-v_discount,0);
+      insert into public.enrollment_discount_snapshots(establishment_id,enrollment_id,schedule_id,family_id,rule_id,rule_name,category,discount_type,discount_value,original_amount,discount_amount)
+      values(p_establishment_id,v_enrollment_id,v_schedule.id,v_family_id,v_rule.id,v_rule.name,v_schedule.category,v_rule.discount_type,v_rule.discount_value,v_original,v_discount);
+      if v_net<=0 then
+        update public.payment_schedules set amount_due=0,amount_paid=0,status='paid',updated_at=now() where id=v_schedule.id;
+      else
+        update public.payment_schedules set amount_due=v_net,updated_at=now() where id=v_schedule.id;
+      end if;
+    end loop;
   end if;
 
   if p_organization_id is not null then
@@ -251,6 +258,7 @@ begin
     organization_expected_amount=coalesce((select sum(ps.amount_due) from public.payment_schedules ps where ps.enrollment_id=e.id and ps.organization_id is not null),0)
   where e.id=v_enrollment_id;
   v_result:=v_result||jsonb_build_object('family_id',v_family_id,'family_children_count',v_children_count,'family_discount_rule',case when v_rule.id is null then null else jsonb_build_object('id',v_rule.id,'name',v_rule.name,'type',v_rule.discount_type,'value',v_rule.discount_value) end,'organization_id',p_organization_id);
+  v_result:=v_result||jsonb_build_object('financial_summary',public.get_enrollment_financial_summary(v_enrollment_id));
   return v_result;
 end $$;
 revoke all on function public.create_student_enrollment_with_family_funding(uuid,uuid,uuid,uuid,date,uuid,text,text,text,date,text,text,text,uuid[],uuid[],boolean,text,boolean,boolean,uuid,text,uuid) from public;
@@ -314,14 +322,22 @@ revoke all on function public.create_payment_with_allocations(uuid,numeric,text,
 grant execute on function public.create_payment_with_allocations(uuid,numeric,text,text,text,jsonb) to authenticated;
 
 create or replace function public.refresh_enrollment_payer_totals(p_enrollment_id uuid)
-returns void language plpgsql set search_path to 'public','pg_temp' as $$
+returns void language plpgsql security definer set search_path to 'public','pg_temp' as $
+declare v_establishment_id uuid;
 begin
+  select establishment_id into v_establishment_id from public.enrollments where id=p_enrollment_id;
+  if v_establishment_id is null then return; end if;
+  if auth.uid() is null or not private.has_role(v_establishment_id,array['owner','admin','director','accountant']) then
+    raise exception 'Permission insuffisante pour actualiser les soldes';
+  end if;
   update public.enrollments e set
     parent_payable_amount=coalesce((select sum(greatest(ps.amount_due-ps.amount_paid,0)) from public.payment_schedules ps where ps.enrollment_id=e.id and ps.payer_type='family'),0),
     state_expected_amount=coalesce((select sum(ps.amount_due) from public.payment_schedules ps where ps.enrollment_id=e.id and ps.payer_type='state'),0),
     organization_expected_amount=coalesce((select sum(ps.amount_due) from public.payment_schedules ps where ps.enrollment_id=e.id and ps.organization_id is not null),0)
   where e.id=p_enrollment_id;
-end $$;
+end $;
+revoke all on function public.refresh_enrollment_payer_totals(uuid) from public;
+grant execute on function public.refresh_enrollment_payer_totals(uuid) to authenticated;
 
 create or replace function public.apply_payment_allocation()
 returns trigger language plpgsql set search_path to 'public','pg_temp' as $$

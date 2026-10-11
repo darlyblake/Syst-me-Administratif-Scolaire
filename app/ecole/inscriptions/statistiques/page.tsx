@@ -9,59 +9,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, BarChart3, TrendingUp, Users, Calendar } from "lucide-react"
 import Link from "next/link"
 import { useUserContext } from "@/hooks/useUserContext"
-import { useStudents } from "@/hooks/useStudents"
+import { supabaseBrowser } from "@/lib/supabase/client"
+import { financeService } from "@/lib/supabase/services/finance.service"
 
 export default function StatistiquesInscriptions() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
-  const { data: supabaseStudents } = useStudents(establishmentId)
-
-  const mappedSupabaseStudents = useMemo(() => {
-    return (supabaseStudents ?? []).map((student) => ({
-      id: student.id,
-      identifiant: student.id.slice(0, 8).toUpperCase(),
-      motDePasse: "",
-      nom: student.last_name || "",
-      prenom: student.first_name || "",
-      dateNaissance: student.date_of_birth || "",
-      lieuNaissance: student.place_of_birth || "",
-      sexe: student.gender || "",
-      classe: "",
-      classeAncienne: "",
-      nomParent: "",
-      contactParent: "",
-      adresse: "",
-      dateInscription: student.created_at || "",
-      statut: "actif" as const,
-      totalAPayer: 0,
-      typeInscription: "inscription" as const,
-      informationsContact: {
-        telephone: student.phone || "",
-        email: student.email || "",
-        adresse: "",
-      },
-      modePaiement: "mensuel" as const,
-      optionsSupplementaires: {
-        tenueScolaire: false,
-        carteScolaire: false,
-        cooperative: false,
-        tenueEPS: false,
-        assurance: false,
-      },
-      fraisOptionsSupplementaires: {
-        tenueScolaire: 0,
-        carteScolaire: 0,
-        cooperative: 0,
-        tenueEPS: 0,
-        assurance: 0,
-      },
-      moisPaiement: [],
-      optionsPersonnalisees: [],
-    }))
-  }, [supabaseStudents])
-
   const [dateDebut, setDateDebut] = useState("")
   const [dateFin, setDateFin] = useState("")
+  const [enrollments, setEnrollments] = useState<Array<{
+    id: string
+    student_id: string
+    academic_year_id: string | null
+    enrollment_date: string
+    class_name: string
+    birth_date: string
+  }>>([])
+  const [revenueRows, setRevenueRows] = useState<Array<{ date: string; amount: number }>>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [stats, setStats] = useState({
     totalInscriptions: 0,
     totalReinscriptions: 0,
@@ -75,125 +41,126 @@ export default function StatistiquesInscriptions() {
   })
 
   useEffect(() => {
-    calculerStatistiques()
-  }, [dateDebut, dateFin])
-
-  const calculerStatistiques = () => {
-    const sourceStudents = mappedSupabaseStudents
-    const allPayments: Array<{ montant: number; datePaiement: string }> = []
-    
-    // Filtrer les élèves par plage de dates
-    const filteredStudents = sourceStudents.filter(student => {
-      const inscriptionDate = new Date(student.dateInscription)
-      const debut = dateDebut ? new Date(dateDebut) : null
-      const fin = dateFin ? new Date(dateFin) : null
-      
-      if (debut && inscriptionDate < debut) return false
-      if (fin && inscriptionDate > fin) return false
-      return true
-    })
-
-    // Filtrer les paiements par plage de dates
-    const filteredPayments = allPayments.filter(payment => {
-      const paiementDate = new Date(payment.datePaiement)
-      const debut = dateDebut ? new Date(dateDebut) : null
-      const fin = dateFin ? new Date(dateFin) : null
-      
-      if (debut && paiementDate < debut) return false
-      if (fin && paiementDate > fin) return false
-      return true
-    })
-    
-    const total = filteredStudents.length
-    const reinscriptions = filteredStudents.filter(s => s.typeInscription === "reinscription").length
-    const transferts = 0 // Pas encore de système de transfert implémenté
-    const tauxReinscription = total > 0 ? (reinscriptions / total) * 100 : 0
-    
-    // Répartition par classe
-    const parClasse: Record<string, number> = {}
-    filteredStudents.forEach(student => {
-      parClasse[student.classe] = (parClasse[student.classe] || 0) + 1
-    })
-
-    // Répartition par âge (basée sur la date de naissance réelle)
-    const parAge: Record<string, number> = {
-      "3-5 ans": 0,
-      "6-8 ans": 0,
-      "9-11 ans": 0,
-      "12-15 ans": 0,
-      "16+ ans": 0,
+    let active = true
+    async function loadStatistics() {
+      if (!establishmentId) {
+        setEnrollments([])
+        setRevenueRows([])
+        setIsLoading(false)
+        setLoadError(null)
+        return
+      }
+      setIsLoading(true)
+      setLoadError(null)
+      try {
+        // Charger toutes les inscriptions par lots : les statistiques ne doivent
+        // pas être limitées aux 50 élèves de la liste d'affichage.
+        const allEnrollments: typeof enrollments = []
+        const pageSize = 1000
+        for (let from = 0; ; from += pageSize) {
+          const { data, error } = await supabaseBrowser
+            .from("enrollments")
+            .select("id, student_id, academic_year_id, enrollment_date, student:students!student_id(date_of_birth), class:school_classes!class_id(name)")
+            .eq("establishment_id", establishmentId)
+            .order("enrollment_date", { ascending: true })
+            .range(from, from + pageSize - 1)
+          if (error) throw error
+          const batch = (data ?? []) as any[]
+          allEnrollments.push(...batch.map((row) => ({
+            id: row.id,
+            student_id: row.student_id,
+            academic_year_id: row.academic_year_id ?? null,
+            enrollment_date: row.enrollment_date || "",
+            class_name: row.class?.name || "Classe non renseignée",
+            birth_date: row.student?.date_of_birth || "",
+          })))
+          if (batch.length < pageSize) break
+        }
+        const movements = await financeService.getMovements(establishmentId)
+        const revenues = movements
+          .filter((row) => row.direction === "credit")
+          .map((row) => ({ date: row.transaction_date, amount: Number(row.amount) || 0 }))
+        if (active) {
+          setEnrollments(allEnrollments)
+          setRevenueRows(revenues)
+        }
+      } catch (error) {
+        if (active) {
+          setEnrollments([])
+          setRevenueRows([])
+          setLoadError(error instanceof Error ? error.message : "Impossible de charger les statistiques.")
+        }
+      } finally {
+        if (active) setIsLoading(false)
+      }
     }
-    
-    const currentYear = new Date().getFullYear()
-    filteredStudents.forEach(student => {
-      const birthYear = new Date(student.dateNaissance).getFullYear()
-      const age = currentYear - birthYear
-      
-      if (age >= 3 && age <= 5) {
-        parAge["3-5 ans"]++
-      } else if (age >= 6 && age <= 8) {
-        parAge["6-8 ans"]++
-      } else if (age >= 9 && age <= 11) {
-        parAge["9-11 ans"]++
-      } else if (age >= 12 && age <= 15) {
-        parAge["12-15 ans"]++
-      } else if (age >= 16) {
-        parAge["16+ ans"]++
+    void loadStatistics()
+    return () => { active = false }
+  }, [establishmentId])
+
+  useEffect(() => {
+    const inDateRange = (value: string) => {
+      if (!value) return false
+      const date = value.slice(0, 10)
+      return (!dateDebut || date >= dateDebut) && (!dateFin || date <= dateFin)
+    }
+    const filtered = enrollments.filter((row) => inDateRange(row.enrollment_date))
+    const filteredRevenues = revenueRows.filter((row) => inDateRange(row.date))
+    const yearsByStudent = new Map<string, Set<string>>()
+    enrollments.forEach((row) => {
+      if (!row.student_id || !row.academic_year_id) return
+      const years = yearsByStudent.get(row.student_id) ?? new Set<string>()
+      years.add(row.academic_year_id)
+      yearsByStudent.set(row.student_id, years)
+    })
+    const reinscriptions = filtered.filter((row) => (yearsByStudent.get(row.student_id)?.size ?? 0) > 1).length
+    const parClasse: Record<string, number> = {}
+    const parAge: Record<string, number> = { "3-5 ans": 0, "6-8 ans": 0, "9-11 ans": 0, "12-15 ans": 0, "16+ ans": 0 }
+    const parJour: Record<string, number> = {}
+    const parAnnee: Record<string, number> = {}
+    const today = new Date()
+    filtered.forEach((row) => {
+      parClasse[row.class_name] = (parClasse[row.class_name] || 0) + 1
+      if (row.birth_date) {
+        const birth = new Date(row.birth_date)
+        if (!Number.isNaN(birth.getTime())) {
+          let age = today.getFullYear() - birth.getFullYear()
+          const beforeBirthday = today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())
+          if (beforeBirthday) age--
+          if (age >= 3 && age <= 5) parAge["3-5 ans"]++
+          else if (age >= 6 && age <= 8) parAge["6-8 ans"]++
+          else if (age >= 9 && age <= 11) parAge["9-11 ans"]++
+          else if (age >= 12 && age <= 15) parAge["12-15 ans"]++
+          else if (age >= 16) parAge["16+ ans"]++
+        }
+      }
+      const date = row.enrollment_date.slice(0, 10)
+      if (date) {
+        const day = new Date(date + "T12:00:00")
+        const key = day.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })
+        parJour[key] = (parJour[key] || 0) + 1
+        const year = date.slice(0, 4)
+        if (year) parAnnee[year] = (parAnnee[year] || 0) + 1
       }
     })
-
-    // Données par jour (basées sur les dates d'inscription réelles)
-    const parJour: Record<string, number> = {}
-    filteredStudents.forEach(student => {
-      const date = new Date(student.dateInscription)
-      const dateKey = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`
-      parJour[dateKey] = (parJour[dateKey] || 0) + 1
-    })
-    
-    // Convertir en tableau et trier par date
-    const parJourArray = Object.entries(parJour)
-      .map(([date, nombre]) => ({ date, nombre }))
-      .sort((a, b) => {
-        const [dayA, monthA] = a.date.split('/').map(Number)
-        const [dayB, monthB] = b.date.split('/').map(Number)
-        return monthA - monthB || dayA - dayB
-      })
-      .slice(-7) // Garder les 7 derniers jours
-
-    // Données par année (basées sur les dates d'inscription réelles)
-    const parAnnee: Record<string, number> = {}
-    filteredStudents.forEach(student => {
-      const year = new Date(student.dateInscription).getFullYear()
-      parAnnee[year.toString()] = (parAnnee[year.toString()] || 0) + 1
-    })
-    
-    // Convertir en tableau, trier par année et calculer l'évolution
-    const parAnneeArray = Object.entries(parAnnee)
-      .map(([annee, nombre]) => ({ annee, nombre }))
-      .sort((a, b) => parseInt(a.annee) - parseInt(b.annee))
-      .map((item, index, array) => {
-        if (index === 0) return item
-        const previous = array[index - 1]
-        const evolution = previous.nombre > 0 ? ((item.nombre - previous.nombre) / previous.nombre) * 100 : 0
-        return { ...item, evolution }
-      })
-      .slice(-3) // Garder les 3 dernières années
-
-    // Recettes totales (basées sur les paiements réels)
-    const recettesTotales = filteredPayments.reduce((sum, payment) => sum + payment.montant, 0)
-
+    const parJourArray = Object.entries(parJour).map(([date, nombre]) => ({ date, nombre })).slice(-7)
+    const parAnneeArray = Object.entries(parAnnee).sort(([a], [b]) => a.localeCompare(b)).map(([annee, nombre], index, array) => {
+      if (index === 0) return { annee, nombre }
+      const previous = array[index - 1]
+      return { annee, nombre, evolution: previous[1] > 0 ? ((nombre - previous[1]) / previous[1]) * 100 : 0 }
+    }).slice(-3)
     setStats({
-      totalInscriptions: total,
+      totalInscriptions: filtered.length,
       totalReinscriptions: reinscriptions,
-      totalTransferts: transferts,
-      tauxReinscription,
-      recettesTotales,
+      totalTransferts: 0,
+      tauxReinscription: filtered.length ? reinscriptions / filtered.length * 100 : 0,
+      recettesTotales: filteredRevenues.reduce((sum, row) => sum + row.amount, 0),
       parClasse,
       parAge,
       parJour: parJourArray,
       parAnnee: parAnneeArray,
     })
-  }
+  }, [enrollments, revenueRows, dateDebut, dateFin])
 
   return (
     <div className="min-h-screen bg-muted/30 p-4 md:p-6">
@@ -213,6 +180,9 @@ export default function StatistiquesInscriptions() {
             <p className="text-muted-foreground mt-1">Vue d'ensemble des inscriptions</p>
           </div>
         </div>
+
+        {loadError ? <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{loadError}</p> : null}
+        {isLoading ? <p role="status" className="text-sm text-muted-foreground">Chargement des statistiques...</p> : null}
 
         {/* Filtres */}
         <Card>
@@ -301,7 +271,8 @@ export default function StatistiquesInscriptions() {
             </CardContent>
           </Card>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* Détail des indicateurs déjà présenté ci-dessus : pas de doublon de cartes. */}
+        {/* <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">Total Inscriptions</CardTitle>
@@ -349,7 +320,7 @@ export default function StatistiquesInscriptions() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </div> */
 
         <div className="grid md:grid-cols-2 gap-6">
           {/* Répartition par classe */}

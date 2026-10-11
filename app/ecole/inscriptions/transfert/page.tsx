@@ -1,523 +1,396 @@
 "use client"
 
-import { useMemo, useState, useEffect } from "react"
-import Link from "next/link"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { ArrowLeft, Send, Download, Copy, Check, X, Search, School } from "lucide-react"
+import { ArrowRightLeft, Check, Clock3, RefreshCw, Search, Send, School, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { serviceTransfert } from "@/services/transfert.service"
 import { getEstablishments } from "@/lib/supabase/services/establishment.service"
 import { getAcademicStructure } from "@/lib/supabase/services/academic.service"
+import {
+  createStudentTransfer,
+  getTransferDestinationOptions,
+  listStudentTransfers,
+  reviewStudentTransfer,
+  type StudentTransfer,
+  type TransferClass,
+  type TransferTuitionPlan,
+} from "@/lib/supabase/services/transfers.service"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
-import { useAcademicStructure } from "@/hooks/useAcademicStructure"
-import type { DonneesEleve, DossierTransfert } from "@/types/models"
 import type { Establishment } from "@/lib/supabase/types"
+
+type GradeOption = { id: string; name: string }
+
+function statusLabel(status: StudentTransfer["status"]) {
+  if (status === "pending") return "En attente"
+  if (status === "accepted") return "Accepté"
+  if (status === "rejected") return "Refusé"
+  return "Annulé"
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(new Date(value))
+}
 
 export default function TransfertPage() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
-  const { data: supabaseStudents } = useStudents(establishmentId)
-  const { data: academicStructure } = useAcademicStructure(establishmentId)
+  const { data: students, isLoading: studentsLoading, refresh: refreshStudents } = useStudents(establishmentId, { page: 1, pageSize: 100, active: true })
 
   const [establishments, setEstablishments] = useState<Establishment[]>([])
-  const [destinationGradeLevels, setDestinationGradeLevels] = useState<Array<{ id: string; name: string }>>([])
+  const [destinationLevels, setDestinationLevels] = useState<GradeOption[]>([])
+  const [transfers, setTransfers] = useState<StudentTransfer[]>([])
+  const [loadingTransfers, setLoadingTransfers] = useState(false)
+  const [loadingLevels, setLoadingLevels] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [processing, setProcessing] = useState(false)
+  const [tab, setTab] = useState<"send" | "receive">("send")
+
+  const [studentSearch, setStudentSearch] = useState("")
+  const [studentId, setStudentId] = useState("")
+  const [destinationId, setDestinationId] = useState("")
+  const [requestedGradeId, setRequestedGradeId] = useState("")
+  const [reason, setReason] = useState("")
+  const [createdTransfer, setCreatedTransfer] = useState<{ id: string; code: string } | null>(null)
+
+  const [codeSearch, setCodeSearch] = useState("")
+  const [selectedTransfer, setSelectedTransfer] = useState<StudentTransfer | null>(null)
+  const [destinationClasses, setDestinationClasses] = useState<TransferClass[]>([])
+  const [tuitionPlans, setTuitionPlans] = useState<TransferTuitionPlan[]>([])
+  const [selectedClassId, setSelectedClassId] = useState("")
+  const [selectedPlanId, setSelectedPlanId] = useState("")
+  const [rejectionReason, setRejectionReason] = useState("")
+
+  const loadTransfers = useCallback(async () => {
+    if (!establishmentId) {
+      setTransfers([])
+      return
+    }
+    setLoadingTransfers(true)
+    try {
+      setTransfers(await listStudentTransfers(establishmentId))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible de charger les transferts.")
+    } finally {
+      setLoadingTransfers(false)
+    }
+  }, [establishmentId])
 
   useEffect(() => {
     getEstablishments()
-      .then(setEstablishments)
-      .catch(console.error)
-  }, [])
+      .then((items) => setEstablishments(items.filter((item) => item.id !== establishmentId)))
+      .catch((error) => toast.error(error instanceof Error ? error.message : "Impossible de charger les établissements."))
+  }, [establishmentId])
 
-  const assignmentClasses = useMemo(() =>
-    (academicStructure || []).flatMap((cycle) => (cycle.grade_levels ?? []).flatMap((level) => (level.school_classes ?? []).map((sc) => ({ id: sc.id, name: sc.name, gradeLevelId: level.id })))),
-    [academicStructure]
-  )
-
-  const realGradeLevels = useMemo(() =>
-    (academicStructure || []).flatMap((cycle) => (cycle.grade_levels ?? []).map((level) => ({ id: level.id, name: level.name }))),
-    [academicStructure]
-  )
-
-  const mappedSupabaseStudents = useMemo(() => {
-    return (supabaseStudents ?? []).map((student: any) => ({
-      id: student.id,
-      identifiant: student.student_number || student.id.slice(0, 8).toUpperCase(),
-      motDePasse: "",
-      nom: student.last_name || "",
-      prenom: student.first_name || "",
-      dateNaissance: student.date_of_birth || student.birth_date || "",
-      lieuNaissance: student.place_of_birth || "",
-      sexe: student.gender || student.sex || "",
-      classe: assignmentClasses.find(c => c.id === student.class_id)?.name ?? "Non assigné",
-      niveauActuel: realGradeLevels.find(l => l.id === student.grade_level_id)?.name ?? "Non assigné",
-      classeAncienne: "",
-      nomParent: "",
-      contactParent: student.phone || "",
-      adresse: "",
-      dateInscription: student.created_at || "",
-      statut: student.status === "active" ? "actif" : "inactif",
-      totalAPayer: 0,
-      typeInscription: "inscription" as const,
-      informationsContact: {
-        telephone: student.phone || "",
-        email: student.email || "",
-        adresse: "",
-      },
-      modePaiement: "mensuel" as const,
-      optionsSupplementaires: {
-        tenueScolaire: false,
-        carteScolaire: false,
-        cooperative: false,
-        tenueEPS: false,
-        assurance: false,
-      },
-      fraisOptionsSupplementaires: {
-        tenueScolaire: 0,
-        carteScolaire: 0,
-        cooperative: 0,
-        tenueEPS: 0,
-        assurance: 0,
-      },
-      moisPaiement: [],
-      optionsPersonnalisees: [],
-    } as DonneesEleve & { niveauActuel?: string }))
-  }, [supabaseStudents, assignmentClasses, realGradeLevels])
-
-  const [tab, setTab] = useState<"envoyer" | "recevoir">("envoyer")
-  const [refresh, setRefresh] = useState(0)
-
-  // --- Envoyer ---
-  const [eleveSearch, setEleveSearch] = useState("")
-  const elevesActifs = useMemo(() => {
-    let list = mappedSupabaseStudents.filter((e) => e.statut === "actif")
-    if (eleveSearch.trim()) {
-      const search = eleveSearch.toLowerCase()
-      list = list.filter((e) => 
-        e.nom.toLowerCase().includes(search) || 
-        e.prenom.toLowerCase().includes(search) ||
-        e.identifiant.toLowerCase().includes(search)
-      )
-    }
-    return list
-  }, [mappedSupabaseStudents, refresh, eleveSearch])
-
-  const [eleveId, setEleveId] = useState("")
-  const [ecoleDestination, setEcoleDestination] = useState("")
-  const [niveauDestination, setNiveauDestination] = useState("")
-  const [motif, setMotif] = useState("")
-  const [dossierCree, setDossierCree] = useState<DossierTransfert | null>(null)
+  useEffect(() => {
+    void loadTransfers()
+  }, [loadTransfers])
 
   useEffect(() => {
     let active = true
-    if (!ecoleDestination) {
-      setDestinationGradeLevels([])
+    if (!destinationId) {
+      setDestinationLevels([])
+      setRequestedGradeId("")
       return () => { active = false }
     }
-    getAcademicStructure(ecoleDestination)
+    setLoadingLevels(true)
+    getAcademicStructure(destinationId)
       .then((cycles) => {
         if (!active) return
-        setDestinationGradeLevels(cycles.flatMap((cycle) => (cycle.grade_levels ?? []).map((level) => ({ id: level.id, name: level.name }))))
+        setDestinationLevels(cycles.flatMap((cycle) => (cycle.grade_levels ?? []).map((level) => ({ id: level.id, name: level.name }))))
+        setRequestedGradeId("")
       })
       .catch((error) => {
         if (!active) return
-        console.error("Chargement des niveaux de destination impossible:", error)
-        setDestinationGradeLevels([])
-        toast.error("Impossible de charger les niveaux de l’école de destination.")
+        setDestinationLevels([])
+        toast.error(error instanceof Error ? error.message : "Impossible de charger les niveaux de destination.")
+      })
+      .finally(() => {
+        if (active) setLoadingLevels(false)
       })
     return () => { active = false }
-  }, [ecoleDestination])
+  }, [destinationId])
 
+  useEffect(() => {
+    let active = true
+    if (!selectedTransfer || !establishmentId) {
+      setDestinationClasses([])
+      setTuitionPlans([])
+      setSelectedClassId("")
+      setSelectedPlanId("")
+      return () => { active = false }
+    }
+    setDestinationClasses([])
+    setTuitionPlans([])
+    setSelectedClassId("")
+    setSelectedPlanId("")
+    getTransferDestinationOptions(establishmentId, selectedTransfer.requested_grade_level_id)
+      .then((options) => {
+        if (!active) return
+        setDestinationClasses(options.classes)
+        setTuitionPlans(options.tuitionPlans)
+        if (!options.academicYearId) toast.error("Configurez d’abord une année scolaire active dans cet établissement.")
+        else if (options.tuitionPlans.length === 0) toast.error("Aucun plan de scolarité actif n’est configuré pour ce niveau.")
+      })
+      .catch((error) => {
+        if (active) toast.error(error instanceof Error ? error.message : "Impossible de charger les classes et frais.")
+      })
+    return () => { active = false }
+  }, [selectedTransfer, establishmentId])
 
-  const handleEnvoyer = () => {
-    const eleve = mappedSupabaseStudents.find((e) => e.id === eleveId)
-    if (!eleve) {
-      toast.error("Choisissez un élève")
-      return
-    }
-    if (!ecoleDestination.trim()) {
-      toast.error("Indiquez l'école de destination")
-      return
-    }
-    if (!niveauDestination.trim()) {
-      toast.error("Indiquez le niveau de destination")
-      return
-    }
-    if (!motif.trim()) {
-      toast.error("Indiquez le motif")
-      return
-    }
-    const d = serviceTransfert.creerDossier(
-      eleve, 
-      motif.trim(), 
-      primaryEstablishment?.name || "Mon établissement",
-      establishments.find((est) => est.id === ecoleDestination)?.name || ecoleDestination,
-      niveauDestination.trim()
-    )
-    setDossierCree(d)
-    setRefresh((k) => k + 1)
-    toast.success("Dossier préparé. Téléchargez le fichier pour le transmettre à l’autre école.")
-  }
-
-  const downloadJSON = () => {
-    if (!dossierCree) return
-    const blob = new Blob([serviceTransfert.exporterJSON(dossierCree)], {
-      type: "application/json",
+  const activeStudents = useMemo(() => {
+    const query = studentSearch.trim().toLocaleLowerCase("fr")
+    return (students ?? []).filter((student: any) => {
+      if (student.active === false || student.status === "inactive" || student.merged_into_student_id) return false
+      if (!query) return true
+      return [student.first_name, student.last_name, student.student_number, student.id]
+        .some((value) => String(value ?? "").toLocaleLowerCase("fr").includes(query))
     })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `transfert-${dossierCree.code}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
+  }, [students, studentSearch])
 
-  // --- Recevoir ---
-  const [code, setCode] = useState("")
-  const [dossierRecu, setDossierRecu] = useState<DossierTransfert | null>(null)
-  const [classeAccueil, setClasseAccueil] = useState("")
-  const classes = useMemo(() => Array.from(new Set(mappedSupabaseStudents.map((student) => student.classe).filter(Boolean))), [mappedSupabaseStudents, refresh])
+  const outgoing = useMemo(
+    () => transfers.filter((item) => item.source_establishment_id === establishmentId),
+    [transfers, establishmentId],
+  )
+  const incoming = useMemo(() => {
+    const query = codeSearch.trim().toLocaleLowerCase("fr")
+    return transfers.filter((item) =>
+      item.destination_establishment_id === establishmentId &&
+      item.status === "pending" &&
+      (!query || item.code.toLocaleLowerCase("fr").includes(query) ||
+        `${item.student_snapshot.first_name} ${item.student_snapshot.last_name}`.toLocaleLowerCase("fr").includes(query)),
+    )
+  }, [transfers, establishmentId, codeSearch])
 
-  const chargerParCode = () => {
-    const d = serviceTransfert.trouverParCode(code.trim())
-    if (!d) {
-      toast.error("Aucun dossier en attente pour ce code")
-      setDossierRecu(null)
-      return
+  const handleSend = async () => {
+    if (!establishmentId) return toast.error("Aucun établissement n’est associé à votre compte.")
+    if (!studentId) return toast.error("Sélectionnez l’élève à transférer.")
+    if (!destinationId) return toast.error("Sélectionnez l’établissement de destination.")
+    if (!requestedGradeId) return toast.error("Sélectionnez le niveau demandé.")
+    if (!reason.trim()) return toast.error("Indiquez le motif du transfert.")
+    setSending(true)
+    try {
+      const result = await createStudentTransfer({
+        sourceEstablishmentId: establishmentId,
+        studentId,
+        destinationEstablishmentId: destinationId,
+        requestedGradeLevelId: requestedGradeId,
+        reason: reason.trim(),
+      })
+      setCreatedTransfer({ id: result.id, code: result.code })
+      toast.success("Le dossier a été enregistré et transmis à l’établissement de destination.")
+      await loadTransfers()
+      refreshStudents()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible de créer le transfert.")
+    } finally {
+      setSending(false)
     }
-    setDossierRecu(d)
-    toast.message("Dossier chargé — examinez-le avant d'accepter")
   }
 
-  const handleImportFichier = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      const d = serviceTransfert.importerDepuisJSON(String(reader.result))
-      if (!d) {
-        toast.error("Fichier invalide")
-        return
-      }
-      setDossierRecu(d)
-      setCode(d.code)
-      toast.success("Dossier importé")
-    }
-    reader.readAsText(file)
+  const resetSendForm = () => {
+    setCreatedTransfer(null)
+    setStudentId("")
+    setDestinationId("")
+    setRequestedGradeId("")
+    setReason("")
+    setStudentSearch("")
   }
 
-  const handleAccepter = () => {
-    if (!dossierRecu || !classeAccueil) {
-      toast.error("Choisissez la classe d'accueil")
-      return
+  const handleAccept = async () => {
+    if (!selectedTransfer) return
+    if (!selectedClassId) return toast.error("Choisissez une classe d’accueil.")
+    if (!selectedPlanId) return toast.error("Choisissez le plan de scolarité de l’élève.")
+    setProcessing(true)
+    try {
+      const result = await reviewStudentTransfer({
+        transferId: selectedTransfer.id,
+        decision: "accept",
+        classId: selectedClassId,
+        tuitionPlanId: selectedPlanId,
+      })
+      toast.success("Transfert accepté : l’élève et son inscription ont été enregistrés dans l’établissement.")
+      setSelectedTransfer(null)
+      setSelectedClassId("")
+      setSelectedPlanId("")
+      await loadTransfers()
+      refreshStudents()
+      if (result.enrollment_id) toast.message("Inscription créée pour l’année scolaire active.")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible d’accepter ce transfert.")
+    } finally {
+      setProcessing(false)
     }
-    const eleve = serviceTransfert.accepter(dossierRecu.code, classeAccueil)
-    if (!eleve) {
-      toast.error("Impossible d'accepter ce dossier")
-      return
-    }
-    toast.success(`${eleve.prenom} ${eleve.nom} intégré en ${classeAccueil}`)
-    setDossierRecu(null)
-    setCode("")
-    setClasseAccueil("")
-    setRefresh((k) => k + 1)
   }
 
-  const handleRefuser = () => {
-    if (!dossierRecu) return
-    const motifRefus = window.prompt("Motif du refus ?") || "Non précisé"
-    serviceTransfert.refuser(dossierRecu.code, motifRefus)
-    toast.message("Transfert refusé")
-    setDossierRecu(null)
-    setCode("")
+  const handleReject = async () => {
+    if (!selectedTransfer) return
+    const note = rejectionReason.trim() || window.prompt("Motif du refus (facultatif) ?") || ""
+    setProcessing(true)
+    try {
+      await reviewStudentTransfer({
+        transferId: selectedTransfer.id,
+        decision: "reject",
+        rejectionReason: note,
+      })
+      toast.success("Le transfert a été refusé. L’établissement d’origine verra le statut.")
+      setSelectedTransfer(null)
+      setRejectionReason("")
+      await loadTransfers()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible de refuser ce transfert.")
+    } finally {
+      setProcessing(false)
+    }
   }
+
+  const selectedStudent = (students ?? []).find((student: any) => student.id === studentId) as any
+  const selectedLevel = destinationLevels.find((level) => level.id === requestedGradeId)
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-2">
-        <button
-          onClick={() => setTab("envoyer")}
-          className={`px-5 py-2.5 rounded-2xl text-sm font-medium ${
-            tab === "envoyer" ? "bg-terre text-white" : "bg-creme text-pierre"
-          }`}
-        >
-          Envoyer un élève
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-encre">Transfert d’élèves</h1>
+          <p className="mt-1 text-sm text-pierre">Transmettez un dossier à une autre école et suivez son traitement.</p>
+        </div>
+        <Button variant="outline" className="rounded-xl self-start" onClick={() => void loadTransfers()} disabled={loadingTransfers}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${loadingTransfers ? "animate-spin" : ""}`} />
+          Actualiser
+        </Button>
+      </header>
+
+      <div className="flex flex-wrap gap-2 border-b border-terre/10 pb-3">
+        <button onClick={() => { setTab("send"); setSelectedTransfer(null) }} className={`rounded-xl px-4 py-2.5 text-sm font-medium ${tab === "send" ? "bg-terre text-white" : "bg-creme text-pierre"}`}>
+          <Send className="mr-2 inline h-4 w-4" /> Envoyer un élève
         </button>
-        <button
-          onClick={() => setTab("recevoir")}
-          className={`px-5 py-2.5 rounded-2xl text-sm font-medium ${
-            tab === "recevoir" ? "bg-terre text-white" : "bg-creme text-pierre"
-          }`}
-        >
-          Recevoir un élève
+        <button onClick={() => { setTab("receive"); setSelectedTransfer(null) }} className={`rounded-xl px-4 py-2.5 text-sm font-medium ${tab === "receive" ? "bg-terre text-white" : "bg-creme text-pierre"}`}>
+          <ArrowRightLeft className="mr-2 inline h-4 w-4" /> Réception et suivi
         </button>
       </div>
 
-      {tab === "envoyer" && (
-        <div className="bg-papier rounded-3xl shadow-soft p-6 space-y-5">
-          {!dossierCree ? (
-            <>
-              <div className="space-y-4">
+      {tab === "send" && (
+        <section className="space-y-5">
+          {!createdTransfer ? (
+            <div className="max-w-3xl space-y-5 rounded-2xl border border-terre/10 bg-papier p-5 sm:p-6">
+              <div>
+                <Label>Rechercher un élève</Label>
+                <div className="relative mt-1.5">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Input value={studentSearch} onChange={(event) => setStudentSearch(event.target.value)} placeholder="Nom, prénom ou matricule" className="rounded-xl pl-9" />
+                </div>
+              </div>
+              <div>
+                <Label>Élève à transférer</Label>
+                <select value={studentId} onChange={(event) => setStudentId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-terre/15 bg-white px-3 py-2.5 text-sm">
+                  <option value="">{studentsLoading ? "Chargement des élèves…" : "Sélectionner un élève"}</option>
+                  {activeStudents.map((student: any) => <option key={student.id} value={student.id}>{student.last_name} {student.first_name} — {student.student_number || student.id.slice(0, 8)}</option>)}
+                </select>
+                {selectedStudent && <p className="mt-1.5 text-xs text-pierre">Matricule : {selectedStudent.student_number || "non renseigné"}</p>}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <Label>Rechercher un élève</Label>
+                  <Label>Établissement de destination</Label>
                   <div className="relative mt-1.5">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Nom, prénom ou matricule..."
-                      value={eleveSearch}
-                      onChange={(e) => setEleveSearch(e.target.value)}
-                      className="pl-9 h-10 rounded-2xl border border-terre/15 bg-creme/50"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Sélectionner l'élève à transférer</Label>
-                  <select
-                    className="w-full mt-1.5 px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50 text-sm"
-                    value={eleveId}
-                    onChange={(e) => {
-                      const id = e.target.value
-                      setEleveId(id)
-                      const student = elevesActifs.find((el) => el.id === id)
-                      if (student && student.niveauActuel && student.niveauActuel !== "Non assigné") {
-                        setNiveauDestination(student.niveauActuel)
-                      } else {
-                        setNiveauDestination("")
-                      }
-                    }}
-                  >
-                    <option value="">Sélectionner…</option>
-                    {elevesActifs.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.prenom} {e.nom} ({e.identifiant}) — Niveau Actuel : {e.niveauActuel || e.classe}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label>École de destination</Label>
-                    <div className="relative mt-1.5">
-                      <School className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <select
-                        value={ecoleDestination}
-                        onChange={(e) => setEcoleDestination(e.target.value)}
-                        className="w-full pl-9 h-10 rounded-2xl border border-terre/15 bg-creme/50"
-                      >
-                        <option value="">Sélectionner une école...</option>
-                        {establishments
-                          .filter((est) => est.id !== establishmentId)
-                          .map((est) => (
-                            <option key={est.id} value={est.id}>
-                              {est.name}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Niveau demandé (Destination)</Label>
-                    <select
-                      value={niveauDestination}
-                      onChange={(e) => setNiveauDestination(e.target.value)}
-                      className="w-full h-10 mt-1.5 px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50"
-                    >
-                      <option value="">Sélectionner un niveau...</option>
-                      {destinationGradeLevels.map((lvl) => (
-                        <option key={lvl.id} value={lvl.name}>
-                          {lvl.name}
-                        </option>
-                      ))}
+                    <School className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <select value={destinationId} onChange={(event) => setDestinationId(event.target.value)} className="w-full rounded-xl border border-terre/15 bg-white py-2.5 pl-9 pr-3 text-sm">
+                      <option value="">Choisir une école</option>
+                      {establishments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                     </select>
                   </div>
                 </div>
+                <div>
+                  <Label>Niveau demandé</Label>
+                  <select value={requestedGradeId} onChange={(event) => setRequestedGradeId(event.target.value)} disabled={!destinationId || loadingLevels} className="mt-1.5 w-full rounded-xl border border-terre/15 bg-white px-3 py-2.5 text-sm disabled:opacity-60">
+                    <option value="">{loadingLevels ? "Chargement des niveaux…" : "Choisir un niveau"}</option>
+                    {destinationLevels.map((level) => <option key={level.id} value={level.id}>{level.name}</option>)}
+                  </select>
+                </div>
               </div>
-              
+
               <div>
                 <Label>Motif du transfert</Label>
-                <textarea
-                  rows={3}
-                  className="w-full mt-1.5 px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50 resize-none"
-                  placeholder="Ex. : déménagement de la famille"
-                  value={motif}
-                  onChange={(e) => setMotif(e.target.value)}
-                />
+                <textarea rows={3} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Ex. : déménagement de la famille" className="mt-1.5 w-full resize-y rounded-xl border border-terre/15 bg-white px-3 py-2.5 text-sm" />
               </div>
-              <Button onClick={handleEnvoyer} className="w-full bg-terre hover:bg-terre-dark rounded-2xl">
-                <Send className="h-4 w-4 mr-2" />
-                Générer le dossier de transfert
+              <Button onClick={() => void handleSend()} disabled={sending || studentsLoading} className="rounded-xl bg-terre hover:bg-terre-dark">
+                <Send className="mr-2 h-4 w-4" /> {sending ? "Enregistrement…" : "Enregistrer et transmettre"}
               </Button>
-            </>
+            </div>
           ) : (
-            <div className="space-y-4">
-              <p className="text-jardin font-medium flex items-center gap-2">
-                <Check className="h-5 w-5" /> Dossier préparé — non transmis
-              </p>
-              <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                Ce dossier est enregistré uniquement dans ce navigateur. Pour le transmettre à l’école de destination, téléchargez le fichier JSON et envoyez-le à son responsable. Le code seul n’est pas partagé entre les écoles. La création de ce dossier ne confirme pas encore le transfert dans la base scolaire.
+            <div className="max-w-3xl space-y-4 rounded-2xl border border-green-200 bg-papier p-5 sm:p-6">
+              <p className="flex items-center gap-2 font-semibold text-jardin"><Check className="h-5 w-5" /> Dossier transmis à l’école de destination</p>
+              <p className="text-sm text-pierre">Le dossier est enregistré dans la base scolaire. L’établissement destinataire le verra dans l’onglet « Réception et suivi ».</p>
+              <div className="rounded-xl bg-creme p-4">
+                <p className="text-xs text-pierre">Code de suivi</p>
+                <p className="mt-1 font-mono text-xl font-bold text-encre">{createdTransfer.code}</p>
+                <p className="mt-2 text-sm text-pierre">Élève : {selectedStudent ? `${selectedStudent.first_name} ${selectedStudent.last_name}` : "Dossier créé"}</p>
+                {selectedLevel && <p className="text-sm text-pierre">Niveau demandé : {selectedLevel.name}</p>}
               </div>
-              <div className="rounded-2xl bg-creme p-4 border border-terre/10 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-pierre">Code</span>
-                  <span className="font-mono font-bold">{dossierCree.code}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-pierre">Élève</span>
-                  <span className="font-medium">
-                    {dossierCree.eleve.prenom} {dossierCree.eleve.nom}
-                  </span>
-                </div>
-                {dossierCree.ecoleDestination && (
-                  <div className="flex justify-between">
-                    <span className="text-pierre">École destination</span>
-                    <span>{dossierCree.ecoleDestination}</span>
-                  </div>
-                )}
-                {dossierCree.niveauDestination && (
-                  <div className="flex justify-between">
-                    <span className="text-pierre">Niveau demandé</span>
-                    <span>{dossierCree.niveauDestination}</span>
-                  </div>
-                )}
-                <p className="text-xs text-pierre pt-2 border-t border-terre/10">
-                  Identité, parents, niveau actuel — <strong>aucun paiement</strong> inclus.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  className="rounded-2xl"
-                  onClick={() => {
-                    navigator.clipboard.writeText(dossierCree.code)
-                    toast.success("Code copié")
-                  }}
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copier le code
-                </Button>
-                <Button variant="outline" className="rounded-2xl" onClick={downloadJSON}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Télécharger JSON
-                </Button>
-                <Button
-                  className="rounded-2xl bg-terre"
-                  onClick={() => {
-                    setDossierCree(null)
-                    setEleveId("")
-                    setMotif("")
-                  }}
-                >
-                  Autre transfert
-                </Button>
-              </div>
+              <Button onClick={resetSendForm} className="rounded-xl bg-terre">Nouveau transfert</Button>
             </div>
           )}
-        </div>
+
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold text-encre">Dossiers envoyés par cet établissement</h2>
+            {loadingTransfers ? <p className="text-sm text-pierre">Chargement…</p> : outgoing.length === 0 ? <p className="rounded-xl border border-dashed border-terre/20 p-4 text-sm text-pierre">Aucun transfert envoyé.</p> : (
+              <div className="overflow-x-auto rounded-xl border border-terre/10 bg-papier">
+                <table className="w-full min-w-[650px] text-left text-sm">
+                  <thead className="bg-creme text-pierre"><tr><th className="px-4 py-3">Code</th><th className="px-4 py-3">Élève</th><th className="px-4 py-3">Destination</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Statut</th></tr></thead>
+                  <tbody>{outgoing.map((item) => <tr key={item.id} className="border-t border-terre/10"><td className="px-4 py-3 font-mono">{item.code}</td><td className="px-4 py-3">{item.student_snapshot.first_name} {item.student_snapshot.last_name}</td><td className="px-4 py-3">{item.destination_establishment_name}</td><td className="px-4 py-3">{formatDate(item.created_at)}</td><td className="px-4 py-3"><span className="inline-flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5" />{statusLabel(item.status)}</span>{item.rejection_reason && <p className="mt-1 text-xs text-rouge-terre">{item.rejection_reason}</p>}</td></tr>)}</tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
       )}
 
-      {tab === "recevoir" && (
-        <div className="bg-papier rounded-3xl shadow-soft p-6 space-y-5">
-          {!dossierRecu ? (
-            <>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Code de transfert (ex. ECO-12345-2026)"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  className="rounded-2xl"
-                />
-                <Button onClick={chargerParCode} className="bg-terre rounded-2xl shrink-0">
-                  Charger
-                </Button>
+      {tab === "receive" && (
+        <section className="space-y-4">
+          <div className="max-w-xl">
+            <Label>Rechercher un dossier reçu</Label>
+            <Input value={codeSearch} onChange={(event) => setCodeSearch(event.target.value)} placeholder="Code de transfert ou nom de l’élève" className="mt-1.5 rounded-xl" />
+          </div>
+          {selectedTransfer ? (
+            <div className="max-w-3xl space-y-5 rounded-2xl border border-terre/10 bg-papier p-5 sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div><p className="text-xs text-pierre">Dossier {selectedTransfer.code}</p><h2 className="mt-1 text-xl font-semibold text-encre">{selectedTransfer.student_snapshot.first_name} {selectedTransfer.student_snapshot.last_name}</h2></div>
+                <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">En attente</span>
               </div>
-              <div>
-                <Label className="text-sm text-pierre">Importer le dossier reçu de l’école d’origine (JSON)</Label>
-                <p className="mt-1 text-xs text-pierre">La recherche par code fonctionne uniquement pour les dossiers présents dans ce navigateur. Pour un transfert entre deux écoles ou deux appareils, utilisez le fichier JSON.</p>
-                <Input type="file" accept=".json" onChange={handleImportFichier} className="mt-1.5" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div><p className="text-xs text-pierre">Date de naissance</p><p className="text-sm font-medium">{selectedTransfer.student_snapshot.birth_date || "Non renseignée"}</p></div>
+                <div><p className="text-xs text-pierre">Matricule d’origine</p><p className="text-sm font-medium">{selectedTransfer.student_snapshot.source_student_number || "Non renseigné"}</p></div>
+                <div><p className="text-xs text-pierre">École d’origine</p><p className="text-sm font-medium">{selectedTransfer.source_establishment_name}</p></div>
+                <div><p className="text-xs text-pierre">Classe d’origine</p><p className="text-sm font-medium">{selectedTransfer.student_snapshot.source_class_name || selectedTransfer.student_snapshot.source_grade_name || "Non renseignée"}</p></div>
+                <div><p className="text-xs text-pierre">Niveau demandé</p><p className="text-sm font-medium">{selectedTransfer.requested_grade_name}</p></div>
+                <div><p className="text-xs text-pierre">Contact parent</p><p className="text-sm font-medium">{selectedTransfer.student_snapshot.guardian_phone || selectedTransfer.student_snapshot.phone || "Non renseigné"}</p></div>
               </div>
-            </>
+              <div><p className="text-xs text-pierre">Motif</p><p className="text-sm">{selectedTransfer.reason}</p></div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div><Label>Classe d’accueil</Label><select value={selectedClassId} onChange={(event) => setSelectedClassId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-terre/15 bg-white px-3 py-2.5 text-sm"><option value="">Choisir une classe</option>{destinationClasses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
+                <div><Label>Plan de scolarité</Label><select value={selectedPlanId} onChange={(event) => setSelectedPlanId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-terre/15 bg-white px-3 py-2.5 text-sm"><option value="">Choisir un plan</option>{tuitionPlans.map((item) => <option key={item.id} value={item.id}>{item.payment_mode} — {Number(item.annual_tuition).toLocaleString("fr-FR")} FCFA/an</option>)}</select></div>
+              </div>
+              {destinationClasses.length === 0 && <p className="text-sm text-amber-800">Aucune classe active n’est configurée pour ce niveau. Créez ou activez une classe avant d’accepter le transfert.</p>}
+              {tuitionPlans.length === 0 && <p className="text-sm text-amber-800">Aucun plan de scolarité actif n’est configuré pour ce niveau et l’année active.</p>}
+              <div className="flex flex-wrap gap-2 border-t border-terre/10 pt-4">
+                <Button onClick={() => void handleAccept()} disabled={processing || destinationClasses.length === 0 || tuitionPlans.length === 0} className="rounded-xl bg-jardin hover:bg-jardin/90"><Check className="mr-2 h-4 w-4" />{processing ? "Traitement…" : "Accepter et inscrire"}</Button>
+                <Button variant="outline" onClick={() => void handleReject()} disabled={processing} className="rounded-xl border-rouge-terre/30 text-rouge-terre"><X className="mr-2 h-4 w-4" />Refuser le transfert</Button>
+                <Button variant="ghost" onClick={() => setSelectedTransfer(null)} disabled={processing} className="rounded-xl">Retour à la liste</Button>
+              </div>
+            </div>
           ) : (
-            <>
-              <div className="rounded-2xl bg-creme p-5 border border-terre/10 space-y-3 text-sm">
-                <h3 className="font-semibold text-encre">Examen du dossier</h3>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <div>
-                    <span className="text-pierre">Nom</span>
-                    <p className="font-medium">
-                      {dossierRecu.eleve.prenom} {dossierRecu.eleve.nom}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-pierre">Classe d'origine</span>
-                    <p className="font-medium">{dossierRecu.eleve.classe}</p>
-                  </div>
-                  <div>
-                    <span className="text-pierre">Parents</span>
-                    <p className="font-medium">{dossierRecu.eleve.nomParent}</p>
-                  </div>
-                  <div>
-                    <span className="text-pierre">Contact</span>
-                    <p className="font-medium">{dossierRecu.eleve.contactParent}</p>
-                  </div>
-                  <div>
-                    <span className="text-pierre">École d'origine</span>
-                    <p className="font-medium">{dossierRecu.ecoleOrigine}</p>
-                  </div>
-                  <div>
-                    <span className="text-pierre">Motif</span>
-                    <p className="font-medium">{dossierRecu.motif}</p>
-                  </div>
-                </div>
-                <p className="text-xs text-pierre pt-2 border-t border-terre/10">
-                  Aucune information de paiement dans ce dossier.
-                </p>
+            loadingTransfers ? <p className="text-sm text-pierre">Chargement des dossiers…</p> : incoming.length === 0 ? <p className="rounded-xl border border-dashed border-terre/20 p-4 text-sm text-pierre">Aucun dossier en attente ne correspond à la recherche.</p> : (
+              <div className="overflow-x-auto rounded-xl border border-terre/10 bg-papier">
+                <table className="w-full min-w-[650px] text-left text-sm">
+                  <thead className="bg-creme text-pierre"><tr><th className="px-4 py-3">Code</th><th className="px-4 py-3">Élève</th><th className="px-4 py-3">École d’origine</th><th className="px-4 py-3">Niveau demandé</th><th className="px-4 py-3">Date</th><th className="px-4 py-3"></th></tr></thead>
+                  <tbody>{incoming.map((item) => <tr key={item.id} className="border-t border-terre/10"><td className="px-4 py-3 font-mono">{item.code}</td><td className="px-4 py-3">{item.student_snapshot.first_name} {item.student_snapshot.last_name}</td><td className="px-4 py-3">{item.source_establishment_name}</td><td className="px-4 py-3">{item.requested_grade_name}</td><td className="px-4 py-3">{formatDate(item.created_at)}</td><td className="px-4 py-3"><Button size="sm" onClick={() => setSelectedTransfer(item)} className="rounded-lg bg-terre">Examiner</Button></td></tr>)}</tbody>
+                </table>
               </div>
-
-              <div>
-                <Label>Classe d'accueil</Label>
-                <select
-                  className="w-full mt-1.5 px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50"
-                  value={classeAccueil}
-                  onChange={(e) => setClasseAccueil(e.target.value)}
-                >
-                  <option value="">Choisir…</option>
-                  {classes.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                La validation définitive doit créer l’inscription dans Supabase et être partagée entre les deux écoles. Pour éviter de déclarer un élève inscrit alors que ce n’est pas enregistré, aucune acceptation ou aucun refus définitif n’est effectué depuis cette page pour le moment.
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button className="rounded-2xl bg-jardin/50 text-white" disabled>
-                  <Check className="h-4 w-4 mr-2" />
-                  Intégration automatique indisponible
-                </Button>
-                <Button variant="outline" className="rounded-2xl text-rouge-terre border-rouge-terre/30" disabled>
-                  <X className="h-4 w-4 mr-2" />
-                  Refus indisponible
-                </Button>
-                  <Button
-                    variant="ghost"
-                    className="rounded-2xl"
-                    onClick={() => {
-                      setDossierRecu(null)
-                      setCode("")
-                    }}
-                  >
-                    Annuler
-                  </Button>
-                </div>
-              </div>
-            </>
+            )
           )}
-        </div>
+        </section>
       )}
     </div>
   )

@@ -56,8 +56,8 @@ export default function MatieresPage() {
 
   const levelsById = useMemo(() => new Map(gradeLevels.map((level) => [level.id, level])), [gradeLevels])
   const visibleLevels = useMemo(
-    () => gradeLevels.filter((level) => selectedScope === "all" || level.scope === selectedScope),
-    [gradeLevels, selectedScope]
+    () => gradeLevels.filter((level) => level.scope === form.scope),
+    [gradeLevels, form.scope]
   )
 
   const filteredMatieres = useMemo(() => {
@@ -141,9 +141,16 @@ export default function MatieresPage() {
       setError("Ce niveau n'est pas activé pour cet établissement.")
       return
     }
-    const duplicateName = matieres.some((item) => item.nom.trim().toLocaleLowerCase() === form.nom.trim().toLocaleLowerCase() && item.id !== editing?.id)
+    const normalizedName = form.nom.trim().toLocaleLowerCase()
+    const normalizedCode = form.code.trim().toLocaleUpperCase()
+    const duplicateName = matieres.some((item) => item.nom.trim().toLocaleLowerCase() === normalizedName && item.id !== editing?.id)
     if (duplicateName) {
       setError("Une matière portant déjà ce nom existe dans cet établissement.")
+      return
+    }
+    const duplicateCode = matieres.some((item) => item.code.trim().toLocaleUpperCase() === normalizedCode && item.id !== editing?.id)
+    if (duplicateCode) {
+      setError("Ce code est déjà utilisé par une autre matière dans cet établissement.")
       return
     }
     setSaving(true)

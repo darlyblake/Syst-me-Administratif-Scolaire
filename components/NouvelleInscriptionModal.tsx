@@ -397,7 +397,6 @@ export default function NouvelleInscriptionModal({
         waiveRegistration,
         waiveTuition,
       })
-
       if (!result) {
         toast.error(submissionError || "Impossible de créer l'inscription.")
         return
@@ -706,7 +705,8 @@ export default function NouvelleInscriptionModal({
                 <section className="space-y-3 border border-[#d7dae3] p-3">
                   <div className="flex items-start gap-2"><Users className="mt-0.5 h-4 w-4 text-[#00236f]" /><div><h4 className="text-sm font-medium">Même famille — frère ou sœur</h4><p className="mt-1 text-xs text-slate-500">Recherchez un enfant déjà inscrit pour rattacher les deux dossiers à la même famille et vérifier les réductions applicables. Le nom de famille seul ne suffit pas.</p></div></div>
                   {selectedSibling ? (
-                    <div className="flex items-center justify-between gap-3 border border-emerald-200 bg-emerald-50 p-3"><div className="min-w-0"><p className="text-sm font-medium text-emerald-900">{selectedSibling.first_name} {selectedSibling.last_name}</p><p className="text-xs text-emerald-800">Matricule : {selectedSibling.student_number || "—"} · Classe : {selectedSibling.class_name || "Non renseignée"}</p></div><Button type="button" variant="outline" size="sm" onClick={() => { setSelectedSibling(null); setSiblingSearch("") }}>Retirer</Button></div>
+                    <div className="flex items-center justify-between gap-3 border border-emerald-200 bg-emerald-50 p-3"><div className="min-w-0"><p className="text-sm font-medium text-emerald-900">{selectedSibling.first_name} {selectedSibling.last_name}</p><p className="text-xs text-emerald-800">Matricule : {selectedSibling.student_number || "—"} · Classe : {selectedSibling.class_name || "Non renseignée"}</p>
+<p className="mt-1 text-xs text-emerald-800">Code famille : {selectedSibling.family_code || "Famille à vérifier"}</p></div><Button type="button" variant="outline" size="sm" onClick={() => { setSelectedSibling(null); setSiblingSearch("") }}>Retirer</Button></div>
                   ) : (
                     <>
                       <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><Input className="pl-9" value={siblingSearch} onChange={(e) => setSiblingSearch(e.target.value)} placeholder="Nom, prénom ou matricule de l'enfant" /></div>
@@ -797,8 +797,7 @@ export default function NouvelleInscriptionModal({
                             setSelectedOptionIds((prev) => {
                               const next = new Set(prev)
                               if (isChecked) next.add(opt.id)
-                              else next.delete(opt.id)
-                              return next
+                              else next.delete(opt.id)                              return next
                             })
                           }}
                         />

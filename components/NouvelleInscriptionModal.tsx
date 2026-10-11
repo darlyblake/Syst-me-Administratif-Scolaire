@@ -218,8 +218,14 @@ export default function NouvelleInscriptionModal({
         setLastName(s.last_name ?? "")
         setFirstName(s.first_name ?? "")
         setBirthDate(s.birth_date ?? "")
+        setBirthPlace((s as any).place_of_birth ?? "")
         setSex(s.sex ?? "")
         setStudentNumber(s.student_number ?? "")
+        setParentFirstName((s as any).guardian_first_name ?? "")
+        setParentLastName((s as any).guardian_last_name ?? "")
+        setParentPhone((s as any).guardian_phone ?? s.phone ?? "")
+        setParentEmail((s as any).guardian_email ?? s.email ?? "")
+        setParentAddress((s as any).guardian_address ?? "")
       }
     }
   }, [typeInscription, studentId, students])

@@ -25,7 +25,10 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
   const { utilisateur, contexte, etablissementActif } = useAuthentification()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
-  const isActive = (path: string) => pathname === path || pathname.startsWith(path + "/")
+  const isActive = (path: string) => {
+    const route = path.split("?")[0]
+    return pathname === route || pathname.startsWith(route + "/")
+  }
   const can = (permission: string) => {
     const isSchoolAccount = contexte?.account_type === "school_member"
     const organizationRole =

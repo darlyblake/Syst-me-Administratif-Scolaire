@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { listEnrollmentsPaginated } from "@/lib/supabase/services/enrollment.service"
+import { listAllEnrollmentsPaginated, listEnrollmentsPaginated } from "@/lib/supabase/services/enrollment.service"
 import type { EnrollmentWithRelations } from "@/lib/supabase/types"
 
 export function useEnrollments(data: {
@@ -13,6 +13,7 @@ export function useEnrollments(data: {
   status?: string | null
   refreshKey?: number
   search?: string
+  fetchAll?: boolean
 }) {
   const [enrollments, setEnrollments] = useState<EnrollmentWithRelations[]>([])
   const [total, setTotal] = useState(0)
@@ -33,7 +34,15 @@ export function useEnrollments(data: {
     let active = true
     setIsLoading(true)
     setError(null)
-    void listEnrollmentsPaginated({ ...data, establishmentId: data.establishmentId }).then((result) => {
+    const request = data.fetchAll
+      ? listAllEnrollmentsPaginated({ ...data, establishmentId: data.establishmentId }).then((items) => ({
+          items,
+          total: items.length,
+          total_pages: Math.ceil(items.length / (data.pageSize ?? 25)),
+        }))
+      : listEnrollmentsPaginated({ ...data, establishmentId: data.establishmentId })
+
+    void request.then((result) => {
       if (!active) return
       setEnrollments(result.items)
       setTotal(result.total)
@@ -51,7 +60,7 @@ export function useEnrollments(data: {
     })
 
     return () => { active = false }
-  }, [data.establishmentId, data.page, data.pageSize, data.academicYearId, data.classId, data.status, data.refreshKey, data.search])
+  }, [data.establishmentId, data.page, data.pageSize, data.academicYearId, data.classId, data.status, data.refreshKey, data.search, data.fetchAll])
 
   return { enrollments, total, totalPages, isLoading, error }
 }

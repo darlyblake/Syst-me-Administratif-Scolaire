@@ -25,11 +25,14 @@ export function useEnrollments(data: {
       setEnrollments([])
       setTotal(0)
       setTotalPages(0)
+      setError(null)
       setIsLoading(false)
       return
     }
 
     let active = true
+    setIsLoading(true)
+    setError(null)
     void listEnrollmentsPaginated({ ...data, establishmentId: data.establishmentId }).then((result) => {
       if (!active) return
       setEnrollments(result.items)
@@ -37,7 +40,12 @@ export function useEnrollments(data: {
       setTotalPages(result.total_pages)
       setError(null)
     }).catch((err) => {
-      if (active) setError(err instanceof Error ? err.message : "Impossible de charger les inscriptions.")
+      if (active) {
+        setError(err instanceof Error ? err.message : "Impossible de charger les inscriptions.")
+        setEnrollments([])
+        setTotal(0)
+        setTotalPages(0)
+      }
     }).finally(() => {
       if (active) setIsLoading(false)
     })

@@ -50,7 +50,7 @@ export function useStudents(establishmentId: string | null, filters: StudentFilt
     return () => {
       active = false
     }
-  }, [establishmentId, filters.search, filters.classId, filters.gradeLevelId, filters.academicYearId, filters.status, filters.page, filters.pageSize, filters.active, filters.gradeLevelId, filters.minAge, filters.maxAge, refreshKey])
+  }, [establishmentId, filters.search, filters.classId, filters.gradeLevelId, filters.academicYearId, filters.page, filters.pageSize, filters.active, filters.minAge, filters.maxAge, refreshKey])
 
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), [])
   const create = useCallback(async (student: Parameters<typeof createStudent>[0]) => {

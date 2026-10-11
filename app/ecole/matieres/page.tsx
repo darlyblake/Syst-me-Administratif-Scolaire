@@ -179,6 +179,11 @@ export default function MatieresPage() {
       setError("Ce niveau n'est pas activé pour cet établissement.")
       return
     }
+    const duplicateName = matieres.some((item) => item.nom.trim().toLocaleLowerCase() === form.nom.trim().toLocaleLowerCase() && item.id !== editing?.id)
+    if (duplicateName) {
+      setError("Une matière portant déjà ce nom existe dans cet établissement.")
+      return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -191,7 +196,7 @@ export default function MatieresPage() {
         level_scope: level.scope,
         is_primary_generalist: level.scope === "primary" && form.primaryGeneralist,
       }
-      if (editing) await serviceMatieres.modifierMatiere(editing.id, payload)
+      if (editing) await serviceMatieres.modifierMatiere(editing.id, etablissementId, payload)
       else await serviceMatieres.ajouterMatiere(etablissementId, payload)
       setOpen(false)
       setEditing(null)
@@ -207,7 +212,8 @@ export default function MatieresPage() {
   async function supprimer(id: string) {
     if (!window.confirm("Archiver cette matière ? Elle ne sera plus proposée dans les nouvelles affectations.")) return
     try {
-      await serviceMatieres.supprimerMatiere(id)
+      if (!etablissementId) throw new Error("Établissement non identifié.")
+      await serviceMatieres.supprimerMatiere(id, etablissementId)
       await charger()
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible d'archiver la matière.")

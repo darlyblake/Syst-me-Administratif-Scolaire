@@ -12,13 +12,27 @@ import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { useAttendanceStatistics } from "@/hooks/useAbsences"
 
 function getPeriod(period: string) {
+  // Construire les dates en heure locale et non avec toISOString(), qui peut
+  // décaler le jour selon le fuseau horaire du navigateur.
   const end = new Date()
-  const start = new Date(end)
-  if (period === "semaine") start.setDate(end.getDate() - 6)
-  if (period === "mois") start.setMonth(end.getMonth() - 1)
-  if (period === "trimestre") start.setMonth(end.getMonth() - 3)
-  if (period === "annee") start.setFullYear(end.getFullYear() - 1)
-  return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) }
+  const start = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+  if (period === "semaine") {
+    const daysSinceMonday = (start.getDay() + 6) % 7
+    start.setDate(start.getDate() - daysSinceMonday)
+  } else if (period === "mois") {
+    start.setDate(1)
+  } else if (period === "trimestre") {
+    start.setMonth(Math.floor(start.getMonth() / 3) * 3, 1)
+  } else if (period === "annee") {
+    start.setMonth(0, 1)
+  }
+  const toLocalDate = (date: Date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+  }
+  return { from: toLocalDate(start), to: toLocalDate(end) }
 }
 
 export default function StatistiquesAbsences() {

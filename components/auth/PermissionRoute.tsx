@@ -8,6 +8,7 @@ import { hasEffectiveSchoolPermission } from "@/lib/organization/runtime-permiss
 
 const ROUTE_PERMISSIONS: Array<[string, string]> = [
   ["/ecole/tableau-bord", "dashboard.view"],
+  ["/ecole/inscriptions/transfert", "students.view"],
   ["/ecole/inscriptions", "inscriptions.view"],
   ["/ecole/students", "students.view"],
   ["/ecole/dossiers-papier", "documents.view"],

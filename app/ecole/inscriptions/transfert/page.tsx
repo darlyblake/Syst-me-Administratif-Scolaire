@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { serviceTransfert } from "@/services/transfert.service"
 import { getEstablishments } from "@/lib/supabase/services/establishment.service"
+import { getAcademicStructure } from "@/lib/supabase/services/academic.service"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
@@ -22,12 +23,33 @@ export default function TransfertPage() {
   const { data: academicStructure } = useAcademicStructure(establishmentId)
 
   const [establishments, setEstablishments] = useState<Establishment[]>([])
+  const [destinationGradeLevels, setDestinationGradeLevels] = useState<Array<{ id: string; name: string }>>([])
 
   useEffect(() => {
     getEstablishments()
       .then(setEstablishments)
       .catch(console.error)
   }, [])
+
+  useEffect(() => {
+    let active = true
+    if (!ecoleDestination) {
+      setDestinationGradeLevels([])
+      return () => { active = false }
+    }
+    getAcademicStructure(ecoleDestination)
+      .then((cycles) => {
+        if (!active) return
+        setDestinationGradeLevels(cycles.flatMap((cycle) => (cycle.grade_levels ?? []).map((level) => ({ id: level.id, name: level.name }))))
+      })
+      .catch((error) => {
+        if (!active) return
+        console.error("Chargement des niveaux de destination impossible:", error)
+        setDestinationGradeLevels([])
+        toast.error("Impossible de charger les niveaux de l’école de destination.")
+      })
+    return () => { active = false }
+  }, [ecoleDestination])
 
   const assignmentClasses = useMemo(() =>
     (academicStructure || []).flatMap((cycle) => (cycle.grade_levels ?? []).flatMap((level) => (level.school_classes ?? []).map((sc) => ({ id: sc.id, name: sc.name, gradeLevelId: level.id })))),
@@ -130,7 +152,7 @@ export default function TransfertPage() {
       eleve, 
       motif.trim(), 
       primaryEstablishment?.name || "Mon établissement",
-      ecoleDestination.trim(),
+      establishments.find((est) => est.id === ecoleDestination)?.name || ecoleDestination,
       niveauDestination.trim()
     )
     setDossierCree(d)
@@ -289,7 +311,7 @@ export default function TransfertPage() {
                         {establishments
                           .filter((est) => est.id !== establishmentId)
                           .map((est) => (
-                            <option key={est.id} value={est.name}>
+                            <option key={est.id} value={est.id}>
                               {est.name}
                             </option>
                           ))}
@@ -304,7 +326,7 @@ export default function TransfertPage() {
                       className="w-full h-10 mt-1.5 px-3 py-2.5 rounded-2xl border border-terre/15 bg-creme/50"
                     >
                       <option value="">Sélectionner un niveau...</option>
-                      {realGradeLevels.map((lvl) => (
+                      {destinationGradeLevels.map((lvl) => (
                         <option key={lvl.id} value={lvl.name}>
                           {lvl.name}
                         </option>

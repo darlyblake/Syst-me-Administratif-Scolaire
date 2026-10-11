@@ -129,8 +129,24 @@ export default function InscriptionsPage() {
     [academicStructure],
   )
 
-  const activeCount = rows.filter((row) => row.status === "active").length
-  const inactiveCount = rows.filter((row) => row.status !== "active").length
+  const visibleRows = useMemo(() => {
+    if (period === "all") return rows
+    const now = new Date()
+    const start = new Date(now)
+    if (period === "today") {
+      start.setHours(0, 0, 0, 0)
+    } else {
+      start.setDate(start.getDate() - Number(period))
+      start.setHours(0, 0, 0, 0)
+    }
+    return rows.filter((row) => {
+      const date = new Date(row.date)
+      return !Number.isNaN(date.getTime()) && date >= start && date <= now
+    })
+  }, [rows, period])
+
+  const activeCount = visibleRows.filter((row) => row.status === "active").length
+  const inactiveCount = visibleRows.filter((row) => row.status !== "active").length
   const transferCount = useMemo(() => serviceTransfert.getEnAttente().length, [refreshKey])
 
   const resetFilters = () => {
@@ -256,18 +272,18 @@ export default function InscriptionsPage() {
 
       <section className="mt-3 overflow-hidden border border-[#c5c5d3]/45 bg-white">
         <div className="flex flex-wrap items-center gap-1 border-b border-[#c5c5d3]/45 px-2 pt-1">
-          <button className="border-b-2 border-[#00236f] px-3 py-2 text-[12px] font-medium text-[#00236f]">
+          <button type="button" onClick={() => { setFilterStatut(""); setPage(1) }} className={`border-b-2 px-3 py-2 text-[12px] font-medium ${filterStatut === "" ? "border-[#00236f] text-[#00236f]" : "border-transparent text-[#515f74] hover:bg-[#f2f3ff]"}`}>
             Toutes les demandes <span className="ml-1 text-[11px] text-[#515f74]">{total}</span>
           </button>
-          <button className="px-3 py-2 text-[12px] text-[#515f74] hover:bg-[#f2f3ff]">
+          <button type="button" onClick={() => { setFilterStatut("pending"); setPage(1) }} className={`border-b-2 px-3 py-2 text-[12px] ${filterStatut === "pending" ? "border-[#00236f] font-medium text-[#00236f]" : "border-transparent text-[#515f74] hover:bg-[#f2f3ff]"}`}>
             En attente <span className="ml-1 text-[11px]">{inactiveCount}</span>
           </button>
-          <button className="px-3 py-2 text-[12px] text-[#515f74] hover:bg-[#f2f3ff]">
+          <button type="button" onClick={() => { setFilterStatut("active"); setPage(1) }} className={`border-b-2 px-3 py-2 text-[12px] ${filterStatut === "active" ? "border-[#00236f] font-medium text-[#00236f]" : "border-transparent text-[#515f74] hover:bg-[#f2f3ff]"}`}>
             Validées / Inscrit <span className="ml-1 text-[11px] text-[#166534]">{activeCount}</span>
           </button>
-          <button className="px-3 py-2 text-[12px] text-[#515f74] hover:bg-[#f2f3ff]">
+          <Link href="/ecole/inscriptions/transfert" className="inline-flex items-center border-b-2 border-transparent px-3 py-2 text-[12px] text-[#515f74] hover:bg-[#f2f3ff]">
             Transferts <span className="ml-1 text-[11px] text-[#92400e]">{transferCount}</span>
-          </button>
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 gap-2 bg-[#f2f3ff] p-2 md:grid-cols-12">
@@ -303,7 +319,7 @@ export default function InscriptionsPage() {
             <label className="whitespace-nowrap text-[11px] font-medium text-[#515f74]">Période :</label>
             <select
               value={period}
-              onChange={(event) => setPeriod(event.target.value)}
+              onChange={(event) => { setPeriod(event.target.value); setPage(1) }}
               className="h-8 w-full rounded border border-[#c5c5d3]/70 bg-white px-2 text-[12px] outline-none focus:border-[#00236f]"
             >
               <option value="all">Toute la session</option>
@@ -363,7 +379,7 @@ export default function InscriptionsPage() {
               </tr>
             </thead>
             <tbody className="text-[12px]">
-              {rows.map((row) => {
+              {visibleRows.map((row) => {
                 const isActive = row.status === "active"
                 return (
                   <tr key={row.id} className="border-b border-[#c5c5d3]/30 hover:bg-[#f2f3ff]">
@@ -445,11 +461,11 @@ export default function InscriptionsPage() {
           </table>
         </div>
 
-        {rows.length === 0 && !isLoading && (
+        {visibleRows.length === 0 && !isLoading && (
           <div className="px-4 py-14 text-center">
             <XCircle className="mx-auto h-8 w-8 text-[#68758a]" />
             <p className="mt-2 text-[12px] font-medium text-[#131b2e]">Aucune inscription trouvée</p>
-            <p className="mt-1 text-[11px] text-[#515f74]">Modifiez les filtres ou créez un nouveau dossier.</p>
+            <p className="mt-1 text-[11px] text-[#515f74]">{period !== "all" ? "Aucune inscription ne correspond à la période choisie sur cette page." : "Modifiez les filtres ou créez un nouveau dossier."}</p>
             <button
               type="button"
               onClick={openInscription}
@@ -463,7 +479,7 @@ export default function InscriptionsPage() {
 
         <div className="flex flex-col gap-2 border-t border-[#c5c5d3]/40 px-3 py-2 text-[11px] text-[#515f74] sm:flex-row sm:items-center sm:justify-between">
           <span>
-            Affichage de {rows.length ? ((page - 1) * 25) + 1 : 0} à {((page - 1) * 25) + rows.length} sur {total} inscriptions
+            Affichage de {visibleRows.length ? ((page - 1) * 25) + 1 : 0} à {((page - 1) * 25) + visibleRows.length} sur {total} inscriptions
           </span>
           <div className="flex items-center gap-1.5">
             <span>Lignes :</span>

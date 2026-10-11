@@ -168,7 +168,7 @@ export default function InscriptionsPage() {
 
   const activeCount = activeMatchingTotal
   const pendingCount = pendingMatchingTotal
-  const otherStatusCount = Math.max(0, allMatchingTotal - activeMatchingTotal - pendingMatchingTotal)
+  const inactiveCount = Math.max(0, allMatchingTotal - activeMatchingTotal)
   const transferCount = useMemo(() => serviceTransfert.getEnAttente().length, [refreshKey])
 
   const resetFilters = () => {
@@ -274,8 +274,7 @@ export default function InscriptionsPage() {
         {[
           { label: "Dossiers de la session", value: allMatchingTotal, icon: FileText, tone: "text-[#00236f] bg-[#dce1ff]" },
           { label: "Inscrits & validés", value: activeCount, icon: CheckCircle2, tone: "text-[#166534] bg-[#dcfce7]" },
-          { label: "En attente", value: pendingCount, icon: Clock3, tone: "text-[#92400e] bg-[#fef3c7]" },
-          { label: "Autres statuts", value: otherStatusCount, icon: XCircle, tone: "text-[#515f74] bg-[#f2f3ff]" },
+          { label: "En attente / autres", value: inactiveCount, icon: Clock3, tone: "text-[#92400e] bg-[#fef3c7]" },
           { label: "Transferts en attente", value: transferCount, icon: ArrowRightLeft, tone: "text-[#7a5600] bg-[#fff7dc]" },
         ].map((item, index) => {
           const Icon = item.icon

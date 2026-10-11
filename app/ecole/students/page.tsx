@@ -42,7 +42,10 @@ export default function StudentsPage() {
     pageSize: 50,
     search: searchTerm,
     classId: selectedClass !== "all" ? selectedClass : null,
-    active: selectedStatus !== "inactif",
+    active: selectedStatus === "all" ? null : selectedStatus === "actif",
+    gradeLevelId: selectedLevel !== "all" ? selectedLevel : null,
+    minAge: filterAgeMin.trim() ? Number(filterAgeMin) : null,
+    maxAge: filterAgeMax.trim() ? Number(filterAgeMax) : null,
   })
 
   const assignmentClasses = useMemo(() =>
@@ -107,16 +110,6 @@ export default function StudentsPage() {
 
   useEffect(() => { setStudents(displayStudents); setFilteredStudents(displayStudents) }, [displayStudents])
   useEffect(() => { setSelectedClass("all") }, [selectedLevel])
-  useEffect(() => {
-    if (!filterAgeMin && !filterAgeMax) { setFilteredStudents(students); return }
-    setFilteredStudents(students.filter(student => {
-      const birthDate = new Date(student.dateNaissance)
-      const age = new Date().getFullYear() - birthDate.getFullYear()
-      const minAge = filterAgeMin ? parseInt(filterAgeMin) : 0
-      const maxAge = filterAgeMax ? parseInt(filterAgeMax) : 100
-      return age >= minAge && age <= maxAge
-    }))
-  }, [students, filterAgeMin, filterAgeMax])
   useEffect(() => { setCurrentPage(1) }, [selectedClass, selectedStatus, selectedLevel, searchTerm, filterAgeMin, filterAgeMax])
 
   const handleDeleteStudent = async (id: string) => { if (confirm("Désactiver cet élève ?\n\nSon historique sera conservé.")) { const success = await deactivate(id); if (success) { toast.success("Élève désactivé avec succès"); setSelectedStudent(null) } else toast.error("Impossible de désactiver cet élève") } }
@@ -155,7 +148,7 @@ export default function StudentsPage() {
   const handlePrintSchoolCertificate = (student: DonneesEleve) => alert("Impression attestation")
   const getClassStats = () => { const stats: { [key: string]: number } = {}; students.forEach(student => { stats[student.classe] = (stats[student.classe] || 0) + 1 }); return stats }
   const getQuickStats = () => { const activeStudents = students.filter(s => s.statut === 'actif'); const studentsWithoutPhoto = activeStudents.filter(s => !s.photo); return { total: activeStudents.length, withoutPhoto: studentsWithoutPhoto.length, absentToday: 0, byLevel: Object.entries(getClassStats()).reduce((acc, [classe, count]) => { const level = classe.split(' ')[0]; acc[level] = (acc[level] || 0) + count; return acc }, {} as Record<string, number>) } }
-  const totalPages = backendTotalPages || Math.ceil(filteredStudents.length / itemsPerPage); const startIndex = (currentPage - 1) * itemsPerPage; const endIndex = startIndex + itemsPerPage; const paginatedStudents = filteredStudents
+  const totalPages = backendTotalPages; const startIndex = (currentPage - 1) * itemsPerPage; const endIndex = startIndex + itemsPerPage; const paginatedStudents = filteredStudents
   function handlePrintSchoolCard(student: DonneesEleve): void { throw new Error("Function not implemented.") }
 
   return (
@@ -197,7 +190,7 @@ export default function StudentsPage() {
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Rechercher par nom, matricule, tuteur..."
+              placeholder="Rechercher par nom, prénom, matricule ou parent..."
               className="h-9 w-full border border-[#c5c5d3]/70 bg-white pl-9 pr-3 text-[12px] text-[#131b2e] outline-none focus:border-[#00236f]"
             />
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#515f74]">⌕</span>
@@ -214,24 +207,28 @@ export default function StudentsPage() {
           </select>
 
           <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className="h-9 border border-[#c5c5d3]/70 bg-white px-2 text-[12px] text-[#131b2e]">
-            <option value="all">Actifs</option>
+            <option value="all">Tous les statuts</option>
+            <option value="actif">Actifs</option>
             <option value="inactif">Inactifs</option>
           </select>
         </div>
 
         <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Button type="button" variant="outline" className="h-8 rounded text-[11px]" onClick={() => setShowAdvancedFilters((value) => !value)}>
               <Wrench className="mr-1.5 h-3.5 w-3.5" /> Filtres avancés
             </Button>
             {showAdvancedFilters && (
               <>
-                <input value={filterAgeMin} onChange={(e) => setFilterAgeMin(e.target.value)} placeholder="Âge min" inputMode="numeric" className="h-8 w-20 border border-[#c5c5d3]/70 px-2 text-[11px]" />
-                <input value={filterAgeMax} onChange={(e) => setFilterAgeMax(e.target.value)} placeholder="Âge max" inputMode="numeric" className="h-8 w-20 border border-[#c5c5d3]/70 px-2 text-[11px]" />
+                <input type="number" min="0" max="120" value={filterAgeMin} onChange={(e) => setFilterAgeMin(e.target.value)} placeholder="Âge min" aria-label="Âge minimum" className="h-8 w-20 border border-[#c5c5d3]/70 px-2 text-[11px]" />
+                <input type="number" min="0" max="120" value={filterAgeMax} onChange={(e) => setFilterAgeMax(e.target.value)} placeholder="Âge max" aria-label="Âge maximum" className="h-8 w-20 border border-[#c5c5d3]/70 px-2 text-[11px]" />
               </>
             )}
+            <Button type="button" variant="ghost" className="h-8 rounded text-[11px]" onClick={() => { setSearchTerm(""); setSelectedClass("all"); setSelectedStatus("all"); setSelectedLevel("all"); setFilterAgeMin(""); setFilterAgeMax(""); setCurrentPage(1) }}>
+              Réinitialiser
+            </Button>
           </div>
-          <span className="font-mono text-[11px] text-[#515f74]">{filteredStudents.length.toLocaleString("fr-FR")} résultats&nbsp; ↻</span>
+          <span className="font-mono text-[11px] text-[#515f74]">{total.toLocaleString("fr-FR")} résultat(s)</span>
         </div>
       </section>
 
@@ -288,7 +285,7 @@ export default function StudentsPage() {
           </div>
 
           <div className="flex flex-col gap-2 border-t border-[#c5c5d3]/60 px-3 py-2.5 text-[11px] text-[#515f74] sm:flex-row sm:items-center sm:justify-between">
-            <span>Affichage <strong className="text-[#131b2e]">{paginatedStudents.length ? startIndex + 1 : 0} à {Math.min(endIndex, filteredStudents.length)}</strong> sur <strong className="text-[#131b2e]">{total.toLocaleString("fr-FR")}</strong> élèves</span>
+            <span>Affichage <strong className="text-[#131b2e]">{paginatedStudents.length ? startIndex + 1 : 0} à {Math.min(endIndex, total)}</strong> sur <strong className="text-[#131b2e]">{total.toLocaleString("fr-FR")}</strong> élèves</span>
             <div className="flex items-center gap-1.5">
               <span>Lignes :</span>
               <span className="rounded border border-[#c5c5d3]/60 px-2 py-1">50</span>

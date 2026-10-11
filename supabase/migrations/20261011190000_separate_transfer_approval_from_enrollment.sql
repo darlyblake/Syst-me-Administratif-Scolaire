@@ -106,6 +106,8 @@ CREATE OR REPLACE FUNCTION public.can_finalize_student_transfers(p_establishment
  SET search_path TO 'public', 'private', 'pg_temp'
 AS $function$
   select auth.uid() is not null
+    and private.has_permission(p_establishment_id, 'enrollments.manage', auth.uid())
+    and private.has_permission(p_establishment_id, 'students.manage', auth.uid())
     and (
       private.is_platform_admin(auth.uid())
       or exists (

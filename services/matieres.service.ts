@@ -22,12 +22,12 @@ class ServiceMatieres {
     return creerMatiereSupabase(donnees, etablissementId)
   }
 
-  async modifierMatiere(id: string, donnees: Partial<Omit<SubjectRecord, "id" | "establishment_id">>): Promise<Matiere> {
-    return modifierMatiereSupabase(id, donnees)
+  async modifierMatiere(id: string, etablissementId: string, donnees: Partial<Omit<SubjectRecord, "id" | "establishment_id">>): Promise<Matiere> {
+    return modifierMatiereSupabase(id, etablissementId, donnees)
   }
 
-  async supprimerMatiere(id: string): Promise<boolean> {
-    await archiverMatiereSupabase(id)
+  async supprimerMatiere(id: string, etablissementId: string): Promise<boolean> {
+    await archiverMatiereSupabase(id, etablissementId)
     return true
   }
 }

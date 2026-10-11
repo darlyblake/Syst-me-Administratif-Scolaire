@@ -50,6 +50,7 @@ export default function TransfertPage() {
   const [sending, setSending] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [tab, setTab] = useState<"send" | "receive">("send")
+  const [reviewMode, setReviewMode] = useState(false)
 
   const [studentSearch, setStudentSearch] = useState("")
   const [studentId, setStudentId] = useState("")
@@ -80,6 +81,13 @@ export default function TransfertPage() {
       setLoadingTransfers(false)
     }
   }, [establishmentId])
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "review") {
+      setReviewMode(true)
+      setTab("receive")
+    }
+  }, [])
 
   useEffect(() => {
     getEstablishments()
@@ -298,11 +306,11 @@ export default function TransfertPage() {
       </header>
 
       <div className="flex flex-wrap gap-2 border-b border-terre/10 pb-3">
-        <button onClick={() => { setTab("send"); setSelectedTransfer(null) }} className={`rounded-xl px-4 py-2.5 text-sm font-medium ${tab === "send" ? "bg-terre text-white" : "bg-creme text-pierre"}`}>
+        {!reviewMode && <button onClick={() => { setTab("send"); setSelectedTransfer(null) }} className={`rounded-xl px-4 py-2.5 text-sm font-medium ${tab === "send" ? "bg-terre text-white" : "bg-creme text-pierre"}`}>
           <Send className="mr-2 inline h-4 w-4" /> Envoyer un élève
-        </button>
+        </button>}
         <button onClick={() => { setTab("receive"); setSelectedTransfer(null) }} className={`rounded-xl px-4 py-2.5 text-sm font-medium ${tab === "receive" ? "bg-terre text-white" : "bg-creme text-pierre"}`}>
-          <ArrowRightLeft className="mr-2 inline h-4 w-4" /> Réception et suivi
+          <ArrowRightLeft className="mr-2 inline h-4 w-4" /> {reviewMode ? "Examiner les transferts" : "Réception et suivi"}
         </button>
       </div>
 

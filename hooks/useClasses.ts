@@ -5,7 +5,8 @@ import { obtenirClassesSupabase, creerClasseSupabase, modifierClasseSupabase, ar
 import { supabaseBrowser } from "@/lib/supabase/client"
 import type { Classe, DonneesEleve, DonneesEnseignant } from "@/types/models"
 
-async function getCurrentEstablishmentId(): Promise<string> {
+async function getCurrentEstablishmentId(establishmentIdOverride?: string | null): Promise<string> {
+  if (establishmentIdOverride) return establishmentIdOverride
   const { data: { user } } = await supabaseBrowser.auth.getUser()
   if (!user) throw new Error("Session utilisateur introuvable")
   const { data, error } = await supabaseBrowser.from("establishment_members").select("establishment_id").eq("user_id", user.id).eq("active", true).limit(1).maybeSingle()
@@ -13,7 +14,7 @@ async function getCurrentEstablishmentId(): Promise<string> {
   return data.establishment_id
 }
 
-export function useClasses() {
+export function useClasses(establishmentIdOverride?: string | null) {
   const [classes, setClasses] = useState<Classe[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -21,7 +22,7 @@ export function useClasses() {
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const establishmentId = await getCurrentEstablishmentId()
+      const establishmentId = await getCurrentEstablishmentId(establishmentIdOverride)
       const [classesResult] = await Promise.all([
         obtenirClassesSupabase(establishmentId)
       ])
@@ -32,12 +33,12 @@ export function useClasses() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [establishmentIdOverride])
 
   useEffect(() => { void refresh() }, [refresh])
 
   const ajouter = useCallback(async (data: Omit<Classe, "id"> & { grade_level_id?: string; code?: string | null; academic_year_id?: string | null }) => {
-    const establishmentId = await getCurrentEstablishmentId()
+    const establishmentId = await getCurrentEstablishmentId(establishmentIdOverride)
     // La page fournit directement l'UUID du niveau sélectionné dans la structure académique.
     // On normalise uniquement la chaîne pour éviter qu'un UUID entouré d'espaces soit rejeté.
     const gradeLevelId = typeof data.grade_level_id === "string" ? data.grade_level_id.trim() : ""
@@ -54,7 +55,7 @@ export function useClasses() {
     })
     await refresh()
     return result
-  }, [refresh])
+  }, [refresh, establishmentIdOverride])
 
   const modifier = useCallback(async (id: string, data: Partial<Classe> & { grade_level_id?: string }) => {
     const targetLevel = data.grade_level_id
@@ -71,7 +72,7 @@ export function useClasses() {
     const result = await modifierClasseSupabase(id, changes)
     await refresh()
     return result
-  }, [refresh])
+  }, [refresh, establishmentIdOverride])
 
   const supprimer = useCallback(async (id: string) => {
     await archiverClasseSupabase(id)

@@ -73,34 +73,27 @@ CREATE OR REPLACE FUNCTION public.list_student_transfers(p_establishment_id uuid
  SET search_path TO 'public', 'private', 'pg_temp'
 AS $function$
 begin
-  if auth.uid() is null then
-    raise exception 'Authentification requise';
-  end if;
-
+  if auth.uid() is null then raise exception 'Authentification requise'; end if;
   if not (
     private.has_permission(p_establishment_id, 'students.view', auth.uid())
-    or private.has_permission(p_establishment_id, 'enrollments.view', auth.uid())
+    or private.has_permission(p_establishment_id, 'students.read', auth.uid())
     or private.has_permission(p_establishment_id, 'students.manage', auth.uid())
-  ) then
-    raise exception 'Accès refusé aux transferts de cet établissement';
-  end if;
-
+    or private.has_permission(p_establishment_id, 'enrollments.view', auth.uid())
+    or private.has_permission(p_establishment_id, 'enrollments.read', auth.uid())
+    or private.has_permission(p_establishment_id, 'enrollments.manage', auth.uid())
+  ) then raise exception 'Accès refusé aux transferts de cet établissement'; end if;
   return query
-  select
-    tr.id, tr.code, tr.source_establishment_id, src.name,
-    tr.destination_establishment_id, dst.name, tr.source_student_id,
-    tr.requested_grade_level_id, gl.name, tr.reason, tr.student_snapshot,
-    tr.status, tr.created_at, tr.reviewed_at, tr.rejection_reason,
-    tr.destination_student_id, tr.destination_enrollment_id, en.status::text
+  select tr.id, tr.code, tr.source_establishment_id, src.name, tr.destination_establishment_id, dst.name,
+    tr.source_student_id, tr.requested_grade_level_id, gl.name, tr.reason, tr.student_snapshot,
+    tr.status, tr.created_at, tr.reviewed_at, tr.rejection_reason, tr.destination_student_id,
+    tr.destination_enrollment_id, en.status::text
   from public.student_transfer_requests tr
   join public.establishments src on src.id = tr.source_establishment_id
   join public.establishments dst on dst.id = tr.destination_establishment_id
   join public.grade_levels gl on gl.id = tr.requested_grade_level_id
-  left join public.enrollments en
-    on en.id = tr.destination_enrollment_id
-   and en.establishment_id = tr.destination_establishment_id
-  where tr.source_establishment_id = p_establishment_id
-     or tr.destination_establishment_id = p_establishment_id
+  left join public.enrollments en on en.id = tr.destination_enrollment_id
+    and en.establishment_id = tr.destination_establishment_id
+  where tr.source_establishment_id = p_establishment_id or tr.destination_establishment_id = p_establishment_id
   order by tr.created_at desc;
 end;
 $function$

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { X, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react"
+import { X, ArrowRight, ArrowLeft, CheckCircle2, Users, Search, Building2 } from "lucide-react"
 import { genererCodeUnique } from "@/utils/codeGenerator"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
@@ -19,6 +19,7 @@ import { useEnrollment } from "@/hooks/useEnrollment"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { financeService } from "@/lib/supabase/services/finance.service"
 import { saveStudentGuardianContact } from "@/lib/supabase/services/enrollment.service"
+import { searchFamilySiblingCandidates, listSponsoringOrganizations, listOrganizationCoverageRules, type FamilySiblingCandidate, type SponsoringOrganization, type OrganizationCoverageRule } from "@/lib/supabase/services/family-funding.service"
 import { getStateFinanceSettings, type StateFinanceSettings } from "@/lib/supabase/services/state-financing.service"
 import type { TuitionPlanInstallment, TuitionPlanWithInstallments } from "@/lib/supabase/types"
 
@@ -93,6 +94,14 @@ export default function NouvelleInscriptionModal({
   const [parentPhone, setParentPhone] = useState("")
   const [parentEmail, setParentEmail] = useState("")
   const [parentAddress, setParentAddress] = useState("")
+  const [siblingSearch, setSiblingSearch] = useState("")
+  const [siblingCandidates, setSiblingCandidates] = useState<FamilySiblingCandidate[]>([])
+  const [selectedSibling, setSelectedSibling] = useState<FamilySiblingCandidate | null>(null)
+  const [siblingRelationship, setSiblingRelationship] = useState<"frere" | "soeur" | "autre">("frere")
+  const [siblingSearchLoading, setSiblingSearchLoading] = useState(false)
+  const [sponsoringOrganizations, setSponsoringOrganizations] = useState<SponsoringOrganization[]>([])
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState("")
+  const [organizationRules, setOrganizationRules] = useState<OrganizationCoverageRule[]>([])
 
   // ─── Sélection académique ───────────────────────────────────────────────────
   const [selectedCycleId, setSelectedCycleId] = useState("")
@@ -175,6 +184,36 @@ export default function NouvelleInscriptionModal({
   useEffect(() => {
     if (isOpen) loadOptions()
   }, [isOpen, loadOptions])
+
+  useEffect(() => {
+    if (!isOpen || !establishmentId || typeInscription !== "inscription") return
+    let cancelled = false
+    listSponsoringOrganizations(establishmentId).then((rows) => { if (!cancelled) setSponsoringOrganizations(rows) })
+      .catch(() => { if (!cancelled) setSponsoringOrganizations([]) })
+    return () => { cancelled = true }
+  }, [isOpen, establishmentId, typeInscription])
+
+  useEffect(() => {
+    if (!isOpen || !establishmentId || siblingSearch.trim().length < 2 || typeInscription !== "inscription") {
+      setSiblingCandidates([]); setSiblingSearchLoading(false); return
+    }
+    let cancelled = false
+    setSiblingSearchLoading(true)
+    searchFamilySiblingCandidates(establishmentId, siblingSearch.trim())
+      .then((rows) => { if (!cancelled) setSiblingCandidates(rows.filter((row) => row.student_id !== existingStudentId)) })
+      .catch(() => { if (!cancelled) setSiblingCandidates([]) })
+      .finally(() => { if (!cancelled) setSiblingSearchLoading(false) })
+    return () => { cancelled = true }
+  }, [isOpen, establishmentId, siblingSearch, typeInscription, existingStudentId])
+
+  useEffect(() => {
+    if (!establishmentId || !selectedOrganizationId) { setOrganizationRules([]); return }
+    let cancelled = false
+    listOrganizationCoverageRules(establishmentId, selectedOrganizationId)
+      .then((rows) => { if (!cancelled) setOrganizationRules(rows) })
+      .catch(() => { if (!cancelled) setOrganizationRules([]) })
+    return () => { cancelled = true }
+  }, [establishmentId, selectedOrganizationId])
 
   useEffect(() => {
     if (!isOpen || !establishmentId) return
@@ -345,11 +384,16 @@ export default function NouvelleInscriptionModal({
         email: parentEmail,
         optionIds: Array.from(selectedOptionIds),
         paidInstallmentIds:
-          selectedPlan.payment_mode === "single"
-            ? (paySingleTuitionNow && installments[0] ? [installments[0].id] : [])
-            : Array.from(selectedInstallmentIds),
-        payOptions: fundingSource === "family" && !waiveRegistration && !waiveTuition && selectedOptionIds.size > 0,
+          selectedSibling || selectedOrganizationId
+            ? []
+            : selectedPlan.payment_mode === "single"
+              ? (paySingleTuitionNow && installments[0] ? [installments[0].id] : [])
+              : Array.from(selectedInstallmentIds),
+        payOptions: !selectedSibling && !selectedOrganizationId && fundingSource === "family" && !waiveRegistration && !waiveTuition && selectedOptionIds.size > 0,
         fundingSource,
+        relatedStudentId: selectedSibling?.student_id ?? null,
+        siblingRelationship,
+        organizationId: fundingSource === "family" ? (selectedOrganizationId || null) : null,
         waiveRegistration,
         waiveTuition,
       })
@@ -395,6 +439,8 @@ export default function NouvelleInscriptionModal({
     setExistingStudentId(null); setDuplicateStudents([]); setCheckingDuplicate(false)
     setLastName(""); setFirstName(""); setBirthDate(""); setBirthPlace(""); setSex(""); setStudentNumber("")
     setParentLastName(""); setParentFirstName(""); setParentPhone(""); setParentEmail(""); setParentAddress("")
+    setSiblingSearch(""); setSiblingCandidates([]); setSelectedSibling(null); setSiblingRelationship("frere")
+    setSelectedOrganizationId(""); setOrganizationRules([])
     setSelectedCycleId(""); setSelectedLevelId(""); setSelectedClassId("")
     setSelectedInstallmentIds(new Set()); setSelectedOptionIds(new Set())
     setPaySingleTuitionNow(false)
@@ -656,6 +702,24 @@ export default function NouvelleInscriptionModal({
                 <Label>Adresse</Label>
                 <Input value={parentAddress} onChange={(e) => setParentAddress(e.target.value)} />
               </div>
+              {typeInscription === "inscription" && (
+                <section className="space-y-3 border border-[#d7dae3] p-3">
+                  <div className="flex items-start gap-2"><Users className="mt-0.5 h-4 w-4 text-[#00236f]" /><div><h4 className="text-sm font-medium">Même famille — frère ou sœur</h4><p className="mt-1 text-xs text-slate-500">Recherchez un enfant déjà inscrit pour rattacher les deux dossiers à la même famille et vérifier les réductions applicables. Le nom de famille seul ne suffit pas.</p></div></div>
+                  {selectedSibling ? (
+                    <div className="flex items-center justify-between gap-3 border border-emerald-200 bg-emerald-50 p-3"><div className="min-w-0"><p className="text-sm font-medium text-emerald-900">{selectedSibling.first_name} {selectedSibling.last_name}</p><p className="text-xs text-emerald-800">Matricule : {selectedSibling.student_number || "—"} · Classe : {selectedSibling.class_name || "Non renseignée"}</p></div><Button type="button" variant="outline" size="sm" onClick={() => { setSelectedSibling(null); setSiblingSearch("") }}>Retirer</Button></div>
+                  ) : (
+                    <>
+                      <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><Input className="pl-9" value={siblingSearch} onChange={(e) => setSiblingSearch(e.target.value)} placeholder="Nom, prénom ou matricule de l'enfant" /></div>
+                      {siblingSearch.trim().length >= 2 && <div className="divide-y border">
+                        {siblingSearchLoading ? <p className="px-3 py-3 text-xs text-slate-500">Recherche en cours…</p> :
+                          siblingCandidates.length ? siblingCandidates.map((candidate) => <button key={candidate.student_id} type="button" onClick={() => { setSelectedSibling(candidate); setSiblingSearch(""); setSiblingCandidates([]) }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50"><span><span className="block text-sm font-medium">{candidate.first_name} {candidate.last_name}</span><span className="block text-xs text-slate-500">Matricule : {candidate.student_number || "—"} · {candidate.class_name || "Classe inconnue"}</span></span><span className="text-xs font-medium text-[#00236f]">Associer</span></button>) :
+                          <p className="px-3 py-3 text-xs text-slate-500">Aucun élève correspondant. Vérifiez l'orthographe ou laissez ce champ vide.</p>}
+                      </div>}
+                    </>
+                  )}
+                  {selectedSibling && <div className="space-y-1"><Label>Lien entre les enfants</Label><Select value={siblingRelationship} onValueChange={(value) => setSiblingRelationship(value as "frere" | "soeur" | "autre")}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="frere">Frère</SelectItem><SelectItem value="soeur">Sœur</SelectItem><SelectItem value="autre">Autre lien familial</SelectItem></SelectContent></Select></div>}
+                </section>
+              )}
             </div>
           )}
 
@@ -676,6 +740,16 @@ export default function NouvelleInscriptionModal({
                     </SelectContent>
                   </Select>
                   {stateSettingsError && <p className="mt-1 text-xs text-amber-700">{stateSettingsError}</p>}
+                  {fundingSource === "family" && (
+                    <div className="mt-3 space-y-2 border-t border-slate-200 pt-3">
+                      <Label htmlFor="sponsoring-organization">Prise en charge partielle par un organisme (facultatif)</Label>
+                      <select id="sponsoring-organization" value={selectedOrganizationId} onChange={(e) => setSelectedOrganizationId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                        <option value="">Aucun organisme — frais à la charge de la famille</option>
+                        {sponsoringOrganizations.filter((org) => org.active && !org.is_state).map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
+                      </select>
+                      {selectedOrganizationId && <div className="border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900"><div className="flex items-center gap-2 font-medium"><Building2 className="h-3.5 w-3.5" />Répartition selon la convention</div>{organizationRules.length ? organizationRules.map((rule) => <p key={rule.id} className="mt-1">{rule.category_label}: {rule.coverage_percent}% pris en charge par l'organisme, le solde restant à la famille.</p>) : <p className="mt-1">Aucune règle active trouvée. La répartition restera familiale tant qu'une règle n'aura pas été configurée.</p>}</div>}
+                    </div>
+                  )}
                   {fundingSource === "state" && stateFinanceSettings && (
                     <p className="mt-2 text-xs text-slate-600">
                       Selon les paramètres de l'établissement, l'État couvre {[
@@ -851,7 +925,7 @@ export default function NouvelleInscriptionModal({
           )}
 
           {/* ── Étape 4 : Paiement ───────────────────────────────────────────── */}
-          {step === 4 && selectedPlan && (fundingSource !== "family" || waiveRegistration || waiveTuition) && (
+          {step === 4 && selectedPlan && (fundingSource !== "family" || waiveRegistration || waiveTuition || selectedSibling || selectedOrganizationId) && (
             <div className="space-y-4">
               <h3 className="font-medium text-sm border-b pb-2">Prise en charge financière</h3>
               <p className="text-sm text-slate-700">L'inscription sera enregistrée sans simuler un encaissement. Les frais couverts ne seront pas réclamés à la famille. Les options scolaires restent consultables et seront suivies séparément dans Finance.</p>
@@ -912,7 +986,7 @@ export default function NouvelleInscriptionModal({
               </div>
             </div>
           )}
-          {step === 4 && selectedPlan && fundingSource === "family" && !waiveRegistration && !waiveTuition && (
+          {step === 4 && selectedPlan && fundingSource === "family" && !waiveRegistration && !waiveTuition && !selectedSibling && !selectedOrganizationId && (
             <div className="space-y-5">
               <h3 className="font-medium text-sm border-b pb-2">Paiement</h3>
 

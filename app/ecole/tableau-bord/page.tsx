@@ -12,6 +12,8 @@ import { serviceEvenements } from "@/services/evenements.service"
 import type { StatistiquesTableauBord } from "@/types/models"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useDailyAbsences } from "@/hooks/useAbsences"
+import { useAcademicYears } from "@/hooks/useAcademicYears"
+import { useEnrollments } from "@/hooks/useEnrollments"
 
 const money = (value: number) =>
   new Intl.NumberFormat("fr-FR").format(Math.max(0, Math.round(value))) + " FCFA"
@@ -19,6 +21,14 @@ const money = (value: number) =>
 export default function PageTableauBord() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
+  const { activeYear } = useAcademicYears(establishmentId)
+  const { total: activeEnrollmentCount, isLoading: enrollmentCountLoading, error: enrollmentCountError } = useEnrollments({
+    establishmentId,
+    page: 1,
+    pageSize: 1,
+    academicYearId: activeYear?.id ?? null,
+    status: "active",
+  })
   const aujourdhui = new Date().toISOString().split("T")[0]
   const { absences: absencesDuJourList } = useDailyAbsences(establishmentId, aujourdhui)
 
@@ -40,6 +50,11 @@ export default function PageTableauBord() {
       .sort((a, b) => new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime())
     setEvenements(events.slice(0, 6))
   }, [])
+
+  useEffect(() => {
+    if (!activeYear?.id || enrollmentCountLoading || enrollmentCountError) return
+    setStatistiques((current) => ({ ...current, totalEleves: activeEnrollmentCount }))
+  }, [activeYear?.id, activeEnrollmentCount, enrollmentCountLoading, enrollmentCountError])
 
   const dateLabel = useMemo(
     () => new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),

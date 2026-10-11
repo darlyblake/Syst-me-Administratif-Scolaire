@@ -322,7 +322,7 @@ revoke all on function public.create_payment_with_allocations(uuid,numeric,text,
 grant execute on function public.create_payment_with_allocations(uuid,numeric,text,text,text,jsonb) to authenticated;
 
 create or replace function public.refresh_enrollment_payer_totals(p_enrollment_id uuid)
-returns void language plpgsql security definer set search_path to 'public','pg_temp' as $
+returns void language plpgsql security definer set search_path to 'public','pg_temp' as $$
 declare v_establishment_id uuid;
 begin
   select establishment_id into v_establishment_id from public.enrollments where id=p_enrollment_id;
@@ -335,7 +335,7 @@ begin
     state_expected_amount=coalesce((select sum(ps.amount_due) from public.payment_schedules ps where ps.enrollment_id=e.id and ps.payer_type='state'),0),
     organization_expected_amount=coalesce((select sum(ps.amount_due) from public.payment_schedules ps where ps.enrollment_id=e.id and ps.organization_id is not null),0)
   where e.id=p_enrollment_id;
-end $;
+end $$;
 revoke all on function public.refresh_enrollment_payer_totals(uuid) from public;
 grant execute on function public.refresh_enrollment_payer_totals(uuid) to authenticated;
 

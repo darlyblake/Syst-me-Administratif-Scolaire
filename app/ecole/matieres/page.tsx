@@ -214,6 +214,72 @@ export default function MatieresPage() {
     }
   }
 
+  function resetAssignmentForm() {
+    setEditingAssignmentId(null)
+    setAssignmentSubjectId("")
+    setAssignmentTeacherId("")
+    setAssignmentHours(2)
+    setAssignmentError(null)
+  }
+
+  function editAssignment(assignment: ClassSubjectAssignment) {
+    setEditingAssignmentId(assignment.id)
+    setAssignmentSubjectId(assignment.subject_id)
+    setAssignmentTeacherId(assignment.teacher_id)
+    setAssignmentHours(Number(assignment.weekly_hours) || 2)
+    setAssignmentError(null)
+  }
+
+  async function enregistrerAffectation() {
+    if (!etablissementId || !selectedClass || !assignmentSubjectId || !assignmentTeacherId) {
+      setAssignmentError("Sélectionnez une classe, une matière et un enseignant.")
+      return
+    }
+    if (!compatibleSubjects.some((subject) => subject.id === assignmentSubjectId)) {
+      setAssignmentError("Cette matière ne correspond pas au niveau de la classe sélectionnée.")
+      return
+    }
+    if (!teachers.some((teacher) => teacher.id === assignmentTeacherId)) {
+      setAssignmentError("L’enseignant sélectionné n’est pas actif dans cet établissement.")
+      return
+    }
+    if (!Number.isFinite(assignmentHours) || assignmentHours <= 0 || assignmentHours > 40) {
+      setAssignmentError("Le volume horaire doit être compris entre 0 et 40 heures par semaine.")
+      return
+    }
+    setAssignmentSaving(true)
+    setAssignmentError(null)
+    try {
+      const duplicate = assignments.find((item) => item.class_id === selectedClassId && item.subject_id === assignmentSubjectId && item.id !== editingAssignmentId)
+      if (duplicate) throw new Error("Cette matière est déjà affectée à cette classe. Modifiez l’affectation existante.")
+      if (editingAssignmentId) {
+        const { error: updateError } = await supabaseBrowser.from("class_subjects").update({ teacher_id: assignmentTeacherId, weekly_hours: assignmentHours }).eq("id", editingAssignmentId).eq("class_id", selectedClassId)
+        if (updateError) throw new Error(updateError.message)
+      } else {
+        const { error: insertError } = await supabaseBrowser.from("class_subjects").insert({ class_id: selectedClassId, subject_id: assignmentSubjectId, teacher_id: assignmentTeacherId, weekly_hours: assignmentHours })
+        if (insertError) throw new Error(insertError.message)
+      }
+      await charger()
+      resetAssignmentForm()
+    } catch (e) {
+      setAssignmentError(e instanceof Error ? e.message : "Impossible d’enregistrer l’affectation.")
+    } finally {
+      setAssignmentSaving(false)
+    }
+  }
+
+  async function supprimerAffectation(assignment: ClassSubjectAssignment) {
+    if (!window.confirm("Retirer cette matière de la classe ? Si elle est déjà utilisée dans un emploi du temps, la suppression peut être refusée.")) return
+    setAssignmentError(null)
+    try {
+      const { error: deleteError } = await supabaseBrowser.from("class_subjects").delete().eq("id", assignment.id).eq("class_id", selectedClassId)
+      if (deleteError) throw new Error(deleteError.message)
+      await charger()
+      if (editingAssignmentId === assignment.id) resetAssignmentForm()
+    } catch (e) {
+      setAssignmentError(e instanceof Error ? e.message : "Impossible de retirer cette affectation.")
+    }
+  }
   return (
     <div className="w-full min-w-0">
         <header className="flex flex-col gap-3 border-b border-[#c5c5d3]/45 pb-3 md:flex-row md:items-start md:justify-between">

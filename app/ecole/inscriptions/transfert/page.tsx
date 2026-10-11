@@ -158,7 +158,7 @@ export default function TransfertPage() {
     )
     setDossierCree(d)
     setRefresh((k) => k + 1)
-    toast.success("Dossier de transfert créé (sans données de paiement)")
+    toast.success("Dossier préparé. Téléchargez le fichier pour le transmettre à l’autre école.")
   }
 
   const downloadJSON = () => {
@@ -355,8 +355,11 @@ export default function TransfertPage() {
           ) : (
             <div className="space-y-4">
               <p className="text-jardin font-medium flex items-center gap-2">
-                <Check className="h-5 w-5" /> Dossier prêt
+                <Check className="h-5 w-5" /> Dossier préparé — non transmis
               </p>
+              <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                Ce dossier est enregistré uniquement dans ce navigateur. Pour le transmettre à l’école de destination, téléchargez le fichier JSON et envoyez-le à son responsable. Le code seul n’est pas partagé entre les écoles. La création de ce dossier ne confirme pas encore le transfert dans la base scolaire.
+              </div>
               <div className="rounded-2xl bg-creme p-4 border border-terre/10 space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-pierre">Code</span>
@@ -432,7 +435,8 @@ export default function TransfertPage() {
                 </Button>
               </div>
               <div>
-                <Label className="text-sm text-pierre">Ou importer un fichier JSON</Label>
+                <Label className="text-sm text-pierre">Importer le dossier reçu de l’école d’origine (JSON)</Label>
+                <p className="mt-1 text-xs text-pierre">La recherche par code fonctionne uniquement pour les dossiers présents dans ce navigateur. Pour un transfert entre deux écoles ou deux appareils, utilisez le fichier JSON.</p>
                 <Input type="file" accept=".json" onChange={handleImportFichier} className="mt-1.5" />
               </div>
             </>
@@ -487,25 +491,29 @@ export default function TransfertPage() {
                 </select>
               </div>
 
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                La validation définitive doit créer l’inscription dans Supabase et être partagée entre les deux écoles. Pour éviter de déclarer un élève inscrit alors que ce n’est pas enregistré, aucune acceptation ou aucun refus définitif n’est effectué depuis cette page pour le moment.
+              </div>
               <div className="flex flex-wrap gap-2">
-                <Button onClick={handleAccepter} className="bg-jardin hover:bg-jardin/90 text-white rounded-2xl">
+                <Button className="rounded-2xl bg-jardin/50 text-white" disabled>
                   <Check className="h-4 w-4 mr-2" />
-                  Accepter et intégrer
+                  Intégration automatique indisponible
                 </Button>
-                <Button variant="outline" onClick={handleRefuser} className="rounded-2xl text-rouge-terre border-rouge-terre/30">
+                <Button variant="outline" className="rounded-2xl text-rouge-terre border-rouge-terre/30" disabled>
                   <X className="h-4 w-4 mr-2" />
-                  Refuser
+                  Refus indisponible
                 </Button>
-                <Button
-                  variant="ghost"
-                  className="rounded-2xl"
-                  onClick={() => {
-                    setDossierRecu(null)
-                    setCode("")
-                  }}
-                >
-                  Annuler
-                </Button>
+                  <Button
+                    variant="ghost"
+                    className="rounded-2xl"
+                    onClick={() => {
+                      setDossierRecu(null)
+                      setCode("")
+                    }}
+                  >
+                    Annuler
+                  </Button>
+                </div>
               </div>
             </>
           )}

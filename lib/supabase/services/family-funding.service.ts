@@ -25,6 +25,7 @@ export interface OrganizationCoverageRule {
   id: string
   organization_id: string
   category: FeeCategory
+  option_type: string | null
   category_label: string
   coverage_percent: number
   active: boolean
@@ -49,8 +50,8 @@ export async function listSponsoringOrganizations(establishmentId: string): Prom
 }
 export async function listOrganizationCoverageRules(establishmentId: string, organizationId: string): Promise<OrganizationCoverageRule[]> {
   const { data, error } = await supabaseBrowser.from("organization_coverage_rules")
-    .select("id,organization_id,category,coverage_percent,active,grade_level_id,academic_year_id")
+    .select("id,organization_id,category,option_type,coverage_percent,active,grade_level_id,academic_year_id")
     .eq("establishment_id", establishmentId).eq("organization_id", organizationId).eq("active", true).order("category")
   if (error) throw new Error("Impossible de charger les règles de couverture.")
-  return (data ?? []).map((row: any) => ({ ...row, category_label: CATEGORY_LABELS[row.category as FeeCategory] ?? "Autres frais" })) as OrganizationCoverageRule[]
+  return (data ?? []).map((row: any) => { const optionLabels: Record<string, string> = { tenue: "Tenue / uniforme", transport: "Transport", cantine: "Cantine", assurance: "Assurance", cooperative: "Coopérative", activite_parascolaire: "Activité parascolaire" }; const optionLabel = row.option_type ? (optionLabels[row.option_type] ?? row.option_type.replaceAll("_", " ")) : ""; return { ...row, category_label: (CATEGORY_LABELS[row.category as FeeCategory] ?? "Autres frais") + (optionLabel ? " — " + optionLabel : "") } }) as OrganizationCoverageRule[]
 }

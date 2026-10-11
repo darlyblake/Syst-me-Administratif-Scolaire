@@ -377,6 +377,69 @@ export default function MatieresPage() {
           <div className="border-t border-[#c5c5d3]/45 px-2 py-2 text-[11px] text-[#515f74]">{filteredMatieres.length} matière(s) affichée(s) sur {matieres.length}.</div>
         )}
 
+      <section aria-label="Affectation des matières aux classes" className="mt-6 border border-[#c5c5d3]/60 bg-white">
+        <div className="border-b border-[#c5c5d3]/60 px-3 py-3">
+          <h2 className="text-base font-semibold text-[#131b2e]">Affectation aux classes et aux enseignants</h2>
+          <p className="mt-1 text-xs text-[#515f74]">Choisissez une classe, puis affectez une matière et un enseignant avec son volume horaire hebdomadaire.</p>
+        </div>
+        <div className="grid gap-3 p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_140px_auto] md:items-end">
+          <div className="space-y-1.5">
+            <Label htmlFor="assignment-class">Classe</Label>
+            <select id="assignment-class" value={selectedClassId} onChange={(e) => { setSelectedClassId(e.target.value); resetAssignmentForm() }} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+              <option value="">Sélectionner une classe</option>
+              {classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="assignment-subject">Matière</Label>
+            <select id="assignment-subject" value={assignmentSubjectId} onChange={(e) => setAssignmentSubjectId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" disabled={!selectedClassId || compatibleSubjects.length === 0}>
+              <option value="">Sélectionner une matière</option>
+              {compatibleSubjects.map((item) => <option key={item.id} value={item.id}>{item.nom} ({item.code})</option>)}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="assignment-teacher">Enseignant</Label>
+            <select id="assignment-teacher" value={assignmentTeacherId} onChange={(e) => setAssignmentTeacherId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" disabled={!selectedClassId || teachers.length === 0}>
+              <option value="">Sélectionner un enseignant</option>
+              {teachers.map((item) => <option key={item.id} value={item.id}>{item.last_name} {item.first_name}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="assignment-hours">Heures / semaine</Label>
+            <Input id="assignment-hours" type="number" min="0.5" max="40" step="0.5" value={assignmentHours} onChange={(e) => setAssignmentHours(Number(e.target.value))} />
+          </div>
+          <Button onClick={() => void enregistrerAffectation()} disabled={assignmentSaving || !selectedClassId || !assignmentSubjectId || !assignmentTeacherId} className="h-10 rounded bg-[#1e3a8a] hover:bg-[#00236f]">
+            {assignmentSaving ? "Enregistrement…" : editingAssignmentId ? "Enregistrer" : <><Plus className="mr-1.5 h-4 w-4" />Affecter</>}
+          </Button>
+          {editingAssignmentId && <div className="md:col-span-5"><Button variant="outline" size="sm" onClick={resetAssignmentForm}>Annuler la modification</Button></div>}
+        </div>
+        {assignmentError && <div role="alert" className="mx-3 mb-3 border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{assignmentError}</div>}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[650px] text-sm">
+            <thead className="border-y border-[#c5c5d3]/60 bg-[#f2f3ff]"><tr>
+              <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-[#515f74]">Matière</th>
+              <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-[#515f74]">Enseignant</th>
+              <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-[#515f74]">Heures / semaine</th>
+              <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase text-[#515f74]">Actions</th>
+            </tr></thead>
+            <tbody className="divide-y">
+              {!selectedClassId ? <tr><td colSpan={4} className="px-3 py-7 text-center text-muted-foreground">Sélectionnez une classe pour voir ses affectations.</td></tr>
+              : classAssignments.length === 0 ? <tr><td colSpan={4} className="px-3 py-7 text-center text-muted-foreground">{compatibleSubjects.length === 0 ? "Aucune matière active n’est configurée pour le niveau de cette classe." : "Aucune matière affectée à cette classe pour le moment."}</td></tr>
+              : classAssignments.map((assignment) => {
+                const subject = matieres.find((item) => item.id === assignment.subject_id)
+                const teacher = teachers.find((item) => item.id === assignment.teacher_id)
+                return <tr key={assignment.id} className="hover:bg-muted/30">
+                  <td className="px-3 py-2 font-medium">{subject ? subject.nom + " (" + subject.code + ")" : "Matière archivée ou indisponible"}</td>
+                  <td className="px-3 py-2">{teacher ? teacher.last_name + " " + teacher.first_name : "Enseignant indisponible"}</td>
+                  <td className="px-3 py-2">{Number(assignment.weekly_hours)} h</td>
+                  <td className="px-3 py-2"><div className="flex justify-end gap-2"><Button variant="outline" size="sm" onClick={() => editAssignment(assignment)}><Edit className="mr-1.5 h-4 w-4" />Modifier</Button><Button variant="ghost" size="sm" onClick={() => void supprimerAffectation(assignment)} aria-label="Retirer l’affectation"><Trash2 className="h-4 w-4" /></Button></div></td>
+                </tr>
+              })}
+            </tbody>
+          </table>
+        </div>
+        {selectedClass && <div className="border-t border-[#c5c5d3]/45 px-3 py-2 text-[11px] text-[#515f74]">{selectedClass.name} · {classAssignments.length} affectation(s)</div>}
+      </section>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader><DialogTitle>{editing ? "Modifier la matière" : "Nouvelle matière"}</DialogTitle></DialogHeader>

@@ -56,15 +56,22 @@ export async function listStudentsPaginated(
   active = true,
   classId?: string | null,
   academicYearId?: string | null,
+  gradeLevelId?: string | null,
+  minAge?: number | null,
+  maxAge?: number | null,
+  activeFilter?: boolean | null,
 ): Promise<StudentPage> {
   const { data, error } = await supabaseBrowser.rpc("list_students_paginated", {
     p_establishment_id: establishmentId,
     p_page: page,
     p_page_size: pageSize,
     p_search: search || null,
-    p_active: active,
+    p_active: activeFilter === undefined ? active : activeFilter,
     p_class_id: classId || null,
     p_academic_year_id: academicYearId || null,
+    p_grade_level_id: gradeLevelId || null,
+    p_min_age: minAge ?? null,
+    p_max_age: maxAge ?? null,
   })
 
   if (error) throw new Error("Impossible de charger les élèves.")

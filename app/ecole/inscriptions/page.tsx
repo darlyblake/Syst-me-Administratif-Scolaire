@@ -74,6 +74,15 @@ export default function InscriptionsPage() {
     search,
   })
 
+  const { total: allMatchingTotal } = useEnrollments({
+    establishmentId, page: 1, pageSize: 1, academicYearId: activeYear?.id ?? null,
+    classId: filterClasse || null, status: null, refreshKey, search,
+  })
+  const { total: activeMatchingTotal } = useEnrollments({
+    establishmentId, page: 1, pageSize: 1, academicYearId: activeYear?.id ?? null,
+    classId: filterClasse || null, status: "active", refreshKey, search,
+  })
+
   const classMap = useMemo(() => {
     const map = new Map<string, string>()
     academicStructure.forEach((cycle) => {
@@ -145,8 +154,8 @@ export default function InscriptionsPage() {
     })
   }, [rows, period])
 
-  const activeCount = visibleRows.filter((row) => row.status === "active").length
-  const inactiveCount = visibleRows.filter((row) => row.status !== "active").length
+  const activeCount = activeMatchingTotal
+  const inactiveCount = Math.max(0, allMatchingTotal - activeMatchingTotal)
   const transferCount = useMemo(() => serviceTransfert.getEnAttente().length, [refreshKey])
 
   const resetFilters = () => {
@@ -250,7 +259,7 @@ export default function InscriptionsPage() {
 
       <section className="mt-3 grid grid-cols-2 border border-[#c5c5d3]/50 bg-white lg:grid-cols-4">
         {[
-          { label: "Dossiers totaux", value: total, icon: FileText, tone: "text-[#00236f] bg-[#dce1ff]" },
+          { label: "Dossiers de la session", value: allMatchingTotal, icon: FileText, tone: "text-[#00236f] bg-[#dce1ff]" },
           { label: "Inscrits & validés", value: activeCount, icon: CheckCircle2, tone: "text-[#166534] bg-[#dcfce7]" },
           { label: "En attente / autres", value: inactiveCount, icon: Clock3, tone: "text-[#92400e] bg-[#fef3c7]" },
           { label: "Transferts en attente", value: transferCount, icon: ArrowRightLeft, tone: "text-[#7a5600] bg-[#fff7dc]" },
@@ -273,7 +282,7 @@ export default function InscriptionsPage() {
       <section className="mt-3 overflow-hidden border border-[#c5c5d3]/45 bg-white">
         <div className="flex flex-wrap items-center gap-1 border-b border-[#c5c5d3]/45 px-2 pt-1">
           <button type="button" onClick={() => { setFilterStatut(""); setPage(1) }} className={`border-b-2 px-3 py-2 text-[12px] font-medium ${filterStatut === "" ? "border-[#00236f] text-[#00236f]" : "border-transparent text-[#515f74] hover:bg-[#f2f3ff]"}`}>
-            Toutes les demandes <span className="ml-1 text-[11px] text-[#515f74]">{total}</span>
+            Toutes les demandes <span className="ml-1 text-[11px] text-[#515f74]">{allMatchingTotal}</span>
           </button>
           <button type="button" onClick={() => { setFilterStatut("pending"); setPage(1) }} className={`border-b-2 px-3 py-2 text-[12px] ${filterStatut === "pending" ? "border-[#00236f] font-medium text-[#00236f]" : "border-transparent text-[#515f74] hover:bg-[#f2f3ff]"}`}>
             En attente <span className="ml-1 text-[11px]">{inactiveCount}</span>

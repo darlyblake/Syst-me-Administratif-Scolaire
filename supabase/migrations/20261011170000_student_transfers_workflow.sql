@@ -84,6 +84,20 @@ begin
  values(v_transfer.destination_establishment_id,v_student_number,v_last,v_first,v_birth,nullif(v_transfer.student_snapshot->>'place_of_birth',''),nullif(v_transfer.student_snapshot->>'sex',''),nullif(v_transfer.student_snapshot->>'phone',''),nullif(v_transfer.student_snapshot->>'email',''),true,nullif(v_transfer.student_snapshot->>'guardian_first_name',''),nullif(v_transfer.student_snapshot->>'guardian_last_name',''),nullif(v_transfer.student_snapshot->>'guardian_phone',''),nullif(v_transfer.student_snapshot->>'guardian_email',''),nullif(v_transfer.student_snapshot->>'guardian_address',''),nullif(v_transfer.student_snapshot->>'guardian_relationship','')) returning id into v_student_id;
  v_enrollment_result:=public.create_student_enrollment_with_schedule(v_transfer.destination_establishment_id,v_active_year,p_class_id,p_tuition_plan_id,current_date,v_student_id,null,null,null,null,null,null,null,'{}'::uuid[]);
  v_enrollment_id:=(v_enrollment_result->>'enrollment_id')::uuid;
+
+ -- Conserve les associations parent-enfant lors du transfert, sans transférer les paiements.
+ insert into public.student_guardians(
+   establishment_id, student_id, guardian_user_id, relationship, is_primary,
+   can_view_finance, can_view_academic, active
+ )
+ select
+   v_transfer.destination_establishment_id, v_student_id, sg.guardian_user_id,
+   sg.relationship, sg.is_primary, sg.can_view_finance, sg.can_view_academic, sg.active
+ from public.student_guardians sg
+ where sg.establishment_id=v_transfer.source_establishment_id
+   and sg.student_id=v_transfer.source_student_id
+   and sg.active=true
+ on conflict (establishment_id, student_id, guardian_user_id) do nothing;
  update public.student_transfer_requests set status='accepted',destination_student_id=v_student_id,destination_enrollment_id=v_enrollment_id,reviewed_by=auth.uid(),reviewed_at=now(),updated_at=now() where id=p_transfer_id;
  return jsonb_build_object('id',p_transfer_id,'status','accepted','student_id',v_student_id,'enrollment_id',v_enrollment_id,'academic_year_id',v_active_year);
 end; $$;

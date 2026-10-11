@@ -109,23 +109,20 @@ AS $function$
     and (
       private.is_platform_admin(auth.uid())
       or exists (
-        select 1
-        from public.establishment_members m
+        select 1 from public.establishment_members m
         where m.establishment_id = p_establishment_id
           and m.user_id = auth.uid()
           and m.active = true
           and (
-            m.role in ('owner', 'admin', 'secretary')
+            m.role in ('owner', 'admin', 'school_admin', 'secretary')
             or exists (
               select 1 from public.establishment_role_permissions rp
-              where rp.role_id = m.role_id
-                and rp.permission = 'transfers.finalize'
+              where rp.role_id = m.role_id and rp.permission = 'transfers.finalize'
             )
             or exists (
               select 1 from public.establishment_member_permissions mp
               where mp.establishment_member_id = m.id
-                and mp.permission = 'transfers.finalize'
-                and mp.effect = 'allow'
+                and mp.permission = 'transfers.finalize' and mp.effect = 'allow'
             )
           )
       )

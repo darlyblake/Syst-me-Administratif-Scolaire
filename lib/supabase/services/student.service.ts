@@ -53,7 +53,7 @@ export async function listStudentsPaginated(
   page = 1,
   pageSize = 50,
   search = "",
-  active = true,
+  active: boolean | null = true,
   classId?: string | null,
   academicYearId?: string | null,
   gradeLevelId?: string | null,

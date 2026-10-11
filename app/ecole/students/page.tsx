@@ -33,6 +33,9 @@ export default function StudentsPage() {
   const [selectedClass, setSelectedClass] = useState("all")
   const [selectedStatus, setSelectedStatus] = useState("all")
   const [selectedLevel, setSelectedLevel] = useState("all")
+  // Ces états doivent être déclarés avant leur utilisation dans les filtres de useStudents.
+  const [filterAgeMin, setFilterAgeMin] = useState("")
+  const [filterAgeMax, setFilterAgeMax] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const { data: academicStructure } = useAcademicStructure(establishmentId)
   const { activeYear } = useAcademicYears(establishmentId)
@@ -104,8 +107,6 @@ export default function StudentsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
-  const [filterAgeMin, setFilterAgeMin] = useState("")
-  const [filterAgeMax, setFilterAgeMax] = useState("")
   const itemsPerPage = 50
 
   useEffect(() => { setStudents(displayStudents); setFilteredStudents(displayStudents) }, [displayStudents])

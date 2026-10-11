@@ -41,6 +41,9 @@ function useParentPortalState() {
       const {data:linkedData,error:linkedError}=await supabaseBrowser.functions.invoke("get-parent-children")
       if(linkedError) throw linkedError
       const linkedChildren=Array.isArray(linkedData?.children) ? linkedData.children as ParentChild[] : []
+      // Afficher d'abord les associations confirmées par le serveur. Les requêtes
+      // secondaires (notes, paiements, classes) ne doivent jamais masquer les enfants.
+      setChildren(linkedChildren)
       const studentIds=linkedChildren.map(x=>x.id)
       const establishmentIds=Array.isArray(linkedData?.establishment_ids)
         ? linkedData.establishment_ids as string[]

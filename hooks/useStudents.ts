@@ -55,7 +55,7 @@ export function useStudents(establishmentId: string | null, filters: StudentFilt
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), [])
   const create = useCallback(async (student: Parameters<typeof createStudent>[0]) => {
     if (isCreating) return false
-    try { setIsCreating(true); setError(null); await createStudent(student); refresh(); return true } catch (err) { setError(err instanceof Error ? err.message : "Impossible d'ajouter l'élève."); return false } finally { setIsCreating(false) }
+    try { setIsCreating(true); setError(null); const studentId = await createStudent(student); refresh(); return studentId } catch (err) { setError(err instanceof Error ? err.message : "Impossible d'ajouter l'élève."); return false } finally { setIsCreating(false) }
   }, [isCreating, refresh])
   const update = useCallback(async (student: Parameters<typeof updateStudent>[0]) => {
     if (isUpdating) return false

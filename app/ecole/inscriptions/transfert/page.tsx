@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label"
 import { getEstablishments } from "@/lib/supabase/services/establishment.service"
 import { getAcademicStructure } from "@/lib/supabase/services/academic.service"
 import {
+  canFinalizeStudentTransfers,
   createStudentTransfer,
+  finalizeStudentTransfer,
   getTransferDestinationOptions,
   listStudentTransfers,
   reviewStudentTransfer,
@@ -43,6 +45,7 @@ export default function TransfertPage() {
   const [destinationLevels, setDestinationLevels] = useState<GradeOption[]>([])
   const [transfers, setTransfers] = useState<StudentTransfer[]>([])
   const [loadingTransfers, setLoadingTransfers] = useState(false)
+  const [canFinalize, setCanFinalize] = useState(false)
   const [loadingLevels, setLoadingLevels] = useState(false)
   const [sending, setSending] = useState(false)
   const [processing, setProcessing] = useState(false)
@@ -90,6 +93,18 @@ export default function TransfertPage() {
 
   useEffect(() => {
     let active = true
+    if (!establishmentId) {
+      setCanFinalize(false)
+      return () => { active = false }
+    }
+    canFinalizeStudentTransfers(establishmentId)
+      .then((allowed) => { if (active) setCanFinalize(allowed) })
+      .catch(() => { if (active) setCanFinalize(false) })
+    return () => { active = false }
+  }, [establishmentId])
+
+  useEffect(() => {
+    let active = true
     if (!destinationId) {
       setDestinationLevels([])
       setRequestedGradeId("")
@@ -115,7 +130,7 @@ export default function TransfertPage() {
 
   useEffect(() => {
     let active = true
-    if (!selectedTransfer || !establishmentId) {
+    if (!selectedTransfer || selectedTransfer.status !== "accepted" || selectedTransfer.destination_enrollment_id || !canFinalize || !establishmentId) {
       setDestinationClasses([])
       setTuitionPlans([])
       setSelectedClassId("")
@@ -138,7 +153,7 @@ export default function TransfertPage() {
         if (active) toast.error(error instanceof Error ? error.message : "Impossible de charger les classes et frais.")
       })
     return () => { active = false }
-  }, [selectedTransfer, establishmentId])
+  }, [selectedTransfer, establishmentId, canFinalize])
 
   const activeStudents = useMemo(() => {
     const query = studentSearch.trim().toLocaleLowerCase("fr")
@@ -158,7 +173,7 @@ export default function TransfertPage() {
     const query = codeSearch.trim().toLocaleLowerCase("fr")
     return transfers.filter((item) =>
       item.destination_establishment_id === establishmentId &&
-      item.status === "pending" &&
+      (item.status === "pending" || item.status === "accepted") &&
       (!query || item.code.toLocaleLowerCase("fr").includes(query) ||
         `${item.student_snapshot.first_name} ${item.student_snapshot.last_name}`.toLocaleLowerCase("fr").includes(query)),
     )
@@ -201,25 +216,45 @@ export default function TransfertPage() {
 
   const handleAccept = async () => {
     if (!selectedTransfer) return
-    if (!selectedClassId) return toast.error("Choisissez une classe d’accueil.")
-    if (!selectedPlanId) return toast.error("Choisissez le plan de scolarité de l’élève.")
     setProcessing(true)
     try {
-      const result = await reviewStudentTransfer({
+      await reviewStudentTransfer({
         transferId: selectedTransfer.id,
         decision: "accept",
+      })
+      toast.success("Transfert accepté. L’inscription reste à effectuer par le service habilité.")
+      setSelectedTransfer(null)
+      setSelectedClassId("")
+      setSelectedPlanId("")
+      await loadTransfers()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible d’accepter ce transfert.")
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleFinalize = async () => {
+    if (!selectedTransfer || !canFinalize) return
+    if (!selectedClassId) return toast.error("Choisissez une classe d’accueil.")
+    if (!selectedPlanId) return toast.error("Choisissez le plan de scolarité.")
+    setProcessing(true)
+    try {
+      const result = await finalizeStudentTransfer({
+        transferId: selectedTransfer.id,
         classId: selectedClassId,
         tuitionPlanId: selectedPlanId,
       })
-      toast.success("Transfert accepté : l’élève et son inscription ont été enregistrés dans l’établissement.")
+      toast.success(result.enrollment_status === "pending"
+        ? "Dossier préparé. Les frais d’inscription restent à régler ; l’élève n’est pas encore inscrit définitivement."
+        : "Inscription finalisée. Aucun frais d’inscription n’était dû.")
       setSelectedTransfer(null)
       setSelectedClassId("")
       setSelectedPlanId("")
       await loadTransfers()
       refreshStudents()
-      if (result.enrollment_id) toast.message("Inscription créée pour l’année scolaire active.")
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Impossible d’accepter ce transfert.")
+      toast.error(error instanceof Error ? error.message : "Impossible de finaliser l’inscription.")
     } finally {
       setProcessing(false)
     }
@@ -357,7 +392,7 @@ export default function TransfertPage() {
             <div className="max-w-3xl space-y-5 rounded-2xl border border-terre/10 bg-papier p-5 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div><p className="text-xs text-pierre">Dossier {selectedTransfer.code}</p><h2 className="mt-1 text-xl font-semibold text-encre">{selectedTransfer.student_snapshot.first_name} {selectedTransfer.student_snapshot.last_name}</h2></div>
-                <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">En attente</span>
+                <span className={`rounded-full px-3 py-1 text-xs font-medium ${selectedTransfer.status === "pending" ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`}>{selectedTransfer.status === "pending" ? "En attente de décision" : "Transfert accepté"}</span>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div><p className="text-xs text-pierre">Date de naissance</p><p className="text-sm font-medium">{selectedTransfer.student_snapshot.birth_date || "Non renseignée"}</p></div>
@@ -368,24 +403,26 @@ export default function TransfertPage() {
                 <div><p className="text-xs text-pierre">Contact parent</p><p className="text-sm font-medium">{selectedTransfer.student_snapshot.guardian_phone || selectedTransfer.student_snapshot.phone || "Non renseigné"}</p></div>
               </div>
               <div><p className="text-xs text-pierre">Motif</p><p className="text-sm">{selectedTransfer.reason}</p></div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              {selectedTransfer.status === "accepted" && !selectedTransfer.destination_enrollment_id && canFinalize && <div className="grid gap-4 sm:grid-cols-2">
                 <div><Label>Classe d’accueil</Label><select value={selectedClassId} onChange={(event) => setSelectedClassId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-terre/15 bg-white px-3 py-2.5 text-sm"><option value="">Choisir une classe</option>{destinationClasses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
                 <div><Label>Plan de scolarité</Label><select value={selectedPlanId} onChange={(event) => setSelectedPlanId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-terre/15 bg-white px-3 py-2.5 text-sm"><option value="">Choisir un plan</option>{tuitionPlans.map((item) => <option key={item.id} value={item.id}>{item.payment_mode} — {Number(item.annual_tuition).toLocaleString("fr-FR")} FCFA/an</option>)}</select></div>
               </div>
-              {destinationClasses.length === 0 && <p className="text-sm text-amber-800">Aucune classe active n’est configurée pour ce niveau. Créez ou activez une classe avant d’accepter le transfert.</p>}
-              {tuitionPlans.length === 0 && <p className="text-sm text-amber-800">Aucun plan de scolarité actif n’est configuré pour ce niveau et l’année active.</p>}
+              </div>}
+              {selectedTransfer.status === "accepted" && !selectedTransfer.destination_enrollment_id && !canFinalize && <p className="border-l-4 border-emerald-500 bg-emerald-50 p-3 text-sm text-emerald-900">Le directeur a accepté le transfert. L’inscription doit maintenant être finalisée par le secrétariat ou le personnel autorisé aux inscriptions.</p>}
+              {selectedTransfer.status === "accepted" && selectedTransfer.destination_enrollment_id && <p className={`border-l-4 p-3 text-sm ${selectedTransfer.destination_enrollment_status === "active" ? "border-emerald-500 bg-emerald-50 text-emerald-900" : selectedTransfer.destination_enrollment_status === "pending" ? "border-amber-500 bg-amber-50 text-amber-900" : "border-slate-400 bg-slate-50 text-slate-800"}`}>{selectedTransfer.destination_enrollment_status === "active" ? "Inscription finalisée : l’inscription est active dans l’établissement de destination." : selectedTransfer.destination_enrollment_status === "pending" ? "Inscription préparée, mais en attente du règlement des frais d’inscription. L’élève n’est pas encore inscrit définitivement." : "Le dossier de transfert a été accepté et son traitement est en cours."}</p>}
               <div className="flex flex-wrap gap-2 border-t border-terre/10 pt-4">
-                <Button onClick={() => void handleAccept()} disabled={processing || destinationClasses.length === 0 || tuitionPlans.length === 0} className="rounded-xl bg-jardin hover:bg-jardin/90"><Check className="mr-2 h-4 w-4" />{processing ? "Traitement…" : "Accepter et inscrire"}</Button>
-                <Button variant="outline" onClick={() => void handleReject()} disabled={processing} className="rounded-xl border-rouge-terre/30 text-rouge-terre"><X className="mr-2 h-4 w-4" />Refuser le transfert</Button>
+                {selectedTransfer.status === "pending" && <Button onClick={() => void handleAccept()} disabled={processing} className="rounded-xl bg-jardin hover:bg-jardin/90"><Check className="mr-2 h-4 w-4" />{processing ? "Traitement…" : "Accepter le transfert"}</Button>}
+                {selectedTransfer.status === "accepted" && !selectedTransfer.destination_enrollment_id && canFinalize && <Button onClick={() => void handleFinalize()} disabled={processing || destinationClasses.length === 0 || tuitionPlans.length === 0} className="rounded-xl bg-terre hover:bg-terre-dark"><Check className="mr-2 h-4 w-4" />{processing ? "Préparation…" : "Finaliser l’inscription"}</Button>}
+                {selectedTransfer.status === "pending" && <Button variant="outline" onClick={() => void handleReject()} disabled={processing} className="rounded-xl border-rouge-terre/30 text-rouge-terre"><X className="mr-2 h-4 w-4" />Refuser le transfert</Button>}
                 <Button variant="ghost" onClick={() => setSelectedTransfer(null)} disabled={processing} className="rounded-xl">Retour à la liste</Button>
               </div>
             </div>
           ) : (
-            loadingTransfers ? <p className="text-sm text-pierre">Chargement des dossiers…</p> : incoming.length === 0 ? <p className="rounded-xl border border-dashed border-terre/20 p-4 text-sm text-pierre">Aucun dossier en attente ne correspond à la recherche.</p> : (
+            loadingTransfers ? <p className="text-sm text-pierre">Chargement des dossiers…</p> : incoming.length === 0 ? <p className="rounded-xl border border-dashed border-terre/20 p-4 text-sm text-pierre">Aucun dossier reçu ne correspond à la recherche.</p> : (
               <div className="overflow-x-auto rounded-xl border border-terre/10 bg-papier">
                 <table className="w-full min-w-[650px] text-left text-sm">
-                  <thead className="bg-creme text-pierre"><tr><th className="px-4 py-3">Code</th><th className="px-4 py-3">Élève</th><th className="px-4 py-3">École d’origine</th><th className="px-4 py-3">Niveau demandé</th><th className="px-4 py-3">Date</th><th className="px-4 py-3"></th></tr></thead>
-                  <tbody>{incoming.map((item) => <tr key={item.id} className="border-t border-terre/10"><td className="px-4 py-3 font-mono">{item.code}</td><td className="px-4 py-3">{item.student_snapshot.first_name} {item.student_snapshot.last_name}</td><td className="px-4 py-3">{item.source_establishment_name}</td><td className="px-4 py-3">{item.requested_grade_name}</td><td className="px-4 py-3">{formatDate(item.created_at)}</td><td className="px-4 py-3"><Button size="sm" onClick={() => setSelectedTransfer(item)} className="rounded-lg bg-terre">Examiner</Button></td></tr>)}</tbody>
+                  <thead className="bg-creme text-pierre"><tr><th className="px-4 py-3">Code</th><th className="px-4 py-3">Élève</th><th className="px-4 py-3">École d’origine</th><th className="px-4 py-3">Niveau demandé</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">État</th><th className="px-4 py-3"></th></tr></thead>
+                  <tbody>{incoming.map((item) => <tr key={item.id} className="border-t border-terre/10"><td className="px-4 py-3 font-mono">{item.code}</td><td className="px-4 py-3">{item.student_snapshot.first_name} {item.student_snapshot.last_name}</td><td className="px-4 py-3">{item.source_establishment_name}</td><td className="px-4 py-3">{item.requested_grade_name}</td><td className="px-4 py-3">{formatDate(item.created_at)}</td><td className="px-4 py-3 text-xs">{item.status === "pending" ? "À examiner" : item.destination_enrollment_status === "active" ? "Inscription finalisée" : item.destination_enrollment_status === "pending" ? "En attente de paiement" : item.destination_enrollment_id ? "Inscription créée" : "Accepté — à finaliser"}</td><td className="px-4 py-3"><Button size="sm" onClick={() => setSelectedTransfer(item)} className="rounded-lg bg-terre">{item.status === "pending" ? "Examiner" : item.destination_enrollment_id ? "Consulter" : canFinalize ? "Finaliser" : "Suivi"}</Button></td></tr>)}</tbody>
                 </table>
               </div>
             )

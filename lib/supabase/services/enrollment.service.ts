@@ -47,6 +47,28 @@ export async function listEnrollmentsPaginated(data: {
   }
 }
 
+/**
+ * Charge toutes les pages d'inscriptions avec les mêmes filtres serveur.
+ * Utilisé uniquement quand un filtre temporel doit porter sur l'ensemble du résultat,
+ * et non sur les 25 lignes actuellement affichées.
+ */
+export async function listAllEnrollmentsPaginated(data: {
+  establishmentId: string
+  academicYearId?: string | null
+  classId?: string | null
+  status?: string | null
+  search?: string
+}): Promise<EnrollmentPage["items"]> {
+  const pageSize = 100
+  const firstPage = await listEnrollmentsPaginated({ ...data, page: 1, pageSize })
+  const items = [...firstPage.items]
+  for (let page = 2; page <= firstPage.total_pages; page += 1) {
+    const result = await listEnrollmentsPaginated({ ...data, page, pageSize })
+    items.push(...result.items)
+  }
+  return items
+}
+
 export async function createStudentEnrollmentWithSchedule(data: {
   establishmentId: string
   studentId?: string | null

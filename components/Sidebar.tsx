@@ -8,7 +8,7 @@ import {
   ClipboardList, FileText, FolderOpen, GraduationCap, LayoutDashboard,
   LogOut, Timer, UserRound, Wrench, Inbox, Wallet, CreditCard, Layers,
   School, UserCog, Fingerprint, ReceiptText, AlertTriangle, ClipboardCheck,
-  CalendarRange, ArrowRightLeft
+  CalendarRange, ArrowRightLeft, Users
 } from "lucide-react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -94,6 +94,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
     ]},
     { section: "Finance", items: [
       { href: "/ecole/finance/paiements", label: "Scolarité", icon: CreditCard, permission: "finance.view" },
+      { href: "/ecole/finance/prises-en-charge", label: "Suivi des prises en charge", icon: Users, permission: "finance.view" },
       { href: "/ecole/finance/caisse", label: "Mouvements de caisse", icon: Layers, permission: "finance.view" },
       { href: "/ecole/facturation", label: "Facturation", icon: FileText, permission: "finance.view" },
       { href: "/ecole/finance/impayes", label: "Impayés", icon: AlertTriangle, permission: "finance.view" },

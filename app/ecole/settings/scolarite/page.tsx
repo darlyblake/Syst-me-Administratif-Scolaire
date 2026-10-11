@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { StateFundingSettingsCard } from "@/components/tuition/StateFundingSettingsCard"
 import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import { useMemo, useState } from "react"
@@ -337,6 +338,7 @@ export default function ScolariteSettingsPage() {
         </div>
       </div>
 
+      <div className="flex justify-end"><Button variant="outline" asChild><Link href="/ecole/settings/prises-en-charge">Gérer les organismes et réductions familiales</Link></Button></div>
       {establishmentId !== "demo-establishment" ? <StateFundingSettingsCard establishmentId={establishmentId} /> : null}
 
       {/* Frais généraux */}

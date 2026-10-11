@@ -10,7 +10,7 @@ export type ParentAttendance = { id:string; student_id:string; attendance_date:s
 export type ParentJustificationRequest = { id:string; attendance_id:string; student_id:string; reason:string; status:"pending"|"approved"|"rejected"|"cancelled"; reviewer_note:string|null; created_at:string }
 export type ParentNotification = { id:string; title:string; body:string; type:string; read_at:string|null; created_at:string }
 export type ParentEvent = { id:string; establishment_id:string; title:string; description:string|null; event_type:string; starts_at:string; ends_at:string|null; location:string|null }
-export type ParentPaymentSchedule = { id:string; enrollment_id:string; installment_number:number; label:string; due_date:string; amount_due:number; amount_paid:number; status:string; category:string|null; payer_type?:string|null }
+export type ParentPaymentSchedule = { id:string; enrollment_id:string; installment_number:number; label:string; due_date:string; amount_due:number; amount_paid:number; status:string; category:string|null; payer_type?:string|null; organization_id?:string|null; organization?:{name:string}|null }
 export type ParentPaymentAllocation = { id:string; payment_id:string; payment_schedule_id:string; amount:number; created_at:string; payment_date?:string }
 export type ParentEnrollmentOption = { id:string; enrollment_id:string; option_id:string; amount:number; name:string; description:string|null; option_type:string|null; required:boolean }
 export type ParentTimetableSlot = { id:string; class_subject_id:string; day_of_week:number; starts_at:string; ends_at:string; room:string|null; class_id:string; subject:string; teacher_id:string|null }
@@ -183,7 +183,7 @@ function useParentPortalState() {
       if(paymentsR.error) console.warn("Parent payments query:", paymentsR.error)
       const paymentIds=(paymentsR.data??[]).map(x=>x.id)
       const [psr,par,eor,tsr,tlr,thr,pdr,sdr]=await Promise.all([
-        financeEnrollmentIds.length?supabaseBrowser.from("payment_schedules").select("id,enrollment_id,installment_number,label,due_date,amount_due,amount_paid,status,category,payer_type").in("enrollment_id",financeEnrollmentIds).order("due_date"):Promise.resolve({data:[],error:null}),
+        financeEnrollmentIds.length?supabaseBrowser.from("payment_schedules").select("id,enrollment_id,installment_number,label,due_date,amount_due,amount_paid,status,category,payer_type,organization_id,organization:sponsoring_organizations(name)").in("enrollment_id",financeEnrollmentIds).order("due_date"):Promise.resolve({data:[],error:null}),
         paymentIds.length?supabaseBrowser.from("payment_allocations").select("id,payment_id,payment_schedule_id,amount,created_at").in("payment_id",paymentIds):Promise.resolve({data:[],error:null}),
         financeEnrollmentIds.length?supabaseBrowser.from("enrollment_options").select("id,enrollment_id,option_id,amount").in("enrollment_id",financeEnrollmentIds):Promise.resolve({data:[],error:null}),
         // Emploi du temps : filtre directement par class_id (connus depuis les enrollments)

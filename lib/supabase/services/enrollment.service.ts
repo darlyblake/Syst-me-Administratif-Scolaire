@@ -89,8 +89,14 @@ export async function createStudentEnrollmentWithSchedule(data: {
   fundingSource?: "family" | "state" | "other"
   waiveRegistration?: boolean
   waiveTuition?: boolean
+  relatedStudentId?: string | null
+  siblingRelationship?: "frere" | "soeur" | "autre"
+  organizationId?: string | null
 }): Promise<StudentEnrollmentResult> {
-  const { data: result, error } = await supabaseBrowser.rpc("create_student_enrollment_with_funding", {
+  const rpcName = data.relatedStudentId || data.organizationId
+    ? "create_student_enrollment_with_family_funding"
+    : "create_student_enrollment_with_funding"
+  const rpcArgs: Record<string, unknown> = {
     p_establishment_id: data.establishmentId,
     p_student_id: data.studentId || null,
     p_academic_year_id: data.academicYearId,
@@ -110,7 +116,13 @@ export async function createStudentEnrollmentWithSchedule(data: {
     p_funding_source: data.fundingSource ?? "family",
     p_waive_registration: data.waiveRegistration ?? false,
     p_waive_tuition: data.waiveTuition ?? false,
-  })
+  }
+  if (rpcName === "create_student_enrollment_with_family_funding") {
+    rpcArgs.p_related_student_id = data.relatedStudentId || null
+    rpcArgs.p_sibling_relationship = data.siblingRelationship || "autre"
+    rpcArgs.p_organization_id = data.organizationId || null
+  }
+  const { data: result, error } = await supabaseBrowser.rpc(rpcName, rpcArgs)
 
   if (error) throw new Error(error.message || "Impossible d'enregistrer l'inscription.")
   return result as StudentEnrollmentResult

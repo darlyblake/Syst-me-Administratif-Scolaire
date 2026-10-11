@@ -29,8 +29,8 @@ function downloadTemplate() {
     ["Marie", "Kone", "EL002", "22/07/2011", "F", "0706789012", ""],
     ["Paul", "Traore", "", "05/11/2009", "M", "", ""],
   ]
-  const csv = [headers, ...rows].map((row) => row.map((value) => `"${value}"`).join(",")).join("\\n")
-  const blob = new Blob(["\\uFEFF" + csv], { type: "text/csv;charset=utf-8;" })
+  const csv = [headers, ...rows].map((row) => row.map((value) => `"${value}"`).join(",")).join("\n")
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" })
   const url = URL.createObjectURL(blob)
   const link = document.createElement("a")
   link.href = url

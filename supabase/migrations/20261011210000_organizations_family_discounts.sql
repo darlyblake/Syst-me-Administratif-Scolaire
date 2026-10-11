@@ -205,7 +205,7 @@ begin
     select * into v_rule from public.family_discount_rules r where r.establishment_id=p_establishment_id and r.active
       and (r.academic_year_id is null or r.academic_year_id=p_academic_year_id)
       and r.min_children<=v_children_count and (r.max_children is null or r.max_children>=v_children_count)
-      and r.applies_to_categories @> array['tuition']::text[]
+      and cardinality(r.applies_to_categories)>0
       and (r.valid_from is null or r.valid_from<=p_enrollment_date) and (r.valid_until is null or r.valid_until>=p_enrollment_date)
     order by r.min_children desc,(r.academic_year_id is not null) desc,r.created_at desc limit 1;
 

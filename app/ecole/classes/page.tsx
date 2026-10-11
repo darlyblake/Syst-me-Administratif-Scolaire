@@ -309,9 +309,20 @@ export default function ClassesPage() {
       if (yearError) throw yearError
       if (!year) throw new Error("Aucune année académique active n'est configurée.")
 
+      const selectedGradeLevel = academicStructure.flatMap((cycle) => cycle.grade_levels ?? []).find((level) => level.name === selectedNiveau)
+      if (!selectedGradeLevel?.id) throw new Error("Niveau académique introuvable.")
+
+      const { data: plans, error: plansError } = await supabaseBrowser
+        .from("tuition_plans")
+        .select("id")
+        .eq("establishment_id", establishmentId)
+        .eq("grade_level_id", selectedGradeLevel.id)
+      if (plansError) throw plansError
+      const planIds = new Set((plans ?? []).map((plan: any) => plan.id))
+
       const { data: enrollments, error: enrollmentError } = await supabaseBrowser
         .from("enrollments")
-        .select("id, student_id, class_id")
+        .select("id, student_id, class_id, tuition_plan_id")
         .eq("establishment_id", establishmentId)
         .eq("academic_year_id", year.id)
         .eq("status", "active")
@@ -327,14 +338,18 @@ export default function ClassesPage() {
       const studentById = new Map((students ?? []).map((student: any) => [student.id, student]))
       const classIds = new Set(classesNiveau.map((classe) => classe.id))
       const eligible = (enrollments ?? []).filter((enrollment: any) => {
-        const student = studentById.get(enrollment.student_id)
-        if (!student) return false
-        return repartitionDepuisZero
-          ? (!enrollment.class_id || classIds.has(enrollment.class_id))
-          : !enrollment.class_id
+        if (!studentById.has(enrollment.student_id)) return false
+        const inSelectedLevel = enrollment.class_id
+          ? classIds.has(enrollment.class_id)
+          : Boolean(enrollment.tuition_plan_id && planIds.has(enrollment.tuition_plan_id))
+        return repartitionDepuisZero ? inSelectedLevel : !enrollment.class_id && inSelectedLevel
       })
-
-      const eligibleIds = new Set(eligible.map((enrollment: any) => enrollment.id))
+      const uniqueByStudent = new Map<string, any>()
+      eligible.forEach((enrollment: any) => {
+        if (!uniqueByStudent.has(enrollment.student_id)) uniqueByStudent.set(enrollment.student_id, enrollment)
+      })
+      const safeEligible = [...uniqueByStudent.values()]
+      const eligibleIds = new Set(safeEligible.map((enrollment: any) => enrollment.id))
       const counts: Record<string, { total: number; M: number; F: number; autre: number }> = {}
       classesNiveau.forEach((classe) => { counts[classe.id] = { total: 0, M: 0, F: 0, autre: 0 } })
       ;(enrollments ?? []).forEach((enrollment: any) => {
@@ -348,7 +363,7 @@ export default function ClassesPage() {
         else counts[enrollment.class_id].autre += 1
       })
 
-      const toPlace = eligible.map((enrollment: any) => ({
+      const toPlace = safeEligible.map((enrollment: any) => ({
         enrollmentId: enrollment.id,
         studentId: enrollment.student_id,
         student: studentById.get(enrollment.student_id),
@@ -419,7 +434,7 @@ export default function ClassesPage() {
           autre: counts[classe.id].autre,
         })),
       })
-      if (!eligible.length) toast.message("Aucun élève à répartir pour ce niveau.")
+      if (!safeEligible.length) toast.message("Aucun élève éligible pour ce niveau. Vérifiez les plans de scolarité.")
     } catch (erreur) {
       console.error("Prévisualisation de la répartition impossible:", erreur)
       toast.error(erreur instanceof Error ? erreur.message : "Impossible de préparer la répartition.")

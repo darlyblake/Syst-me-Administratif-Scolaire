@@ -24,6 +24,7 @@ import StudentListItem from "@/components/StudentListItem"
 import StudentDetailsModal from "@/components/StudentDetailsModal"
 import EditStudentModal from "@/components/students/EditStudentModal"
 import StudentImportGuideModal from "@/components/students/StudentImportGuideModal"
+import StudentBulkImportModal from "@/components/students/StudentBulkImportModal"
 
 export default function StudentsPage() {
   const router = useRouter()
@@ -40,7 +41,7 @@ export default function StudentsPage() {
   const { data: academicStructure } = useAcademicStructure(establishmentId)
   const { activeYear } = useAcademicYears(establishmentId)
   const { data: tuitionPlans } = useTuitionPlans(activeYear?.id ?? null)
-  const { data: supabaseStudents, total, totalPages: backendTotalPages, isLoading: isLoadingSupabase, error: studentsError, create, update, deactivate, assignToClass, isCreating, isUpdating, isDeactivating, isAssigning } = useStudents(establishmentId, {
+  const { data: supabaseStudents, total, totalPages: backendTotalPages, isLoading: isLoadingSupabase, error: studentsError, create, update, deactivate, assignToClass, isCreating, isUpdating, isDeactivating, isAssigning, refresh } = useStudents(establishmentId, {
     page: currentPage,
     pageSize: 50,
     search: searchTerm,
@@ -174,6 +175,15 @@ export default function StudentsPage() {
           <Button variant="outline" className="h-8 rounded px-2.5 text-[11px]" onClick={handleBulkClassChange} disabled={selectedIds.size === 0}>
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Réinscription groupée
           </Button>
+          <StudentBulkImportModal
+            establishmentId={establishmentId}
+            academicYearId={activeYear?.id ?? null}
+            classes={assignmentClasses}
+            tuitionPlans={tuitionPlans}
+            createStudent={create}
+            assignToClass={assignToClass}
+            onImported={() => { refresh(); setCurrentPage(1); setSelectedIds(new Set()) }}
+          />
           <StudentImportGuideModal />
           <Button variant="outline" className="h-8 rounded px-2.5 text-[11px]" onClick={handleExportCSV}>
             <Download className="mr-1.5 h-3.5 w-3.5" /> Exporter (.xlsx)

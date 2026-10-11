@@ -90,6 +90,7 @@ export default function TransfertPage() {
   }, [])
 
   useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "review") return
     getEstablishments()
       .then((items) => setEstablishments(items.filter((item) => item.id !== establishmentId)))
       .catch((error) => toast.error(error instanceof Error ? error.message : "Impossible de charger les établissements."))
@@ -297,7 +298,7 @@ export default function TransfertPage() {
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-encre">Transfert d’élèves</h1>
-          <p className="mt-1 text-sm text-pierre">Transmettez un dossier à une autre école et suivez son traitement.</p>
+          <p className="mt-1 text-sm text-pierre">{reviewMode ? "Examinez les transferts reçus et suivez leur inscription sans accéder au module complet des inscriptions." : "Transmettez un dossier à une autre école et suivez son traitement."}</p>
         </div>
         <Button variant="outline" className="rounded-xl self-start" onClick={() => void loadTransfers()} disabled={loadingTransfers}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loadingTransfers ? "animate-spin" : ""}`} />
@@ -411,15 +412,18 @@ export default function TransfertPage() {
                 <div><p className="text-xs text-pierre">Contact parent</p><p className="text-sm font-medium">{selectedTransfer.student_snapshot.guardian_phone || selectedTransfer.student_snapshot.phone || "Non renseigné"}</p></div>
               </div>
               <div><p className="text-xs text-pierre">Motif</p><p className="text-sm">{selectedTransfer.reason}</p></div>
-              {selectedTransfer.status === "accepted" && !selectedTransfer.destination_enrollment_id && canFinalize && <div className="grid gap-4 sm:grid-cols-2">
+              {selectedTransfer.status === "accepted" && !selectedTransfer.destination_enrollment_id && canFinalize && <div className="space-y-3">
+                <div className="grid gap-4 sm:grid-cols-2">
                 <div><Label>Classe d’accueil</Label><select value={selectedClassId} onChange={(event) => setSelectedClassId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-terre/15 bg-white px-3 py-2.5 text-sm"><option value="">Choisir une classe</option>{destinationClasses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
                 <div><Label>Plan de scolarité</Label><select value={selectedPlanId} onChange={(event) => setSelectedPlanId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-terre/15 bg-white px-3 py-2.5 text-sm"><option value="">Choisir un plan</option>{tuitionPlans.map((item) => <option key={item.id} value={item.id}>{item.payment_mode} — {Number(item.annual_tuition).toLocaleString("fr-FR")} FCFA/an</option>)}</select></div>
+                </div>
+                <p className="text-xs text-pierre">Si des frais d’inscription sont dus, le dossier restera en attente jusqu’à leur règlement réel. Aucun paiement ne sera créé automatiquement.</p>
               </div>}
               {selectedTransfer.status === "accepted" && !selectedTransfer.destination_enrollment_id && !canFinalize && <p className="border-l-4 border-emerald-500 bg-emerald-50 p-3 text-sm text-emerald-900">Le directeur a accepté le transfert. L’inscription doit maintenant être finalisée par le secrétariat ou le personnel autorisé aux inscriptions.</p>}
               {selectedTransfer.status === "accepted" && selectedTransfer.destination_enrollment_id && <p className={`border-l-4 p-3 text-sm ${selectedTransfer.destination_enrollment_status === "active" ? "border-emerald-500 bg-emerald-50 text-emerald-900" : selectedTransfer.destination_enrollment_status === "pending" ? "border-amber-500 bg-amber-50 text-amber-900" : "border-slate-400 bg-slate-50 text-slate-800"}`}>{selectedTransfer.destination_enrollment_status === "active" ? "Inscription finalisée : l’inscription est active dans l’établissement de destination." : selectedTransfer.destination_enrollment_status === "pending" ? "Inscription préparée, mais en attente du règlement des frais d’inscription. L’élève n’est pas encore inscrit définitivement." : "Le dossier de transfert a été accepté et son traitement est en cours."}</p>}
               <div className="flex flex-wrap gap-2 border-t border-terre/10 pt-4">
                 {selectedTransfer.status === "pending" && <Button onClick={() => void handleAccept()} disabled={processing} className="rounded-xl bg-jardin hover:bg-jardin/90"><Check className="mr-2 h-4 w-4" />{processing ? "Traitement…" : "Accepter le transfert"}</Button>}
-                {selectedTransfer.status === "accepted" && !selectedTransfer.destination_enrollment_id && canFinalize && <Button onClick={() => void handleFinalize()} disabled={processing || destinationClasses.length === 0 || tuitionPlans.length === 0} className="rounded-xl bg-terre hover:bg-terre-dark"><Check className="mr-2 h-4 w-4" />{processing ? "Préparation…" : "Finaliser l’inscription"}</Button>}
+                {selectedTransfer.status === "accepted" && !selectedTransfer.destination_enrollment_id && canFinalize && <Button onClick={() => void handleFinalize()} disabled={processing || destinationClasses.length === 0 || tuitionPlans.length === 0} className="rounded-xl bg-terre hover:bg-terre-dark"><Check className="mr-2 h-4 w-4" />{processing ? "Préparation…" : "Préparer le dossier d’inscription"}</Button>}
                 {selectedTransfer.status === "pending" && <Button variant="outline" onClick={() => void handleReject()} disabled={processing} className="rounded-xl border-rouge-terre/30 text-rouge-terre"><X className="mr-2 h-4 w-4" />Refuser le transfert</Button>}
                 <Button variant="ghost" onClick={() => setSelectedTransfer(null)} disabled={processing} className="rounded-xl">Retour à la liste</Button>
               </div>

@@ -364,6 +364,18 @@ export default function NouvelleInscriptionModal({
         email: parentEmail,
         address: parentAddress,
       })
+
+      // Le lieu de naissance doit être conservé dans le dossier de l'élève,
+      // puis renvoyé par list_students_paginated pour la fiche administrative.
+      const { error: birthPlaceError } = await supabaseBrowser
+        .from("students")
+        .update({ place_of_birth: birthPlace.trim() || null })
+        .eq("id", result.student_id)
+        .eq("establishment_id", establishmentId)
+      if (birthPlaceError) {
+        toast.warning("Inscription enregistrée, mais le lieu de naissance n'a pas pu être sauvegardé.")
+      }
+
       setNewEnrollmentId(result.enrollment_id)
       setSubmitted(true)
     } catch (err) {

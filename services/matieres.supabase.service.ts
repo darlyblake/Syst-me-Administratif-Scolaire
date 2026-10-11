@@ -48,11 +48,12 @@ export async function creerMatiereSupabase(input: Omit<SubjectRecord, "id" | "ac
   return toMatiere(data as SubjectRecord)
 }
 
-export async function modifierMatiereSupabase(id: string, changes: Partial<Omit<SubjectRecord, "id" | "establishment_id">>) {
+export async function modifierMatiereSupabase(id: string, establishmentId: string, changes: Partial<Omit<SubjectRecord, "id" | "establishment_id">>) {
   const { data, error } = await supabaseBrowser
     .from("subjects")
     .update(changes)
     .eq("id", id)
+    .eq("establishment_id", establishmentId)
     .select("id,establishment_id,code,name,coefficient,description,grade_level_id,level_scope,is_primary_generalist,active")
     .single()
 
@@ -60,7 +61,7 @@ export async function modifierMatiereSupabase(id: string, changes: Partial<Omit<
   return toMatiere(data as SubjectRecord)
 }
 
-export async function archiverMatiereSupabase(id: string) {
-  const { error } = await supabaseBrowser.from("subjects").update({ active: false }).eq("id", id)
+export async function archiverMatiereSupabase(id: string, establishmentId: string) {
+  const { error } = await supabaseBrowser.from("subjects").update({ active: false }).eq("id", id).eq("establishment_id", establishmentId)
   if (error) throw new Error(`Impossible d'archiver la matière: ${error.message}`)
 }

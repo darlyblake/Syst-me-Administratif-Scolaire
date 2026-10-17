@@ -119,6 +119,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
       { href: "/ecole/settings/scolarite", label: "Scolarité / Frais", icon: CreditCard, permission: "settings.view" },
       { href: "/ecole/settings/structure", label: "Structure académique", icon: Layers, permission: "settings.view" },
       { href: "/ecole/settings/options-scolaires", label: "Options scolaires", icon: Wrench, permission: "settings.view" },
+      { href: "/ecole/settings/prises-en-charge", label: "Organismes et réductions familiales", icon: Users, permission: "settings.view" },
     ]},
   ]
 

@@ -147,7 +147,7 @@ export default function EnseignantPointagePage() {
 
   return (
     <TeacherShell establishmentId={establishmentId} establishmentName={establishment.name} active="planning">
-      <div className="mx-auto max-w-4xl space-y-5">
+      <div className="mx-auto w-full max-w-screen-xl space-y-5">
         <header className="flex flex-wrap items-center gap-3 border-b pb-5">
           <Button variant="ghost" size="icon" onClick={() => router.back()}><ArrowLeft className="h-5 w-5" /></Button>
           <div>

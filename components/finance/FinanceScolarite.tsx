@@ -697,7 +697,7 @@ export function FinanceScolarite() {
         <div className="rounded-lg border border-red-200 bg-white px-4 py-10 text-center text-sm text-red-600">
           {error}
         </div>
-      ) : studentsByClass.length === 0 ? (
+      ) : filteredStudents.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
           Aucune échéance trouvée.
         </div>

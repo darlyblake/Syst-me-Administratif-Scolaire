@@ -199,7 +199,7 @@ function useParentPortalState() {
           : Promise.resolve({data:[],error:null}),
         academicClassIds.length?supabaseBrowser.from("teacher_lesson_entries").select("id,timetable_slot_id,lesson_date,topic,content,activities").in("establishment_id",establishmentIds).order("lesson_date",{ascending:false}).limit(300):Promise.resolve({data:[],error:null}),
         academicClassIds.length?supabaseBrowser.from("teacher_homework").select("id,timetable_slot_id,class_id,subject_id,title,instructions,due_date,created_at").in("class_id",academicClassIds).eq("active",true).order("due_date").limit(300):Promise.resolve({data:[],error:null}),
-        supabaseBrowser.from("parent_document_publications").select("id,student_id,document_id,published_at,title_override").in("student_id",studentIds).eq("active",true).order("published_at",{ascending:false}).limit(200),
+        (supabaseBrowser as any).rpc("get_parent_published_documents"),
         supabaseBrowser.from("school_document_requests").select("id,establishment_id,student_id,document_type,message,status,rejection_reason,created_at,updated_at").in("student_id",studentIds).order("created_at",{ascending:false}).limit(200)
       ])
       for(const [name,r] of [["payment_schedules",psr],["payment_allocations",par],["enrollment_options",eor],["timetable",tsr],["lessons",tlr],["homework",thr],["documents",pdr],["school_document_requests",sdr]] as const) if(r.error) console.warn("Parent "+name+" query:",r.error)
@@ -225,12 +225,11 @@ function useParentPortalState() {
       const csIds=[...new Set(slotRows.filter(x=>!x.class_subjects).map((x:any)=>x.class_subject_id))]
       const hwSubjectIds=[...new Set((thr.data??[]).map(x=>x.subject_id))]
       const allSubjectIds=[...new Set([...subjectIds,...hwSubjectIds])]
-      const [csr,tsubr,dr]=await Promise.all([
+      const [csr,tsubr]=await Promise.all([
         csIds.length?supabaseBrowser.from("class_subjects").select("id,class_id,subject_id,teacher_id").in("id",csIds):Promise.resolve({data:[],error:null}),
-        allSubjectIds.length?supabaseBrowser.from("subjects").select("id,name").in("id",allSubjectIds):Promise.resolve({data:[],error:null}),
-        (pdr.data??[]).length?supabaseBrowser.from("documents").select("id,name,document_type,mime_type,size_bytes,created_at,storage_path").in("id",(pdr.data??[]).map(x=>x.document_id)):Promise.resolve({data:[],error:null})
+        allSubjectIds.length?supabaseBrowser.from("subjects").select("id,name").in("id",allSubjectIds):Promise.resolve({data:[],error:null})
       ])
-      for(const [name,r] of [["class_subjects",csr],["subjects",tsubr],["documents",dr]] as const) if(r.error) console.warn("Parent "+name+" query:",r.error)
+      for(const [name,r] of [["class_subjects",csr],["subjects",tsubr]] as const) if(r.error) console.warn("Parent "+name+" query:",r.error)
       // Fusionner : données embarquées en priorité, fallback sur requête séparée
       const fallbackCsMap=new Map((csr.data??[]).map(x=>[x.id,x]))
       const csMap=new Map(slotRows.map((x:any)=>[x.class_subject_id, x.class_subjects ?? fallbackCsMap.get(x.class_subject_id)]))
@@ -249,8 +248,34 @@ function useParentPortalState() {
       // Les documents sont secondaires : une erreur de document/storage ne doit jamais masquer
       // les paiements, la présence ou l'emploi du temps déjà récupérés.
       try {
-        const pubMap=new Map((pdr.data??[]).map(x=>[x.document_id,x])), docs:ParentDocument[]=[]
-        for(const d of dr.data??[]){const p=pubMap.get(d.id);if(!p||!linkMap.get(p.student_id)?.can_view_academic)continue;let url:string|undefined;if(d.storage_path){const s=await supabaseBrowser.storage.from("school-documents").createSignedUrl(d.storage_path,300);if(!s.error)url=s.data.signedUrl}docs.push({...d,publication_id:p.id,student_id:p.student_id,title:p.title_override??d.name,published_at:p.published_at,size_bytes:d.size_bytes?Number(d.size_bytes):null,download_url:url})}
+        // La fonction sécurisée renvoie les publications du parent et les métadonnées
+        // du fichier dans une seule requête, sans dépendre de la politique SELECT
+        // indépendante de la table documents (qui pouvait masquer la publication).
+        if (pdr.error) throw pdr.error
+        const docs:ParentDocument[]=[]
+        for(const d of pdr.data??[]){
+          if(!linkMap.get(d.student_id)?.can_view_academic) continue
+          let url:string|undefined
+          if(d.storage_path){
+            const signed=await supabaseBrowser.storage.from("school-documents").createSignedUrl(d.storage_path,300)
+            if(!signed.error) url=signed.data.signedUrl
+            else console.warn("Parent document signed URL:",{documentId:d.document_id,error:signed.error})
+          }
+          docs.push({
+            id:d.document_id,
+            publication_id:d.publication_id,
+            student_id:d.student_id,
+            name:d.name,
+            title:d.title_override??d.name,
+            document_type:d.document_type,
+            mime_type:d.mime_type??null,
+            size_bytes:d.size_bytes==null?null:Number(d.size_bytes),
+            created_at:d.created_at,
+            published_at:d.published_at,
+            storage_path:d.storage_path,
+            download_url:url
+          })
+        }
         setDocuments(docs)
       } catch(documentCause) {
         console.warn("Parent portal documents error:",documentCause)

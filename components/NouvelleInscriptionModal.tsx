@@ -797,7 +797,8 @@ export default function NouvelleInscriptionModal({
                             setSelectedOptionIds((prev) => {
                               const next = new Set(prev)
                               if (isChecked) next.add(opt.id)
-                              else next.delete(opt.id)                              return next
+                              else next.delete(opt.id)
+                              return next
                             })
                           }}
                         />

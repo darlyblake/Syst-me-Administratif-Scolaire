@@ -36,6 +36,7 @@ export default function DossiersPapierPage() {
   const [requestTarget, setRequestTarget] = useState<"student" | "class">("student")
   const [requestClassId, setRequestClassId] = useState("")
   const [loadingData, setLoadingData] = useState(false)
+  const [linkedGuardianCount, setLinkedGuardianCount] = useState(0)
 
   const [uploadingDoc, setUploadingDoc] = useState(false)
   const [requestDialogOpen, setRequestDialogOpen] = useState(false)
@@ -71,14 +72,20 @@ export default function DossiersPapierPage() {
 
   const loadStudentData = async () => {
     setLoadingData(true)
-    const [docsR, pubsR, reqsR] = await Promise.all([
+    const [docsR, pubsR, reqsR, guardiansR] = await Promise.all([
       supabaseBrowser.from("documents").select("id,name,document_type,mime_type,storage_path,created_at").eq("owner_type", "student").eq("owner_id", selectedStudent!.id).order("created_at", { ascending: false }),
       supabaseBrowser.from("parent_document_publications").select("id,document_id,active,published_at").eq("student_id", selectedStudent!.id),
-      supabaseBrowser.from("school_document_requests").select("id,document_type,message,status,rejection_reason,submitted_storage_path,submitted_file_name,created_at,updated_at").eq("student_id", selectedStudent!.id).order("created_at", { ascending: false })
+      supabaseBrowser.from("school_document_requests").select("id,document_type,message,status,rejection_reason,submitted_storage_path,submitted_file_name,created_at,updated_at").eq("student_id", selectedStudent!.id).order("created_at", { ascending: false }),
+      supabaseBrowser.from("student_guardians").select("id").eq("student_id", selectedStudent!.id).eq("establishment_id", establishmentId).eq("active", true).eq("can_view_academic", true)
     ])
+    if (docsR.error) toast.error("Impossible de charger les documents de cet élève.")
+    if (pubsR.error) toast.error("Impossible de vérifier la visibilité des documents.")
+    if (reqsR.error) toast.error("Impossible de charger les demandes de pièces.")
+    if (guardiansR.error) console.error("Dossiers élèves: vérification des responsables impossible", guardiansR.error)
     setDocuments(docsR.data as Document[] ?? [])
     setPublications(pubsR.data as Publication[] ?? [])
     setRequests(reqsR.data as SchoolRequest[] ?? [])
+    setLinkedGuardianCount(guardiansR.data?.length ?? 0)
     setLoadingData(false)
   }
 
@@ -161,19 +168,22 @@ export default function DossiersPapierPage() {
 
   const togglePublication = async (docId: string, currentPub?: Publication) => {
     try {
-      if (currentPub) {
-        await supabaseBrowser.from("parent_document_publications").update({ active: !currentPub.active }).eq("id", currentPub.id)
-      } else {
-        await supabaseBrowser.from("parent_document_publications").insert({
-          establishment_id: establishmentId,
-          student_id: selectedStudent!.id,
-          document_id: docId,
-          active: true
-        })
+      const result = currentPub
+        ? await supabaseBrowser.from("parent_document_publications").update({ active: !currentPub.active }).eq("id", currentPub.id)
+        : await supabaseBrowser.from("parent_document_publications").insert({
+            establishment_id: establishmentId,
+            student_id: selectedStudent!.id,
+            document_id: docId,
+            active: true
+          })
+      if (result.error) throw result.error
+      toast.success(currentPub?.active ? "Document masqué pour le parent." : "Document publié dans l’espace parent.")
+      if (linkedGuardianCount === 0 && !currentPub?.active) {
+        toast.warning("Attention : aucun compte parent n’est actuellement associé à cette fiche élève. Le document sera publié, mais ne sera visible par aucun parent tant que le rattachement n’est pas effectué.")
       }
-      loadStudentData()
-    } catch {
-      toast.error("Erreur lors de la modification de la visibilité.")
+      await loadStudentData()
+    } catch (error: any) {
+      toast.error(error?.message || "Erreur lors de la modification de la visibilité.")
     }
   }
 
@@ -184,6 +194,15 @@ export default function DossiersPapierPage() {
       let studentIds: string[] = []
       if (requestTarget === "student") {
         if (!selectedStudent) throw new Error("Aucun élève sélectionné.")
+        const { data: guardians, error: guardiansError } = await supabaseBrowser
+          .from("student_guardians")
+          .select("id")
+          .eq("student_id", selectedStudent.id)
+          .eq("establishment_id", establishmentId)
+          .eq("active", true)
+          .eq("can_view_academic", true)
+        if (guardiansError) throw guardiansError
+        if (!guardians?.length) throw new Error("Aucun compte parent n’est associé à cette fiche élève. Vérifiez le matricule et le rattachement du parent avant d’envoyer la demande.")
         studentIds = [selectedStudent.id]
       } else {
         if (!requestClassId) throw new Error("Sélectionnez une classe.")
@@ -203,7 +222,7 @@ export default function DossiersPapierPage() {
         }))
       )
       if (error) throw error
-      toast.success(requestTarget === "class" ? `Demande envoyée à ${studentIds.length} parent(s).` : "Demande envoyée au parent.")
+      toast.success(requestTarget === "class" ? `Demande créée pour ${studentIds.length} élève(s) de la classe.` : "Demande créée et visible dans l’espace du parent associé.")
       setRequestDialogOpen(false)
       setRequestType(""); setRequestMessage(""); setRequestTarget("student"); setRequestClassId("")
       loadStudentData()
@@ -290,6 +309,12 @@ export default function DossiersPapierPage() {
             <div className="border-b border-slate-200 px-4 py-4 sm:px-6 sm:py-5 md:px-8 md:py-6">
               <h1 className="text-2xl font-semibold text-slate-900">{selectedStudent.first_name} {selectedStudent.last_name}</h1>
               {selectedStudent.student_number && <p className="text-sm text-slate-500 mt-1">Matricule : {selectedStudent.student_number}</p>}
+              {!loadingData && linkedGuardianCount === 0 && (
+                <div role="alert" className="mt-4 border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <p className="font-semibold">Aucun parent associé à cette fiche élève</p>
+                  <p className="mt-1">Les demandes de pièces ne pourront pas apparaître dans un espace parent et les documents publiés resteront invisibles jusqu’au rattachement d’un parent autorisé. Vérifiez le matricule de cette fiche, surtout si plusieurs élèves ont le même nom.</p>
+                </div>
+              )}
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
               {loadingData ? (

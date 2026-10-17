@@ -60,6 +60,10 @@ function colLabel(label: string, dueDate: string, short = true, category?: strin
     return short ? "Inscription" : "Frais d'inscription"
   }
 
+  // Les options (cantine, assurance, football, etc.) sont des frais nommés,
+  // pas des mensualités : leur date d'échéance ne doit pas les afficher comme un mois.
+  if (category?.toLowerCase() === "option") return label
+
   const idx = monthIndex(dueDate)
   if (idx >= 0) return short ? MOIS_FR[idx] : MOIS_LONG[idx]
 
@@ -86,17 +90,17 @@ function groupKey(row: FinanceStudentPaymentBoardRow & { category?: string }) {
 
   const month = monthKey(row.due_date)
   const category = row.category?.toLowerCase()
+  const normalizedLabel = row.label.toLowerCase().trim()
 
-  // La grille est commune à tous les élèves : les échéances de scolarité
-  // d'un même mois doivent partager une seule colonne, même si leurs libellés
-  // ou leurs numéros d'échéance diffèrent d'une inscription à l'autre.
-  const isTuition = category === "tuition"
-  if (month && (isTuition || isMonthlySchedule(row))) return `month:${month}`
+  // Une option doit avoir sa propre colonne par nom (Assurance, Cantine...).
+  // La date de l'option ne doit jamais créer une fausse colonne "Oct" ou "Sep".
+  if (category === "option") return `option:${normalizedLabel}`
 
-  // Pour les autres frais, regrouper les échéances identiques par date et
-  // catégorie évite de répéter les mêmes en-têtes lorsque les numéros varient.
-  if (row.due_date && category) return `schedule:${category}:${row.due_date}:${row.label.toLowerCase().trim()}`
+  // Les échéances de scolarité d'un même mois partagent une colonne commune.
+  if (category === "tuition" && month) return `month:${month}`
+  if (month && isMonthlySchedule(row)) return `month:${month}`
 
+  if (row.due_date && category) return `schedule:${category}:${row.due_date}:${normalizedLabel}`
   return `installment:${row.installment_number}`
 }
 

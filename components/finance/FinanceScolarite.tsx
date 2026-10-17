@@ -83,8 +83,21 @@ function isMonthlySchedule(row: FinanceStudentPaymentBoardRow & { category?: str
 
 function groupKey(row: FinanceStudentPaymentBoardRow & { category?: string }) {
   if (isRegistrationSchedule(row)) return `registration:${row.schedule_id}`
+
   const month = monthKey(row.due_date)
-  return isMonthlySchedule(row) && month ? `month:${month}` : `installment:${row.installment_number}`
+  const category = row.category?.toLowerCase()
+
+  // La grille est commune à tous les élèves : les échéances de scolarité
+  // d'un même mois doivent partager une seule colonne, même si leurs libellés
+  // ou leurs numéros d'échéance diffèrent d'une inscription à l'autre.
+  const isTuition = category === "tuition"
+  if (month && (isTuition || isMonthlySchedule(row))) return `month:${month}`
+
+  // Pour les autres frais, regrouper les échéances identiques par date et
+  // catégorie évite de répéter les mêmes en-têtes lorsque les numéros varient.
+  if (row.due_date && category) return `schedule:${category}:${row.due_date}:${row.label.toLowerCase().trim()}`
+
+  return `installment:${row.installment_number}`
 }
 
 function buildGroup(rows: BoardRow[]): ScheduleGroup {

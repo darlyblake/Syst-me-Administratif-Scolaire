@@ -53,7 +53,14 @@ export default function DossiersPapierPage() {
     if (!establishmentId) return
     const loadStudents = async () => {
       setLoadingStudents(true)
-      const { data } = await supabaseBrowser.from("students").select("id,first_name,last_name,student_number").eq("establishment_id", establishmentId).order("last_name").limit(500)
+      const { data, error } = await supabaseBrowser.from("students").select("id,first_name,last_name,student_number").eq("establishment_id", establishmentId).is("merged_into_student_id", null).order("last_name").order("first_name").limit(500)
+      if (error) {
+        console.error("Dossiers élèves: chargement des élèves impossible", error)
+        toast.error("Impossible de charger la liste des élèves.")
+        setStudents([])
+        setLoadingStudents(false)
+        return
+      }
       setStudents(data as Student[] ?? [])
       setLoadingStudents(false)
     }

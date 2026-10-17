@@ -91,9 +91,9 @@ export function ParentNav() {
   const NavItem = ({ href, label, icon: Icon, count = 0, close = false }: { href: string; label: string; icon: typeof LayoutDashboard; count?: number; close?: boolean }) => (
     <Link href={href} onClick={() => close && setOpen(false)} className={cn(
       "group flex min-h-10 min-w-0 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition-colors",
-      isActive(href) ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50 hover:text-slate-950",
+      isActive(href) ? "bg-[#1e3a8a] text-white" : "text-[#303746] hover:bg-[#f2f3ff] hover:text-[#131b2e]",
     )}>
-      <Icon className={cn("h-[17px] w-[17px] shrink-0", isActive(href) ? "text-blue-600" : "text-slate-400 group-hover:text-slate-600")} />
+      <Icon className={cn("h-[17px] w-[17px] shrink-0", isActive(href) ? "text-white" : "text-slate-400 group-hover:text-slate-600")} />
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {count > 0 && <span className="min-w-5 shrink-0 rounded-full bg-blue-600 px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{count > 99 ? "99+" : count}</span>}
     </Link>
@@ -130,7 +130,7 @@ export function ParentNav() {
 
       <div className="fixed inset-x-0 bottom-0 z-40 w-full overflow-hidden border-t border-slate-200 bg-white/95 px-1 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-4px_18px_rgba(15,23,42,0.06)] backdrop-blur lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
-          {mobilePrimary.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={cn("flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[10px] font-medium", isActive(href) ? "bg-blue-50 text-blue-700" : "text-slate-500")}><Icon className="h-4 w-4 shrink-0" /><span className="max-w-full truncate">{label === "Accueil" ? "Accueil" : label === "Mes enfants" ? "Enfants" : label}</span></Link>)}
+          {mobilePrimary.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={cn("flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[10px] font-medium", isActive(href) ? "bg-[#1e3a8a] text-white" : "text-slate-500")}><Icon className="h-4 w-4 shrink-0" /><span className="max-w-full truncate">{label === "Accueil" ? "Accueil" : label === "Mes enfants" ? "Enfants" : label}</span></Link>)}
         </div>
       </div>
 

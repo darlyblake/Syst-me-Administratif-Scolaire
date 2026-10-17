@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ArrowLeft, CheckCircle2, Clock3, QrCode, RefreshCw } from "lucide-react"
+import { ArrowLeft, CheckCircle2, QrCode, RefreshCw } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -147,48 +147,39 @@ export default function EnseignantPointagePage() {
 
   return (
     <TeacherShell establishmentId={establishmentId} establishmentName={establishment.name} active="planning">
-      <div className="mx-auto w-full max-w-screen-xl space-y-5">
-        <header className="flex flex-wrap items-center gap-3 border-b pb-5">
+      <div className="mx-auto w-full max-w-screen-xl space-y-6">
+        <header className="flex flex-wrap items-center gap-3 border-b border-[#e2e4eb] pb-4">
           <Button variant="ghost" size="icon" onClick={() => router.back()}><ArrowLeft className="h-5 w-5" /></Button>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pointage enseignant</p>
-            <h1 className="text-2xl font-semibold">{establishment.name}</h1>
+            <p className="text-sm text-[#6d7280]">Pointage enseignant</p>
+            <h1 className="text-xl font-semibold text-[#172033] sm:text-2xl">{establishment.name}</h1>
           </div>
-          <div className="ml-auto flex flex-wrap gap-2"><Button onClick={() => void openScanner(course?.status === "in_progress" ? "finish" : "start")} disabled={working}><QrCode className="mr-2 h-4 w-4" />Scanner le QR de l’ordinateur</Button><Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button></div>
+          <div className="ml-auto flex flex-wrap gap-2"><Button onClick={() => void openScanner(course?.status === "in_progress" ? "finish" : "start")} disabled={working}><QrCode className="mr-2 h-4 w-4" />{course?.status === "in_progress" ? "Terminer le cours" : "Démarrer le cours"}</Button><Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button></div>
         </header>
 
-        <section className="rounded-md border bg-white p-5">
+        <section className="border-b border-[#e2e4eb] pb-5">
           {loading ? <p className="text-sm text-muted-foreground">Recherche du cours actuel…</p> : course && slot ? (
             <>
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#3152c8]">Cours identifié automatiquement</p>
-              <h2 className="mt-2 text-2xl font-semibold">{slot.subject_name}</h2>
+              <p className="text-sm font-medium text-[#0b2b83]">Cours actuel</p>
+              <h2 className="mt-1 text-xl font-semibold text-[#172033]">{slot.subject_name}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{slot.class_name}{slot.room ? ` · Salle ${slot.room}` : ""} · {slot.starts_at} – {slot.ends_at}</p>
               {course.status === "in_progress" && course.started_time && (
                 <p className="mt-3 text-sm text-emerald-700">Cours commencé à {String(course.started_time).slice(0, 5)}. Vous pouvez le terminer depuis votre téléphone.</p>
               )}
               {Number(course.late_minutes ?? 0) > 0 && <p className="mt-3 text-sm text-amber-700">Pointage après le début prévu : {course.late_minutes} min.</p>}
 
-              <div className="mt-5 flex flex-wrap gap-3">
-                <Button variant="outline" onClick={() => void openScanner(course.status === "in_progress" ? "finish" : "start")} disabled={working}>
-                  <QrCode className="mr-2 h-4 w-4" /> Scanner le QR de l'ordinateur
-                </Button>
-              </div>
-              <div className="mt-5 border-t pt-5">
-                <p className="text-sm font-medium">Pointage par QR</p>
-                <p className="mt-1 text-sm text-muted-foreground">Le QR affiché sur l’ordinateur de l’établissement identifie le poste. Votre compte enseignant identifie automatiquement l’enseignant, son établissement et le cours prévu à cet instant.</p>
-              </div>
+              <p className="mt-3 text-sm text-[#6d7280]">Scannez le QR affiché sur l’ordinateur de l’établissement pour enregistrer le début ou la fin du cours.</p>
             </>
           ) : (
-            <div className="py-8 text-center">
-              <Clock3 className="mx-auto h-8 w-8 text-muted-foreground" />
-              <p className="mt-3 font-medium">Aucun cours correspondant à l'heure actuelle</p>
-              <p className="mt-1 text-sm text-muted-foreground">Vous ne choisissez jamais le cours : l'emploi du temps détermine automatiquement le créneau.</p>
+            <div className="py-3">
+              <p className="font-medium text-[#172033]">Aucun cours prévu à cette heure</p>
+              <p className="mt-1 text-sm text-[#6d7280]">Le cours est déterminé automatiquement à partir de votre emploi du temps.</p>
             </div>
           )}
         </section>
 
         {scannerOpen && (
-          <section className="rounded-md border border-[#e1e3eb] bg-white p-5">
+          <section className="border-b border-[#e2e4eb] py-4">
             <div className="flex items-center justify-between gap-3">
               <div><h2 className="font-semibold"><QrCode className="mr-2 inline h-5 w-5" />Scanner le QR de l'ordinateur</h2><p className="text-sm text-muted-foreground">Action automatique : {scanAction === "start" ? "démarrer le cours prévu maintenant" : "terminer le cours en cours"}.</p></div>
               <Button variant="ghost" onClick={stopScanner}>Fermer</Button>
@@ -201,12 +192,12 @@ export default function EnseignantPointagePage() {
           </section>
         )}
 
-        <section className="rounded-md border bg-background">
-          <div className="border-b px-4 py-3"><h2 className="font-semibold">Pointages du jour</h2></div>
+        <section className="pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#e2e4eb] py-3"><h2 className="font-semibold text-[#172033]">Pointages du jour</h2><span className="text-sm text-[#6d7280]">{pointages.length} pointage{pointages.length > 1 ? "s" : ""}</span></div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[650px] text-sm">
-              <thead className="bg-[#f4f5f8]"><tr><th className="px-4 py-3 text-left">Cours</th><th className="px-4 py-3 text-left">Début</th><th className="px-4 py-3 text-left">Fin</th><th className="px-4 py-3 text-left">Heures retenues</th><th className="px-4 py-3 text-left">État</th></tr></thead>
-              <tbody className="divide-y">
+              <thead className="border-b bg-[#f7f8fb] text-[#6d7280]"><tr><th className="px-4 py-3 text-left">Cours</th><th className="px-4 py-3 text-left">Début</th><th className="px-4 py-3 text-left">Fin</th><th className="px-4 py-3 text-left">Heures retenues</th><th className="px-4 py-3 text-left">État</th></tr></thead>
+              <tbody className="divide-y divide-[#e2e4eb] text-[#172033]">
                 {pointages.map(record => {
                   const item = pointages.length ? record : null
                   return <tr key={record.id}><td className="px-4 py-3">{item?.timetable_slot_id ?? "Cours"}</td><td className="px-4 py-3">{record.started_time?.slice(0,5) ?? "—"}</td><td className="px-4 py-3">{record.ended_time?.slice(0,5) ?? "—"}</td><td className="px-4 py-3">{record.counted_hours ?? 0} h</td><td className="px-4 py-3">{record.status === "completed" ? <span className="inline-flex items-center gap-1 text-emerald-700"><CheckCircle2 className="h-4 w-4" />Terminé</span> : "En cours"}</td></tr>

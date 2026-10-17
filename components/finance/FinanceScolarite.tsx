@@ -278,6 +278,28 @@ function GlobalState({ schedules }: { schedules: BoardRow[] }) {
   return <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">À jour</span>
 }
 
+function makeColumns(rows: BoardRow[]) {
+  const map = new Map<string, { key: string; label: string; longLabel: string; due_date: string; installment_number: number; registration: boolean }>()
+  for (const row of rows) {
+    const key = groupKey(row)
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        label: colLabel(row.label, row.due_date, true, row.category),
+        longLabel: colLabel(row.label, row.due_date, false, row.category),
+        due_date: row.due_date,
+        installment_number: row.installment_number,
+        registration: isRegistrationSchedule(row),
+      })
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.registration !== b.registration) return a.registration ? -1 : 1
+    if (a.due_date !== b.due_date) return a.due_date.localeCompare(b.due_date)
+    return a.installment_number - b.installment_number
+  })
+}
+
 export function FinanceScolarite() {
   const { etablissementActif } = useUserContext()
   const establishmentId = etablissementActif?.id
@@ -425,28 +447,6 @@ export function FinanceScolarite() {
     return Array.from(map.entries()).map(([key, value]) => ({ key, ...value }))
   }, [legacyDebts])
 
-  const makeColumns = (rows: BoardRow[]) => {
-    const map = new Map<string, { key: string; label: string; longLabel: string; due_date: string; installment_number: number; registration: boolean }>()
-    for (const row of rows) {
-      const key = groupKey(row)
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          label: colLabel(row.label, row.due_date, true, row.category),
-          longLabel: colLabel(row.label, row.due_date, false, row.category),
-          due_date: row.due_date,
-          installment_number: row.installment_number,
-          registration: isRegistrationSchedule(row),
-        })
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => {
-      if (a.registration !== b.registration) return a.registration ? -1 : 1
-      if (a.due_date !== b.due_date) return a.due_date.localeCompare(b.due_date)
-      return a.installment_number - b.installment_number
-    })
-  }
-
   const columns = useMemo(
     () => makeColumns(boardRows.filter((row) => row.category?.toLowerCase() !== "option")),
     [boardRows],
@@ -456,30 +456,12 @@ export function FinanceScolarite() {
     [boardRows],
   )
 
-  const scheduleForColumn = (student: { groups: ScheduleGroup[] }, column: { key: string }) =>
-    student.groups.find((group) => group.key === column.key)
-
   const renderLoadingOrEmpty = (className: string) => {
     if (loading || isYearLoading) return <div className={className}>Chargement des échéances...</div>
     if (error) return <div className={`${className} text-red-600`}>{error}</div>
     if (filteredStudents.length === 0) return <div className={className}>Aucune échéance trouvée.</div>
     return null
   }
-
-  const studentsByClass = useMemo(() => {
-    const groups = new Map<string, typeof filteredStudents>()
-    for (const student of filteredStudents) {
-      const key = student.class?.id || student.class?.name || "sans-classe"
-      const current = groups.get(key) ?? []
-      current.push(student)
-      groups.set(key, current)
-    }
-    return Array.from(groups.entries()).map(([key, students]) => ({
-      key,
-      name: students[0]?.class?.name || "Classe non renseignée",
-      students,
-    }))
-  }, [filteredStudents])
 
   const renderTable = (
     title: string,

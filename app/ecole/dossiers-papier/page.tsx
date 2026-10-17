@@ -251,8 +251,8 @@ export default function DossiersPapierPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-65px)] overflow-hidden bg-slate-50/50">
-      <div className="w-80 flex-shrink-0 border-r border-slate-200 bg-white flex flex-col">
+    <div className="flex min-h-[calc(100vh-65px)] flex-col overflow-x-hidden bg-white md:h-[calc(100vh-65px)] md:flex-row md:overflow-hidden">
+      <div className="flex max-h-[38vh] w-full flex-shrink-0 flex-col border-b border-slate-200 bg-white md:max-h-none md:w-80 md:border-b-0 md:border-r">
         <div className="p-4 border-b border-slate-200">
           <h2 className="font-medium text-slate-900 mb-4">Dossiers élèves</h2>
           <div className="relative">
@@ -260,7 +260,7 @@ export default function DossiersPapierPage() {
             <Input className="pl-9 bg-slate-50" placeholder="Rechercher un élève..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="min-h-0 flex-1 overflow-y-auto p-2">
           {loadingStudents ? (
             <div className="p-8 text-center text-slate-500 flex flex-col items-center"><Loader2 className="h-6 w-6 animate-spin mb-2"/>Chargement...</div>
           ) : filteredStudents.length === 0 ? (
@@ -278,7 +278,7 @@ export default function DossiersPapierPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden bg-white">
+      <div className="flex min-h-[55vh] min-w-0 flex-1 flex-col overflow-hidden bg-white md:min-h-0">
         {!selectedStudent ? (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
             <FolderOpen className="h-12 w-12 text-slate-300 mb-4" />
@@ -287,27 +287,27 @@ export default function DossiersPapierPage() {
           </div>
         ) : (
           <>
-            <div className="px-8 py-6 border-b border-slate-200">
+            <div className="border-b border-slate-200 px-4 py-4 sm:px-6 sm:py-5 md:px-8 md:py-6">
               <h1 className="text-2xl font-semibold text-slate-900">{selectedStudent.first_name} {selectedStudent.last_name}</h1>
               {selectedStudent.student_number && <p className="text-sm text-slate-500 mt-1">Matricule : {selectedStudent.student_number}</p>}
             </div>
-            <div className="flex-1 overflow-y-auto p-8">
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
               {loadingData ? (
                  <div className="flex items-center justify-center h-32 text-slate-500"><Loader2 className="h-6 w-6 animate-spin mr-2"/>Chargement du dossier...</div>
               ) : (
                 <Tabs defaultValue="docs" className="w-full">
-                  <TabsList className="mb-6">
+                  <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-1">
                     <TabsTrigger value="docs">Documents existants</TabsTrigger>
                     <TabsTrigger value="requests">Demandes de pièces</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="docs" className="space-y-6">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
                       <div>
                         <h3 className="text-sm font-medium text-slate-900">Fichiers de l'élève</h3>
                         <p className="text-sm text-slate-500">Gérez les documents et leur visibilité pour les parents.</p>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
                         <input type="file" id="upload-doc" className="hidden" accept=".pdf,image/*" onChange={handleUploadDocument} />
                         <Button variant="outline" size="sm" onClick={handleGenerateAttestation} disabled={uploadingDoc}>
                           <FilePlus className="h-4 w-4 mr-2" /> Générer une attestation
@@ -330,7 +330,7 @@ export default function DossiersPapierPage() {
                           const pub = publications.find(p => p.document_id === doc.id)
                           const isPub = pub?.active
                           return (
-                            <div key={doc.id} className="flex items-center justify-between p-4 bg-white hover:bg-slate-50/50">
+                            <div key={doc.id} className="flex flex-col gap-3 bg-white p-4 hover:bg-slate-50/50 sm:flex-row sm:items-center sm:justify-between">
                               <div className="flex items-start gap-3">
                                 <FileText className="h-5 w-5 text-indigo-500 mt-0.5" />
                                 <div>
@@ -341,7 +341,7 @@ export default function DossiersPapierPage() {
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
                                 <Button variant="ghost" size="sm" onClick={() => togglePublication(doc.id, pub)}>
                                   {isPub ? "Masquer" : "Publier"}
                                 </Button>
@@ -357,7 +357,7 @@ export default function DossiersPapierPage() {
                   </TabsContent>
 
                   <TabsContent value="requests" className="space-y-6">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
                       <div>
                         <h3 className="text-sm font-medium text-slate-900">Pièces réclamées aux parents</h3>
                         <p className="text-sm text-slate-500">Demandez des documents officiels (actes, photos) aux responsables.</p>
@@ -374,7 +374,7 @@ export default function DossiersPapierPage() {
                     ) : (
                       <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 overflow-hidden">
                         {requests.map(req => (
-                          <div key={req.id} className="flex items-center justify-between p-4 bg-white hover:bg-slate-50/50">
+                          <div key={req.id} className="flex flex-col gap-3 bg-white p-4 hover:bg-slate-50/50 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-start gap-3">
                               <div className="mt-0.5">{statusBadge(req.status)}</div>
                               <div>
@@ -383,7 +383,7 @@ export default function DossiersPapierPage() {
                                 <p className="text-[10px] text-slate-400 mt-1.5">Créée le {new Date(req.created_at).toLocaleDateString("fr-FR")}</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
                               {req.status === "submitted" && (
                                 <Button size="sm" onClick={() => { setReviewingRequest(req); setReviewDialogOpen(true); setReviewReason("") }}>
                                   Examiner
@@ -408,7 +408,7 @@ export default function DossiersPapierPage() {
       </div>
 
       <Dialog open={requestDialogOpen} onOpenChange={setRequestDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
           <DialogHeader><DialogTitle>Demander un document</DialogTitle><DialogDescription>Le parent recevra une notification pour soumettre ce document (1 Mo max).</DialogDescription></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -438,7 +438,7 @@ export default function DossiersPapierPage() {
       </Dialog>
 
       <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
           <DialogHeader><DialogTitle>Examiner la pièce soumise</DialogTitle><DialogDescription>Vérifiez le document envoyé par le parent.</DialogDescription></DialogHeader>
           <div className="py-4 space-y-4">
             <div className="p-3 bg-slate-50 border border-slate-200 rounded flex items-center justify-between">

@@ -86,7 +86,7 @@ function isMonthlySchedule(row: FinanceStudentPaymentBoardRow & { category?: str
 }
 
 function groupKey(row: FinanceStudentPaymentBoardRow & { category?: string }) {
-  if (isRegistrationSchedule(row)) return `registration:${row.schedule_id}`
+  if (isRegistrationSchedule(row)) return "registration:registration"
 
   const month = monthKey(row.due_date)
   const category = row.category?.toLowerCase()
@@ -425,10 +425,9 @@ export function FinanceScolarite() {
     return Array.from(map.entries()).map(([key, value]) => ({ key, ...value }))
   }, [legacyDebts])
 
-  const columns = useMemo(() => {
-    const map = new Map<string, { key: string; label: string; longLabel: string; due_date: string; installment_number: number }>()
-    for (const row of boardRows) {
-      if (isRegistrationSchedule(row)) continue
+  const makeColumns = (rows: BoardRow[]) => {
+    const map = new Map<string, { key: string; label: string; longLabel: string; due_date: string; installment_number: number; registration: boolean }>()
+    for (const row of rows) {
       const key = groupKey(row)
       if (!map.has(key)) {
         map.set(key, {
@@ -437,15 +436,25 @@ export function FinanceScolarite() {
           longLabel: colLabel(row.label, row.due_date, false, row.category),
           due_date: row.due_date,
           installment_number: row.installment_number,
+          registration: isRegistrationSchedule(row),
         })
       }
     }
-
     return Array.from(map.values()).sort((a, b) => {
+      if (a.registration !== b.registration) return a.registration ? -1 : 1
       if (a.due_date !== b.due_date) return a.due_date.localeCompare(b.due_date)
       return a.installment_number - b.installment_number
     })
-  }, [boardRows])
+  }
+
+  const columns = useMemo(
+    () => makeColumns(boardRows.filter((row) => row.category?.toLowerCase() !== "option")),
+    [boardRows],
+  )
+  const optionColumns = useMemo(
+    () => makeColumns(boardRows.filter((row) => row.category?.toLowerCase() === "option")),
+    [boardRows],
+  )
 
   const scheduleForColumn = (student: { groups: ScheduleGroup[] }, column: { key: string }) =>
     student.groups.find((group) => group.key === column.key)
@@ -472,26 +481,34 @@ export function FinanceScolarite() {
     }))
   }, [filteredStudents])
 
-  const renderTable = (className: string, students: typeof filteredStudents) => (
+  const renderTable = (
+    title: string,
+    description: string,
+    tableColumns: ReturnType<typeof makeColumns>,
+    students: typeof filteredStudents,
+    kind: "school" | "options",
+  ) => (
     <section className="overflow-hidden border border-gray-200 bg-white">
       <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3">
         <div>
-          <h2 className="text-sm font-semibold text-gray-800">{className}</h2>
-          <p className="mt-0.5 text-xs text-gray-500">{students.length} élève{students.length > 1 ? "s" : ""}</p>
+          <h2 className="text-sm font-semibold text-gray-800">{title}</h2>
+          <p className="mt-0.5 text-xs text-gray-500">{description}</p>
         </div>
-        <span className="text-xs text-gray-500">Suivi des échéances</span>
+        <span className="text-xs text-gray-500">{students.length} élève{students.length > 1 ? "s" : ""}</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[980px] table-fixed text-sm">
           <colgroup>
             <col className="w-[220px]" />
-            {columns.map((column) => <col key={`col-${column.key}`} />)}
+            <col className="w-[150px]" />
+            {tableColumns.map((column) => <col key={`col-${column.key}`} />)}
             <col className="w-[150px]" />
           </colgroup>
           <thead className="border-b border-gray-200 bg-white">
             <tr>
               <th className="sticky left-0 z-20 border-r border-gray-200 bg-white px-3 py-3 text-left font-medium text-gray-700">Élève</th>
-              {columns.map((column) => (
+              <th className="px-3 py-3 text-left font-medium text-gray-700">Classe</th>
+              {tableColumns.map((column) => (
                 <th key={column.key} className="px-2 py-3 text-center font-medium text-gray-700"
                   title={`${column.longLabel}${column.due_date ? ` — ${fmtDate(column.due_date)}` : ""}`}>
                   <span className="block">{column.label}</span>
@@ -502,8 +519,13 @@ export function FinanceScolarite() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {students.map((student) => (
-              <tr key={student.student?.id || student.enrollment_id} className="hover:bg-gray-50">
+            {students.map((student) => {
+              const relevantSchedules = student.schedules.filter((schedule) =>
+                kind === "options" ? schedule.category?.toLowerCase() === "option" : schedule.category?.toLowerCase() !== "option",
+              )
+              const relevantGroups = groupSchedules(relevantSchedules)
+              return (
+              <tr key={student.enrollment_id} className="hover:bg-gray-50">
                 <td className="sticky left-0 z-10 border-r border-gray-100 bg-white px-3 py-3">
                   <button type="button" className="w-full text-left hover:text-[#00236f]"
                     onClick={() => setSelectedStudentForDetails({ student: student.student, class: student.class, schedules: student.schedules })}>
@@ -513,20 +535,22 @@ export function FinanceScolarite() {
                     {student.student?.student_number && <div className="mt-0.5 text-[11px] text-gray-400">{student.student.student_number}</div>}
                   </button>
                 </td>
-                {columns.map((column) => {
-                  const group = scheduleForColumn(student, column)
+                <td className="px-3 py-3 text-gray-600">{student.class?.name || "—"}</td>
+                {tableColumns.map((column) => {
+                  const group = relevantGroups.find((item) => item.key === column.key)
                   return <td key={column.key} className="px-2 py-2 text-center">
                     {group ? <ScheduleCell group={group} payments={paymentHistory} /> : <span className="text-gray-300">—</span>}
                   </td>
                 })}
                 <td className="px-3 py-3">
                   <div className="flex items-center gap-2 whitespace-nowrap">
-                    <GlobalState schedules={student.schedules} />
-                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setSelectedStudentForPay(student.schedules)}>Encaisser</Button>
+                    <GlobalState schedules={relevantSchedules} />
+                    <Button size="sm" variant="outline" className="h-8 text-xs" disabled={relevantSchedules.length === 0} onClick={() => setSelectedStudentForPay(relevantSchedules)}>Encaisser</Button>
                   </div>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -696,8 +720,21 @@ export function FinanceScolarite() {
           Aucune échéance trouvée.
         </div>
       ) : (
-        <div className="space-y-3 sm:space-y-4">
-          {studentsByClass.map((group) => renderTable(group.name, group.students))}
+        <div className="space-y-6">
+          {renderTable(
+            "Inscription et scolarité",
+            "Frais d'inscription ou de réinscription et mensualités/tranches de l'année scolaire.",
+            columns,
+            filteredStudents,
+            "school",
+          )}
+          {renderTable(
+            "Options et services",
+            "Assurance scolaire, football, cantine, coopérative et autres options facturées séparément.",
+            optionColumns,
+            filteredStudents,
+            "options",
+          )}
         </div>
       )}
 

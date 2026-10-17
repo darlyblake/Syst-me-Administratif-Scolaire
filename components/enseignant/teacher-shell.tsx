@@ -31,8 +31,8 @@ export function TeacherShell({ establishmentId, establishmentName, teacherName, 
   }
 
   return (
-    <main className="min-h-screen bg-[#f8f8fc] text-[#172033] pb-20 md:pb-0">
-      <div className="mx-auto min-h-screen max-w-6xl bg-[#f8f8fc]">
+    <main className="min-h-screen w-full bg-[#f8f8fc] pb-24 text-[#172033]">
+      <div className="mx-auto min-h-screen w-full max-w-screen-2xl bg-[#f8f8fc]">
         <header className="sticky top-0 z-30 border-b border-[#e4e6ef] bg-white px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
@@ -61,8 +61,8 @@ export function TeacherShell({ establishmentId, establishmentName, teacherName, 
 
         <div className="px-4 py-5 sm:px-6">{children}</div>
 
-        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#dedfea] bg-white md:static md:border-t-0 md:bg-transparent">
-          <div className="mx-auto flex max-w-6xl items-center justify-around px-2 py-2 md:border-t md:border-[#e4e6ef] md:py-3">
+        <nav aria-label="Navigation principale enseignant" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#dedfea] bg-white/95 shadow-[0_-4px_16px_rgba(23,32,51,0.06)] backdrop-blur">
+          <div className="mx-auto flex w-full max-w-screen-2xl items-center justify-around px-2 py-2 sm:px-6 sm:py-2.5">
             {items.map(({ key, label, icon: Icon, path }) => {
               const selected = active === key
               return (
@@ -70,7 +70,7 @@ export function TeacherShell({ establishmentId, establishmentName, teacherName, 
                   key={key}
                   type="button"
                   onClick={() => go(path)}
-                  className={`flex min-w-0 flex-col items-center gap-1 px-3 py-1.5 text-[11px] font-medium ${selected ? "text-[#1737a6]" : "text-[#737887] hover:text-[#172033]"}`}
+                  className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors sm:flex-row sm:justify-center sm:gap-2 sm:py-2 sm:text-sm ${selected ? "bg-[#eef2ff] text-[#1737a6]" : "text-[#737887] hover:bg-[#f3f4f8] hover:text-[#172033]"}`}
                 >
                   <Icon className={`h-[18px] w-[18px] ${selected ? "stroke-[2.5]" : ""}`} />
                   <span>{label}</span>

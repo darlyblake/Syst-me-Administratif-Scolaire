@@ -1,5 +1,5 @@
 "use client"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Download, Search, Upload, FileUp, Info, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,12 @@ export default function ParentDocuments() {
   const [childId, setChildId] = useState("tous")
   const [query, setQuery] = useState("")
   const [uploadingId, setUploadingId] = useState<string | null>(null)
+
+  // Le portail parent conserve son état entre les pages : recharger ici permet de
+  // récupérer les publications faites par l’école depuis la dernière visite.
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
 
   const list = (documents || []).filter(d => (childId === "tous" || d.student_id === childId) && (d.title + " " + d.document_type).toLowerCase().includes(query.toLowerCase()))
   const requests = (schoolDocumentRequests || []).filter(r => (childId === "tous" || r.student_id === childId) && r.document_type.toLowerCase().includes(query.toLowerCase()))

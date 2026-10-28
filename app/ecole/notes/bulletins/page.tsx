@@ -58,7 +58,8 @@ function isSelectedPeriod(term: string | null, selected: string) {
     "2": /(trimestre\s*2|2e\s*trimestre|2eme\s*trimestre|deuxieme\s*trimestre|periode\s*2|(^|\D)t2(\D|$))/,
     "3": /(trimestre\s*3|3e\s*trimestre|3eme\s*trimestre|troisieme\s*trimestre|periode\s*3|(^|\D)t3(\D|$))/,
   }
-  return patterns[selected]?.test(normalized) ?? normalized === selected
+  if (normalized === selected) return true
+  return patterns[selected]?.test(normalized) ?? false
 }
 
 function currentAcademicYear() {
@@ -118,28 +119,71 @@ export default function Bulletins() {
       setIsLoadingGrades(true)
       setGradesError(null)
       try {
-        const { data, error } = await supabaseBrowser
+        const modernResult = await supabaseBrowser
           .from("grades")
           .select("id,student_id,score,comment,assessment:assessments!inner(id,title,assessment_date,term,max_score,subject_id,class_id,establishment_id)")
           .eq("assessment.class_id", selectedClasse)
           .eq("assessment.establishment_id", establishmentId)
           .limit(5000)
 
-        if (error) throw error
-
-        const rows = ((data ?? []) as unknown as Array<Omit<BulletinGrade, "assessment"> & { assessment: BulletinAssessment | BulletinAssessment[] }>)
-          .map((row) => ({ ...row, assessment: Array.isArray(row.assessment) ? row.assessment[0] : row.assessment }))
-          .filter((row): row is BulletinGrade => Boolean(row.assessment?.id))
-
-        const subjectIds = [...new Set(rows.map((row) => row.assessment.subject_id).filter(Boolean))]
+        let rows: BulletinGrade[] = []
         let names: Record<string, string> = {}
-        if (subjectIds.length) {
-          const { data: subjects, error: subjectsError } = await supabaseBrowser
-            .from("subjects")
-            .select("id,name")
-            .in("id", subjectIds)
-          if (subjectsError) throw subjectsError
-          names = Object.fromEntries((subjects ?? []).map((subject) => [subject.id, subject.name]))
+        let modernQueryError: string | null = modernResult.error?.message ?? null
+
+        if (!modernResult.error) {
+          rows = ((modernResult.data ?? []) as unknown as Array<Omit<BulletinGrade, "assessment"> & { assessment: BulletinAssessment | BulletinAssessment[] }>)
+            .map((row) => ({ ...row, assessment: Array.isArray(row.assessment) ? row.assessment[0] : row.assessment }))
+            .filter((row): row is BulletinGrade => Boolean(row.assessment?.id))
+        }
+
+        // Compatibilité avec les notes historiques saisies dans l'ancien écran de gestion.
+        // On ne mélange pas les deux formats : les notes liées à une évaluation restent prioritaires.
+        if (rows.length === 0) {
+          const legacyResult = await supabaseBrowser
+            .from("grades")
+            .select("id,student_id,score,appreciation,subject,term,max_score,class_id,establishment_id,recorded_date,created_at")
+            .eq("class_id", selectedClasse)
+            .eq("establishment_id", establishmentId)
+            .limit(5000)
+
+          if (!legacyResult.error && (legacyResult.data ?? []).length > 0) {
+            rows = (legacyResult.data ?? []).map((grade) => ({
+              id: grade.id,
+              student_id: grade.student_id,
+              score: grade.score === null ? null : Number(grade.score),
+              comment: grade.appreciation ?? null,
+              assessment: {
+                id: "legacy-" + grade.id,
+                title: grade.subject || "Évaluation",
+                assessment_date: grade.recorded_date ?? grade.created_at ?? "",
+                term: grade.term === null || grade.term === undefined ? null : String(grade.term),
+                max_score: Number(grade.max_score) > 0 ? Number(grade.max_score) : 20,
+                subject_id: grade.subject || "Matière",
+                class_id: grade.class_id,
+                establishment_id: grade.establishment_id,
+              },
+            }))
+            names = Object.fromEntries(rows.map((grade) => [grade.assessment.subject_id, grade.assessment.subject_id]))
+            modernQueryError = null
+          } else if (modernQueryError && legacyResult.error) {
+            throw new Error("Impossible de charger les notes : " + legacyResult.error.message)
+          }
+        }
+
+        if (rows.length > 0 && !Object.keys(names).length) {
+          const subjectIds = [...new Set(rows.map((row) => row.assessment.subject_id).filter(Boolean))]
+          if (subjectIds.length) {
+            const { data: subjects, error: subjectsError } = await supabaseBrowser
+              .from("subjects")
+              .select("id,name")
+              .in("id", subjectIds)
+            if (subjectsError) throw subjectsError
+            names = Object.fromEntries((subjects ?? []).map((subject) => [subject.id, subject.name]))
+          }
+        }
+
+        if (rows.length === 0 && modernQueryError) {
+          throw new Error(modernQueryError)
         }
 
         if (active) {

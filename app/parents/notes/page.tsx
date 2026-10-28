@@ -13,7 +13,16 @@ export default function ParentNotes() {
   const [childId, setChildId] = useState("tous")
   const allowed = useMemo(() => children.filter((c) => c.can_view_academic), [children])
   const list = useMemo(() => grades.filter((g) => childId === "tous" ? allowed.some((c) => c.id === g.student_id) : g.student_id === childId), [grades, childId, allowed])
-  const avg = list.length ? list.reduce((s, g) => s + g.score, 0) / list.length : null
+  const normalizedScores = list
+    .map((grade) => {
+      const maxScore = Number(grade.max_score) > 0 ? Number(grade.max_score) : 20
+      const score = Number(grade.score)
+      return Number.isFinite(score) ? (score / maxScore) * 20 : null
+    })
+    .filter((score): score is number => score !== null)
+  const avg = normalizedScores.length
+    ? normalizedScores.reduce((sum, score) => sum + score, 0) / normalizedScores.length
+    : null
 
   return <div className="space-y-7">
     <ParentPageHeader eyebrow="Scolarité" title="Résultats" description="Consultez les notes et évaluations de vos enfants." onRefresh={() => void refresh()} refreshing={loading} />

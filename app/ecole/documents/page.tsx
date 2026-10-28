@@ -164,41 +164,69 @@ export default function DocumentsPage() {
     }
   }
 
-  const handleImprimer = (document: Document) => {
-    serviceDocuments.mettreAJourStatut(document.id, "imprime")
-    setDocuments(serviceDocuments.obtenirTousLesDocuments())
-    
+  const handleImprimer = (doc: Document) => {
     const printWindow = window.open("", "_blank")
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Document</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 40px; line-height: 1.6; }
-              pre { white-space: pre-wrap; font-family: Arial, sans-serif; }
-            </style>
-          </head>
-          <body>
-            <pre>${document.contenu}</pre>
-          </body>
-        </html>
-      `)
-      printWindow.document.close()
-      printWindow.print()
+    if (!printWindow) {
+      alert("Autorisez les fenêtres contextuelles pour imprimer ce document.")
+      return
     }
+
+    const title = documentTitle(doc.contenu)
+    printWindow.document.write(
+      "<!doctype html><html lang=\"fr\"><head><meta charset=\"utf-8\"><title>" + escapeHtml(title) + "</title>" +
+      "<style>" +
+      "@page{size:A4;margin:20mm}body{font-family:Arial,Helvetica,sans-serif;color:#172033;margin:0}" +
+      ".sheet{border:1px solid #d4d9e2;padding:24px;min-height:250mm}" +
+      ".brand{border-bottom:3px solid #173b82;padding-bottom:14px;margin-bottom:24px;color:#173b82;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}" +
+      "h1{text-align:center;font-size:20px;margin:28px 0 24px;text-transform:uppercase}" +
+      ".body{white-space:pre-line;line-height:1.85;font-size:12px}" +
+      ".footer{border-top:1px solid #d4d9e2;margin-top:36px;padding-top:12px;text-align:right;color:#596579;font-size:10px}" +
+      "@media print{.sheet{border:0;padding:0}}" +
+      "</style></head><body><main class=\"sheet\"><div class=\"brand\">Établissement scolaire</div><h1>" +
+      escapeHtml(title) + "</h1><div class=\"body\">" + escapeHtml(doc.contenu) +
+      "</div><div class=\"footer\">Référence : " + escapeHtml(doc.id) + " · Généré le " +
+      new Date(doc.dateGeneration).toLocaleDateString("fr-FR") + "</div></main></body></html>"
+    )
+    printWindow.document.close()
+    printWindow.onload = () => printWindow.print()
+    serviceDocuments.mettreAJourStatut(doc.id, "imprime")
+    setDocuments(serviceDocuments.obtenirTousLesDocuments())
   }
 
   const handleTelecharger = (doc: Document) => {
-    const blob = new Blob([doc.contenu], { type: "text/plain" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `${doc.type}_${doc.eleveId}.txt`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
+    const title = documentTitle(doc.contenu)
+    const body = doc.contenu.split("\n").slice(1).join("\n")
+    pdf.setFillColor(23, 59, 130)
+    pdf.rect(0, 0, 210, 12, "F")
+    pdf.setTextColor(23, 59, 130)
+    pdf.setFont("helvetica", "bold")
+    pdf.setFontSize(16)
+    pdf.text(title, 105, 28, { align: "center", maxWidth: 180 })
+    pdf.setDrawColor(212, 217, 226)
+    pdf.line(15, 35, 195, 35)
+    pdf.setTextColor(35, 43, 58)
+    pdf.setFont("helvetica", "normal")
+    pdf.setFontSize(10)
+    const lines = pdf.splitTextToSize(body, 178)
+    let y = 45
+    for (const line of lines) {
+      if (y > 270) {
+        pdf.addPage()
+        y = 20
+      }
+      if (line.trim()) {
+        pdf.text(line, 16, y)
+        y += 5
+      } else {
+        y += 3
+      }
+    }
+    pdf.setFontSize(8)
+    pdf.setTextColor(90, 100, 117)
+    pdf.text("Référence : " + doc.id + " · Généré le " + new Date(doc.dateGeneration).toLocaleDateString("fr-FR"), 15, 287)
+    const safeId = doc.eleveId.replace(/[^a-zA-Z0-9_-]/g, "_")
+    pdf.save(doc.type + "_" + safeId + ".pdf")
   }
 
   const handleSupprimer = (id: string) => {

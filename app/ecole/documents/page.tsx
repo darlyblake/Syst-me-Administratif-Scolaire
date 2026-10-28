@@ -218,15 +218,17 @@ export default function DocumentsPage() {
     pdf.rect(0, 0, 210, 12, "F")
     pdf.setTextColor(23, 59, 130)
     pdf.setFont("helvetica", "bold")
+    pdf.setFontSize(9)
+    pdf.text(etablissementActif?.name || "Établissement scolaire", 105, 19, { align: "center", maxWidth: 180 })
     pdf.setFontSize(16)
-    pdf.text(title, 105, 28, { align: "center", maxWidth: 180 })
+    pdf.text(title, 105, 30, { align: "center", maxWidth: 180 })
     pdf.setDrawColor(212, 217, 226)
-    pdf.line(15, 35, 195, 35)
+    pdf.line(15, 37, 195, 37)
     pdf.setTextColor(35, 43, 58)
     pdf.setFont("helvetica", "normal")
     pdf.setFontSize(10)
     const lines = pdf.splitTextToSize(body, 178)
-    let y = 45
+    let y = 47
     for (const line of lines) {
       if (y > 270) {
         pdf.addPage()

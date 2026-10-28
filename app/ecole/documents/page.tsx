@@ -85,7 +85,10 @@ export default function DocumentsPage() {
     }))
   }, [supabaseStudents])
 
-  const allStudents = mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves()
+  const allStudents = useMemo(
+    () => mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves(),
+    [mappedSupabaseStudents]
+  )
 
   const [documents, setDocuments] = useState<Document[]>([])
   const [eleves, setEleves] = useState<any[]>([])

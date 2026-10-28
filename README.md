@@ -2,19 +2,19 @@
 
 <p align="center">
   <strong>APPLICATION DE GESTION ADMINISTRATIVE SCOLAIRE</strong><br>
-  <em>Projet de développement web et mobile — Licence 3</em>
+  <em>Projet universitaire — Licence 3, Développement Web et Mobile</em>
 </p>
 
 <p align="center">
-  <a href="https://syst-me-administratif-scolaire.vercel.app/"><strong>Application en ligne</strong></a>
+  <a href="https://syst-me-administratif-scolaire.vercel.app/">Application en ligne</a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/darlyblake/Syst-me-Administratif-Scolaire/actions"><strong>Intégration continue</strong></a>
+  <a href="https://github.com/darlyblake/Syst-me-Administratif-Scolaire/actions">Intégration continue</a>
   &nbsp;·&nbsp;
-  <a href="./docs/ARCHITECTURE.md"><strong>Architecture</strong></a>
+  <a href="./docs/ARCHITECTURE.md">Architecture</a>
   &nbsp;·&nbsp;
-  <a href="./docs/ROADMAP.md"><strong>Feuille de route</strong></a>
+  <a href="./docs/ROADMAP.md">Feuille de route</a>
   &nbsp;·&nbsp;
-  <a href="./docs/VALIDATION-TESTS.md"><strong>Bilan des tests</strong></a>
+  <a href="./docs/VALIDATION-TESTS.md">Bilan des tests</a>
 </p>
 
 ---

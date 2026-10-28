@@ -1,160 +1,124 @@
 # Système Administratif Scolaire
 
-Application de gestion administrative scolaire destinée à centraliser les opérations d'un établissement dans une interface simple, moderne et professionnelle.
+<p align="center">
+  <strong>APPLICATION DE GESTION ADMINISTRATIVE SCOLAIRE</strong><br>
+  <em>Projet de développement web et mobile — Licence 3</em>
+</p>
 
-> **Phase actuelle : frontend et logique métier locale.** Le projet conserve actuellement `localStorage` comme source de données afin de stabiliser les interfaces et les flux avant la création et l'intégration du projet Supabase définitif.
+<p align="center">
+  <a href="https://syst-me-administratif-scolaire.vercel.app/"><strong>Application en ligne</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/darlyblake/Syst-me-Administratif-Scolaire/actions"><strong>Intégration continue</strong></a>
+  &nbsp;·&nbsp;
+  <a href="./docs/ARCHITECTURE.md"><strong>Architecture</strong></a>
+  &nbsp;·&nbsp;
+  <a href="./docs/ROADMAP.md"><strong>Feuille de route</strong></a>
+  &nbsp;·&nbsp;
+  <a href="./docs/VALIDATION-TESTS.md"><strong>Bilan des tests</strong></a>
+</p>
+
+---
+
+## Présentation du projet
+
+Le **Système Administratif Scolaire** est une application conçue pour regrouper les principales opérations administratives d'un établissement dans une interface claire, cohérente et facile à utiliser. Le projet vise à simplifier le travail quotidien du personnel, à mieux organiser les informations et à faciliter leur consultation.
+
+> **État technique documenté :** le projet est en phase de stabilisation du frontend et de la logique métier locale. Les modules et parcours doivent être validés individuellement avant de considérer l'ensemble de l'application comme prêt pour une utilisation complète en production.
 
 ## Objectifs
 
-- Simplifier le travail quotidien du personnel scolaire.
-- Donner à chaque rôle uniquement les outils et informations nécessaires.
-- Centraliser les élèves, enseignants, classes et opérations administratives.
-- Préparer une architecture multi-établissement.
-- Garder une interface professionnelle, sobre et rapide à comprendre.
-- Permettre une future migration vers Supabase sans réécrire toute l'interface.
+| Axe | Objectif |
+|---|---|
+| Organisation | Centraliser les informations scolaires et administratives utiles. |
+| Suivi | Faciliter la consultation des élèves, enseignants, classes et opérations. |
+| Expérience utilisateur | Proposer une interface sobre, lisible et adaptée aux tâches quotidiennes. |
+| Évolutivité | Préparer une migration progressive vers une source de données centralisée. |
+| Sécurité | Définir des rôles clairs et prévoir l'application des permissions côté serveur. |
 
-## Stack
+## Architecture générale
 
-Le frontend repose principalement sur :
+La logique de développement sépare progressivement l'affichage, la gestion métier et l'accès aux données.
 
-- **Next.js 15**
-- **React 18**
-- **TypeScript**
-- **Tailwind CSS**
-- **Radix UI**
-- **React Hook Form + Zod** pour les formulaires et validations
-- **Lucide React** pour les icônes
-- **Jest** pour les tests
-- **Capacitor** pour la synchronisation mobile
-- **Electron** pour la version desktop
-
-Les scripts principaux sont `npm run dev`, `npm run build`, `npm run lint`, `npm test`, `npm run sync:mobile`, `npm run electron:dev` et `npm run electron:build:win`.
-
-## Architecture
-
-La règle d'architecture est :
-
-```text
-Page / composant UI
-        ↓
-Hook de domaine
-        ↓
-Service
-        ↓
-Source de données
-        ↓
-localStorage (phase actuelle)
+```mermaid
+flowchart TD
+    A["Page / composant d'interface"] --> B["Hook de domaine"]
+    B --> C["Service métier"]
+    C --> D["Source de données"]
+    D --> E["localStorage<br/>selon le module"]
+    D -. "migration prévue" .-> F["Supabase"]
+    classDef ui fill:#EAF2FF,stroke:#2457A7,color:#17365D,stroke-width:1.5px
+    classDef layer fill:#FFFFFF,stroke:#7896C8,color:#17365D
+    classDef future fill:#F4F7FC,stroke:#2457A7,color:#17365D,stroke-dasharray:5 5
+    class A ui
+    class B,C,D,E layer
+    class F future
 ```
 
-Les pages ne doivent pas contenir toute la logique métier. Les hooks servent de couche de gestion et les services encapsulent l'accès aux données.
+Pendant la phase actuelle, certains modules utilisent encore `localStorage`. La migration vers Supabase reste une étape distincte qui nécessitera un modèle de données, une authentification, des règles de sécurité et des tests dédiés.
 
-Cette séparation permet de remplacer ensuite `localStorage` par Supabase avec un impact limité sur l'interface.
+## Technologies principales
 
-## Gestion des rôles
-
-Le modèle cible est multi-établissement :
-
-| Rôle | Principe d'accès |
+| Technologie | Rôle dans le projet |
 |---|---|
-| Administrateur établissement | Gestion globale de son établissement selon ses permissions |
-| Comptabilité | Données et opérations financières nécessaires |
-| Secrétariat | Données administratives nécessaires |
-| Direction | Données nécessaires au pilotage |
-| Surveillance | Données nécessaires au suivi et à la surveillance |
+| Next.js 15 | Application web et routage |
+| React 18 | Interface utilisateur |
+| TypeScript | Typage du code |
+| Tailwind CSS | Mise en forme de l'interface |
+| Radix UI | Composants d'interface accessibles |
+| React Hook Form et Zod | Gestion et validation des formulaires |
+| Lucide React | Icônes |
+| Jest | Tests automatisés, selon les suites disponibles |
+| Capacitor / Electron | Pistes de distribution mobile et desktop |
 
-Les contrôles visibles dans le frontend ne constituent pas une sécurité suffisante. Lors de l'intégration Supabase, les permissions devront être appliquées côté base/API avec isolation par établissement et RLS.
+## Rôles fonctionnels visés
 
-## Direction UI/UX
+| Rôle | Périmètre attendu |
+|---|---|
+| Administrateur d'établissement | Paramétrage et gestion générale dans les limites de ses droits |
+| Comptabilité | Suivi des paiements et opérations financières autorisées |
+| Secrétariat | Informations administratives nécessaires aux inscriptions et documents |
+| Direction | Consultation des informations utiles au pilotage |
+| Surveillance | Suivi de la présence et informations liées à la vie scolaire |
 
-L'application doit être **moderne, sobre et professionnelle**, avec une identité de logiciel administratif.
+Ces rôles décrivent le modèle fonctionnel visé. **Masquer une action dans l'interface ne suffit pas à sécuriser les données** : les autorisations doivent aussi être contrôlées côté serveur ou base de données.
 
-### À éviter
+## Principes d'interface
 
-- cards partout ;
-- dashboards surchargés ;
-- dégradés décoratifs ;
-- grosses statistiques décoratives ;
-- ombres et arrondis excessifs ;
-- animations gratuites ;
-- esthétique « interface générée par IA ».
+La présentation recherchée est professionnelle et universitaire, avec une dominante bleu et blanc.
 
-### À privilégier
+- Hiérarchie claire des titres et des informations.
+- Tableaux pour comparer des données ; listes pour les éléments simples.
+- Recherche, filtres et actions principales facilement repérables.
+- Modales utilisées seulement lorsqu'elles simplifient une tâche.
+- Espacements réguliers, contraste suffisant et affichage adapté aux petits écrans.
+- Pas de cartes décoratives à répétition, de statistiques artificielles ni d'effets visuels inutiles.
 
-- tableaux pour les données comparables ;
-- listes pour les ensembles simples ;
-- recherche et filtres ;
-- actions contextuelles ;
-- formulaires courts et clairs ;
-- modales uniquement lorsqu'elles simplifient l'action ;
-- états loading, vide et erreur ;
-- responsive réel ;
-- accessibilité ;
-- hiérarchie visuelle et espacements propres.
+## Documentation du projet
 
-## Module Classes
+| Document | Contenu |
+|---|---|
+| [Architecture technique](./docs/ARCHITECTURE.md) | Couches applicatives, données, permissions et principes de conception |
+| [Feuille de route](./docs/ROADMAP.md) | Étapes prévues, priorités et critères de progression |
+| [Bilan des tests](./docs/VALIDATION-TESTS.md) | Résultats consultables, limites et vérifications restantes |
+| [Règles pour les agents](./AGENTS.md) | Consignes de développement et de maintenance |
 
-Le module Classes doit gérer de manière cohérente :
+## Développement local
 
-- création, modification et suppression contrôlée ;
-- niveau et informations principales ;
-- effectifs et capacité ;
-- élèves associés ;
-- enseignants associés ;
-- répartition ;
-- horaires ;
-- recherche et filtres ;
-- consultation des détails.
-
-Les fonctions liées aux élèves, enseignants, répartition et horaires doivent rester séparées par responsabilité tout en partageant des contrats de données clairs.
-
-## Sécurité
-
-Principes à respecter dès maintenant et lors de la future migration :
-
-- aucun secret dans le frontend ;
-- aucune clé privée ou clé de service Supabase côté client ;
-- ne jamais considérer l'UI comme un mécanisme d'autorisation ;
-- isoler toutes les données par établissement ;
-- vérifier l'appartenance des ressources côté backend ;
-- utiliser RLS et des policies adaptées avec Supabase ;
-- protéger les tokens et abonnements de notifications ;
-- rattacher les notifications au bon périmètre métier ;
-- conserver les commandes et données personnelles dans le bon contexte utilisateur.
-
-## Développement
-
-Avant une modification importante :
-
-1. Lire la page concernée.
-2. Lire ses hooks.
-3. Lire les services.
-4. Lire les types.
-5. Rechercher les composants dépendants.
-6. Identifier les fonctionnalités à préserver.
-7. Vérifier les permissions et relations avec les autres modules.
-
-Ne pas réécrire un module à l'aveugle.
-
-## Validation
-
-Avant de considérer une modification terminée :
+Les scripts disponibles doivent être confirmés dans le `package.json` de la version utilisée. Les commandes généralement prévues par le projet sont :
 
 ```bash
+npm run dev
 npm run lint
 npm test
 npm run build
 ```
 
-Puis vérifier manuellement les parcours concernés, les états d'erreur, les formulaires, le responsive et la console navigateur.
+Ne considérer une modification comme terminée qu'après avoir contrôlé le parcours concerné, les erreurs, les états de chargement, les formulaires, l'affichage responsive et les tests pertinents.
 
-## Documentation
+## Sécurité et évolution
 
-- [`AGENTS.md`](./AGENTS.md) — règles de travail pour Codex et les agents de développement.
-- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — architecture et principes techniques.
-- [`docs/ROADMAP.md`](./docs/ROADMAP.md) — phases de développement et migration future.
+Les prochaines étapes structurantes sont la stabilisation des modules, la définition du modèle de données, la migration progressive des services, puis la mise en place de l'authentification et des règles de sécurité. Les détails et l'ordre de ces étapes figurent dans la [feuille de route](./docs/ROADMAP.md).
 
-## Git
+---
 
-Pour les refactorings importants, privilégier une branche dédiée et une Pull Request. Les commits doivent être courts et explicites. Ne pas faire de force-push sur `main` sans raison exceptionnelle et vérifiée.
-
-<!-- deployment-refresh: 2026-10-05 -->
+<p align="center"><sub>Documentation du projet — Système Administratif Scolaire</sub></p>

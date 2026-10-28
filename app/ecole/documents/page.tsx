@@ -7,12 +7,22 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, FileText, Download, Printer, Trash2, Search, Calendar } from "lucide-react"
+import { jsPDF } from "jspdf"
 import Link from "next/link"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useStudents } from "@/hooks/useStudents"
 import { serviceDocuments } from "@/services/documents.service"
 import { serviceEleves } from "@/services/eleves.service"
 import type { Document } from "@/services/documents.service"
+
+function escapeHtml(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;")
+}
+
+function documentTitle(value: string) {
+  return value.split("\n").map((line) => line.trim()).find(Boolean) || "Document administratif"
+}
+
 
 const TYPES_DOCUMENTS = [
   { value: "certificat_scolarite", label: "Certificat de scolarité" },
@@ -127,8 +137,17 @@ export default function DocumentsPage() {
           }
           serviceDocuments.genererConvocation(selectedEleve, eleve, typeConvocation, dateConvocation, heureConvocation)
           break
+        case "fiche_inscription":
+          serviceDocuments.genererFicheInscription(selectedEleve, eleve)
+          break
+        case "dossier_transfert":
+          serviceDocuments.genererDossierTransfert(selectedEleve, eleve)
+          break
+        case "bulletin":
+          window.location.assign("/ecole/notes/bulletins")
+          return
         default:
-          alert("Type de document non implémenté")
+          alert("Ce type de document n'est pas disponible.")
           return
       }
 

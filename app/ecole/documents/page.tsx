@@ -12,6 +12,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useStudents } from "@/hooks/useStudents"
+import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { serviceDocuments } from "@/services/documents.service"
 import { serviceEleves } from "@/services/eleves.service"
 import type { Document } from "@/services/documents.service"
@@ -37,9 +38,17 @@ const TYPES_DOCUMENTS = [
 
 export default function DocumentsPage() {
   const router = useRouter()
-  const { utilisateur } = useAuthentification()
+  const { utilisateur, etablissementActif } = useAuthentification()
   const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId
   const { data: supabaseStudents } = useStudents(establishmentId ?? null)
+  const { data: academicStructure } = useAcademicStructure(establishmentId ?? null)
+  const classNameById = useMemo(() => new Map(
+    academicStructure.flatMap((cycle) =>
+      (cycle.grade_levels ?? []).flatMap((level) =>
+        (level.school_classes ?? []).map((schoolClass) => [schoolClass.id, schoolClass.name] as const)
+      )
+    )
+  ), [academicStructure])
 
   const mappedSupabaseStudents = useMemo(() => {
     return (supabaseStudents ?? []).map((student) => ({
@@ -51,7 +60,7 @@ export default function DocumentsPage() {
       dateNaissance: student.date_of_birth || "",
       lieuNaissance: student.place_of_birth || "",
       sexe: student.gender || "",
-      classe: "",
+      classe: classNameById.get(student.class_id ?? "") || "",
       classeAncienne: "",
       nomParent: "",
       contactParent: "",
@@ -83,7 +92,7 @@ export default function DocumentsPage() {
       moisPaiement: [],
       optionsPersonnalisees: [],
     }))
-  }, [supabaseStudents])
+  }, [supabaseStudents, classNameById])
 
   const allStudents = useMemo(
     () => mappedSupabaseStudents.length > 0 ? mappedSupabaseStudents : serviceEleves.obtenirTousLesEleves(),
@@ -189,8 +198,8 @@ export default function DocumentsPage() {
       ".body{white-space:pre-line;line-height:1.85;font-size:12px}" +
       ".footer{border-top:1px solid #d4d9e2;margin-top:36px;padding-top:12px;text-align:right;color:#596579;font-size:10px}" +
       "@media print{.sheet{border:0;padding:0}}" +
-      "</style></head><body><main class=\"sheet\"><div class=\"brand\">Établissement scolaire</div><h1>" +
-      escapeHtml(title) + "</h1><div class=\"body\">" + escapeHtml(doc.contenu) +
+      "</style></head><body><main class=\"sheet\"><div class=\"brand\">"+ escapeHtml(etablissementActif?.name || "Établissement scolaire") +"</div><h1>" +
+      escapeHtml(title) + "</h1><div class=\"body\">" + escapeHtml(doc.contenu.split("\n").slice(1).join("\n")) +
       "</div><div class=\"footer\">Référence : " + escapeHtml(doc.id) + " · Généré le " +
       new Date(doc.dateGeneration).toLocaleDateString("fr-FR") + "</div></main></body></html>"
     )

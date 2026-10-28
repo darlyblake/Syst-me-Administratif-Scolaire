@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, FileText, Download, Printer, Trash2, Search, Calendar } from "lucide-react"
 import { jsPDF } from "jspdf"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useStudents } from "@/hooks/useStudents"
 import { serviceDocuments } from "@/services/documents.service"
@@ -35,6 +36,7 @@ const TYPES_DOCUMENTS = [
 ] as const
 
 export default function DocumentsPage() {
+  const router = useRouter()
   const { utilisateur } = useAuthentification()
   const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId
   const { data: supabaseStudents } = useStudents(establishmentId ?? null)
@@ -144,7 +146,7 @@ export default function DocumentsPage() {
           serviceDocuments.genererDossierTransfert(selectedEleve, eleve)
           break
         case "bulletin":
-          window.location.assign("/ecole/notes/bulletins")
+          router.push("/ecole/notes/bulletins")
           return
         default:
           alert("Ce type de document n'est pas disponible.")
@@ -188,7 +190,8 @@ export default function DocumentsPage() {
       new Date(doc.dateGeneration).toLocaleDateString("fr-FR") + "</div></main></body></html>"
     )
     printWindow.document.close()
-    printWindow.onload = () => printWindow.print()
+    printWindow.focus()
+    window.setTimeout(() => printWindow.print(), 250)
     serviceDocuments.mettreAJourStatut(doc.id, "imprime")
     setDocuments(serviceDocuments.obtenirTousLesDocuments())
   }

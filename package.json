@@ -111,5 +111,6 @@
       "electron/**/*",
       "package.json"
     ]
-  }
+  },
+  "packageManager": "pnpm@10.28.0"
 }

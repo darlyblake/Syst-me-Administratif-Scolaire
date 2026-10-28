@@ -1,177 +1,182 @@
 # Architecture technique
 
-## 1. Principe général
+<p align="center">
+  <strong>SYSTÈME ADMINISTRATIF SCOLAIRE</strong><br>
+  <em>Document de référence technique</em>
+</p>
 
-Le projet suit une séparation progressive des responsabilités :
+---
 
-```text
-UI / Page
-   ↓
-Hook de domaine
-   ↓
-Service
-   ↓
-Source de données
+## 1. Objet du document
+
+Ce document décrit les principes d'organisation du code, la séparation des responsabilités, la gestion des données et les exigences à respecter au fil de l'évolution du Système Administratif Scolaire. Il sert de référence pour maintenir une architecture compréhensible et limiter les régressions lors des modifications.
+
+> **État actuel :** les modules ne sont pas tous nécessairement au même niveau de maturité. Les usages de `localStorage` varient selon les fonctionnalités ; la migration vers Supabase est une étape future et doit être validée séparément.
+
+## 2. Vue d'ensemble de l'architecture
+
+```mermaid
+flowchart TD
+    UI["Page ou composant UI"] --> H["Hook de domaine"]
+    H --> S["Service"]
+    S --> D["Accès aux données"]
+    D --> L["localStorage<br/>si utilisé par le module"]
+    D -. "cible de migration" .-> DB["Supabase"]
+    classDef main fill:#EAF2FF,stroke:#2457A7,color:#17365D,stroke-width:1.5px
+    classDef data fill:#FFFFFF,stroke:#7896C8,color:#17365D
+    classDef future fill:#F4F7FC,stroke:#2457A7,color:#17365D,stroke-dasharray:5 5
+    class UI,H,S main
+    class D,L data
+    class DB future
 ```
 
-Pendant la phase actuelle, la source de données reste `localStorage` lorsque le module l'utilise.
+| Couche | Responsabilité principale | À éviter |
+|---|---|---|
+| Page / interface | Afficher les informations et orchestrer les interactions | Accumuler toutes les règles métier |
+| Hook de domaine | Coordonner chargement, état, mutations et données dérivées | Mélanger plusieurs domaines sans rapport |
+| Service | Exposer des opérations de données cohérentes | Répéter la logique dans plusieurs composants |
+| Source de données | Lire et enregistrer les informations | Faire confiance à des données non validées |
 
-Le but est de pouvoir remplacer cette couche par Supabase plus tard sans refaire toute l'interface.
+La séparation facilite les évolutions, mais ne signifie pas que tous les modules utilisent déjà exactement le même chemin. Chaque modification doit commencer par l'inspection du module concerné.
 
-## 2. Pages et composants
+## 3. Pages et composants
 
-Une page doit orchestrer l'affichage et les interactions principales. Elle ne doit pas devenir le lieu où sont stockées toutes les règles métier.
+Une page doit organiser le parcours utilisateur : contexte, recherche ou filtres, contenu principal et actions pertinentes. Les composants réutilisables doivent avoir une responsabilité claire : tableau, formulaire, filtre, fenêtre modale, détail ou état vide.
 
-Les composants réutilisables doivent rester spécialisés : tableau, formulaire, modal, filtre, détail, etc.
+Avant d'extraire ou de fusionner un composant, vérifier ses usages, ses propriétés, les rôles qui l'utilisent et les comportements déjà attendus.
 
-Éviter les composants monolithiques qui connaissent tous les domaines de l'application.
+## 4. Hooks et services
 
-## 3. Hooks
+### 4.1. Hooks
 
-Les hooks constituent la façade de gestion pour les pages.
+Un hook peut centraliser le chargement, la gestion des erreurs, les mutations, le rafraîchissement, les filtres et les données calculées nécessaires à l'interface. Il doit rester centré sur un domaine identifiable.
 
-Ils peuvent centraliser :
+### 4.2. Services
 
-- chargement ;
-- erreurs ;
-- mutations ;
-- rafraîchissement ;
-- données dérivées ;
-- filtrage nécessaire à l'interface ;
-- état des formulaires lorsque cela est pertinent.
+Les services encapsulent les opérations sur les données afin que les composants ne dépendent pas directement des détails de stockage.
 
-Un hook ne doit pas mélanger des responsabilités sans rapport.
+| Phase | Principe | Point de vigilance |
+|---|---|---|
+| Fonctionnement local | Utiliser `localStorage` dans les modules qui en dépendent actuellement | Contrôler les données absentes, mal formées ou anciennes |
+| Migration future | Remplacer progressivement la source locale par Supabase | Conserver des contrats cohérents et tester les erreurs réseau |
+| Mise en production | Utiliser des services sécurisés côté serveur lorsque nécessaire | Ne jamais exposer de secret serveur dans le navigateur |
 
-## 4. Services
+## 5. Domaine « Classes »
 
-Les services encapsulent les opérations sur les données.
+Le domaine Classes regroupe des responsabilités liées qui doivent rester distinguables.
 
-Ils doivent fournir une API claire au hook et éviter que les composants connaissent les détails du stockage.
-
-### Phase localStorage
-
-Les services peuvent utiliser `localStorage`, mais cette dépendance doit rester confinée à la couche service lorsque cela est possible.
-
-### Phase Supabase
-
-La migration future remplacera la source locale par Supabase. Les contrats utilisés par les hooks devront être conservés autant que possible.
-
-## 5. Classes
-
-Le domaine Classes comprend plusieurs responsabilités liées :
-
-```text
-Classes
- ├── informations de classe
- ├── effectifs
- ├── élèves
- ├── enseignants
- ├── répartition
- └── horaires
+```mermaid
+flowchart TD
+    C["Gestion des classes"] --> I["Informations générales"]
+    C --> E["Effectifs et capacité"]
+    C --> EL["Élèves associés"]
+    C --> EN["Enseignants associés"]
+    C --> R["Répartition"]
+    C --> H["Horaires"]
+    classDef root fill:#2457A7,stroke:#17365D,color:#FFFFFF,stroke-width:1.5px
+    classDef item fill:#EAF2FF,stroke:#7896C8,color:#17365D
+    class C root
+    class I,E,EL,EN,R,H item
 ```
 
-Ces responsabilités peuvent collaborer, mais ne doivent pas être fusionnées dans un seul composant ou hook géant.
+La page principale doit privilégier les opérations de gestion : recherche, filtres, tableau, création, modification, consultation et actions contextuelles. Les responsabilités liées peuvent collaborer sans être fusionnées dans un composant ou un hook monolithique.
 
-La page principale doit rester orientée gestion : recherche, filtres, tableau, création, modification, consultation et actions contextuelles.
+## 6. Modèle multi-établissement visé
 
-## 6. Multi-établissement
-
-Le futur modèle de données doit permettre :
-
-```text
-Établissement
-   ├── utilisateurs
-   ├── classes
-   ├── élèves
-   ├── enseignants
-   ├── paiements
-   └── autres données métier
+```mermaid
+flowchart TD
+    ET["Établissement"] --> U["Utilisateurs et profils"]
+    ET --> CL["Classes"]
+    ET --> EL["Élèves"]
+    ET --> EN["Enseignants"]
+    ET --> PA["Paiements"]
+    ET --> AU["Autres données métier"]
+    classDef root fill:#2457A7,stroke:#17365D,color:#FFFFFF
+    classDef child fill:#EAF2FF,stroke:#7896C8,color:#17365D
+    class ET root
+    class U,CL,EL,EN,PA,AU child
 ```
 
-Chaque ressource appartenant à un établissement devra être rattachée à celui-ci.
+Ce schéma représente une cible d'architecture et non une affirmation selon laquelle toutes ces relations sont déjà implémentées. Chaque ressource concernée devra être rattachée à son établissement et son accès contrôlé côté serveur.
 
-Le backend devra empêcher qu'un utilisateur puisse changer simplement un identifiant pour accéder aux données d'un autre établissement.
+## 7. Rôles et permissions
 
-## 7. Permissions
+| Rôle cible | Périmètre indicatif |
+|---|---|
+| Administrateur d'établissement | Paramétrage et gestion générale autorisée |
+| Comptabilité | Paiements et données financières nécessaires |
+| Secrétariat | Dossiers et documents administratifs nécessaires |
+| Direction | Informations nécessaires au pilotage |
+| Surveillance | Présence et suivi de la vie scolaire |
 
-Le frontend peut masquer ou désactiver les actions non autorisées pour améliorer l'expérience utilisateur.
+Le frontend peut masquer ou désactiver des actions pour améliorer l'expérience. L'autorisation effective doit être appliquée côté backend/base de données. Un utilisateur ne doit pas pouvoir accéder à un autre établissement en modifiant simplement un identifiant.
 
-Cependant, l'autorisation réelle devra être appliquée côté backend/base de données.
+## 8. Structure d'interface recommandée
 
-Le modèle cible distingue notamment administrateur d'établissement, comptabilité, secrétariat, direction et surveillance.
-
-## 8. UI/UX
-
-La direction visuelle est celle d'un logiciel administratif professionnel.
-
-### Structure privilégiée
-
-```text
-Titre + contexte
-        ↓
-Recherche / filtres / action principale
-        ↓
-Tableau ou liste
-        ↓
-Actions contextuelles
-        ↓
-Modal / page de détail si nécessaire
+```mermaid
+flowchart TD
+    A["Titre et contexte"] --> B["Recherche, filtres et action principale"]
+    B --> C["Tableau ou liste principale"]
+    C --> D["Actions contextuelles"]
+    D --> E["Détail ou modale si nécessaire"]
+    classDef step fill:#EAF2FF,stroke:#2457A7,color:#17365D
+    class A,B,C,D,E step
 ```
 
-Les cards sont autorisées lorsqu'elles représentent réellement une unité logique, mais elles ne doivent pas devenir le composant par défaut de toute l'application.
+Les cartes sont pertinentes lorsqu'elles représentent une unité logique. Elles ne doivent pas être le composant par défaut de toutes les pages.
 
-## 9. États d'interface
+## 9. États d'interface à prévoir
 
-Chaque flux doit prévoir au minimum :
-
-- chargement ;
-- succès ;
-- liste vide ;
-- aucun résultat ;
-- erreur ;
-- mutation en cours ;
-- confirmation si nécessaire.
+| État | Comportement attendu |
+|---|---|
+| Chargement | Indiquer que les données sont en cours de récupération |
+| Succès | Afficher les données ou confirmer l'action réalisée |
+| Liste vide | Expliquer qu'aucun élément n'est encore enregistré |
+| Aucun résultat | Indiquer que les filtres ne renvoient aucun élément |
+| Erreur | Donner un message compréhensible et, si possible, une action de reprise |
+| Mutation en cours | Empêcher les doubles soumissions et signaler l'attente |
+| Confirmation | Demander une confirmation pour les actions sensibles ou difficiles à annuler |
 
 ## 10. Validation des données
 
-Les formulaires doivent utiliser les mécanismes de validation déjà présents dans le projet lorsque ceux-ci sont adaptés, notamment React Hook Form et Zod.
+Les formulaires doivent réutiliser les mécanismes de validation présents lorsqu'ils conviennent, notamment React Hook Form et Zod. Toute donnée provenant d'une source externe doit être vérifiée avant d'être considérée comme fiable.
 
-Les données provenant d'une source externe doivent être validées avant d'être considérées comme fiables.
+Les règles de validation importantes doivent être cohérentes entre interface et serveur. La validation côté client améliore l'expérience mais ne remplace pas les contrôles côté serveur.
 
-## 11. Performance
+## 11. Performance et accessibilité
 
-Éviter :
+- Éviter les appels de service répétés à chaque rendu et les effets React inutiles.
+- Ne charger que les données nécessaires au parcours.
+- Prévoir pagination, filtrage ou virtualisation lorsque le volume le justifie.
+- Utiliser des libellés explicites, un contraste suffisant et une navigation clavier cohérente.
+- Ne pas transmettre une information uniquement par la couleur.
+- Vérifier l'affichage sur écran étroit et à différentes tailles de texte.
 
-- appels de service répétés à chaque rendu ;
-- effets React inutiles ;
-- calculs coûteux sans nécessité ;
-- chargement de données non utilisées.
+## 12. Sécurité de la future intégration Supabase
 
-Pour les grandes listes, utiliser pagination, filtrage ou virtualisation selon le besoin réel.
+La migration devra prévoir l'authentification, les rôles, l'isolation par établissement, les politiques RLS, la validation des mutations et la protection des données personnelles.
 
-## 12. Sécurité future avec Supabase
+```mermaid
+flowchart LR
+    A["Utilisateur authentifié"] --> B["Vérification du rôle"]
+    B --> C["Vérification de l'établissement"]
+    C --> D["Policy / contrôle serveur"]
+    D --> E["Lecture ou écriture autorisée"]
+    D -. "refus" .-> F["Erreur d'accès"]
+    classDef secure fill:#EAF2FF,stroke:#2457A7,color:#17365D
+    classDef deny fill:#FFFFFF,stroke:#64748B,color:#334155
+    class A,B,C,D,E secure
+    class F deny
+```
 
-La migration devra prévoir :
+Ne jamais considérer une donnée comme protégée uniquement parce qu'elle est masquée dans l'interface. Les clés privées et secrets ne doivent jamais être placés dans le code client.
 
-- authentification ;
-- rôles et permissions ;
-- isolation par établissement ;
-- RLS ;
-- policies de lecture et d'écriture ;
-- validation des mutations ;
-- protection des données personnelles ;
-- séparation des secrets serveur et du frontend.
+## 13. Principes d'évolution
 
-La conception du frontend ne doit jamais supposer qu'une donnée est sûre simplement parce qu'elle est masquée dans l'interface.
-
-## 13. Évolution
-
-Les changements doivent être progressifs :
-
-1. stabiliser l'interface ;
-2. stabiliser la logique métier locale ;
-3. tester les parcours ;
-4. définir le modèle Supabase ;
-5. migrer les services ;
-6. mettre en place RLS et permissions ;
-7. tester les scénarios multi-utilisateurs et multi-établissements.
+1. Stabiliser les interfaces et la logique métier locale.
+2. Vérifier les parcours fonctionnels et les erreurs.
+3. Définir le modèle de données et les relations.
+4. Migrer les services progressivement.
+5. Mettre en place l'authentification, les rôles et les policies RLS.
+6. Tester les scénarios multi-utilisateurs et multi-établissements.
+7. Mettre à jour cette documentation après chaque changement d'architecture significatif.

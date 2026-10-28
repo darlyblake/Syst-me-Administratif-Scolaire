@@ -8,11 +8,17 @@
 
 ## 1. Pourquoi j’ai réalisé ce projet
 
-J’ai développé ce système administratif scolaire pour proposer un outil qui aide à mieux organiser les informations et les opérations d’un établissement. En réfléchissant aux besoins à prendre en compte, je me suis notamment intéressé à la gestion des frais scolaires et des différentes prises en charge.
+L’idée de ce projet m’est venue pendant mon passage au secrétariat du Complexe Scolaire La Réussite d’Owendo. J’y ai observé des situations concrètes qui m’ont fait réfléchir à la manière dont les informations scolaires sont suivies et communiquées aux familles. Cette expérience m’a donné envie de concevoir un outil informatique qui pourrait aider à mieux organiser certaines opérations de l’établissement.
 
-J’ai constaté que les situations ne se résument pas à une prise en charge totale par l’État ou à un paiement intégral par les parents. Certains organismes peuvent financer une partie des frais, tandis que certaines familles peuvent avoir droit à des réductions, par exemple en fonction du nombre d’enfants scolarisés. Je voulais donc que l’application puisse distinguer les différentes parts à payer et éviter de mélanger les montants dus par les familles avec ceux pris en charge par un organisme.
+Je me souviens notamment des échanges au sujet des frais scolaires. Il arrivait qu’un parent affirme avoir déjà payé un mois, alors que les informations disponibles à l’école indiquaient autre chose. On lui demandait alors de présenter son reçu comme preuve du paiement, mais il pouvait l’avoir perdu ou ne plus le retrouver. Ce type de situation pouvait provoquer des incompréhensions entre les parents et l’établissement. Cela m’a fait comprendre qu’il est important de pouvoir retrouver facilement l’historique des paiements et de disposer d’informations claires lorsqu’une question se pose.
 
-Cette réflexion fait partie des besoins qui ont orienté les fonctionnalités du projet. Elle m’a aussi rappelé qu’une application de gestion doit tenir compte des situations réelles de l’établissement, et pas seulement enregistrer des informations.
+J’ai également remarqué que certains parents ne savaient pas toujours précisément si leur enfant était encore en cours, si les cours étaient déjà terminés ou si l’élève n’avait pas eu cours à un moment donné. Ils appelaient alors l’école pour se renseigner et pouvaient être surpris d’apprendre que leur enfant n’avait pas eu cours ou avait terminé depuis plusieurs heures. Ces situations m’ont fait réfléchir à l’importance d’un meilleur suivi de la présence des élèves et d’une communication plus claire avec les familles.
+
+Ces observations sont le point de départ de ma réflexion. Mon objectif n’est pas de présenter ces difficultés comme la faute d’une personne ou d’un établissement, mais d’expliquer les besoins que j’ai pu constater et auxquels je voulais essayer d’apporter une réponse grâce au développement informatique.
+
+Au fil de la conception, j’ai aussi réfléchi à la gestion des différentes prises en charge des frais scolaires. Les situations ne se résument pas toujours à un paiement intégral par les parents : certains organismes peuvent financer une partie des frais et certaines familles peuvent bénéficier de réductions, par exemple en fonction du nombre d’enfants scolarisés. Il me paraît donc important de pouvoir distinguer les montants payés par les familles, les sommes prises en charge par les organismes et les éventuelles réductions accordées.
+
+C’est à partir de ces observations et de cette réflexion que j’ai orienté mon projet vers un système administratif scolaire. Je souhaite qu’il contribue à mieux organiser les informations, à faciliter le suivi des paiements et des absences, et à rendre les informations utiles plus faciles à retrouver. Je sais qu’une application ne règle pas à elle seule tous les problèmes d’organisation ou de communication, mais elle peut apporter une aide si elle est conçue en fonction des besoins réels et si les données qu’elle contient sont correctement tenues à jour.
 
 ## 2. Objectif des tests
 
@@ -54,7 +60,7 @@ Ces vérifications m’ont permis de mieux suivre l’état d’avancement de mo
 
 Il me reste à terminer les essais liés aux dernières modifications des bulletins et des documents administratifs. Je veux notamment m’assurer que les données affichées, les calculs et les fichiers produits correspondent bien aux informations de l’application. Je ne présenterai ces points comme validés qu’après avoir réalisé et contrôlé les essais nécessaires.
 
-Ce projet m’a aussi amené à réfléchir à la façon dont un outil informatique peut répondre à des besoins concrets d’un établissement scolaire. Au-delà de l’interface, je dois veiller à la cohérence des données, à la fiabilité des calculs et à la qualité des documents générés.
+Cette expérience m’a appris à partir d’un problème observé pour réfléchir à une solution, puis à vérifier si les fonctionnalités développées répondent réellement au besoin. Au-delà de l’interface, je dois veiller à la cohérence des données, à la fiabilité des calculs et à la qualité des documents générés. C’est aussi ce que je retiens de ce projet : le développement informatique prend tout son sens lorsqu’il s’appuie sur des besoins concrets.
 
 ## 7. Références techniques
 

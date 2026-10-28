@@ -183,6 +183,87 @@ Le Directeur
   }
 
   /**
+   * Génère une fiche d'inscription à partir des informations disponibles.
+   */
+  genererFicheInscription(eleveId: string, donneesEleve: any): Document {
+    const date = new Date().toLocaleDateString("fr-FR")
+    const contenu = [
+      "FICHE D'INSCRIPTION",
+      "",
+      "INFORMATIONS DE L'ÉLÈVE",
+      "Nom : " + (donneesEleve.nom || "Non renseigné"),
+      "Prénom(s) : " + (donneesEleve.prenom || "Non renseigné"),
+      "Date de naissance : " + (donneesEleve.dateNaissance ? new Date(donneesEleve.dateNaissance).toLocaleDateString("fr-FR") : "Non renseignée"),
+      "Lieu de naissance : " + (donneesEleve.lieuNaissance || "Non renseigné"),
+      "Sexe : " + (donneesEleve.sexe || "Non renseigné"),
+      "Matricule : " + (donneesEleve.identifiant || eleveId),
+      "",
+      "INFORMATIONS DE CONTACT",
+      "Téléphone : " + (donneesEleve.informationsContact?.telephone || donneesEleve.contactParent || "Non renseigné"),
+      "E-mail : " + (donneesEleve.informationsContact?.email || "Non renseigné"),
+      "Adresse : " + (donneesEleve.adresse || donneesEleve.informationsContact?.adresse || "Non renseignée"),
+      "",
+      "INFORMATIONS SCOLAIRES",
+      "Classe : " + (donneesEleve.classe || "À confirmer"),
+      "Date d'inscription : " + (donneesEleve.dateInscription ? new Date(donneesEleve.dateInscription).toLocaleDateString("fr-FR") : date),
+      "",
+      "Fait le " + date,
+      "",
+      "Signature du responsable légal : __________________________",
+      "Signature de l'administration : __________________________"
+    ].join("\n")
+
+    return this.sauveguarderDocument({
+      id: "doc-inscription-" + Date.now(),
+      type: "fiche_inscription",
+      eleveId,
+      dateGeneration: new Date().toISOString(),
+      contenu,
+      statut: "genere"
+    })
+  }
+
+  /**
+   * Prépare un dossier de transfert avec les données connues, sans inventer les résultats scolaires.
+   */
+  genererDossierTransfert(eleveId: string, donneesEleve: any): Document {
+    const date = new Date().toLocaleDateString("fr-FR")
+    const contenu = [
+      "DOSSIER DE TRANSFERT",
+      "",
+      "ÉLÈVE",
+      "Nom : " + (donneesEleve.nom || "Non renseigné"),
+      "Prénom(s) : " + (donneesEleve.prenom || "Non renseigné"),
+      "Date de naissance : " + (donneesEleve.dateNaissance ? new Date(donneesEleve.dateNaissance).toLocaleDateString("fr-FR") : "Non renseignée"),
+      "Matricule : " + (donneesEleve.identifiant || eleveId),
+      "Classe actuelle : " + (donneesEleve.classe || "À confirmer"),
+      "",
+      "PIÈCES À VÉRIFIER AVANT LE TRANSFERT",
+      "[ ] Certificat de scolarité",
+      "[ ] Bulletins scolaires disponibles",
+      "[ ] Relevé de situation financière",
+      "[ ] Dossier administratif de l'élève",
+      "",
+      "Établissement d'accueil : __________________________________",
+      "Motif du transfert : ________________________________________",
+      "Date de transfert : _________________________________________",
+      "",
+      "Document préparé le " + date,
+      "",
+      "Visa de l'administration : _________________________________"
+    ].join("\n")
+
+    return this.sauveguarderDocument({
+      id: "doc-transfert-" + Date.now(),
+      type: "dossier_transfert",
+      eleveId,
+      dateGeneration: new Date().toISOString(),
+      contenu,
+      statut: "genere"
+    })
+  }
+
+  /**
    * Sauvegarde un document
    */
   private sauveguarderDocument(document: Document): Document {

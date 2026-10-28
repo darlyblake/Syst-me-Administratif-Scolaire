@@ -13,6 +13,18 @@ export interface Document {
   statut: "genere" | "imprime" | "envoye"
 }
 
+function formatDate(value: unknown, fallback = "Non renseignée"): string {
+  if (!value) return fallback
+  const date = new Date(String(value))
+  return Number.isNaN(date.getTime()) ? fallback : date.toLocaleDateString("fr-FR")
+}
+
+function currentAcademicYear(): string {
+  const now = new Date()
+  const startYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
+  return startYear + "-" + (startYear + 1)
+}
+
 class ServiceDocuments {
   private readonly CLE_STOCKAGE = "documents_ecole"
 
@@ -60,8 +72,8 @@ CERTIFICAT DE SCOLARITÉ
 
 Je soussigné, Directeur de l'établissement, certifie que l'élève :
 ${donneesEleve.prenom} ${donneesEleve.nom}
-Né(e) le ${new Date(donneesEleve.dateNaissance).toLocaleDateString('fr-FR')}
-Est régulièrement inscrit(e) dans notre établissement pour l'année scolaire ${new Date().getFullYear()}-${new Date().getFullYear() + 1}.
+Né(e) le ${formatDate(donneesEleve.dateNaissance)}
+Est régulièrement inscrit(e) dans notre établissement pour l'année scolaire ${currentAcademicYear()}.
 
 Ce certificat est délivré pour servir et valoir ce que de droit.
 
@@ -160,7 +172,7 @@ Convocation adressée aux parents de l'élève :
 ${donneesEleve.prenom} ${donneesEleve.nom}
 
 Type : ${type}
-Date : ${new Date(date).toLocaleDateString('fr-FR')}
+Date : ${formatDate(date)}
 Heure : ${heure}
 
 La présence des parents est souhaitée.

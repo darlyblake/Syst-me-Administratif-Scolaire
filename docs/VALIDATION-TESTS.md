@@ -2,8 +2,15 @@
 
 <p align="center">
   <strong>UNIVERSITÉ NUMÉRIQUE DU GABON (UNG)</strong><br>
-  <em>Pôle STI — Licence 3 — Développement Web et Mobile</em><br>
-  <strong>Dossier de validation du projet</strong>
+  <em>Pôle STI · Licence 3 · Développement Web et Mobile</em><br>
+  <strong>DOSSIER DE VALIDATION DU PROJET</strong>
+</p>
+
+<p align="center">
+  <a href="../README.md">Présentation</a> &nbsp;·&nbsp;
+  <a href="./ARCHITECTURE.md">Architecture</a> &nbsp;·&nbsp;
+  <a href="./ROADMAP.md">Feuille de route</a> &nbsp;·&nbsp;
+  <a href="./VALIDATION-TESTS.md">Bilan des tests</a>
 </p>
 
 ---

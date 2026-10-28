@@ -109,6 +109,11 @@ export default function DocumentsPage() {
   }, [allStudents])
 
   const handleGenererDocument = () => {
+    if (selectedType === "bulletin") {
+      router.push("/ecole/notes/bulletins")
+      return
+    }
+
     if (!selectedEleve) {
       alert("Veuillez sélectionner un élève")
       return
@@ -148,9 +153,6 @@ export default function DocumentsPage() {
         case "dossier_transfert":
           serviceDocuments.genererDossierTransfert(selectedEleve, eleve)
           break
-        case "bulletin":
-          router.push("/ecole/notes/bulletins")
-          return
         default:
           alert("Ce type de document n'est pas disponible.")
           return

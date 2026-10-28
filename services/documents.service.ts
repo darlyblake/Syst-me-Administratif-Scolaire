@@ -104,7 +104,7 @@ ATTESTATION D'ASSURANCE SCOLAIRE
 
 L'assurance scolaire a été souscrite pour l'élève :
 ${donneesEleve.prenom} ${donneesEleve.nom}
-Né(e) le ${new Date(donneesEleve.dateNaissance).toLocaleDateString('fr-FR')}
+Né(e) le ${formatDate(donneesEleve.dateNaissance)}
 
 Numéro de contrat : ${donneesEleve.numeroAssurance || 'N/A'}
 Compagnie d'assurance : ${donneesEleve.compagnieAssurance || 'N/A'}

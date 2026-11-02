@@ -1,5 +1,7 @@
-> **État d'implémentation — 03/10/2026**
-> Le backend pointage existant a été audité puis renforcé. La migration `20261003130044_pointage_course_lifecycle_and_audit.sql` ajoute l'historique des quatre événements, corrige la fenêtre de détection automatique du cours, sécurise le démarrage contre la réouverture d'un cours déjà terminé, et matérialise les alertes. La phase frontend reste à finaliser.
+> **État documentaire révisé — 02/11/2026**
+> Le dépôt `main` contient désormais le frontend d'administration du pointage et l'intégration dans l'espace enseignant, en plus du backend Supabase. Les pages, services et RPC sont présents dans le code consulté. La phrase antérieure indiquant que toute la phase frontend restait à finaliser est donc obsolète.
+>
+> **Important :** la présence du frontend et des fonctions backend ne signifie pas que les scénarios fonctionnels, QR, RLS et multi-établissement ont tous été exécutés et validés. La phase de vérification ci-dessous reste à renseigner avec des résultats datés.
 
 ---
 
@@ -478,7 +480,7 @@ L'ordinateur central doit pouvoir rester ouvert sur l'écran Pointage toute la j
 - [x] Audit
 - [x] Vérifications SQL de structure et permissions
 
-### Phase 4 — Frontend administration
+### Phase 4 — Frontend administration (code présent dans le dépôt consulté)
 - [x] Page Pointage
 - [x] écran d'action
 - [x] historique
@@ -489,14 +491,14 @@ L'ordinateur central doit pouvoir rester ouvert sur l'écran Pointage toute la j
 - [x] alertes
 - [x] paramètres
 
-### Phase 5 — Intégration enseignant
+### Phase 5 — Intégration enseignant (code présent dans le dépôt consulté)
 - [x] cours actuel
 - [x] scan QR côté enseignant
 - [x] début automatique
 - [x] fin QR / clôture administrative
 - [x] états du cours
 
-### Phase 6 — Vérification
+### Phase 6 — Vérification (à exécuter et consigner)
 - [ ] test code
 - [ ] test QR
 - [ ] test arrivée

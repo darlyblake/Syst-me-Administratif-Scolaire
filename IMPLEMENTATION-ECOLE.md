@@ -1,12 +1,14 @@
-# Plan d'Implémentation - Interface École
+# Plan d'implémentation — Interface École
 
-Ce fichier suit l'avancement de l'implémentation des fonctionnalités de l'interface École selon les spécifications du document `INTERFACE-ECOLE.md`.
+> **Mise à jour documentaire — 2 novembre 2026.** Ce document historique mélangeait fonctionnalités prévues, éléments de code et cases cochées sans preuve de validation. Les cases déjà présentes ne doivent pas être interprétées comme des tests réussis ni comme une validation complète en production. Les statuts révisés ci-dessous priment sur les anciens pourcentages.
+
+Ce fichier recense les domaines de l'interface École. Pour chaque tâche, vérifier séparément le frontend, le service réellement appelé, le backend, les permissions et le test fonctionnel.
 
 ## Fonctionnalités Actuelles (Déjà Implémentées)
 
 - [x] Structure de l'application par rôles (admin, ecole, parents)
 - [x] Page de connexion unique avec 3 onglets
-- [x] Middleware de protection des routes par rôle
+- [ ] Middleware Next.js global (aucun fichier middleware.ts ou proxy.ts dans le dépôt consulté ; les contrôles d'interface et de backend sont distincts)
 - [x] Tableau de bord basique avec statistiques
 - [x] Gestion des élèves (liste, filtres, recherche, export)
 - [x] Gestion des enseignants
@@ -421,12 +423,31 @@ Ce fichier suit l'avancement de l'implémentation des fonctionnalités de l'inte
 
 ---
 
-## Statut Global
+## État global révisé — 2 novembre 2026
 
-- **Phase 1 (Essentiel)** : 4/4 modules (100%)
-- **Phase 2 (Important)** : 3/3 modules (100%)
-- **Phase 3 (Complémentaire)** : 4/4 modules (100%)
-- **Total** : 11/11 modules (100%)
+Le pourcentage global de 100 % précédemment affiché est retiré : il n'est pas étayé par une validation exhaustive de chaque fonctionnalité.
+
+| Domaine | État documentaire actuel | Précision |
+|---|---|---|
+| Authentification et navigation par rôle | Présents | Aucun middleware Next.js global repéré ; vérifier les contrôles backend |
+| Élèves, inscriptions et classes | Développés | Tests manuels déclarés réussis dans le périmètre essayé |
+| Registre d'appel des élèves | Développé | Tests du registre déclarés réussis |
+| Notes et bulletins | Développés | Reprendre les tests de non-régression après les changements récents |
+| Paiements et finances | Développés | Scénarios financiers G1 à G5 précédemment déclarés validés ; ne pas extrapoler au-delà |
+| Documents administratifs | Développés en partie | La page administrative utilise encore un service local ; modèles et impression à améliorer / vérifier |
+| Pointage du personnel et des enseignants | Frontend et backend présents | Tests de scénarios encore à réaliser ou à consigner |
+| Portail parent | Plusieurs parcours présents | Voir PARENT-TODO.md ; plusieurs parcours restent à compléter ou valider |
+| Application mobile / desktop | Structures de projet présentes | Ne pas annoncer une livraison native finalisée sans preuve |
+
+### Règle de suivi
+
+- **Présent** : le code existe.
+- **Développé** : le parcours est implémenté dans le périmètre identifié.
+- **Testé** : un scénario précis a été exécuté.
+- **Validé** : le résultat attendu a été constaté et consigné.
+- **À compléter** : une partie du parcours ou de sa vérification manque.
+
+Les anciennes cases cochées sont conservées comme historique de suivi, mais ne constituent pas une preuve indépendante de validation. Toute nouvelle case cochée doit être accompagnée d'un scénario de test identifiable.
 
 ---
 

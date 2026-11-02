@@ -7,184 +7,219 @@
 </p>
 
 <p align="center">
-  <a href="../README.md">Présentation</a> &nbsp;·&nbsp;
-  <a href="./ARCHITECTURE.md">Architecture</a> &nbsp;·&nbsp;
-  <a href="./ROADMAP.md">Feuille de route</a> &nbsp;·&nbsp;
+  <a href="../README.md">Présentation</a> ·
+  <a href="./ROADMAP.md">Feuille de route</a> ·
   <a href="./VALIDATION-TESTS.md">Bilan des tests</a>
 </p>
 
+> **Périmètre :** inspection en lecture seule du dépôt GitHub `darlyblake/Syst-me-Administratif-Scolaire`, branche `main`, commit `923563d05c0f363463f523bd00db70337afe0e67` (28 octobre 2026), et du projet Supabase actif, le 2 novembre 2026. Les constats sont datés et ne représentent pas des tests fonctionnels exhaustifs.
+
+## 1. Vue d'ensemble
+
+Le système suit une architecture hybride. Les pages et composants Next.js/React s'appuient sur des hooks et services métier. Selon le domaine, ces services communiquent avec Supabase ou utilisent encore un stockage local.
+
+```mermaid
+flowchart TD
+    UI["Pages et composants Next.js / React"] --> H["Hooks de domaine"]
+    H --> S["Services métier"]
+    S --> R{"Adaptateur / source de données"}
+    R --> SB["Services Supabase"]
+    R --> LS["Services locaux"]
+    SB --> DB["PostgreSQL"]
+    SB --> RPC["Fonctions SQL / RPC"]
+    SB --> EDGE["Fonctions Edge"]
+    SB --> STORAGE["Supabase Storage"]
+    LS --> LOCAL["localStorage"]
+```
+
+Cette architecture est progressive. Il ne faut pas affirmer que toutes les données sont centralisées dans Supabase ni que l'application fonctionne uniquement avec `localStorage`.
+
+## 2. Technologies repérées
+
+| Technologie | Rôle dans le projet |
+|---|---|
+| Next.js 15 | Application web, pages et routage |
+| React 18 | Interface utilisateur |
+| TypeScript 5.9 | Typage |
+| Tailwind CSS 4.1 | Styles |
+| Supabase | Authentification, accès aux données, fonctions et stockage |
+| PostgreSQL 17 | Base relationnelle active |
+| Jest | Suites de tests présentes |
+| Capacitor 8 | Infrastructure de distribution mobile |
+| Electron | Infrastructure de distribution desktop |
+| Vercel | Déploiement web |
+
+Les infrastructures Capacitor et Electron ne prouvent pas, à elles seules, la livraison d'applications natives ou desktop finalisées.
+
+## 3. Couches applicatives
+
+| Couche | Responsabilité |
+|---|---|
+| Pages et composants | Présentation, interactions et orchestration du parcours |
+| Hooks | Chargement, état, mutations, filtres et rafraîchissement |
+| Services métier | Opérations propres à un domaine fonctionnel |
+| Services Supabase | Requêtes, mutations et appels RPC |
+| PostgreSQL | Persistance, relations, contraintes, fonctions et triggers |
+| RLS | Contrôle d'accès aux lignes selon le contexte de l'utilisateur |
+| Fonctions Edge | Opérations backend déployées hors du navigateur |
+| Services locaux | Persistance locale pour les domaines qui n'ont pas encore migré |
+
+Le contrôle du rôle dans le frontend améliore le parcours utilisateur, mais ne constitue pas une frontière de sécurité suffisante. Les autorisations effectives doivent être contrôlées côté backend et base de données.
+
+## 4. Répartition observée des sources de données
+
+Exemples tirés des fichiers consultés dans le dépôt `main` :
+
+| Domaine / parcours | Source observée | Remarque |
+|---|---|---|
+| Registre d'appel actif | Supabase | Utilise notamment les services de présence et les opérations d'enregistrement |
+| Paiements / finance | Supabase | Services financiers et fonctions RPC |
+| Notes et résultats | Supabase | Pages et services de notes / bulletins |
+| Page administrative des documents | localStorage | Utilise encore `documents.service.ts` |
+| Services historiques élèves, paiements, registre | Local selon les parcours | Coexistent avec des services Supabase plus récents |
+| Portail parent | Supabase pour plusieurs domaines | Certaines fonctions et validations restent à compléter |
+
+Avant de modifier un module, vérifier le chemin réellement utilisé par la page active. La présence d'un ancien service local ne prouve pas que la page actuelle l'appelle.
+
+## 5. Modèle de données et instantané Supabase
+
+Le projet Supabase consulté utilisait PostgreSQL 17. Les comptages observés dans le schéma public étaient :
+
+| Élément | Nombre |
+|---|---:|
+| Tables publiques | 87 |
+| Tables avec RLS activé | 87 |
+| Politiques RLS | 226 |
+| Fonctions publiques | 232 |
+| Triggers publics | 76 |
+| Fonctions Edge actives | 12 |
+
+Les familles de données couvrent notamment les établissements, utilisateurs, rôles et permissions, élèves, responsables, inscriptions, classes, enseignants, matières, notes, présences, paiements, documents, notifications et opérations administratives.
+
+Ces chiffres sont un instantané technique. Ils peuvent évoluer et ne remplacent pas le schéma détaillé ni une validation métier.
+
+## 6. Authentification, rôles et contrôle d'accès
+
+Le projet utilise Supabase Auth et un modèle de membres, rôles et permissions. Le frontend comprend notamment des contrôles de parcours tels que `PermissionRoute`.
+
+Le dépôt consulté ne contient ni `middleware.ts` ni `proxy.ts`. La documentation ne doit donc pas attribuer à Next.js un middleware global de protection des routes.
+
+Le modèle de sécurité doit être compris en plusieurs niveaux :
+1. Authentifier l'utilisateur.
+2. Déterminer son appartenance à l'établissement.
+3. Contrôler le rôle et les permissions.
+4. Appliquer les règles RLS aux opérations sur les données.
+5. Encadrer les fonctions privilégiées et les opérations sensibles.
+
+Le masquage d'un bouton n'empêche pas un utilisateur d'appeler directement une API. Les contrôles côté base restent essentiels.
+
+## 7. Constats de sécurité Supabase
+
+L'inspection des conseillers Supabase et des métadonnées SQL a fourni les constats suivants au 2 novembre 2026.
+
+### 7.1 Fonctions privilégiées
+
+- 185 fonctions publiques sont déclarées `SECURITY DEFINER`.
+- 8 de ces fonctions sont exécutables par le rôle `anon`.
+- 176 sont exécutables par `authenticated`.
+
+Une fonction `SECURITY DEFINER` n'est pas automatiquement vulnérable. Il faut examiner individuellement son propriétaire, son `search_path`, ses contrôles d'identité, ses validations et les rôles autorisés à l'exécuter.
+
+### 7.2 Permissions à harmoniser
+
+Certaines politiques RLS utilisent notamment les permissions `settings.read`, `settings.manage`, `payments.read` et `finance.view`. La fonction versionnée `private.has_permission` consultée ne contient pas de correspondance par défaut pour tous ces noms, et aucune attribution correspondante n'a été relevée dans `establishment_role_permissions` pour les valeurs recherchées.
+
+Il s'agit d'un risque de cohérence des autorisations pouvant provoquer des refus d'accès inattendus. L'effet réel doit être confirmé par des tests authentifiés avec chaque rôle concerné. Ne pas présenter ce constat comme une vulnérabilité d'accès confirmée.
+
+### 7.3 Tables sans politique RLS
+
+Quatre tables publiques avaient RLS activé mais aucune politique déclarée :
+- `platform_admins`
+- `student_transfer_requests`
+- `support_messages`
+- `support_requests`
+
+Cela bloque les accès directs ordinaires via les politiques de ces tables. Il faut vérifier que les parcours nécessaires passent par les fonctions backend prévues et que leurs autorisations sont correctes.
+
+### 7.4 Autres alertes de sécurité
+
+- La protection Supabase contre les mots de passe compromis était désactivée au moment de la consultation.
+- Les conseillers signalaient 137 cas de politiques permissives multiples à examiner.
+- Les permissions des fonctions privilégiées doivent être revues.
+
+Ces constats sont des points de contrôle, pas une preuve que des données ont été exposées.
+
+## 8. Migrations : traçabilité et reproductibilité
+
+La comparaison des fichiers SQL du dépôt avec l'historique des migrations Supabase a donné les résultats suivants :
+
+| Indicateur | Valeur |
+|---|---:|
+| Fichiers SQL dans `supabase/migrations` | 91 |
+| Préfixes de version distincts dans ces fichiers | 87 |
+| Versions distinctes enregistrées dans Supabase | 228 |
+| Versions présentes des deux côtés | 21 |
+| Versions Supabase sans fichier portant le même numéro dans le dépôt | 207 |
+| Préfixes du dépôt absents de l'historique Supabase consulté | 66 |
+
+Quatre préfixes de version apparaissent plusieurs fois dans les fichiers du dépôt. Une migration peut avoir été renumérotée ou réécrite : la comparaison des numéros ne démontre donc pas, à elle seule, l'absence d'équivalence fonctionnelle.
+
+**Conclusion :** l'historique SQL versionné dans le dépôt ne permet pas, à lui seul, de reproduire exactement l'état de la base active. Il faut réconcilier les migrations, documenter les écarts et éviter de modifier la base de production sur la seule base de cet inventaire.
+
+## 9. Fonctions Edge : écart de versionnement
+
+Supabase présentait 12 fonctions Edge actives. Le dépôt consulté contenait cinq dossiers sources de fonctions Edge :
+- `claim-student`
+- `create-establishment-super-admin`
+- `create-platform-admin`
+- `manage-school-user-account`
+- `provision-parent-account`
+
+Sept fonctions actives ne disposaient pas de source correspondante dans le dépôt consulté :
+- `invite-establishment-member`
+- `invite-school-user`
+- `approve-establishment-request`
+- `create-establishment-super-admin-v2`
+- `unclaim-student`
+- `manage-teacher-account`
+- `get-parent-children`
+
+La production n'est donc pas intégralement reproductible à partir des seules sources versionnées. Avant toute modification ou suppression de fonction, récupérer et versionner les sources manquantes, puis vérifier leurs dépendances et secrets sans les exposer.
+
+## 10. Alertes de performance
+
+Les conseillers Supabase ont signalé :
+
+| Indicateur | Nombre |
+|---|---:|
+| Politiques permissives multiples | 137 |
+| Index dupliqués | 9 |
+| Clés étrangères sans index couvrant détecté | 53 |
+| Politiques avec expression RLS susceptible d'être réévaluée par ligne | 26 |
+| Index signalés comme inutilisés | 76 |
+
+Ces alertes demandent une analyse. Elles ne prouvent pas automatiquement une lenteur observée. Ne pas supprimer les index dits inutilisés sans analyser les requêtes, la période d'observation et les besoins métier. Examiner les politiques avant de les fusionner, car leur combinaison peut modifier les autorisations.
+
+## 11. Points de vigilance pour les services
+
+- Vérifier si la page active appelle un service local ou Supabase.
+- Ne jamais exposer la clé `service_role` dans le navigateur.
+- Valider les entrées côté serveur, même si les formulaires utilisent Zod.
+- Garder les opérations financières et les mutations critiques atomiques.
+- Contrôler l'appartenance à l'établissement pour chaque ressource.
+- Ne pas déduire qu'un test est réussi à partir d'une compilation ou d'une réponse HTTP 200.
+- Conserver les données historiques et tracer les corrections sensibles.
+
+## 12. Règles d'évolution
+
+1. Identifier le parcours actif et son service avant toute modification.
+2. Documenter les contrats de données et les dépendances.
+3. Réconcilier l'historique des migrations avant de prétendre pouvoir reconstruire la production.
+4. Versionner les fonctions Edge manquantes après revue de sécurité.
+5. Harmoniser les permissions entre le frontend, les rôles et les politiques RLS.
+6. Tester avec plusieurs rôles et plusieurs établissements.
+7. Mettre à jour cette documentation avec la date, le commit et la portée réelle des contrôles.
+
 ---
 
-## 1. Objet du document
-
-Ce document décrit les principes d'organisation du code, la séparation des responsabilités, la gestion des données et les exigences à respecter au fil de l'évolution du Système Administratif Scolaire. Il sert de référence pour maintenir une architecture compréhensible et limiter les régressions lors des modifications.
-
-> **État actuel :** les modules ne sont pas tous nécessairement au même niveau de maturité. Les usages de `localStorage` varient selon les fonctionnalités ; la migration vers Supabase est une étape future et doit être validée séparément.
-
-## 2. Vue d'ensemble de l'architecture
-
-```mermaid
-flowchart TD
-    UI["Page ou composant UI"] --> H["Hook de domaine"]
-    H --> S["Service"]
-    S --> D["Accès aux données"]
-    D --> L["localStorage<br/>si utilisé par le module"]
-    D -. "cible de migration" .-> DB["Supabase"]
-    classDef main fill:#EAF2FF,stroke:#2457A7,color:#17365D,stroke-width:1.5px
-    classDef data fill:#FFFFFF,stroke:#7896C8,color:#17365D
-    classDef future fill:#F4F7FC,stroke:#2457A7,color:#17365D,stroke-dasharray:5 5
-    class UI,H,S main
-    class D,L data
-    class DB future
-```
-
-| Couche | Responsabilité principale | À éviter |
-|---|---|---|
-| Page / interface | Afficher les informations et orchestrer les interactions | Accumuler toutes les règles métier |
-| Hook de domaine | Coordonner chargement, état, mutations et données dérivées | Mélanger plusieurs domaines sans rapport |
-| Service | Exposer des opérations de données cohérentes | Répéter la logique dans plusieurs composants |
-| Source de données | Lire et enregistrer les informations | Faire confiance à des données non validées |
-
-La séparation facilite les évolutions, mais ne signifie pas que tous les modules utilisent déjà exactement le même chemin. Chaque modification doit commencer par l'inspection du module concerné.
-
-## 3. Pages et composants
-
-Une page doit organiser le parcours utilisateur : contexte, recherche ou filtres, contenu principal et actions pertinentes. Les composants réutilisables doivent avoir une responsabilité claire : tableau, formulaire, filtre, fenêtre modale, détail ou état vide.
-
-Avant d'extraire ou de fusionner un composant, vérifier ses usages, ses propriétés, les rôles qui l'utilisent et les comportements déjà attendus.
-
-## 4. Hooks et services
-
-### 4.1. Hooks
-
-Un hook peut centraliser le chargement, la gestion des erreurs, les mutations, le rafraîchissement, les filtres et les données calculées nécessaires à l'interface. Il doit rester centré sur un domaine identifiable.
-
-### 4.2. Services
-
-Les services encapsulent les opérations sur les données afin que les composants ne dépendent pas directement des détails de stockage.
-
-| Phase | Principe | Point de vigilance |
-|---|---|---|
-| Fonctionnement local | Utiliser `localStorage` dans les modules qui en dépendent actuellement | Contrôler les données absentes, mal formées ou anciennes |
-| Migration future | Remplacer progressivement la source locale par Supabase | Conserver des contrats cohérents et tester les erreurs réseau |
-| Mise en production | Utiliser des services sécurisés côté serveur lorsque nécessaire | Ne jamais exposer de secret serveur dans le navigateur |
-
-## 5. Domaine « Classes »
-
-Le domaine Classes regroupe des responsabilités liées qui doivent rester distinguables.
-
-```mermaid
-flowchart TD
-    C["Gestion des classes"] --> I["Informations générales"]
-    C --> E["Effectifs et capacité"]
-    C --> EL["Élèves associés"]
-    C --> EN["Enseignants associés"]
-    C --> R["Répartition"]
-    C --> H["Horaires"]
-    classDef root fill:#2457A7,stroke:#17365D,color:#FFFFFF,stroke-width:1.5px
-    classDef item fill:#EAF2FF,stroke:#7896C8,color:#17365D
-    class C root
-    class I,E,EL,EN,R,H item
-```
-
-La page principale doit privilégier les opérations de gestion : recherche, filtres, tableau, création, modification, consultation et actions contextuelles. Les responsabilités liées peuvent collaborer sans être fusionnées dans un composant ou un hook monolithique.
-
-## 6. Modèle multi-établissement visé
-
-```mermaid
-flowchart TD
-    ET["Établissement"] --> U["Utilisateurs et profils"]
-    ET --> CL["Classes"]
-    ET --> EL["Élèves"]
-    ET --> EN["Enseignants"]
-    ET --> PA["Paiements"]
-    ET --> AU["Autres données métier"]
-    classDef root fill:#2457A7,stroke:#17365D,color:#FFFFFF
-    classDef child fill:#EAF2FF,stroke:#7896C8,color:#17365D
-    class ET root
-    class U,CL,EL,EN,PA,AU child
-```
-
-Ce schéma représente une cible d'architecture et non une affirmation selon laquelle toutes ces relations sont déjà implémentées. Chaque ressource concernée devra être rattachée à son établissement et son accès contrôlé côté serveur.
-
-## 7. Rôles et permissions
-
-| Rôle cible | Périmètre indicatif |
-|---|---|
-| Administrateur d'établissement | Paramétrage et gestion générale autorisée |
-| Comptabilité | Paiements et données financières nécessaires |
-| Secrétariat | Dossiers et documents administratifs nécessaires |
-| Direction | Informations nécessaires au pilotage |
-| Surveillance | Présence et suivi de la vie scolaire |
-
-Le frontend peut masquer ou désactiver des actions pour améliorer l'expérience. L'autorisation effective doit être appliquée côté backend/base de données. Un utilisateur ne doit pas pouvoir accéder à un autre établissement en modifiant simplement un identifiant.
-
-## 8. Structure d'interface recommandée
-
-```mermaid
-flowchart TD
-    A["Titre et contexte"] --> B["Recherche, filtres et action principale"]
-    B --> C["Tableau ou liste principale"]
-    C --> D["Actions contextuelles"]
-    D --> E["Détail ou modale si nécessaire"]
-    classDef step fill:#EAF2FF,stroke:#2457A7,color:#17365D
-    class A,B,C,D,E step
-```
-
-Les cartes sont pertinentes lorsqu'elles représentent une unité logique. Elles ne doivent pas être le composant par défaut de toutes les pages.
-
-## 9. États d'interface à prévoir
-
-| État | Comportement attendu |
-|---|---|
-| Chargement | Indiquer que les données sont en cours de récupération |
-| Succès | Afficher les données ou confirmer l'action réalisée |
-| Liste vide | Expliquer qu'aucun élément n'est encore enregistré |
-| Aucun résultat | Indiquer que les filtres ne renvoient aucun élément |
-| Erreur | Donner un message compréhensible et, si possible, une action de reprise |
-| Mutation en cours | Empêcher les doubles soumissions et signaler l'attente |
-| Confirmation | Demander une confirmation pour les actions sensibles ou difficiles à annuler |
-
-## 10. Validation des données
-
-Les formulaires doivent réutiliser les mécanismes de validation présents lorsqu'ils conviennent, notamment React Hook Form et Zod. Toute donnée provenant d'une source externe doit être vérifiée avant d'être considérée comme fiable.
-
-Les règles de validation importantes doivent être cohérentes entre interface et serveur. La validation côté client améliore l'expérience mais ne remplace pas les contrôles côté serveur.
-
-## 11. Performance et accessibilité
-
-- Éviter les appels de service répétés à chaque rendu et les effets React inutiles.
-- Ne charger que les données nécessaires au parcours.
-- Prévoir pagination, filtrage ou virtualisation lorsque le volume le justifie.
-- Utiliser des libellés explicites, un contraste suffisant et une navigation clavier cohérente.
-- Ne pas transmettre une information uniquement par la couleur.
-- Vérifier l'affichage sur écran étroit et à différentes tailles de texte.
-
-## 12. Sécurité de la future intégration Supabase
-
-La migration devra prévoir l'authentification, les rôles, l'isolation par établissement, les politiques RLS, la validation des mutations et la protection des données personnelles.
-
-```mermaid
-flowchart LR
-    A["Utilisateur authentifié"] --> B["Vérification du rôle"]
-    B --> C["Vérification de l'établissement"]
-    C --> D["Policy / contrôle serveur"]
-    D --> E["Lecture ou écriture autorisée"]
-    D -. "refus" .-> F["Erreur d'accès"]
-    classDef secure fill:#EAF2FF,stroke:#2457A7,color:#17365D
-    classDef deny fill:#FFFFFF,stroke:#64748B,color:#334155
-    class A,B,C,D,E secure
-    class F deny
-```
-
-Ne jamais considérer une donnée comme protégée uniquement parce qu'elle est masquée dans l'interface. Les clés privées et secrets ne doivent jamais être placés dans le code client.
-
-## 13. Principes d'évolution
-
-1. Stabiliser les interfaces et la logique métier locale.
-2. Vérifier les parcours fonctionnels et les erreurs.
-3. Définir le modèle de données et les relations.
-4. Migrer les services progressivement.
-5. Mettre en place l'authentification, les rôles et les policies RLS.
-6. Tester les scénarios multi-utilisateurs et multi-établissements.
-7. Mettre à jour cette documentation après chaque changement d'architecture significatif.
+*Instantané technique établi le 2 novembre 2026. Les données de production et le dépôt peuvent changer après cette date.*

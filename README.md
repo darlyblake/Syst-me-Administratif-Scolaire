@@ -6,119 +6,130 @@
 </p>
 
 <p align="center">
-  <a href="https://syst-me-administratif-scolaire.vercel.app/">Application en ligne</a>
-  &nbsp;·&nbsp;
-  <a href="https://github.com/darlyblake/Syst-me-Administratif-Scolaire/actions">Intégration continue</a>
-  &nbsp;·&nbsp;
-  <a href="./docs/ARCHITECTURE.md">Architecture</a>
-  &nbsp;·&nbsp;
-  <a href="./docs/ROADMAP.md">Feuille de route</a>
-  &nbsp;·&nbsp;
+  <a href="https://syst-me-administratif-scolaire.vercel.app/">Application en ligne</a> ·
+  <a href="https://github.com/darlyblake/Syst-me-Administratif-Scolaire/actions">GitHub Actions</a> ·
+  <a href="./docs/ARCHITECTURE.md">Architecture</a> ·
+  <a href="./docs/ROADMAP.md">Feuille de route</a> ·
   <a href="./docs/VALIDATION-TESTS.md">Bilan des tests</a>
 </p>
 
 ---
 
-## Présentation du projet
+## Présentation
 
-Le **Système Administratif Scolaire** est une application conçue pour regrouper les principales opérations administratives d'un établissement dans une interface claire, cohérente et facile à utiliser. Le projet vise à simplifier le travail quotidien du personnel, à mieux organiser les informations et à faciliter leur consultation.
+Le **Système Administratif Scolaire** est une application web destinée à organiser les principales opérations administratives et pédagogiques d'un établissement : élèves, inscriptions, classes, personnel, présences, notes, paiements, documents et échanges avec les parents.
 
-> **État technique documenté :** le projet est en phase de stabilisation du frontend et de la logique métier locale. Les modules et parcours doivent être validés individuellement avant de considérer l'ensemble de l'application comme prêt pour une utilisation complète en production.
+Le projet est développé dans le cadre d'une Licence 3 en Développement Web et Mobile. Il s'appuie sur des pages et composants React, des hooks, des services métier et plusieurs sources de données. **L'intégration de Supabase est déjà effective dans plusieurs domaines ; elle n'est pas une simple étape future.** Certains anciens parcours conservent toutefois un stockage local : la migration reste progressive et hybride.
+
+> **État documentaire au 2 novembre 2026 :** les chiffres et constats techniques ci-dessous sont un instantané du dépôt `main` et du projet Supabase consultés à cette date. Ils peuvent évoluer. La présence d'un fichier ou d'une fonction ne prouve pas qu'un parcours a été testé en conditions réelles.
 
 ## Objectifs
 
 | Axe | Objectif |
 |---|---|
-| Organisation | Centraliser les informations scolaires et administratives utiles. |
-| Suivi | Faciliter la consultation des élèves, enseignants, classes et opérations. |
-| Expérience utilisateur | Proposer une interface sobre, lisible et adaptée aux tâches quotidiennes. |
-| Évolutivité | Préparer une migration progressive vers une source de données centralisée. |
-| Sécurité | Définir des rôles clairs et prévoir l'application des permissions côté serveur. |
+| Organisation | Structurer les informations scolaires et administratives |
+| Suivi | Faciliter la consultation des élèves, classes, enseignants, présences et opérations financières |
+| Communication | Améliorer l'accès des familles aux informations utiles |
+| Traçabilité | Conserver l'historique des opérations et des modifications importantes |
+| Sécurité | Contrôler les accès selon les utilisateurs, rôles et établissements |
+| Évolutivité | Faire évoluer progressivement les modules et leurs services de données |
 
-## Architecture générale
-
-La logique de développement sépare progressivement l'affichage, la gestion métier et l'accès aux données.
+## Architecture générale actuelle
 
 ```mermaid
 flowchart TD
-    A["Page / composant d'interface"] --> B["Hook de domaine"]
-    B --> C["Service métier"]
-    C --> D["Source de données"]
-    D --> E["localStorage<br/>selon le module"]
-    D -. "migration prévue" .-> F["Supabase"]
-    classDef ui fill:#EAF2FF,stroke:#2457A7,color:#17365D,stroke-width:1.5px
-    classDef layer fill:#FFFFFF,stroke:#7896C8,color:#17365D
-    classDef future fill:#F4F7FC,stroke:#2457A7,color:#17365D,stroke-dasharray:5 5
-    class A ui
-    class B,C,D,E layer
-    class F future
+    A["Pages et composants Next.js / React"] --> B["Hooks de domaine"]
+    B --> C["Services métier"]
+    C --> D{"Source selon le module"}
+    D --> E["Supabase"]
+    D --> F["localStorage / services locaux"]
+    E --> G["PostgreSQL · RPC · RLS · Storage"]
+    E --> H["Fonctions Edge"]
 ```
 
-Pendant la phase actuelle, certains modules utilisent encore `localStorage`. La migration vers Supabase reste une étape distincte qui nécessitera un modèle de données, une authentification, des règles de sécurité et des tests dédiés.
+L'architecture n'est donc ni exclusivement locale ni entièrement centralisée dans Supabase. Les modules doivent être examinés individuellement avant d'affirmer quelle source de données ils utilisent.
+
+Exemples observés dans le dépôt :
+- Le registre d'appel actif utilise les services Supabase.
+- Les parcours financiers actifs utilisent des services Supabase.
+- Les pages de notes et de bulletins utilisent des services Supabase.
+- La page administrative de documents utilise encore un service basé sur `localStorage`.
+- Des services historiques locaux coexistent avec les services Supabase.
 
 ## Technologies principales
 
-| Technologie | Rôle dans le projet |
+| Technologie | Rôle |
 |---|---|
 | Next.js 15 | Application web et routage |
 | React 18 | Interface utilisateur |
-| TypeScript | Typage du code |
-| Tailwind CSS | Mise en forme de l'interface |
-| Radix UI | Composants d'interface accessibles |
-| React Hook Form et Zod | Gestion et validation des formulaires |
-| Lucide React | Icônes |
-| Jest | Tests automatisés, selon les suites disponibles |
-| Capacitor / Electron | Pistes de distribution mobile et desktop |
+| TypeScript 5.9 | Typage et structuration du code |
+| Tailwind CSS 4.1 | Mise en forme |
+| Supabase / PostgreSQL 17 | Authentification, données, fonctions et politiques d'accès |
+| Jest | Tests automatisés présents dans le dépôt |
+| Capacitor 8 | Structure de distribution mobile |
+| Electron | Structure de distribution desktop |
+| Vercel | Hébergement et déploiement web |
 
-## Rôles fonctionnels visés
+La présence de Capacitor ou d'Electron dans le projet ne signifie pas qu'une application mobile native ou un logiciel desktop finalisé a été livré.
 
-| Rôle | Périmètre attendu |
+## Instantané Supabase
+
+Lors de la consultation en lecture seule du 2 novembre 2026, le projet Supabase présentait :
+
+| Indicateur | Valeur observée |
+|---|---:|
+| Tables du schéma public | 87 |
+| Tables publiques avec RLS activé | 87 |
+| Politiques RLS publiques | 226 |
+| Fonctions du schéma public | 232 |
+| Déclencheurs PostgreSQL publics | 76 |
+| Fonctions Edge actives | 12 |
+
+Ces nombres décrivent la base à la date de consultation. Ils ne constituent ni un inventaire fonctionnel exhaustif ni une preuve que chaque politique et chaque fonction ont été testées.
+
+## Sécurité : état et vigilance
+
+La base active possède RLS sur les 87 tables publiques observées. L'application utilise aussi des mécanismes d'authentification, de rôles et de permissions. Des composants frontend tels que `PermissionRoute` participent au contrôle des parcours, mais le masquage d'une action dans l'interface ne remplace pas une autorisation côté base ou serveur.
+
+Le dépôt consulté ne contient pas de fichier `middleware.ts` ni `proxy.ts`. Il ne faut donc pas décrire un middleware Next.js comme mécanisme global de protection des routes.
+
+L'inspection Supabase a également fait ressortir des points à examiner : fonctions `SECURITY DEFINER`, cohérence de certaines permissions, tables sans politique RLS, politiques permissives multiples et configuration de protection contre les mots de passe compromis. Les détails figurent dans [l'architecture](./docs/ARCHITECTURE.md).
+
+## Documentation
+
+| Document | Objet |
 |---|---|
-| Administrateur d'établissement | Paramétrage et gestion générale dans les limites de ses droits |
-| Comptabilité | Suivi des paiements et opérations financières autorisées |
-| Secrétariat | Informations administratives nécessaires aux inscriptions et documents |
-| Direction | Consultation des informations utiles au pilotage |
-| Surveillance | Suivi de la présence et informations liées à la vie scolaire |
-
-Ces rôles décrivent le modèle fonctionnel visé. **Masquer une action dans l'interface ne suffit pas à sécuriser les données** : les autorisations doivent aussi être contrôlées côté serveur ou base de données.
-
-## Principes d'interface
-
-La présentation recherchée est professionnelle et universitaire, avec une dominante bleu et blanc.
-
-- Hiérarchie claire des titres et des informations.
-- Tableaux pour comparer des données ; listes pour les éléments simples.
-- Recherche, filtres et actions principales facilement repérables.
-- Modales utilisées seulement lorsqu'elles simplifient une tâche.
-- Espacements réguliers, contraste suffisant et affichage adapté aux petits écrans.
-- Pas de cartes décoratives à répétition, de statistiques artificielles ni d'effets visuels inutiles.
-
-## Documentation du projet
-
-| Document | Contenu |
-|---|---|
-| [Architecture technique](./docs/ARCHITECTURE.md) | Couches applicatives, données, permissions et principes de conception |
-| [Feuille de route](./docs/ROADMAP.md) | Étapes prévues, priorités et critères de progression |
-| [Bilan des tests](./docs/VALIDATION-TESTS.md) | Résultats consultables, limites et vérifications restantes |
+| [Architecture technique](./docs/ARCHITECTURE.md) | Architecture hybride, données, sécurité, migrations et constats Supabase |
+| [Feuille de route](./docs/ROADMAP.md) | Priorités de stabilisation, traçabilité, tests et améliorations |
+| [Bilan des tests](./docs/VALIDATION-TESTS.md) | Distinction entre code présent, tests déclarés et vérifications restantes |
+| [Plan Interface École](./IMPLEMENTATION-ECOLE.md) | État indicatif des domaines fonctionnels |
+| [Plan Pointage](./POINTAGE-IMPLEMENTATION.md) | Fonctionnalités du pointage et tests à réaliser |
+| [Checklist Parent](./PARENT-TODO.md) | Suivi détaillé des parcours du portail parent |
 | [Règles pour les agents](./AGENTS.md) | Consignes de développement et de maintenance |
 
 ## Développement local
 
-Les scripts disponibles doivent être confirmés dans le `package.json` de la version utilisée. Les commandes généralement prévues par le projet sont :
+Consulter d'abord les scripts réellement déclarés dans `package.json`. Les commandes courantes du projet peuvent inclure :
 
 ```bash
+npm install
 npm run dev
-npm run lint
-npm test
 npm run build
+npm test
 ```
 
-Ne considérer une modification comme terminée qu'après avoir contrôlé le parcours concerné, les erreurs, les états de chargement, les formulaires, l'affichage responsive et les tests pertinents.
+Ne lancer que les scripts présents dans la version locale. Un build réussi ne remplace pas les tests métier, les essais authentifiés ni les contrôles de sécurité.
 
-## Sécurité et évolution
+## Règles de lecture des statuts
 
-Les prochaines étapes structurantes sont la stabilisation des modules, la définition du modèle de données, la migration progressive des services, puis la mise en place de l'authentification et des règles de sécurité. Les détails et l'ordre de ces étapes figurent dans la [feuille de route](./docs/ROADMAP.md).
+- **Présent dans le code** : une page, un service ou une fonction existe dans le dépôt.
+- **Déployé** : un élément est présent dans l'environnement actif.
+- **Testé** : un scénario précis a réellement été exécuté.
+- **Validé** : le résultat attendu a été constaté et peut être documenté.
+- **À vérifier** : le code existe, mais le test ou la preuve n'est pas disponible.
+
+Ne pas déduire un statut de test à partir d'une simple case cochée dans une ancienne checklist.
 
 ---
 
-<p align="center"><sub>Documentation du projet — Système Administratif Scolaire</sub></p>
+<p align="center"><sub>Documentation du projet — mise à jour technique du 2 novembre 2026</sub></p>

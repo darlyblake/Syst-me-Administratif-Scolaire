@@ -21,7 +21,7 @@
 | **Étudiant** | MOUEMBANZA LOUNDOU Darly Freid |
 | **Formation** | Licence 3 — Développement Web et Mobile, pôle STI |
 | **Établissement de formation** | Université Numérique du Gabon (UNG) |
-| **Date de mise à jour** | 28 octobre 2026 |
+| **Date de mise à jour** | 2 novembre 2026 |
 
 ## Synthèse de l'état des vérifications
 
@@ -156,3 +156,37 @@ Ce projet m'a permis de partir de besoins que j'ai observés dans mon environnem
 ---
 
 *Remarque méthodologique : ce bilan distingue les tests fonctionnels déclarés terminés, les résultats techniques consultables et les essais complémentaires qui restent à effectuer. Il ne remplace pas les comptes rendus détaillés de tests lorsqu'ils sont disponibles.*
+
+
+## 8. État technique complémentaire — 2 novembre 2026
+
+J'ai confronté le dépôt GitHub `main` au projet Supabase actif. La branche consultée pointait sur le commit `923563d05c0f363463f523bd00db70337afe0e67` (28 octobre 2026). L'inspection Supabase a été effectuée en lecture seule.
+
+| Indicateur Supabase | Valeur observée |
+|---|---:|
+| Tables publiques | 87 |
+| Tables avec RLS activé | 87 |
+| Politiques RLS | 226 |
+| Fonctions publiques | 232 |
+| Triggers publics | 76 |
+| Fonctions Edge actives | 12 |
+
+Ces chiffres décrivent la structure observée, pas la réussite des tests fonctionnels.
+
+### Écarts de versionnement constatés
+
+| Élément | Dépôt | Supabase actif |
+|---|---:|---:|
+| Migrations SQL | 91 fichiers, 87 numéros distincts | 228 versions distinctes |
+| Fonctions Edge | 5 sources repérées | 12 fonctions actives |
+
+La comparaison des numéros de migration a trouvé 21 versions communes. Les autres écarts peuvent inclure des migrations renumérotées ou exécutées autrement ; leur équivalence doit être examinée avant toute conclusion définitive. Sept fonctions Edge actives n'avaient pas de dossier source correspondant dans le dépôt consulté. Le dépôt ne suffit donc pas à reproduire exactement le backend actif.
+
+### Points de sécurité à vérifier
+
+- Revue des fonctions SECURITY DEFINER et de leurs droits EXECUTE.
+- Harmonisation des permissions utilisées dans les politiques et dans `private.has_permission`.
+- Examen des quatre tables publiques avec RLS activé mais sans politique déclarée.
+- Vérification des politiques permissives multiples et de la protection contre les mots de passe compromis.
+
+Ces constats ne prouvent pas une exploitation ni une fuite de données. Ils définissent des vérifications à mener avec des comptes et rôles réels. Voir [Architecture technique](./ARCHITECTURE.md) pour les détails.

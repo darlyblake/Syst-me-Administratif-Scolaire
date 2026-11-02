@@ -1,6 +1,6 @@
 # Interface Parent — feuille de route
 
-Cette checklist suit l'avancement réel du module Parent. Une tâche n'est cochée que lorsque le frontend, le backend nécessaire, la sécurité et la vérification associée sont terminés.
+Cette checklist suit les parcours du module Parent. **Mise à jour du 2 novembre 2026 :** les cases cochées dans cette checklist historique ne doivent pas être considérées seules comme une preuve de validation. Pour confirmer une tâche, vérifier le frontend actif, le service et la fonction backend, les politiques RLS, puis exécuter un test authentifié avec un compte parent. Les tâches non cochées restent à examiner ; une tâche cochée peut également nécessiter une revalidation après changement du code.
 
 ## 1. Tableau de bord
 - [x] Résumé des enfants

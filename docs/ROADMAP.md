@@ -3,144 +3,159 @@
 <p align="center">
   <strong>UNIVERSITÉ NUMÉRIQUE DU GABON (UNG)</strong><br>
   <em>Pôle STI · Licence 3 · Développement Web et Mobile</em><br>
-  <strong>PLAN DE PROGRESSION ET DE VALIDATION</strong>
+  <strong>PLAN DE STABILISATION ET DE VALIDATION</strong>
 </p>
 
-<p align="center">
-  <a href="../README.md">Présentation</a> &nbsp;·&nbsp;
-  <a href="./ARCHITECTURE.md">Architecture</a> &nbsp;·&nbsp;
-  <a href="./ROADMAP.md">Feuille de route</a> &nbsp;·&nbsp;
-  <a href="./VALIDATION-TESTS.md">Bilan des tests</a>
-</p>
+> Mise à jour du 2 novembre 2026, après inspection en lecture seule du dépôt `main` et du projet Supabase actif. Cette feuille de route ne décrit plus une migration Supabase future : plusieurs modules utilisent déjà Supabase. Le système reste hybride.
+
+## 1. État général
+
+Le travail à venir porte surtout sur la cohérence des sources de données, la traçabilité du backend, l'harmonisation des permissions et les tests fonctionnels.
+
+| Domaine | Situation constatée | Priorité |
+|---|---|---|
+| Architecture | Services Supabase et services locaux coexistent | Élevée |
+| Migrations | Historique du dépôt très différent de l'historique Supabase | Critique |
+| Fonctions Edge | 12 actives, 5 sources présentes dans le dépôt | Critique |
+| Permissions | Noms de permissions à harmoniser et tester | Critique |
+| Fonctions SECURITY DEFINER | Revue des droits et du code nécessaire | Critique |
+| Portail parent | Plusieurs parcours restent listés dans la checklist | Élevée |
+| Notes / bulletins | Module développé, tests de non-régression à reprendre après changements récents | Élevée |
+| Documents | Page administrative encore locale, modèles à améliorer et impression à vérifier | Moyenne |
+| Pointage du personnel / enseignants | Frontend et backend présents ; tests de scénarios encore à consigner | Élevée |
+| Performance | Alertes Supabase à analyser avant optimisation | Moyenne |
+
+## 2. Priorité 1 — Rétablir la traçabilité du backend
+
+### 2.1 Réconcilier les migrations
+
+Instantané du 2 novembre 2026 :
+- 91 fichiers SQL dans `supabase/migrations` ;
+- 87 préfixes de version distincts ;
+- 228 versions distinctes enregistrées dans Supabase ;
+- 21 numéros communs ;
+- 207 versions actives sans fichier portant exactement le même numéro dans le dépôt ;
+- 66 préfixes de fichiers absents de l'historique consulté ;
+- quatre préfixes répétés dans le dépôt.
+
+Actions :
+- établir un inventaire version par version ;
+- comparer le contenu SQL des migrations proches ou renumérotées ;
+- identifier les migrations exécutées manuellement ;
+- retrouver les sources historiques manquantes ;
+- documenter les écarts et leur justification ;
+- préparer une procédure reproductible de reconstruction dans un environnement de test.
+
+**Ne pas réinitialiser ni modifier la base de production pour résoudre ces écarts sans sauvegarde, comparaison et plan de retour arrière.**
+
+### 2.2 Versionner les fonctions Edge
+
+Douze fonctions Edge sont actives dans Supabase, mais cinq dossiers sources seulement ont été trouvés dans le dépôt consulté. Retrouver les sources des sept fonctions manquantes, vérifier les secrets et les dépendances, puis les versionner sans inclure de valeurs secrètes dans Git.
+
+## 3. Priorité 2 — Harmoniser les autorisations
+
+Actions :
+- comparer les permissions utilisées dans les politiques RLS, dans `private.has_permission` et dans les tables d'attribution des rôles ;
+- définir une nomenclature unique ;
+- vérifier notamment `settings.read`, `settings.manage`, `payments.read` et `finance.view` ;
+- tester chaque opération avec un compte de chaque rôle ;
+- vérifier les accès entre deux établissements ;
+- examiner les quatre tables RLS sans politique ;
+- revoir les droits EXECUTE des fonctions SECURITY DEFINER ;
+- activer et tester la protection contre les mots de passe compromis si elle est compatible avec le parcours d'authentification.
+
+Ne pas considérer une permission comme réparée tant qu'un test authentifié n'a pas démontré le résultat attendu et le refus attendu pour les rôles non autorisés.
+
+## 4. Priorité 3 — Stabiliser l'architecture hybride
+
+Pour chaque domaine, tenir à jour un tableau précisant :
+- page d'entrée active ;
+- hook utilisé ;
+- service réellement appelé ;
+- source de données ;
+- fonctions RPC ou Edge sollicitées ;
+- politiques RLS concernées ;
+- tests exécutés.
+
+Domaines à documenter en premier :
+1. élèves et inscriptions ;
+2. classes et enseignants ;
+3. registre d'appel ;
+4. notes et bulletins ;
+5. paiements et finances ;
+6. portail parent ;
+7. pointage du personnel ;
+8. documents administratifs.
+
+Ne pas supprimer les anciens services locaux avant d'avoir recherché tous leurs usages et vérifié qu'un parcours Supabase les remplace réellement.
+
+## 5. Priorité 4 — Terminer les vérifications fonctionnelles
+
+| Module | Situation | Travail restant |
+|---|---|---|
+| Connexion, rôles, tableaux de bord, responsive, inscriptions et classes | Tests manuels déclarés réussis dans le périmètre essayé | Rejouer après changements sensibles |
+| Registre d'appel des élèves | Tests déclarés réussis | Conserver les scénarios et résultats datés |
+| Paiements | Scénarios G1 à G5 précédemment déclarés validés | Rejouer après changement du backend financier |
+| Notes et résultats | Fonctionnalités développées | Tests de non-régression des notes, moyennes, classements et bulletins |
+| Documents administratifs | Génération présente, service administratif encore local | Améliorer les modèles et vérifier l'impression réelle |
+| QR / pointage | Code et parcours présents | Exécuter et documenter les scénarios QR, code, arrivée, départ et clôture |
+| Portail parent | Plusieurs fonctions présentes, checklist avec tâches non cochées | Vérifier les parcours enfant, bulletins, reçus, communication et fichiers |
+| Erreurs réseau | Validation non confirmée | Tester panne, reprise et messages d'erreur |
+
+Un build réussi, une route HTTP 200 ou la présence d'un composant ne valident pas un scénario métier.
+
+## 6. Priorité 5 — Portail parent
+
+S'appuyer sur `PARENT-TODO.md` comme liste de travail, mais contrôler chaque case avec le code, le backend, la sécurité et un test. Les points explicitement à reprendre comprennent :
+- vérification de l'identité de l'enfant ;
+- bulletins et téléchargement ;
+- reste à payer, reçus et téléchargements ;
+- gestion multi-enfants / multi-établissements ;
+- calendrier et rappels ;
+- communication établissement-parent ;
+- demandes de support ;
+- profil et paramètres ;
+- protection des fichiers et audit des accès ;
+- tests RLS et tests croisés parent/enfant.
+
+## 7. Priorité 6 — Performance et qualité
+
+Les alertes Supabase du 2 novembre 2026 mentionnent 137 situations de politiques permissives multiples, 9 index dupliqués, 53 clés étrangères sans index couvrant, 26 politiques avec expression RLS à optimiser et 76 index signalés comme inutilisés.
+
+Actions :
+- examiner les requêtes lentes et leurs plans ;
+- analyser les index sur une période représentative ;
+- fusionner les politiques uniquement après vérification de leur logique d'autorisation ;
+- mesurer avant/après les optimisations ;
+- ne pas supprimer automatiquement les index signalés inutilisés.
+
+## 8. CI et tests automatisés
+
+Le dépôt contient quatre fichiers Jest :
+- `tests/comptabilite-facade.test.ts`
+- `tests/enseignants.service.test.ts`
+- `tests/messages-service.test.ts`
+- `tests/notifications-service.test.ts`
+
+Le workflow GitHub Actions consulté lance l'installation et la compilation Next.js. Il ne lance pas automatiquement les suites Jest, ESLint ni une vérification TypeScript explicite.
+
+Améliorations proposées :
+1. ajouter l'exécution de Jest dans le workflow ;
+2. ajouter les contrôles TypeScript et ESLint s'ils sont configurés ;
+3. conserver les résultats de build et de tests comme artefacts ;
+4. séparer tests unitaires, tests d'intégration Supabase et tests manuels authentifiés ;
+5. ne pas faire dépendre la CI de secrets de production.
+
+## 9. Critères de clôture
+
+Une tâche est terminée seulement si :
+- son code est versionné ;
+- sa source de données réelle est identifiée ;
+- les autorisations ont été contrôlées ;
+- le scénario nominal et les erreurs importantes ont été testés ;
+- les résultats sont consignés ;
+- la documentation correspond à l'état réellement livré.
 
 ---
 
-## Vue d'ensemble
-
-La feuille de route distingue la stabilisation de l'interface et de la logique locale de la migration vers un backend sécurisé. Une étape ne doit être considérée comme achevée que lorsque ses critères ont été contrôlés.
-
-```mermaid
-flowchart LR
-    A["1. Stabilisation UI<br/>et logique locale"] --> B["2. Modèle de données"]
-    B --> C["3. Migration Supabase"]
-    C --> D["4. Sécurité et permissions"]
-    D --> E["5. Tests et production"]
-    classDef stage fill:#EAF2FF,stroke:#2457A7,color:#17365D,stroke-width:1.5px
-    class A,B,C,D,E stage
-```
-
-## Phase 1 — Stabilisation du frontend et de la logique locale
-
-**Objectif :** obtenir des parcours cohérents avant d'introduire une migration backend plus large.
-
-| Travail | État de suivi | Critère de sortie |
-|---|---|---|
-| Définir les règles globales et documenter l'architecture | Réalisé selon la documentation du dépôt | Les règles sont accessibles et cohérentes |
-| Finaliser les modules frontend | À faire | Les parcours principaux sont testés |
-| Harmoniser hooks et services | À faire | Responsabilités identifiées et dépendances maîtrisées |
-| Nettoyer les composants obsolètes ou doublons | À faire | Aucun retrait sans vérification des usages |
-| Contrôler création, modification et suppression | À faire | Cas nominal et erreurs testés |
-| Vérifier les états de chargement, vide et erreur | À faire | Chaque parcours présente un retour compréhensible |
-| Vérifier responsive et accessibilité | À faire | Contrôle sur plusieurs tailles et navigation clavier |
-| Stabiliser tests et build | En cours de validation | Les commandes et tests pertinents sont exécutés et consignés |
-
-Les états ci-dessus sont un suivi documentaire, pas un résultat de test automatique.
-
-## Phase 2 — Définition du modèle de données
-
-Avant de créer ou de migrer la base, définir :
-
-- les entités et leurs champs ;
-- les relations et clés étrangères ;
-- les identifiants stables ;
-- l'appartenance de chaque ressource à un établissement ;
-- les rôles et permissions ;
-- les contraintes d'intégrité ;
-- les données personnelles ou sensibles ;
-- les règles d'archivage et de suppression ;
-- les règles de sauvegarde et de restauration.
-
-**Critère de sortie :** un modèle documenté, relu et compatible avec les besoins des modules existants.
-
-## Phase 3 — Migration progressive vers Supabase
-
-La migration doit se faire domaine par domaine, plutôt que par une réécriture globale.
-
-```mermaid
-flowchart TD
-    A["Service local existant"] --> B["Contrat de données documenté"]
-    B --> C["Service Supabase"]
-    C --> D["Tests de lecture et écriture"]
-    D --> E{"Résultats conformes ?"}
-    E -- Oui --> F["Activation progressive"]
-    E -- Non --> G["Correction et nouveaux tests"]
-    G --> D
-    classDef step fill:#EAF2FF,stroke:#2457A7,color:#17365D
-    classDef decision fill:#FFFFFF,stroke:#2457A7,color:#17365D
-    class A,B,C,D,F,G step
-    class E decision
-```
-
-Ordre de migration proposé :
-
-1. Authentification et profils.
-2. Établissements et utilisateurs.
-3. Élèves et enseignants.
-4. Classes et relations scolaires.
-5. Modules administratifs.
-6. Données financières et autres domaines métier selon les dépendances.
-
-Cet ordre pourra être ajusté après inspection du modèle réel et des dépendances entre modules.
-
-## Phase 4 — Sécurité et permissions
-
-| Contrôle | Résultat attendu |
-|---|---|
-| Authentification | Les ressources protégées nécessitent une session valide |
-| Rôles | Chaque action est autorisée selon les droits effectifs |
-| Isolation des établissements | Un utilisateur ne lit ni ne modifie les données d'un autre établissement |
-| RLS | Les politiques couvrent les opérations et les tables concernées |
-| Validation serveur | Les données sont contrôlées au-delà du formulaire client |
-| Secrets | Aucune clé privée ni secret serveur dans le navigateur |
-| Opérations sensibles | Les actions importantes sont journalisées ou confirmées lorsque nécessaire |
-
-**Test essentiel :** vérifier explicitement qu'un utilisateur de l'établissement A ne peut pas lire ou modifier les ressources de l'établissement B, y compris en changeant un identifiant dans une requête.
-
-## Phase 5 — Tests de migration
-
-Pour chaque domaine migré :
-
-- tester les lectures et écritures normales ;
-- tester les données absentes, invalides et les erreurs réseau ;
-- vérifier les relations et les contraintes ;
-- vérifier les droits avec plusieurs rôles ;
-- comparer les résultats avant et après migration ;
-- documenter les écarts et les corrections ;
-- prévoir une procédure de retour arrière adaptée.
-
-## Phase 6 — Préparation à la production
-
-```mermaid
-flowchart TD
-    A["Build propre"] --> B["Tests automatisés"]
-    B --> C["Audit des accès et RLS"]
-    C --> D["Contrôle responsive et accessibilité"]
-    D --> E["Sauvegarde et restauration"]
-    E --> F["Documentation utilisateur"]
-    F --> G["Décision de mise en production"]
-    classDef gate fill:#EAF2FF,stroke:#2457A7,color:#17365D
-    class A,B,C,D,E,F,G gate
-```
-
-| Domaine | Vérification avant production |
-|---|---|
-| Compilation | Build propre sur la version cible |
-| Qualité | Tests et contrôles statiques exécutés, résultats examinés |
-| Sécurité | Rôles, accès et politiques de données testés |
-| Expérience | Responsive, accessibilité et messages d'erreur vérifiés |
-| Exploitation | Sauvegarde, restauration et procédure d'incident documentées |
-| Documentation | Guide utilisateur et documentation technique à jour |
-
-## Règle de suivi
-
-Mettre à jour cette feuille de route à chaque jalon. Ne marquer une tâche comme terminée que lorsque le résultat est observable et, lorsque c'est possible, accompagné d'un test ou d'une preuve. Les statuts doivent refléter l'état réel du dépôt, pas une intention.
+*Cette feuille de route est un document de suivi. Les statuts sont à actualiser après chaque vérification et ne remplacent pas un rapport de test daté.*

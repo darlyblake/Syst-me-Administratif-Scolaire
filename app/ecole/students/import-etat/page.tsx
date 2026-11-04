@@ -110,7 +110,7 @@ export default function ImportOrganizationStudentsPage() {
         : norm(entry.student.first_name) === norm(row.first_name) && norm(entry.student.last_name) === norm(row.last_name))
       if (candidates.length === 0) return { ...row, error: "Élève introuvable dans les inscriptions de l’année active." }
       if (candidates.length > 1) return { ...row, error: "Correspondance ambiguë : utilisez le matricule." }
-      return { ...row, enrollmentId: candidates[0].id, studentId: candidates[0].student_id, className: candidates[0].className }
+      return { ...row, first_name: row.first_name || candidates[0].student.first_name, last_name: row.last_name || candidates[0].student.last_name, student_number: row.student_number || candidates[0].student.student_number || "", enrollmentId: candidates[0].id, studentId: candidates[0].student_id, className: candidates[0].className }
     })
     setRows(resolved)
     setImportDone(false)

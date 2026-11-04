@@ -1,8 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { toast } from "sonner"
-import { Building2, Users, Percent, Plus, RefreshCw, Save } from "lucide-react"
+import { Building2, Users, Percent, Plus, RefreshCw, Save, FileSpreadsheet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -38,6 +39,8 @@ export default function PrisesEnChargeSettingsPage() {
   const [discountModalOpen, setDiscountModalOpen] = useState(false)
   const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null)
   const [selectedDiscount, setSelectedDiscount] = useState<DiscountRule | null>(null)
+  const [organizationStudentCount, setOrganizationStudentCount] = useState<number | null>(null)
+  const [organizationStudentsLoading, setOrganizationStudentsLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [organizations, setOrganizations] = useState<Organization[]>([])
@@ -101,7 +104,56 @@ export default function PrisesEnChargeSettingsPage() {
   }, [establishmentId, ruleOrgId])
   useEffect(() => { void load() }, [load])
 
-  const activeOrganizations = useMemo(() => organizations.filter((item) => item.active && !item.is_state), [organizations])
+  // L’État est un organisme à part entière : il doit participer aux mêmes règles de couverture.\n  const activeOrganizations = useMemo(() => organizations.filter((item) => item.active), [organizations])
+
+  const createStateOrganization = async () => {
+    if (!establishmentId) return
+    const existing = organizations.find((item) => item.is_state)
+    if (existing) {
+      setSelectedOrganization(existing)
+      return
+    }
+    setSaving(true)
+    try {
+      const { error } = await supabaseBrowser.from("sponsoring_organizations").insert({
+        establishment_id: establishmentId,
+        name: "État",
+        organization_type: "institution",
+        active: true,
+        is_state: true,
+      })
+      if (error) throw error
+      toast.success("L’organisme État a été ajouté.")
+      await load()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible d’ajouter l’organisme État.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const loadOrganizationStudentCount = async (item: Organization) => {
+    setOrganizationStudentsLoading(true)
+    setOrganizationStudentCount(null)
+    try {
+      const { data, error } = await supabaseBrowser
+        .from("payment_schedules")
+        .select("enrollment_id")
+        .eq("organization_id", item.id)
+      if (error) throw error
+      setOrganizationStudentCount(new Set((data ?? []).map((row: any) => row.enrollment_id)).size)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible de charger l’effectif pris en charge.")
+      setOrganizationStudentCount(0)
+    } finally {
+      setOrganizationStudentsLoading(false)
+    }
+  }
+
+  const openOrganization = (item: Organization) => {
+    setSelectedOrganization(item)
+    void loadOrganizationStudentCount(item)
+  }
 
   const createOrganization = async () => {
     if (!establishmentId || !orgName.trim()) { toast.error("Le nom de l'organisme est obligatoire."); return }
@@ -181,7 +233,7 @@ export default function PrisesEnChargeSettingsPage() {
     {loading && <p className="text-sm text-slate-500">Actualisation des données…</p>}
 
     {tab === "organismes" && <section className="space-y-4">
-      <div className="flex justify-end"><Button onClick={() => setOrgModalOpen(true)}><Plus className="mr-2 h-4 w-4" />Nouvel organisme</Button></div>
+      <div className="flex flex-wrap justify-end gap-2">{!organizations.some((item) => item.is_state) && <Button variant="outline" onClick={createStateOrganization} disabled={saving}><Building2 className="mr-2 h-4 w-4" />Ajouter l’organisme État</Button>}<Button onClick={() => setOrgModalOpen(true)}><Plus className="mr-2 h-4 w-4" />Nouvel organisme</Button></div>
       <Dialog open={orgModalOpen} onOpenChange={setOrgModalOpen}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Ajouter un organisme</DialogTitle><DialogDescription>Renseignez les informations du partenaire qui finance tout ou partie des frais scolaires.</DialogDescription></DialogHeader>
       <div className="border border-slate-200 bg-white"><div className="border-b px-4 py-3"><h2 className="text-sm font-semibold">Ajouter un organisme</h2><p className="mt-1 text-xs text-slate-500">Ex. ONG, association, entreprise ou institution partenaire.</p></div>
         <div className="grid gap-3 p-4 md:grid-cols-2">
@@ -196,7 +248,7 @@ export default function PrisesEnChargeSettingsPage() {
       </div>
 
       </DialogContent></Dialog>
-      <div className="border border-slate-200 bg-white"><div className="border-b px-4 py-3"><h2 className="text-sm font-semibold">Organismes enregistrés ({organizations.length})</h2></div><div className="overflow-x-auto"><table className="w-full min-w-[680px] text-sm"><thead className="bg-slate-50 text-left text-xs text-slate-500"><tr><th className="px-4 py-3">Organisme</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Référence</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3">Action</th></tr></thead><tbody className="divide-y">{organizations.map((item) => <tr key={item.id}><td className="px-4 py-3 font-medium">{item.name}</td><td className="px-4 py-3">{TYPES.find((t) => t.value === item.organization_type)?.label ?? item.organization_type}</td><td className="px-4 py-3">{item.reference || "—"}</td><td className="px-4 py-3">{item.contact_name || item.phone || item.email || "—"}</td><td className="px-4 py-3">{item.active ? "Actif" : "Inactif"}</td><td className="px-4 py-3"><Button size="sm" variant="outline" onClick={() => setSelectedOrganization(item)}>Gérer</Button></td></tr>)}{organizations.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Aucun organisme enregistré.</td></tr>}</tbody></table></div></div>
+      <div className="border border-slate-200 bg-white"><div className="border-b px-4 py-3"><h2 className="text-sm font-semibold">Organismes enregistrés ({organizations.length})</h2></div><div className="overflow-x-auto"><table className="w-full min-w-[680px] text-sm"><thead className="bg-slate-50 text-left text-xs text-slate-500"><tr><th className="px-4 py-3">Organisme</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Référence</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3">Action</th></tr></thead><tbody className="divide-y">{organizations.map((item) => <tr key={item.id}><td className="px-4 py-3 font-medium">{item.name}</td><td className="px-4 py-3">{TYPES.find((t) => t.value === item.organization_type)?.label ?? item.organization_type}</td><td className="px-4 py-3">{item.reference || "—"}</td><td className="px-4 py-3">{item.contact_name || item.phone || item.email || "—"}</td><td className="px-4 py-3">{item.active ? "Actif" : "Inactif"}</td><td className="px-4 py-3"><Button size="sm" variant="outline" onClick={() => openOrganization(item)}>Gérer</Button></td></tr>)}{organizations.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Aucun organisme enregistré.</td></tr>}</tbody></table></div></div>
     </section>}
 
     {tab === "couverture" && <section className="space-y-4">
@@ -222,7 +274,20 @@ export default function PrisesEnChargeSettingsPage() {
       </DialogContent></Dialog>
       <div className="border border-slate-200 bg-white"><div className="border-b px-4 py-3"><h2 className="text-sm font-semibold">Barèmes configurés ({discounts.length})</h2></div><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-sm"><thead className="bg-slate-50 text-left text-xs text-slate-500"><tr><th className="px-4 py-3">Barème</th><th className="px-4 py-3">Enfants requis</th><th className="px-4 py-3">Réduction</th><th className="px-4 py-3">Frais</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3">Action</th></tr></thead><tbody className="divide-y">{discounts.map((d) => <tr key={d.id}><td className="px-4 py-3 font-medium">{d.name}</td><td className="px-4 py-3">{d.min_children}{d.max_children ? " à " + d.max_children : " et plus"}</td><td className="px-4 py-3">{d.discount_type === "percentage" ? d.discount_value + "%" : money(d.discount_value)}</td><td className="px-4 py-3">{(d.applies_to_categories ?? []).map((c) => CATEGORIES.find((x) => x.value === c)?.label || c).join(", ")}{d.option_type ? " — " + optionTypeLabel(d.option_type) : ""}<span className="block text-xs text-slate-500">{academicYears.find((y) => y.id === d.academic_year_id)?.name || "Toutes les années"}{d.valid_from || d.valid_until ? " · " + (d.valid_from || "début libre") + " → " + (d.valid_until || "sans fin") : ""}</span></td><td className="px-4 py-3">{d.active ? "Actif" : "Inactif"}</td><td className="px-4 py-3"><Button size="sm" variant="outline" onClick={() => setSelectedDiscount(d)}>Gérer</Button></td></tr>)}{discounts.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Aucune réduction configurée.</td></tr>}</tbody></table></div></div>
     </section>}
-    <Dialog open={!!selectedOrganization} onOpenChange={(open) => { if (!open) setSelectedOrganization(null) }}><DialogContent><DialogHeader><DialogTitle>Actions sur l’organisme</DialogTitle><DialogDescription>{selectedOrganization?.name}</DialogDescription></DialogHeader><div className="flex flex-col gap-3"><p className="text-sm text-slate-600">Statut actuel : <strong>{selectedOrganization?.active ? "Actif" : "Inactif"}</strong></p><Button disabled={!selectedOrganization} onClick={async () => { if (selectedOrganization) await toggleOrganization(selectedOrganization); setSelectedOrganization(null) }}>{selectedOrganization?.active ? "Désactiver l’organisme" : "Réactiver l’organisme"}</Button></div></DialogContent></Dialog>
+    <Dialog open={!!selectedOrganization} onOpenChange={(open) => { if (!open) { setSelectedOrganization(null); setOrganizationStudentCount(null) } }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+        <DialogHeader><DialogTitle>Gestion de l’organisme</DialogTitle><DialogDescription>{selectedOrganization?.name}</DialogDescription></DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="border border-slate-200 p-3"><p className="text-xs text-slate-500">Élèves pris en charge</p><p className="mt-1 text-2xl font-semibold">{organizationStudentsLoading ? "…" : organizationStudentCount ?? "—"}</p></div>
+            <div className="border border-slate-200 p-3"><p className="text-xs text-slate-500">Statut de l’organisme</p><p className="mt-1 text-sm font-semibold">{selectedOrganization?.active ? "Actif" : "Inactif"}</p></div>
+          </div>
+          <p className="text-sm text-slate-600">Les élèves comptabilisés sont ceux qui possèdent au moins une échéance financière rattachée à cet organisme. Les historiques financiers sont conservés.</p>
+          {selectedOrganization?.is_state && <Button className="w-full" variant="outline" asChild><Link href="/ecole/students/import-etat"><FileSpreadsheet className="mr-2 h-4 w-4" />Importer plusieurs élèves (Excel / CSV)</Link></Button>}
+          <Button className="w-full" disabled={!selectedOrganization} onClick={async () => { if (selectedOrganization) await toggleOrganization(selectedOrganization); setSelectedOrganization(null) }}>{selectedOrganization?.active ? "Désactiver l’organisme" : "Réactiver l’organisme"}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
     <Dialog open={!!selectedDiscount} onOpenChange={(open) => { if (!open) setSelectedDiscount(null) }}><DialogContent><DialogHeader><DialogTitle>Actions sur la réduction</DialogTitle><DialogDescription>{selectedDiscount?.name}</DialogDescription></DialogHeader><div className="flex flex-col gap-3"><p className="text-sm text-slate-600">Statut actuel : <strong>{selectedDiscount?.active ? "Actif" : "Inactif"}</strong></p><Button disabled={!selectedDiscount} onClick={async () => { if (selectedDiscount) await toggleDiscount(selectedDiscount); setSelectedDiscount(null) }}>{selectedDiscount?.active ? "Désactiver la réduction" : "Réactiver la réduction"}</Button></div></DialogContent></Dialog>
     <div className="flex justify-end"><Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button></div>
   </main>

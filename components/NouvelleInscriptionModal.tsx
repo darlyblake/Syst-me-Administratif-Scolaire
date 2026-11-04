@@ -728,12 +728,12 @@ export default function NouvelleInscriptionModal({
                   </Select>
                   {fundingSource === "family" && (
                     <div className="mt-3 space-y-2 border-t border-slate-200 pt-3">
-                      <Label htmlFor="sponsoring-organization">Prise en charge partielle par un organisme (facultatif)</Label>
+                      <Label htmlFor="sponsoring-organization">Organisme de prise en charge (facultatif)</Label>
                       <select id="sponsoring-organization" value={selectedOrganizationId} onChange={(e) => setSelectedOrganizationId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                         <option value="">Aucun organisme — frais à la charge de la famille</option>
                         {sponsoringOrganizations.filter((org) => org.active).map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
                       </select>
-                      {selectedOrganizationId && <div className="border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900"><div className="flex items-center gap-2 font-medium"><Building2 className="h-3.5 w-3.5" />Répartition selon la convention</div>{organizationRules.length ? organizationRules.map((rule) => <p key={rule.id} className="mt-1">{rule.category_label}: {rule.coverage_percent}% pris en charge par l'organisme, le solde restant à la famille.</p>) : <p className="mt-1">Aucune règle active trouvée. La répartition restera familiale tant qu'une règle n'aura pas été configurée.</p>}</div>}
+                      {selectedOrganizationId && <div className="border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900"><div className="flex items-center gap-2 font-medium"><Building2 className="h-3.5 w-3.5" />Répartition selon la convention</div>{organizationRules.length ? organizationRules.map((rule) => <p key={rule.id} className="mt-1">{rule.category_label}: {rule.coverage_percent}% pris en charge par l'organisme, le solde restant à la famille.</p>) : <p className="mt-1">Aucune règle active trouvée. Les frais resteront à la charge de la famille tant qu'une règle n'aura pas été configurée.</p>}</div>}
                     </div>
                   )}
                 </div>

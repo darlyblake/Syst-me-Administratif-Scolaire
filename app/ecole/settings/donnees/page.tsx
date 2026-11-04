@@ -204,13 +204,14 @@ export default function DataTransferPage() {
             required.forEach((field) => {
               if (!String(values[field] ?? "").trim()) issues.push({ code: "required", field, message: "Valeur obligatoire manquante : " + humanizeField(field), severity: "error" })
             })
-            if (values.amount?.trim()) {
-              const normalizedAmount = values.amount.trim().replace(/\s/g, "").replace(/FCFA/gi, "").replace(",", ".")
-              if (!/^\d+(\.\d{1,2})?$/.test(normalizedAmount)) issues.push({ code: "amount-format", field: "amount", message: "Le montant contient des caractères non numériques. Corrigez cette valeur.", severity: "error" })
-              else if (Number(normalizedAmount) < 0) issues.push({ code: "amount-negative", field: "amount", message: "Un montant ne peut pas être négatif.", severity: "error" })
-              else values.amount = String(Number(normalizedAmount))
-            }
-            ;["enrollment_date", "payment_date", "due_date", "subscription_date"].forEach((field) => {
+            ;["amount", "annual_tuition", "tuition_amount"].forEach((field) => {
+              if (!values[field]?.trim()) return
+              const normalizedAmount = values[field].trim().replace(/\s/g, "").replace(/FCFA/gi, "").replace(",", ".")
+              if (!/^\d+(\.\d{1,2})?$/.test(normalizedAmount)) issues.push({ code: "amount-format", field, message: "Le montant contient des caractères non numériques. Corrigez cette valeur.", severity: "error" })
+              else if (Number(normalizedAmount) < 0) issues.push({ code: "amount-negative", field, message: "Un montant ne peut pas être négatif.", severity: "error" })
+              else values[field] = String(Number(normalizedAmount))
+            })
+            ;["enrollment_date", "payment_date", "due_date", "subscription_date", "birth_date"].forEach((field) => {
               if (values[field] && !validIsoDate(values[field])) issues.push({ code: "date-format", field, message: "Date invalide. Utilisez le format AAAA-MM-JJ.", severity: "error" })
             })
             if (values.class_name?.trim()) {

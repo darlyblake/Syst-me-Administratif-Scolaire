@@ -15,6 +15,8 @@ type ReviewIssue = { code: string; message: string; field?: string; severity: "e
 type ReviewRow = { key: string; fileName: string; rowIndex: number; kind: ImportKind; values: Record<string, string>; issues: ReviewIssue[]; duplicateChoice?: "same" | "separate" | "pending" }
 type ImportClass = { id: string; name: string; grade_level_id: string; grade_level_name: string }
 type ImportTariff = { grade_level_id: string; academic_year_name: string; annual_tuition: number }
+type ImportAcademicYear = { id: string; name: string }
+type ImportEnrollment = { id: string; student_id: string; academic_year_id: string; class_id: string }
 function normalizeText(value: unknown) {
   return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("fr").replace(/\s+/g, " ")
 }
@@ -58,7 +60,7 @@ function validateEditedRow(values: Record<string, string>, kind: ImportKind, stu
 
 const importTypes: { id: ImportKind; label: string; required: string[]; description: string }[] = [
   { id: "inscriptions", label: "Élèves et inscriptions", required: ["first_name", "last_name", "level"], description: "Un seul dossier par élève : identité et inscription à l’année scolaire active. Date d’inscription et ancien numéro de reçu facultatifs." },
-  { id: "paiements", label: "Paiements historiques", required: ["student_number", "payment_date", "amount", "method"], description: "Encaissements réellement reçus, avec leur date et leur ancienne référence de reçu." },
+  { id: "paiements", label: "Paiements historiques", required: ["first_name", "last_name", "class_name", "academic_year", "payment_date", "amount", "method"], description: "Chaque paiement est rattaché à un élève et à son inscription grâce au nom, au prénom, à la classe et à l’année scolaire. En cas de correspondance ambiguë, l’import est bloqué pour vérification." },
   { id: "depenses", label: "Dépenses historiques", required: ["category", "description", "expense_date", "amount"], description: "Dépenses déjà effectuées par l’établissement, avec date, montant, catégorie et mode de règlement facultatif." },
 ]
 
@@ -120,8 +122,14 @@ function downloadCsv(name: string, rows: Record<string, unknown>[], title = "Don
 }
 
 function normalizeImportHeaders(headers: string[]) {
-  const reverseLabels = Object.fromEntries(Object.entries(fieldLabels).map(([key, label]) => [label.toLocaleLowerCase("fr").trim(), key]))
-  return headers.map((header) => reverseLabels[header.toLocaleLowerCase("fr").trim()] ?? header.trim())
+  const reverseLabels = Object.fromEntries(Object.entries(fieldLabels).map(([key, label]) => [normalizeText(label), key]))
+  const aliases: Record<string, string> = {
+    nom: "last_name", prenom: "first_name", eleve: "student_name", "nom eleve": "last_name",
+    classe: "class_name", "niveau ou classe": "class_name", "annee scolaire": "academic_year",
+    "mode de paiement": "method", "date paiement": "payment_date", "date du paiement": "payment_date",
+    reference: "reference", notes: "notes",
+  }
+  return headers.map((header) => reverseLabels[normalizeText(header)] ?? aliases[normalizeText(header)] ?? header.trim())
 }
 
 export default function DataTransferPage() {
@@ -143,6 +151,8 @@ export default function DataTransferPage() {
   const [importClasses, setImportClasses] = useState<ImportClass[]>([])
   const [importTariffs, setImportTariffs] = useState<ImportTariff[]>([])
   const [existingStudents, setExistingStudents] = useState<ExistingStudent[]>([])
+  const [importAcademicYears, setImportAcademicYears] = useState<ImportAcademicYear[]>([])
+  const [importEnrollments, setImportEnrollments] = useState<ImportEnrollment[]>([])
 
   const totalRows = useMemo(() => files.reduce((sum, file) => sum + file.rows.length, 0), [files])
   const invalidFiles = files.filter((file) => file.errors.length > 0)
@@ -194,18 +204,28 @@ export default function DataTransferPage() {
         let existing: ExistingStudent[] = []
         let knownClasses: ImportClass[] = []
         let knownTariffs: ImportTariff[] = []
+        let knownYears: ImportAcademicYear[] = []
+        let knownEnrollments: ImportEnrollment[] = []
         if (establishmentId) {
-          const [studentsResult, classesResult] = await Promise.all([
+          const [studentsResult, classesResult, yearsResult, enrollmentsResult] = await Promise.all([
             supabaseBrowser.from("students").select("id, student_number, first_name, last_name, birth_date").eq("establishment_id", establishmentId).is("merged_into_student_id", null).limit(10000),
-            supabaseBrowser.from("school_classes").select("id, name, grade_level_id, grade_levels(name)").eq("establishment_id", establishmentId).eq("active", true).limit(2000),
+            supabaseBrowser.from("school_classes").select("id, name, grade_level_id, grade_levels(name)").eq("establishment_id", establishmentId).limit(2000),
+            supabaseBrowser.from("academic_years").select("id, name").eq("establishment_id", establishmentId).limit(1000),
+            supabaseBrowser.from("enrollments").select("id, student_id, academic_year_id, class_id").eq("establishment_id", establishmentId).limit(20000),
           ])
           if (studentsResult.error) throw studentsResult.error
           if (classesResult.error) throw classesResult.error
+          if (yearsResult.error) throw yearsResult.error
+          if (enrollmentsResult.error) throw enrollmentsResult.error
           existing = (studentsResult.data ?? []) as ExistingStudent[]
           knownClasses = (classesResult.data ?? []).map((item: any) => ({ id: item.id, name: item.name, grade_level_id: item.grade_level_id, grade_level_name: item.grade_levels?.name ?? "" }))
+          knownYears = (yearsResult.data ?? []) as ImportAcademicYear[]
+          knownEnrollments = (enrollmentsResult.data ?? []) as ImportEnrollment[]
         }
         setExistingStudents(existing)
         setImportClasses(knownClasses)
+        setImportAcademicYears(knownYears)
+        setImportEnrollments(knownEnrollments)
         setImportTariffs([])
         const analyzed: ReviewRow[] = []
         for (const file of parsed) {
@@ -237,6 +257,36 @@ export default function DataTransferPage() {
             const last = file.kind === "inscriptions" ? normalizeText(values.last_name) : ""
             let candidate = first && last ? existing.find((item) => normalizeText(item.first_name) === first && normalizeText(item.last_name) === last && (!values.birth_date || !item.birth_date || item.birth_date === values.birth_date)) : undefined
             if (candidate) issues.push({ code: "possible-duplicate", message: "Un élève correspondant semble déjà exister. Vérifiez s'il s'agit du même élève.", severity: "warning", candidate })
+            if (file.kind === "paiements") {
+              const paymentFirst = normalizeText(values.first_name)
+              const paymentLast = normalizeText(values.last_name)
+              const studentMatches = existing.filter(item => normalizeText(item.first_name) === paymentFirst && normalizeText(item.last_name) === paymentLast)
+              const classValue = normalizeText(values.class_name)
+              const classMatches = knownClasses.filter(item => normalizeText(item.name) === classValue || normalizeText(item.grade_level_name + " " + item.name) === classValue)
+              const yearMatches = knownYears.filter(item => normalizeText(item.name) === normalizeText(values.academic_year))
+              if (!establishmentId) {
+                issues.push({ code: "payment-context", message: "Impossible de vérifier l’élève : établissement actif introuvable.", severity: "error" })
+              } else if (studentMatches.length === 0) {
+                issues.push({ code: "payment-student-not-found", message: "Aucun élève ne correspond exactement à ce nom et ce prénom. Vérifiez l’orthographe ou importez d’abord son dossier.", severity: "error" })
+              } else if (classMatches.length === 0) {
+                issues.push({ code: "payment-class-not-found", field: "class_name", message: "Cette classe n’existe pas dans la structure de l’établissement.", severity: "error" })
+              } else if (yearMatches.length === 0) {
+                issues.push({ code: "payment-year-not-found", field: "academic_year", message: "Cette année scolaire n’existe pas dans l’établissement.", severity: "error" })
+              } else {
+                const matchingEnrollments = knownEnrollments.filter(enrollment =>
+                  studentMatches.some(student => student.id === enrollment.student_id) &&
+                  classMatches.some(schoolClass => schoolClass.id === enrollment.class_id) &&
+                  yearMatches.some(year => year.id === enrollment.academic_year_id)
+                )
+                if (matchingEnrollments.length === 0) {
+                  issues.push({ code: "payment-enrollment-not-found", message: "L’élève existe, mais aucune inscription ne correspond à cette classe et à cette année scolaire. Aucun rattachement automatique ne sera effectué.", severity: "error" })
+                } else if (matchingEnrollments.length > 1 || studentMatches.length > 1 || classMatches.length > 1 || yearMatches.length > 1) {
+                  issues.push({ code: "payment-enrollment-ambiguous", message: "Plusieurs dossiers correspondent à ces informations. Vérifiez l’identité de l’élève et son inscription avant de reprendre ce paiement.", severity: "error" })
+                } else {
+                  issues.push({ code: "payment-enrollment-matched", message: "Inscription retrouvée : " + studentMatches[0].first_name + " " + studentMatches[0].last_name + " · " + classMatches[0].grade_level_name + " " + classMatches[0].name + " · " + yearMatches[0].name + ". Le paiement sera associé à cette inscription lorsque l’enregistrement définitif sera activé.", severity: "warning" })
+                }
+              }
+            }
             const duplicateInFile = file.kind === "inscriptions" && first && last && analyzed.find(item => item.kind === "inscriptions" && normalizeText(item.values.first_name) === first && normalizeText(item.values.last_name) === last)
             if (duplicateInFile) issues.push({ code: "possible-duplicate", message: "Ce nom et ce prénom apparaissent déjà dans une ligne précédente de cet import. Vérifiez s’il s’agit d’une réinscription ou d’un doublon.", severity: "warning" })
             analyzed.push({ key: file.id + ":" + index, fileName: file.name, rowIndex: index + 2, kind: file.kind, values, issues, duplicateChoice: candidate || duplicateInFile ? "pending" : undefined })

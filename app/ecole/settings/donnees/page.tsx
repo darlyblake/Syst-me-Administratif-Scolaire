@@ -34,6 +34,7 @@ function validateEditedRow(values: Record<string, string>, kind: ImportKind, stu
     const amount = values.amount.trim().replace(/\s/g, "").replace(/FCFA/gi, "").replace(",", ".")
     if (!/^\d+(\.\d{1,2})?$/.test(amount)) issues.push({ code: "amount-format", field: "amount", message: "Le montant contient des caractères non numériques.", severity: "error" })
     else if (Number(amount) < 0) issues.push({ code: "amount-negative", field: "amount", message: "Un montant ne peut pas être négatif.", severity: "error" })
+    else if (kind === "depenses" && Number(amount) <= 0) issues.push({ code: "expense-amount-positive", field: "amount", message: "Le montant de la dépense doit être supérieur à zéro.", severity: "error" })
   }
   if (values.amount_paid?.trim()) {
     const paid = values.amount_paid.trim().replace(/\s/g, "").replace(/FCFA/gi, "").replace(",", ".")

@@ -210,6 +210,19 @@ export default function DataTransferPage() {
             ;["enrollment_date", "payment_date", "due_date", "subscription_date"].forEach((field) => {
               if (values[field] && !validIsoDate(values[field])) issues.push({ code: "date-format", field, message: "Date invalide. Utilisez le format AAAA-MM-JJ.", severity: "error" })
             })
+            if (values.class_name?.trim()) {
+              const matchedClass = knownClasses.find(item => normalizeText(item.name) === normalizeText(values.class_name) || normalizeText(item.grade_level_name + " " + item.name) === normalizeText(values.class_name))
+              if (!matchedClass) issues.push({ code: "class-not-found", field: "class_name", message: "Cette classe n’existe pas ou n’est pas active dans l’établissement.", severity: "error" })
+              else {
+                const tariffField = values.annual_tuition ? "annual_tuition" : values.tuition_amount ? "tuition_amount" : null
+                if (tariffField) {
+                  const tariff = knownTariffs.find(item => item.grade_level_id === matchedClass.grade_level_id && (!values.academic_year || normalizeText(item.academic_year_name) === normalizeText(values.academic_year)))
+                  const raw = values[tariffField].trim().replace(/\\s/g, "").replace(/FCFA/gi, "").replace(",", ".")
+                  if (!tariff) issues.push({ code: "tariff-not-found", field: tariffField, message: "Aucun tarif annuel actif ne correspond à cette classe et à cette année scolaire.", severity: "error" })
+                  else if (/^\\d+(\\.\\d{1,2})?$/.test(raw) && Math.abs(Number(raw) - tariff.annual_tuition) > 1) issues.push({ code: "tariff-mismatch", field: tariffField, message: "Le tarif importé diffère du tarif configuré (" + tariff.annual_tuition.toLocaleString("fr-FR") + " FCFA).", severity: "warning" })
+                }
+              }
+            }
             const number = normalizeText(values.student_number)
             const first = normalizeText(values.first_name)
             const last = normalizeText(values.last_name)

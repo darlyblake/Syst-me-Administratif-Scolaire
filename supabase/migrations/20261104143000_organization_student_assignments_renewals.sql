@@ -207,6 +207,20 @@ begin
   into v_definition;
   if position('and o.active and not o.is_state' in v_definition)>0 then
     v_definition:=replace(v_definition,'and o.active and not o.is_state','and o.active');
-    execute v_definition;
   end if;
+  if position($anchor$  v_new_student_id:=(v_result->>'student_id')::uuid; v_enrollment_id:=(v_result->>'enrollment_id')::uuid;$anchor$ in v_definition)>0 then
+    v_definition:=replace(v_definition,
+      $anchor$  v_new_student_id:=(v_result->>'student_id')::uuid; v_enrollment_id:=(v_result->>'enrollment_id')::uuid;$anchor$,
+      $replacement$  v_new_student_id:=(v_result->>'student_id')::uuid; v_enrollment_id:=(v_result->>'enrollment_id')::uuid;
+
+  if p_organization_id is not null then
+    insert into public.organization_student_assignments(
+      establishment_id,organization_id,student_id,enrollment_id,academic_year_id,status,created_by
+    ) values (
+      p_establishment_id,p_organization_id,v_new_student_id,v_enrollment_id,p_academic_year_id,'active',auth.uid()
+    )
+    on conflict(organization_id,enrollment_id) do update
+      set status='active',ended_at=null,updated_at=now();
+  end if;$replacement$);
+  execute v_definition;
 end $$;

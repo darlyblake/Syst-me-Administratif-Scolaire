@@ -191,7 +191,7 @@ export default function PrisesEnChargeSettingsPage() {
         setEnrollmentCandidates(candidates)
       }
       const currentYearId = activeYear?.id
-      setOrganizationStudentCount(rows.filter((row) => row.status === "active" && (!currentYearId || row.academic_year_id === currentYearId)).length)
+      setOrganizationStudentCount(new Set(rows.filter((row) => row.status === "active" && (!currentYearId || row.academic_year_id === currentYearId)).map((row) => row.student_id)).size)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Impossible de charger les élèves rattachés.")
       setOrganizationStudentCount(0)

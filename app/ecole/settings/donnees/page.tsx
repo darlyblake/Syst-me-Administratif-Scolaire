@@ -51,11 +51,12 @@ function humanizeField(field: string) {
 function downloadCsv(name: string, rows: Record<string, unknown>[], title = "Données de l'établissement") {
   const data = rows.length ? rows : [{ information: "Aucune donnée disponible" }]
   const headers = Array.from(new Set(data.flatMap((row) => Object.keys(row))))
-  const csvRows = [
+  const csvRows: unknown[][] = [
     headers.map((header) => humanizeField(header)),
     ...data.map((row) => headers.map((header) => String(row[header] ?? ""))),
   ]
-  const csv = "\\uFEFF" + Papa.unparse(csvRows, { delimiter: ";", quotes: true, newline: "\\r\\n" })
+  const escapeCsvValue = (value: unknown) => '"' + String(value ?? "").replace(/"/g, '""') + '"'
+  const csv = "\uFEFF" + csvRows.map((row) => row.map(escapeCsvValue).join(";")).join("\r\n") + "\r\n"
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement("a")

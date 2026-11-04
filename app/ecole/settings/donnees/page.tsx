@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { supabaseBrowser } from "@/lib/supabase/client"
 
-type ImportKind = "eleves" | "parents" | "inscriptions" | "echeances" | "paiements" | "options"
+type ImportKind = "parents" | "inscriptions" | "echeances" | "paiements" | "options"
 type ExportKind = "eleves" | "inscriptions" | "classes" | "finance"
 type ParsedFile = { id: string; name: string; kind: ImportKind; rows: Record<string, string>[]; headers: string[]; errors: string[] }
 type ExistingStudent = { id: string; student_number: string | null; first_name: string | null; last_name: string | null; birth_date: string | null }
@@ -57,9 +57,8 @@ function validateEditedRow(values: Record<string, string>, kind: ImportKind, stu
 
 
 const importTypes: { id: ImportKind; label: string; required: string[]; description: string }[] = [
-  { id: "eleves", label: "Élèves et inscriptions", required: ["first_name", "last_name", "level"], description: "Nom, prénom et niveau. Le matricule et les frais sont générés ou calculés par le système." },
   { id: "parents", label: "Parents et tuteurs", required: ["student_number", "first_name", "last_name", "relationship"], description: "Responsables associés à chaque élève par son matricule." },
-  { id: "inscriptions", label: "Inscriptions", required: ["first_name", "last_name", "level"], description: "Nom, prénom et niveau obligatoires. Date d'inscription et ancien numéro de reçu facultatifs." },
+  { id: "inscriptions", label: "Élèves et inscriptions", required: ["first_name", "last_name", "level"], description: "Un seul dossier par élève : identité et inscription à l’année scolaire active. Date d’inscription et ancien numéro de reçu facultatifs." },
   { id: "echeances", label: "Frais et échéances", required: ["student_number", "label", "due_date", "amount"], description: "Frais d'inscription, mensualités et tranches prévues." },
   { id: "paiements", label: "Paiements historiques", required: ["student_number", "payment_date", "amount", "method"], description: "Encaissements passés avec leur date réelle et référence de reçu." },
   { id: "options", label: "Options et services", required: ["student_number", "option_name", "subscription_date", "amount"], description: "Cantine, assurance, transport, sport et autres services." },
@@ -128,7 +127,7 @@ export default function DataTransferPage() {
   const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? null
   const fileInput = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<ParsedFile[]>([])
-  const [selectedKind, setSelectedKind] = useState<ImportKind>("eleves")
+  const [selectedKind, setSelectedKind] = useState<ImportKind>("inscriptions")
   const [isParsing, setIsParsing] = useState(false)
   const [activeTab, setActiveTab] = useState<"import" | "export">("import")
   const [selectedExports, setSelectedExports] = useState<ExportKind[]>(["eleves", "inscriptions", "classes", "finance"])
@@ -168,7 +167,7 @@ export default function DataTransferPage() {
               headers = normalizeImportHeaders(rawHeaders)
               rows = result.data.map((row) => {
                 const normalized = Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeImportHeaders([key.replace(/^\uFEFF/, "").trim()])[0], value ?? ""]))
-                if ((selectedKind === "eleves" || selectedKind === "inscriptions") && !normalized.level && normalized.class_name) normalized.level = normalized.class_name
+                if (selectedKind === "inscriptions" && !normalized.level && normalized.class_name) normalized.level = normalized.class_name
                 if (selectedKind === "eleves" || selectedKind === "inscriptions") {
                   delete normalized.student_number
                   delete normalized.annual_tuition
@@ -258,7 +257,7 @@ export default function DataTransferPage() {
 
   const downloadTemplate = (kind: ImportKind) => {
     const config = importTypes.find((item) => item.id === kind)!
-    const example: Record<string, string> = Object.fromEntries([...config.required, ...(kind === "eleves" || kind === "inscriptions" ? ["enrollment_date", "receipt_number"] : [])].map((field) => [field, ""]))
+    const example: Record<string, string> = Object.fromEntries([...config.required, ...(kind === "inscriptions" ? ["enrollment_date", "receipt_number"] : [])].map((field) => [field, ""]))
     downloadCsv("modele_" + kind + ".csv", [example])
   }
 

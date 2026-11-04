@@ -35,6 +35,11 @@ function validateEditedRow(values: Record<string, string>, kind: ImportKind, stu
     if (!/^\d+(\.\d{1,2})?$/.test(amount)) issues.push({ code: "amount-format", field: "amount", message: "Le montant contient des caractères non numériques.", severity: "error" })
     else if (Number(amount) < 0) issues.push({ code: "amount-negative", field: "amount", message: "Un montant ne peut pas être négatif.", severity: "error" })
   }
+  if (values.amount_paid?.trim()) {
+    const paid = values.amount_paid.trim().replace(/\s/g, "").replace(/FCFA/gi, "").replace(",", ".")
+    if (!/^\d+(\.\d{1,2})?$/.test(paid)) issues.push({ code: "paid-format", field: "amount_paid", message: "Le cumul déjà payé doit être un montant numérique valide.", severity: "error" })
+    else if (Number(paid) < 0) issues.push({ code: "paid-negative", field: "amount_paid", message: "Le cumul déjà payé ne peut pas être négatif.", severity: "error" })
+  }
   ;["enrollment_date", "expense_date", "due_date", "subscription_date", "birth_date"].forEach(field => { if (values[field] && !validIsoDate(values[field])) issues.push({ code: "date-format", field, message: "Date invalide. Utilisez une date réelle au format AAAA-MM-JJ.", severity: "error" }) })
   if (kind === "inscriptions") {
     const classValue = values.class_name || values.level || ""

@@ -115,7 +115,7 @@ export default function DataTransferPage() {
               if (result.errors.length) errors.push(result.errors.length + " ligne(s) contiennent une erreur de lecture.")
             }
             const missing = config.required.filter((field) => !headers.includes(field))
-            errors.push(...missing.map((field) => "Colonne obligatoire absente : " + field))
+            errors.push(...missing.map((field) => "Colonne obligatoire absente : " + humanizeField(field)))
             resolve({ id: file.name + file.size + file.lastModified, name: file.name, kind: selectedKind, rows, headers, errors })
           } catch (error) {
             resolve({ id: file.name + file.size, name: file.name, kind: selectedKind, rows: [], headers: [], errors: [error instanceof Error ? error.message : "Impossible de lire ce fichier."] })
@@ -286,7 +286,7 @@ export default function DataTransferPage() {
                 <div className="overflow-x-auto border-t border-[#e5e7eb]">
                   <div className="px-4 py-3 text-xs font-semibold text-[#172033]">Aperçu du premier fichier</div>
                   <table className="min-w-full border-collapse text-left text-xs">
-                    <thead className="bg-[#f4f6fa]"><tr>{(files[0].headers).slice(0, 6).map((header) => <th key={header} className="whitespace-nowrap border-b border-[#e5e7eb] px-3 py-2 font-semibold text-[#475569]">{header}</th>)}</tr></thead>
+                    <thead className="bg-[#f4f6fa]"><tr>{(files[0].headers).slice(0, 6).map((header) => <th key={header} className="whitespace-nowrap border-b border-[#e5e7eb] px-3 py-2 font-semibold text-[#475569]">{humanizeField(header)}</th>)}</tr></thead>
                     <tbody>{files[0].rows.slice(0, 5).map((row, index) => <tr key={index}>{files[0].headers.slice(0, 6).map((header) => <td key={header} className="max-w-48 truncate border-b border-[#eef0f3] px-3 py-2 text-[#334155]">{row[header] || "—"}</td>)}</tr>)}</tbody>
                   </table>
                 </div>

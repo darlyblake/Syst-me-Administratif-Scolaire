@@ -27,13 +27,20 @@ const exportTypes: { id: ExportKind; label: string; description: string }[] = [
   { id: "finance", label: "Données financières", description: "Échéances et paiements enregistrés." },
 ]
 
-function downloadCsv(name: string, rows: Record<string, unknown>[]) {
-  const csv = "\uFEFF" + Papa.unparse(rows.length ? rows : [{ information: "Aucune donnée disponible" }], { delimiter: ";" })
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+function escapeExcelCell(value: unknown) {
+  return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+}
+
+function downloadExcel(name: string, rows: Record<string, unknown>[]) {
+  const data = rows.length ? rows : [{ information: "Aucune donnée disponible" }]
+  const headers = Array.from(new Set(data.flatMap((row) => Object.keys(row))))
+  const tableRows = ["<tr>" + headers.map((header) => "<th>" + escapeExcelCell(header) + "</th>").join("") + "</tr>", ...data.map((row) => "<tr>" + headers.map((header) => "<td>" + escapeExcelCell(row[header]) + "</td>").join("") + "</tr>")].join("")
+  const workbook = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>table{border-collapse:collapse}th{background:#17365d;color:white;font-weight:bold}th,td{border:1px solid #cbd5e1;padding:5px}</style></head><body><table>' + tableRows + '</table></body></html>'
+  const blob = new Blob(["\\uFEFF", workbook], { type: "application/vnd.ms-excel;charset=utf-8;" })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement("a")
   anchor.href = url
-  anchor.download = name
+  anchor.download = name.replace(/\\.(csv|xlsx)$/i, "") + ".xls"
   anchor.click()
   URL.revokeObjectURL(url)
 }
@@ -84,7 +91,7 @@ export default function DataTransferPage() {
   const downloadTemplate = (kind: ImportKind) => {
     const config = importTypes.find((item) => item.id === kind)!
     const example: Record<string, string> = Object.fromEntries(config.required.map((field) => [field, ""]))
-    downloadCsv("modele_" + kind + ".csv", [example])
+    downloadExcel("modele_" + kind + ".xls", [example])
   }
 
   const exportSelected = async () => {
@@ -107,11 +114,11 @@ export default function DataTransferPage() {
           if (kind === "eleves") {
             const { data, error } = await supabaseBrowser.from("students").select("*").eq("establishment_id", establishmentId).order("last_name").limit(10000)
             if (error) throw error
-            downloadCsv("eleves.csv", (data ?? []) as Record<string, unknown>[])
+            downloadExcel("eleves.xls", (data ?? []) as Record<string, unknown>[])
           } else if (kind === "inscriptions") {
             const { data, error } = await supabaseBrowser.from("enrollments").select("*").eq("establishment_id", establishmentId).order("enrollment_date").limit(10000)
             if (error) throw error
-            downloadCsv("inscriptions.csv", (data ?? []) as Record<string, unknown>[])
+            downloadExcel("inscriptions.xls", (data ?? []) as Record<string, unknown>[])
           } else if (kind === "classes") {
             const [years, levels, classes] = await Promise.all([
               supabaseBrowser.from("academic_years").select("*").eq("establishment_id", establishmentId).limit(1000),
@@ -120,7 +127,7 @@ export default function DataTransferPage() {
             ])
             const error = years.error || levels.error || classes.error
             if (error) throw error
-            downloadCsv("structure_scolaire.csv", [
+            downloadExcel("structure_scolaire.xls", [
               ...(years.data ?? []).map((row) => ({ type: "annee_scolaire", ...row })),
               ...(levels.data ?? []).map((row) => ({ type: "niveau", ...row })),
               ...(classes.data ?? []).map((row) => ({ type: "classe", ...row })),
@@ -130,15 +137,15 @@ export default function DataTransferPage() {
             if (enrollmentError) throw enrollmentError
             const ids = (enrollments ?? []).map((row) => row.id)
             if (!ids.length) {
-              downloadCsv("echeances_et_paiements.csv", [])
+              downloadExcel("echeances_et_paiements.xls", [])
             } else {
               const [schedules, payments] = await Promise.all([
                 supabaseBrowser.from("payment_schedules").select("*").in("enrollment_id", ids).limit(20000),
                 supabaseBrowser.from("payments").select("*").in("enrollment_id", ids).limit(20000),
               ])
               if (schedules.error || payments.error) throw schedules.error || payments.error
-              downloadCsv("echeances.csv", (schedules.data ?? []) as Record<string, unknown>[])
-              downloadCsv("paiements.csv", (payments.data ?? []) as Record<string, unknown>[])
+              downloadExcel("echeances.xls", (schedules.data ?? []) as Record<string, unknown>[])
+              downloadExcel("paiements.xls", (payments.data ?? []) as Record<string, unknown>[])
             }
           }
           exported.push(kind)
@@ -163,7 +170,7 @@ export default function DataTransferPage() {
             <h1 className="text-2xl font-semibold tracking-tight text-[#172033]">Importation et exportation des données</h1>
             <p className="mt-1 max-w-3xl text-sm text-[#64748b]">Transférez les dossiers de votre établissement et conservez une copie exploitable de vos données scolaires.</p>
           </div>
-          <span className="text-xs text-[#64748b]">Fichiers CSV compatibles avec Excel</span>
+          <span className="text-xs text-[#64748b]">Fichiers Excel (.xls)</span>
         </div>
       </header>
 
@@ -193,7 +200,7 @@ export default function DataTransferPage() {
             </div>
             <div className="flex flex-col gap-3 border-t border-[#e5e7eb] bg-[#fafbfc] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-[#64748b]">Commencez par les élèves, puis importez les autres fichiers en utilisant leur matricule.</p>
-              <Button type="button" variant="outline" size="sm" onClick={() => downloadTemplate(selectedKind)} className="w-full sm:w-auto"><FileSpreadsheet className="mr-2 h-4 w-4" /> Télécharger le modèle CSV</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => downloadTemplate(selectedKind)} className="w-full sm:w-auto"><FileSpreadsheet className="mr-2 h-4 w-4" /> Télécharger le modèle Excel</Button>
             </div>
           </section>
 
@@ -203,10 +210,10 @@ export default function DataTransferPage() {
               <p className="mt-1 text-xs text-[#64748b]">Si vous avez un classeur Excel (.xlsx), enregistrez d'abord la feuille concernée au format CSV UTF-8 avec séparateur point-virgule.</p>
             </div>
             <div className="p-4">
-              <input ref={fileInput} type="file" accept=".csv,text/csv" multiple onChange={(event) => void handleFiles(event.target.files)} className="sr-only" id="data-import-file" />
+              <input ref={fileInput} type="file" accept=".xls,text/csv" multiple onChange={(event) => void handleFiles(event.target.files)} className="sr-only" id="data-import-file" />
               <label htmlFor="data-import-file" className="flex cursor-pointer flex-col items-center justify-center border border-dashed border-[#9aa8bd] bg-[#fafbfc] px-4 py-8 text-center hover:bg-[#f3f6ff]">
                 <FileUp className="mb-2 h-7 w-7 text-[#173b8f]" />
-                <span className="text-sm font-medium text-[#172033]">{isParsing ? "Lecture du fichier…" : "Sélectionner un ou plusieurs fichiers CSV"}</span>
+                <span className="text-sm font-medium text-[#172033]">{isParsing ? "Lecture du fichier…" : "Sélectionner un ou plusieurs fichiers Excel"}</span>
                 <span className="mt-1 text-xs text-[#64748b]">Le contenu sera analysé et affiché avant toute validation.</span>
               </label>
             </div>
@@ -268,7 +275,7 @@ export default function DataTransferPage() {
               ))}
             </div>
             <div className="flex flex-col gap-3 border-t border-[#e5e7eb] bg-[#fafbfc] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <span className="text-xs text-[#64748b]">{selectedExports.length} catégorie(s) sélectionnée(s) · format CSV compatible Excel</span>
+              <span className="text-xs text-[#64748b]">{selectedExports.length} catégorie(s) sélectionnée(s) · format Excel (.xls)</span>
               <Button type="button" onClick={() => void exportSelected()} disabled={isExporting || selectedExports.length === 0} className="w-full bg-[#173b8f] text-white hover:bg-[#123176] sm:w-auto">{isExporting ? "Préparation…" : "Exporter les données"} <ArrowUpFromLine className="ml-2 h-4 w-4" /></Button>
             </div>
           </section>

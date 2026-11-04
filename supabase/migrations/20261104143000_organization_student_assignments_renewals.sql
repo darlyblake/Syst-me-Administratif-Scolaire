@@ -54,6 +54,7 @@ declare
   v_org_schedule_id uuid;
   v_snapshot_id uuid;
   v_covered_any boolean := false;
+  v_remaining numeric(12,2);
 begin
   if auth.uid() is null then raise exception 'Authentification requise'; end if;
   if not private.has_permission(p_establishment_id,'enrollments.manage') then
@@ -73,6 +74,41 @@ begin
       and establishment_id=p_establishment_id and status='active'
     returning * into v_assignment;
     if v_assignment.id is null then raise exception 'Aucune prise en charge active pour cet élève et cette année'; end if;
+
+    -- Les montants déjà encaissés restent attribués à l'organisme.
+    -- Les montants non encaissés basculent vers la famille sans effacer l'historique.
+    for v_schedule in
+      select * from public.payment_schedules
+      where enrollment_id=p_enrollment_id and organization_id=p_organization_id and payer_type='other'
+      for update
+    loop
+      v_remaining := greatest(coalesce(v_schedule.amount_due,0)-coalesce(v_schedule.amount_paid,0),0);
+      if v_remaining<=0 then continue; end if;
+      if coalesce(v_schedule.amount_paid,0)>0 then
+        update public.payment_schedules
+        set amount_due=amount_paid,status='paid',updated_at=now()
+        where id=v_schedule.id;
+        insert into public.payment_schedules(
+          enrollment_id,installment_number,label,due_date,amount_due,amount_paid,status,
+          payer_type,category,is_refundable,priority_rank,organization_id
+        ) values (
+          v_schedule.enrollment_id,v_schedule.installment_number,v_schedule.label,v_schedule.due_date,
+          v_remaining,0,'pending','family',v_schedule.category,v_schedule.is_refundable,
+          v_schedule.priority_rank,null
+        );
+      else
+        update public.payment_schedules
+        set payer_type='family',organization_id=null,updated_at=now()
+        where id=v_schedule.id;
+      end if;
+    end loop;
+
+    update public.enrollments e set
+      parent_payable_amount=coalesce((select sum(greatest(ps.amount_due-ps.amount_paid,0))
+        from public.payment_schedules ps where ps.enrollment_id=e.id and ps.payer_type='family'),0),
+      organization_expected_amount=coalesce((select sum(ps.amount_due)
+        from public.payment_schedules ps where ps.enrollment_id=e.id and ps.organization_id is not null),0)
+    where e.id=p_enrollment_id;
     return jsonb_build_object('action','stop','assignment_id',v_assignment.id);
   elsif p_action<>'assign' then
     raise exception 'Action inconnue';

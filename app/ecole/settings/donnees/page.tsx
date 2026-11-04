@@ -230,17 +230,33 @@ export default function DataTransferPage() {
     setManualExpenseOpen(true)
   }
 
-  const submitManualExpense = () => {
+  const submitManualExpense = async () => {
     const amountText = manualExpenseValues.amount.trim().replace(/\s/g, "").replace(/FCFA/gi, "").replace(",", ".")
     const values = { ...manualExpenseValues, amount: amountText }
     const issues = validateEditedRow(values, "depenses", [], [], [], null)
-    if (!Number.isFinite(Number(amountText)) || Number(amountText) <= 0) issues.push({ code: "expense-amount-positive", field: "amount", message: "Le montant doit être supérieur à zéro.", severity: "error" })
     const errors = issues.filter(issue => issue.severity === "error").map(issue => issue.message)
     if (errors.length) { setManualErrors(errors); return }
-    setReviewRows(current => [...current, { key: "expense-manual-" + Date.now(), fileName: "Saisie manuelle", rowIndex: current.length + 1, kind: "depenses", values, issues }])
-    setReviewFilter("all")
-    setManualExpenseOpen(false)
-    setReviewOpen(true)
+    if (!establishmentId) { setManualErrors(["Établissement non identifié. Reconnectez-vous puis réessayez."]); return }
+    setIsSavingExpenses(true)
+    setManualErrors([])
+    try {
+      const { data: authData, error: authError } = await supabaseBrowser.auth.getUser()
+      if (authError) throw authError
+      if (!authData.user) throw new Error("Votre session a expiré. Reconnectez-vous.")
+      const { error } = await supabaseBrowser.from("expenses").insert({
+        establishment_id: establishmentId,
+        category: "Autres",
+        description: values.description.trim(),
+        expense_date: values.expense_date,
+        amount: Number(amountText),
+        created_by: authData.user.id,
+      })
+      if (error) throw error
+      setExpenseSaveMessage("Dépense enregistrée. Le mouvement financier a été actualisé automatiquement.")
+      setManualExpenseOpen(false)
+    } catch (error) {
+      setManualErrors([error instanceof Error ? error.message : "Impossible d’enregistrer cette dépense."])
+    } finally { setIsSavingExpenses(false) }
   }
 
   const saveReviewedExpenses = async () => {
@@ -512,7 +528,7 @@ export default function DataTransferPage() {
               </div>
             )}
             <div className="flex flex-col gap-3 border-t border-[#e5e7eb] bg-[#fafbfc] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-[#64748b]">Le tarif, le mode (mensuel, par tranches ou unique) et les échéances proviennent du plan tarifaire du niveau. Les dépenses historiques restent indépendantes.</p>
+              <p className="text-xs text-[#64748b]">{selectedKind === "inscriptions" ? "Le tarif, le mode (mensuel, par tranches ou unique) et les échéances proviennent du plan tarifaire du niveau." : "Les dépenses enregistrées sont automatiquement répercutées dans les mouvements financiers."}</p>
               <Button type="button" variant="outline" size="sm" onClick={() => downloadTemplate(selectedKind)} className="w-full sm:w-auto"><FileSpreadsheet className="mr-2 h-4 w-4" /> Télécharger le modèle CSV</Button>
             </div>
           </section>
@@ -585,7 +601,7 @@ export default function DataTransferPage() {
                 </div>
                 <div className="flex justify-end gap-2 border-t border-[#e5e7eb] bg-[#fafbfc] px-5 py-4">
                   <Button type="button" variant="outline" onClick={() => setManualExpenseOpen(false)}>Annuler</Button>
-                  <Button type="button" onClick={submitManualExpense} className="bg-[#173b8f] text-white hover:bg-[#123176]">Vérifier la dépense</Button>
+                  <Button type="button" disabled={isSavingExpenses} onClick={() => void submitManualExpense()} className="bg-[#173b8f] text-white hover:bg-[#123176]">{isSavingExpenses ? "Enregistrement…" : "Enregistrer la dépense"}</Button>
                 </div>
               </div>
             </div>

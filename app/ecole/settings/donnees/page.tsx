@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { supabaseBrowser } from "@/lib/supabase/client"
 
-type ImportKind = "inscriptions" | "paiements"
+type ImportKind = "inscriptions" | "paiements" | "depenses"
 type ExportKind = "eleves" | "inscriptions" | "classes" | "finance"
 type ParsedFile = { id: string; name: string; kind: ImportKind; rows: Record<string, string>[]; headers: string[]; errors: string[] }
 type ExistingStudent = { id: string; student_number: string | null; first_name: string | null; last_name: string | null; birth_date: string | null }
@@ -34,9 +34,9 @@ function validateEditedRow(values: Record<string, string>, kind: ImportKind, stu
     if (!/^\d+(\.\d{1,2})?$/.test(amount)) issues.push({ code: "amount-format", field: "amount", message: "Le montant contient des caractères non numériques.", severity: "error" })
     else if (Number(amount) < 0) issues.push({ code: "amount-negative", field: "amount", message: "Un montant ne peut pas être négatif.", severity: "error" })
   }
-  ;["enrollment_date", "payment_date", "due_date", "subscription_date", "birth_date"].forEach(field => { if (values[field] && !validIsoDate(values[field])) issues.push({ code: "date-format", field, message: "Date invalide. Utilisez une date réelle au format AAAA-MM-JJ.", severity: "error" }) })
+  ;["enrollment_date", "payment_date", "expense_date", "due_date", "subscription_date", "birth_date"].forEach(field => { if (values[field] && !validIsoDate(values[field])) issues.push({ code: "date-format", field, message: "Date invalide. Utilisez une date réelle au format AAAA-MM-JJ.", severity: "error" }) })
   let matchedClass: ImportClass | undefined
-  const levelValue = values.level || values.class_name || ""
+  const levelValue = kind === "inscriptions" ? (values.level || values.class_name || "") : ""
   if (levelValue.trim()) {
     matchedClass = classes.find(item => normalizeText(item.name) === normalizeText(levelValue) || normalizeText(item.grade_level_name + " " + item.name) === normalizeText(levelValue))
     const matchedLevel = classes.find(item => normalizeText(item.grade_level_name) === normalizeText(levelValue))
@@ -49,7 +49,7 @@ function validateEditedRow(values: Record<string, string>, kind: ImportKind, stu
     if (!tariff) issues.push({ code: "tariff-not-found", field: tariffField, message: "Aucun tarif annuel actif ne correspond à cette classe et à cette année scolaire.", severity: "error" })
     else if (/^\d+(\.\d{1,2})?$/.test(raw) && Math.abs(Number(raw) - tariff.annual_tuition) > 1) issues.push({ code: "tariff-mismatch", field: tariffField, message: "Le tarif importé diffère du tarif configuré (" + tariff.annual_tuition.toLocaleString("fr-FR") + " FCFA).", severity: "warning" })
   }
-  const first = normalizeText(values.first_name), last = normalizeText(values.last_name)
+  const first = kind === "inscriptions" ? normalizeText(values.first_name) : "", last = kind === "inscriptions" ? normalizeText(values.last_name) : ""
   const candidate = first && last ? students.find(item => normalizeText(item.first_name) === first && normalizeText(item.last_name) === last && (!values.birth_date || !item.birth_date || item.birth_date === values.birth_date)) : undefined
   if (candidate) issues.push({ code: "possible-duplicate", message: "Un élève correspondant semble déjà exister. Vérifiez s’il s’agit du même élève.", severity: "warning", candidate })
   return issues
@@ -58,7 +58,8 @@ function validateEditedRow(values: Record<string, string>, kind: ImportKind, stu
 
 const importTypes: { id: ImportKind; label: string; required: string[]; description: string }[] = [
   { id: "inscriptions", label: "Élèves et inscriptions", required: ["first_name", "last_name", "level"], description: "Un seul dossier par élève : identité et inscription à l’année scolaire active. Date d’inscription et ancien numéro de reçu facultatifs." },
-  { id: "paiements", label: "Paiements historiques", required: ["student_number", "payment_date", "amount", "method"], description: "Encaissements passés avec leur date réelle et référence de reçu." },
+  { id: "paiements", label: "Paiements historiques", required: ["student_number", "payment_date", "amount", "method"], description: "Encaissements réellement reçus, avec leur date et leur ancienne référence de reçu." },
+  { id: "depenses", label: "Dépenses historiques", required: ["category", "description", "expense_date", "amount"], description: "Dépenses déjà effectuées par l’établissement, avec date, montant, catégorie et mode de règlement facultatif." },
 ]
 
 const exportTypes: { id: ExportKind; label: string; description: string }[] = [
@@ -85,6 +86,11 @@ const fieldLabels: Record<string, string> = {
   due_date: "Date limite de paiement",
   amount: "Montant (FCFA)",
   payment_date: "Date du paiement",
+  expense_date: "Date de la dépense",
+  category: "Catégorie de dépense",
+  description: "Description",
+  payment_method: "Mode de règlement",
+  supplier: "Fournisseur",
   method: "Mode de paiement",
   option_name: "Nom de l'option ou du service",
   subscription_date: "Date de souscription",
@@ -218,21 +224,21 @@ export default function DataTransferPage() {
               else if (Number(normalizedAmount) < 0) issues.push({ code: "amount-negative", field, message: "Un montant ne peut pas être négatif.", severity: "error" })
               else values[field] = String(Number(normalizedAmount))
             })
-            ;["enrollment_date", "payment_date", "due_date", "subscription_date", "birth_date"].forEach((field) => {
+            ;["enrollment_date", "payment_date", "expense_date", "due_date", "subscription_date", "birth_date"].forEach((field) => {
               if (values[field] && !validIsoDate(values[field])) issues.push({ code: "date-format", field, message: "Date invalide. Utilisez le format AAAA-MM-JJ.", severity: "error" })
             })
-            const levelValue = values.level || values.class_name || ""
+            const levelValue = file.kind === "inscriptions" ? (values.level || values.class_name || "") : ""
             if (levelValue.trim()) {
               const matchedClass = knownClasses.find(item => normalizeText(item.name) === normalizeText(levelValue) || normalizeText(item.grade_level_name + " " + item.name) === normalizeText(levelValue))
               const matchedLevel = knownClasses.find(item => normalizeText(item.grade_level_name) === normalizeText(levelValue))
               if (!matchedClass && !matchedLevel) issues.push({ code: "level-not-found", field: "level", message: "Ce niveau ou cette classe n’existe pas dans la structure active de l’établissement.", severity: "error" })
               
             }
-            const first = normalizeText(values.first_name)
-            const last = normalizeText(values.last_name)
+            const first = file.kind === "inscriptions" ? normalizeText(values.first_name) : ""
+            const last = file.kind === "inscriptions" ? normalizeText(values.last_name)
             let candidate = first && last ? existing.find((item) => normalizeText(item.first_name) === first && normalizeText(item.last_name) === last && (!values.birth_date || !item.birth_date || item.birth_date === values.birth_date)) : undefined
             if (candidate) issues.push({ code: "possible-duplicate", message: "Un élève correspondant semble déjà exister. Vérifiez s'il s'agit du même élève.", severity: "warning", candidate })
-            const duplicateInFile = first && last && analyzed.find(item => normalizeText(item.values.first_name) === first && normalizeText(item.values.last_name) === last)
+            const duplicateInFile = file.kind === "inscriptions" && first && last && analyzed.find(item => item.kind === "inscriptions" && normalizeText(item.values.first_name) === first && normalizeText(item.values.last_name) === last)
             if (duplicateInFile) issues.push({ code: "possible-duplicate", message: "Ce nom et ce prénom apparaissent déjà dans une ligne précédente de cet import. Vérifiez s’il s’agit d’une réinscription ou d’un doublon.", severity: "warning" })
             analyzed.push({ key: file.id + ":" + index, fileName: file.name, rowIndex: index + 2, kind: file.kind, values, issues, duplicateChoice: candidate || duplicateInFile ? "pending" : undefined })
           })
@@ -254,7 +260,7 @@ export default function DataTransferPage() {
 
   const downloadTemplate = (kind: ImportKind) => {
     const config = importTypes.find((item) => item.id === kind)!
-    const example: Record<string, string> = Object.fromEntries([...config.required, ...(kind === "inscriptions" ? ["enrollment_date", "receipt_number"] : [])].map((field) => [field, ""]))
+    const example: Record<string, string> = Object.fromEntries([...config.required, ...(kind === "inscriptions" ? ["enrollment_date", "receipt_number"] : kind === "depenses" ? ["payment_method", "reference", "supplier"] : ["reference", "notes"])].map((field) => [field, ""]))
     downloadCsv("modele_" + kind + ".csv", [example])
   }
 
@@ -352,7 +358,7 @@ export default function DataTransferPage() {
           <section className="border border-[#d7dae3] bg-white">
             <div className="border-b border-[#e5e7eb] px-4 py-3">
               <h2 className="text-sm font-semibold text-[#172033]">1. Choisir le type de données</h2>
-              <p className="mt-1 text-xs text-[#64748b]">Pour inscrire un élève, seuls le nom, le prénom et le niveau sont indispensables. La date historique et le numéro de reçu papier sont facultatifs.</p>
+              <p className="mt-1 text-xs text-[#64748b]">Les données historiques sont contrôlées avant toute reprise. Les inscriptions reprises seront considérées comme réglées à la date de migration, sans créer de faux encaissement.</p>
             </div>
             <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
               {importTypes.map((item) => (
@@ -363,7 +369,7 @@ export default function DataTransferPage() {
               ))}
             </div>
             <div className="flex flex-col gap-3 border-t border-[#e5e7eb] bg-[#fafbfc] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-[#64748b]">Pour les élèves et inscriptions, le matricule est attribué automatiquement. Les autres imports peuvent utiliser le matricule déjà attribué pour retrouver un élève.</p>
+              <p className="text-xs text-[#64748b]">Les imports historiques conservent les dates et références d’origine. Les dépenses sont reprises comme sorties déjà effectuées, pas comme de nouvelles opérations du jour.</p>
               <Button type="button" variant="outline" size="sm" onClick={() => downloadTemplate(selectedKind)} className="w-full sm:w-auto"><FileSpreadsheet className="mr-2 h-4 w-4" /> Télécharger le modèle CSV</Button>
             </div>
           </section>
@@ -371,7 +377,7 @@ export default function DataTransferPage() {
           <section className="border border-[#d7dae3] bg-white">
             <div className="border-b border-[#e5e7eb] px-4 py-3">
               <h2 className="text-sm font-semibold text-[#172033]">2. Ajouter le fichier à vérifier</h2>
-              <p className="mt-1 text-xs text-[#64748b]">Format accepté : CSV standard (.csv). Le matricule et le montant annuel sont ignorés pour l’import des élèves et inscriptions : ils ne doivent pas être saisis dans le fichier.</p>
+              <p className="mt-1 text-xs text-[#64748b]">Format accepté : CSV standard (.csv). Utilisez le modèle correspondant au type de données sélectionné.</p>
             </div>
             <div className="p-4">
               <input ref={fileInput} type="file" accept=".csv,text/csv" multiple onChange={(event) => void handleFiles(event.target.files)} className="sr-only" id="data-import-file" />
@@ -415,7 +421,7 @@ export default function DataTransferPage() {
                 </div>
               )}
               <div className="border-t border-[#e5e7eb] bg-[#fffaf0] px-4 py-3">
-                <p className="flex items-start gap-2 text-xs leading-5 text-[#805b16]"><Info className="mt-0.5 h-4 w-4 shrink-0" /> Cette première étape contrôle la lecture et les colonnes. L'enregistrement définitif dans Supabase n'est pas encore activé : il nécessitera une validation serveur sécurisée, la détection des doublons et une transaction pour préserver les dates et les montants historiques.</p>
+                <p className="flex items-start gap-2 text-xs leading-5 text-[#805b16]"><Info className="mt-0.5 h-4 w-4 shrink-0" /> Cette étape vérifie les fichiers et prépare la reprise. Aucun enregistrement n’est encore effectué : la validation définitive devra être atomique pour éviter les doublons et préserver les soldes historiques.</p>
               </div>
             </section>
           )}
@@ -458,14 +464,14 @@ export default function DataTransferPage() {
                   {reviewRows.length === 0 && <p className="p-8 text-center text-sm text-[#64748b]">Aucune ligne à analyser.</p>}
                 </div>
                 <div className="flex flex-col gap-2 border-t border-[#e5e7eb] bg-[#fafbfc] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-[#64748b]">Les erreurs sont recalculées après chaque correction. L’enregistrement reste désactivé jusqu’à la mise en place d’une transaction serveur sécurisée.</p>
+                  <p className="text-xs text-[#64748b]">Les erreurs sont recalculées après chaque correction. La validation finale sera activée avec la transaction sécurisée de reprise historique.</p>
                   <Button type="button" variant="outline" onClick={() => setReviewOpen(false)}>Fermer</Button>
                 </div>
               </div>
             </div>
           )}
 
-          <div className="flex items-start gap-2 text-xs leading-5 text-[#64748b]"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" /> Les dates d'inscription et de paiement doivent rester les dates réelles. La date d'importation sera conservée séparément lors de la future intégration.</div>
+          <div className="flex items-start gap-2 text-xs leading-5 text-[#64748b]"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" /> Les dates d’inscription, de paiement et de dépense restent les dates réelles. La date de migration sera conservée séparément.</div>
           {invalidFiles.length > 0 && <p className="flex items-center gap-2 text-xs text-[#b42318]"><AlertCircle className="h-4 w-4" /> Corrigez les colonnes manquantes avant de poursuivre.</p>}
         </div>
       ) : (

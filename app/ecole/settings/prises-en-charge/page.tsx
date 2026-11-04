@@ -40,6 +40,7 @@ export default function PrisesEnChargeSettingsPage() {
   const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null)
   const [selectedDiscount, setSelectedDiscount] = useState<DiscountRule | null>(null)
   const [organizationStudentCount, setOrganizationStudentCount] = useState<number | null>(null)
+  const [organizationStudentRows, setOrganizationStudentRows] = useState<Array<{ key: string; name: string; studentNumber: string | null; year: string }>>([])
   const [organizationStudentsLoading, setOrganizationStudentsLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -136,13 +137,30 @@ export default function PrisesEnChargeSettingsPage() {
   const loadOrganizationStudentCount = async (item: Organization) => {
     setOrganizationStudentsLoading(true)
     setOrganizationStudentCount(null)
+    setOrganizationStudentRows([])
     try {
       const { data, error } = await supabaseBrowser
         .from("payment_schedules")
-        .select("enrollment_id")
+        .select("enrollment_id,enrollments!inner(student_id,academic_year_id,students!inner(first_name,last_name,student_number),academic_years(name))")
         .eq("organization_id", item.id)
       if (error) throw error
-      setOrganizationStudentCount(new Set((data ?? []).map((row: any) => row.enrollment_id)).size)
+      const unique = new Map<string, { key: string; name: string; studentNumber: string | null; year: string }>()
+      for (const schedule of data ?? []) {
+        const enrollment: any = (schedule as any).enrollments
+        const student = enrollment?.students
+        if (!student || !enrollment?.student_id) continue
+        const year = enrollment.academic_years?.name ?? "Année non renseignée"
+        const key = enrollment.student_id + ":" + (enrollment.academic_year_id ?? "none")
+        unique.set(key, {
+          key,
+          name: [student.first_name, student.last_name].filter(Boolean).join(" "),
+          studentNumber: student.student_number ?? null,
+          year,
+        })
+      }
+      const rows = Array.from(unique.values()).sort((a, b) => a.year.localeCompare(b.year, "fr") || a.name.localeCompare(b.name, "fr"))
+      setOrganizationStudentRows(rows)
+      setOrganizationStudentCount(new Set(rows.map((row) => row.key.split(":")[0])).size)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Impossible de charger l’effectif pris en charge.")
       setOrganizationStudentCount(0)
@@ -275,7 +293,7 @@ export default function PrisesEnChargeSettingsPage() {
       </DialogContent></Dialog>
       <div className="border border-slate-200 bg-white"><div className="border-b px-4 py-3"><h2 className="text-sm font-semibold">Barèmes configurés ({discounts.length})</h2></div><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-sm"><thead className="bg-slate-50 text-left text-xs text-slate-500"><tr><th className="px-4 py-3">Barème</th><th className="px-4 py-3">Enfants requis</th><th className="px-4 py-3">Réduction</th><th className="px-4 py-3">Frais</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3">Action</th></tr></thead><tbody className="divide-y">{discounts.map((d) => <tr key={d.id}><td className="px-4 py-3 font-medium">{d.name}</td><td className="px-4 py-3">{d.min_children}{d.max_children ? " à " + d.max_children : " et plus"}</td><td className="px-4 py-3">{d.discount_type === "percentage" ? d.discount_value + "%" : money(d.discount_value)}</td><td className="px-4 py-3">{(d.applies_to_categories ?? []).map((c) => CATEGORIES.find((x) => x.value === c)?.label || c).join(", ")}{d.option_type ? " — " + optionTypeLabel(d.option_type) : ""}<span className="block text-xs text-slate-500">{academicYears.find((y) => y.id === d.academic_year_id)?.name || "Toutes les années"}{d.valid_from || d.valid_until ? " · " + (d.valid_from || "début libre") + " → " + (d.valid_until || "sans fin") : ""}</span></td><td className="px-4 py-3">{d.active ? "Actif" : "Inactif"}</td><td className="px-4 py-3"><Button size="sm" variant="outline" onClick={() => setSelectedDiscount(d)}>Gérer</Button></td></tr>)}{discounts.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Aucune réduction configurée.</td></tr>}</tbody></table></div></div>
     </section>}
-    <Dialog open={!!selectedOrganization} onOpenChange={(open) => { if (!open) { setSelectedOrganization(null); setOrganizationStudentCount(null) } }}>
+    <Dialog open={!!selectedOrganization} onOpenChange={(open) => { if (!open) { setSelectedOrganization(null); setOrganizationStudentCount(null); setOrganizationStudentRows([]) } }}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader><DialogTitle>Gestion de l’organisme</DialogTitle><DialogDescription>{selectedOrganization?.name}</DialogDescription></DialogHeader>
         <div className="space-y-4">
@@ -283,7 +301,15 @@ export default function PrisesEnChargeSettingsPage() {
             <div className="border border-slate-200 p-3"><p className="text-xs text-slate-500">Élèves pris en charge</p><p className="mt-1 text-2xl font-semibold">{organizationStudentsLoading ? "…" : organizationStudentCount ?? "—"}</p></div>
             <div className="border border-slate-200 p-3"><p className="text-xs text-slate-500">Statut de l’organisme</p><p className="mt-1 text-sm font-semibold">{selectedOrganization?.active ? "Actif" : "Inactif"}</p></div>
           </div>
-          <p className="text-sm text-slate-600">Les élèves comptabilisés sont ceux qui possèdent au moins une échéance financière rattachée à cet organisme. Les historiques financiers sont conservés.</p>
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold">Élèves rattachés par année scolaire</h3>
+            {organizationStudentsLoading ? <p className="text-sm text-slate-500">Chargement des élèves…</p> : organizationStudentRows.length ? (
+              <div className="max-h-64 divide-y overflow-y-auto border border-slate-200">
+                {organizationStudentRows.map((student) => <div key={student.key} className="flex items-center justify-between gap-3 px-3 py-2 text-sm"><div><p className="font-medium">{student.name}</p><p className="text-xs text-slate-500">{student.studentNumber || "Matricule non renseigné"}</p></div><span className="shrink-0 text-xs text-slate-500">{student.year}</span></div>)}
+              </div>
+            ) : <p className="border border-dashed border-slate-300 px-3 py-4 text-center text-sm text-slate-500">Aucun élève n’est encore rattaché à cet organisme pour le moment.</p>}
+          </div>
+          <p className="text-xs text-slate-500">Le compteur est calculé à partir des échéances financières rattachées à l’organisme. Les lignes historiques restent conservées.</p>
           {selectedOrganization?.is_state && <Button className="w-full" variant="outline" asChild><Link href="/ecole/students/import-etat"><FileSpreadsheet className="mr-2 h-4 w-4" />Importer plusieurs élèves (Excel / CSV)</Link></Button>}
           <Button className="w-full" disabled={!selectedOrganization} onClick={async () => { if (selectedOrganization) await toggleOrganization(selectedOrganization); setSelectedOrganization(null) }}>{selectedOrganization?.active ? "Désactiver l’organisme" : "Réactiver l’organisme"}</Button>
         </div>

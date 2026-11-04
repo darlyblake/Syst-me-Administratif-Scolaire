@@ -84,23 +84,17 @@ begin
     loop
       v_remaining := greatest(coalesce(v_schedule.amount_due,0)-coalesce(v_schedule.amount_paid,0),0);
       if v_remaining<=0 then continue; end if;
-      if coalesce(v_schedule.amount_paid,0)>0 then
-        update public.payment_schedules
-        set amount_due=amount_paid,status='paid',updated_at=now()
-        where id=v_schedule.id;
-        insert into public.payment_schedules(
-          enrollment_id,installment_number,label,due_date,amount_due,amount_paid,status,
-          payer_type,category,is_refundable,priority_rank,organization_id
-        ) values (
-          v_schedule.enrollment_id,v_schedule.installment_number,v_schedule.label,v_schedule.due_date,
-          v_remaining,0,'pending','family',v_schedule.category,v_schedule.is_refundable,
-          v_schedule.priority_rank,null
-        );
-      else
-        update public.payment_schedules
-        set payer_type='family',organization_id=null,updated_at=now()
-        where id=v_schedule.id;
-      end if;
+      update public.payment_schedules
+      set amount_due=amount_paid,status='paid',updated_at=now()
+      where id=v_schedule.id;
+      insert into public.payment_schedules(
+        enrollment_id,installment_number,label,due_date,amount_due,amount_paid,status,
+        payer_type,category,is_refundable,priority_rank,organization_id
+      ) values (
+        v_schedule.enrollment_id,v_schedule.installment_number,v_schedule.label,v_schedule.due_date,
+        v_remaining,0,'pending','family',v_schedule.category,v_schedule.is_refundable,
+        v_schedule.priority_rank,null
+      );
     end loop;
 
     update public.enrollments e set

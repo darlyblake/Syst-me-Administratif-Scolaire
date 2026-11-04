@@ -1,0 +1,282 @@
+"use client"
+
+import { useMemo, useRef, useState } from "react"
+import Papa from "papaparse"
+import { AlertCircle, ArrowDownToLine, ArrowUpFromLine, CheckCircle2, FileSpreadsheet, FileUp, Info, RefreshCw, ShieldCheck, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useAuthentification } from "@/providers/authentification.provider"
+import { supabaseBrowser } from "@/lib/supabase/client"
+
+type ImportKind = "eleves" | "parents" | "inscriptions" | "echeances" | "paiements" | "options"
+type ExportKind = "eleves" | "inscriptions" | "classes" | "finance"
+type ParsedFile = { id: string; name: string; kind: ImportKind; rows: Record<string, string>[]; headers: string[]; errors: string[] }
+
+const importTypes: { id: ImportKind; label: string; required: string[]; description: string }[] = [
+  { id: "eleves", label: "Élèves", required: ["student_number", "first_name", "last_name"], description: "Identité, matricule et coordonnées des élèves." },
+  { id: "parents", label: "Parents et tuteurs", required: ["student_number", "first_name", "last_name", "relationship"], description: "Responsables associés à chaque élève par son matricule." },
+  { id: "inscriptions", label: "Inscriptions", required: ["student_number", "academic_year", "class_name", "enrollment_date"], description: "Classe, année scolaire et date réelle d'inscription." },
+  { id: "echeances", label: "Frais et échéances", required: ["student_number", "label", "due_date", "amount"], description: "Frais d'inscription, mensualités et tranches prévues." },
+  { id: "paiements", label: "Paiements historiques", required: ["student_number", "payment_date", "amount", "method"], description: "Encaissements passés avec leur date réelle et référence de reçu." },
+  { id: "options", label: "Options et services", required: ["student_number", "option_name", "subscription_date", "amount"], description: "Cantine, assurance, transport, sport et autres services." },
+]
+
+const exportTypes: { id: ExportKind; label: string; description: string }[] = [
+  { id: "eleves", label: "Élèves", description: "Fiches et coordonnées des élèves." },
+  { id: "inscriptions", label: "Inscriptions", description: "Années, classes et dates d'inscription." },
+  { id: "classes", label: "Structure scolaire", description: "Années scolaires, niveaux et classes." },
+  { id: "finance", label: "Données financières", description: "Échéances et paiements enregistrés." },
+]
+
+function downloadCsv(name: string, rows: Record<string, unknown>[]) {
+  const csv = "\uFEFF" + Papa.unparse(rows.length ? rows : [{ information: "Aucune donnée disponible" }], { delimiter: ";" })
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = name
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+export default function DataTransferPage() {
+  const { utilisateur } = useAuthentification()
+  const establishmentId = (utilisateur as { etablissementId?: string } | null)?.etablissementId ?? null
+  const fileInput = useRef<HTMLInputElement>(null)
+  const [files, setFiles] = useState<ParsedFile[]>([])
+  const [selectedKind, setSelectedKind] = useState<ImportKind>("eleves")
+  const [isParsing, setIsParsing] = useState(false)
+  const [activeTab, setActiveTab] = useState<"import" | "export">("import")
+  const [selectedExports, setSelectedExports] = useState<ExportKind[]>(["eleves", "inscriptions", "classes", "finance"])
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportMessage, setExportMessage] = useState("")
+  const [exportError, setExportError] = useState("")
+
+  const totalRows = useMemo(() => files.reduce((sum, file) => sum + file.rows.length, 0), [files])
+  const invalidFiles = files.filter((file) => file.errors.length > 0)
+
+  const handleFiles = async (selected: FileList | null) => {
+    if (!selected?.length) return
+    setIsParsing(true)
+    try {
+      const parsed = await Promise.all(Array.from(selected).map((file) => new Promise<ParsedFile>((resolve) => {
+        Papa.parse<Record<string, string>>(file, {
+          header: true,
+          skipEmptyLines: "greedy",
+          delimiter: "",
+          complete: (result) => {
+            const headers = (result.meta.fields ?? []).map((field) => field.trim())
+            const config = importTypes.find((item) => item.id === selectedKind)!
+            const missing = config.required.filter((field) => !headers.includes(field))
+            const errors = [...missing.map((field) => "Colonne obligatoire absente : " + field)]
+            if (result.errors.length) errors.push(result.errors.length + " ligne(s) contiennent une erreur de lecture.")
+            resolve({ id: file.name + file.size + file.lastModified, name: file.name, kind: selectedKind, rows: result.data, headers, errors })
+          },
+          error: () => resolve({ id: file.name + file.size, name: file.name, kind: selectedKind, rows: [], headers: [], errors: ["Impossible de lire ce fichier."] }),
+        })
+      })))
+      setFiles((current) => [...current.filter((item) => !parsed.some((next) => next.id === item.id)), ...parsed])
+    } finally {
+      setIsParsing(false)
+      if (fileInput.current) fileInput.current.value = ""
+    }
+  }
+
+  const downloadTemplate = (kind: ImportKind) => {
+    const config = importTypes.find((item) => item.id === kind)!
+    const example: Record<string, string> = Object.fromEntries(config.required.map((field) => [field, ""]))
+    downloadCsv("modele_" + kind + ".csv", [example])
+  }
+
+  const exportSelected = async () => {
+    if (!establishmentId) {
+      setExportError("L'établissement actif est introuvable. Reconnectez-vous puis réessayez.")
+      return
+    }
+    if (!selectedExports.length) {
+      setExportError("Sélectionnez au moins une catégorie à exporter.")
+      return
+    }
+    setIsExporting(true)
+    setExportError("")
+    setExportMessage("")
+    const exported: string[] = []
+    const failures: string[] = []
+    try {
+      for (const kind of selectedExports) {
+        try {
+          if (kind === "eleves") {
+            const { data, error } = await supabaseBrowser.from("students").select("*").eq("establishment_id", establishmentId).order("last_name").limit(10000)
+            if (error) throw error
+            downloadCsv("eleves.csv", (data ?? []) as Record<string, unknown>[])
+          } else if (kind === "inscriptions") {
+            const { data, error } = await supabaseBrowser.from("enrollments").select("*").eq("establishment_id", establishmentId).order("enrollment_date").limit(10000)
+            if (error) throw error
+            downloadCsv("inscriptions.csv", (data ?? []) as Record<string, unknown>[])
+          } else if (kind === "classes") {
+            const [years, levels, classes] = await Promise.all([
+              supabaseBrowser.from("academic_years").select("*").eq("establishment_id", establishmentId).limit(1000),
+              supabaseBrowser.from("grade_levels").select("*").eq("establishment_id", establishmentId).limit(1000),
+              supabaseBrowser.from("school_classes").select("*").eq("establishment_id", establishmentId).limit(1000),
+            ])
+            const error = years.error || levels.error || classes.error
+            if (error) throw error
+            downloadCsv("structure_scolaire.csv", [
+              ...(years.data ?? []).map((row) => ({ type: "annee_scolaire", ...row })),
+              ...(levels.data ?? []).map((row) => ({ type: "niveau", ...row })),
+              ...(classes.data ?? []).map((row) => ({ type: "classe", ...row })),
+            ] as Record<string, unknown>[])
+          } else {
+            const { data: enrollments, error: enrollmentError } = await supabaseBrowser.from("enrollments").select("id").eq("establishment_id", establishmentId).limit(10000)
+            if (enrollmentError) throw enrollmentError
+            const ids = (enrollments ?? []).map((row) => row.id)
+            if (!ids.length) {
+              downloadCsv("echeances_et_paiements.csv", [])
+            } else {
+              const [schedules, payments] = await Promise.all([
+                supabaseBrowser.from("payment_schedules").select("*").in("enrollment_id", ids).limit(20000),
+                supabaseBrowser.from("payments").select("*").in("enrollment_id", ids).limit(20000),
+              ])
+              if (schedules.error || payments.error) throw schedules.error || payments.error
+              downloadCsv("echeances.csv", (schedules.data ?? []) as Record<string, unknown>[])
+              downloadCsv("paiements.csv", (payments.data ?? []) as Record<string, unknown>[])
+            }
+          }
+          exported.push(kind)
+        } catch (error) {
+          console.error("Export impossible pour", kind, error)
+          failures.push(exportTypes.find((item) => item.id === kind)?.label ?? kind)
+        }
+      }
+      if (exported.length) setExportMessage("Export terminé pour : " + exported.map((kind) => exportTypes.find((item) => item.id === kind)?.label).join(", ") + ".")
+      if (failures.length) setExportError("Certaines données n'ont pas pu être exportées : " + failures.join(", ") + ". Vérifiez les droits d'accès ou réessayez.")
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-6xl space-y-5">
+      <header className="border-b border-[#d7dae3] pb-4">
+        <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-[#64748b]">Administration / Paramètres</p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-[#172033]">Importation et exportation des données</h1>
+            <p className="mt-1 max-w-3xl text-sm text-[#64748b]">Transférez les dossiers de votre établissement et conservez une copie exploitable de vos données scolaires.</p>
+          </div>
+          <span className="text-xs text-[#64748b]">Fichiers CSV compatibles avec Excel</span>
+        </div>
+      </header>
+
+      <div className="flex border-b border-[#d7dae3]">
+        <button type="button" onClick={() => setActiveTab("import")} className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium ${activeTab === "import" ? "border-[#173b8f] text-[#173b8f]" : "border-transparent text-[#64748b] hover:text-[#172033]"}`}>
+          <ArrowDownToLine className="h-4 w-4" /> Importer des données
+        </button>
+        <button type="button" onClick={() => setActiveTab("export")} className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium ${activeTab === "export" ? "border-[#173b8f] text-[#173b8f]" : "border-transparent text-[#64748b] hover:text-[#172033]"}`}>
+          <ArrowUpFromLine className="h-4 w-4" /> Exporter des données
+        </button>
+      </div>
+
+      {activeTab === "import" ? (
+        <div className="space-y-5">
+          <section className="border border-[#d7dae3] bg-white">
+            <div className="border-b border-[#e5e7eb] px-4 py-3">
+              <h2 className="text-sm font-semibold text-[#172033]">1. Choisir le type de données</h2>
+              <p className="mt-1 text-xs text-[#64748b]">Importez chaque catégorie séparément pour faciliter les contrôles et les rapprochements.</p>
+            </div>
+            <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+              {importTypes.map((item) => (
+                <button key={item.id} type="button" onClick={() => setSelectedKind(item.id)} className={`border p-3 text-left transition-colors ${selectedKind === item.id ? "border-[#173b8f] bg-[#f3f6ff]" : "border-[#d7dae3] hover:bg-[#f8fafc]"}`}>
+                  <span className="block text-sm font-medium text-[#172033]">{item.label}</span>
+                  <span className="mt-1 block text-xs leading-5 text-[#64748b]">{item.description}</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-col gap-3 border-t border-[#e5e7eb] bg-[#fafbfc] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-[#64748b]">Commencez par les élèves, puis importez les autres fichiers en utilisant leur matricule.</p>
+              <Button type="button" variant="outline" size="sm" onClick={() => downloadTemplate(selectedKind)} className="w-full sm:w-auto"><FileSpreadsheet className="mr-2 h-4 w-4" /> Télécharger le modèle CSV</Button>
+            </div>
+          </section>
+
+          <section className="border border-[#d7dae3] bg-white">
+            <div className="border-b border-[#e5e7eb] px-4 py-3">
+              <h2 className="text-sm font-semibold text-[#172033]">2. Ajouter le fichier à vérifier</h2>
+              <p className="mt-1 text-xs text-[#64748b]">Si vous avez un classeur Excel (.xlsx), enregistrez d'abord la feuille concernée au format CSV UTF-8 avec séparateur point-virgule.</p>
+            </div>
+            <div className="p-4">
+              <input ref={fileInput} type="file" accept=".csv,text/csv" multiple onChange={(event) => void handleFiles(event.target.files)} className="sr-only" id="data-import-file" />
+              <label htmlFor="data-import-file" className="flex cursor-pointer flex-col items-center justify-center border border-dashed border-[#9aa8bd] bg-[#fafbfc] px-4 py-8 text-center hover:bg-[#f3f6ff]">
+                <FileUp className="mb-2 h-7 w-7 text-[#173b8f]" />
+                <span className="text-sm font-medium text-[#172033]">{isParsing ? "Lecture du fichier…" : "Sélectionner un ou plusieurs fichiers CSV"}</span>
+                <span className="mt-1 text-xs text-[#64748b]">Le contenu sera analysé et affiché avant toute validation.</span>
+              </label>
+            </div>
+          </section>
+
+          {files.length > 0 && (
+            <section className="border border-[#d7dae3] bg-white">
+              <div className="flex flex-col gap-2 border-b border-[#e5e7eb] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-[#172033]">3. Vérifier les fichiers sélectionnés</h2>
+                  <p className="mt-1 text-xs text-[#64748b]">{files.length} fichier(s) · {totalRows} ligne(s) détectée(s)</p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => setFiles([])}><RefreshCw className="mr-2 h-4 w-4" /> Réinitialiser</Button>
+              </div>
+              <div className="divide-y divide-[#e5e7eb]">
+                {files.map((file) => (
+                  <div key={file.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 text-sm font-medium text-[#172033]"><FileSpreadsheet className="h-4 w-4 shrink-0 text-[#64748b]" /><span className="truncate">{file.name}</span></div>
+                      <p className="mt-1 text-xs text-[#64748b]">{importTypes.find((item) => item.id === file.kind)?.label} · {file.rows.length} ligne(s)</p>
+                      {file.errors.length > 0 && <p className="mt-1 text-xs text-[#b42318]">{file.errors.join(" ")}</p>}
+                      {file.errors.length === 0 && <p className="mt-1 flex items-center gap-1 text-xs text-[#237044]"><CheckCircle2 className="h-3.5 w-3.5" /> Colonnes obligatoires détectées</p>}
+                    </div>
+                    <button type="button" onClick={() => setFiles((current) => current.filter((item) => item.id !== file.id))} aria-label={"Retirer " + file.name} className="self-end rounded p-1 text-[#64748b] hover:bg-[#f1f5f9] sm:self-start"><X className="h-4 w-4" /></button>
+                  </div>
+                ))}
+              </div>
+              {files.some((file) => file.rows.length > 0) && (
+                <div className="overflow-x-auto border-t border-[#e5e7eb]">
+                  <div className="px-4 py-3 text-xs font-semibold text-[#172033]">Aperçu du premier fichier</div>
+                  <table className="min-w-full border-collapse text-left text-xs">
+                    <thead className="bg-[#f4f6fa]"><tr>{(files[0].headers).slice(0, 6).map((header) => <th key={header} className="whitespace-nowrap border-b border-[#e5e7eb] px-3 py-2 font-semibold text-[#475569]">{header}</th>)}</tr></thead>
+                    <tbody>{files[0].rows.slice(0, 5).map((row, index) => <tr key={index}>{files[0].headers.slice(0, 6).map((header) => <td key={header} className="max-w-48 truncate border-b border-[#eef0f3] px-3 py-2 text-[#334155]">{row[header] || "—"}</td>)}</tr>)}</tbody>
+                  </table>
+                </div>
+              )}
+              <div className="border-t border-[#e5e7eb] bg-[#fffaf0] px-4 py-3">
+                <p className="flex items-start gap-2 text-xs leading-5 text-[#805b16]"><Info className="mt-0.5 h-4 w-4 shrink-0" /> Cette première étape contrôle la lecture et les colonnes. L'enregistrement définitif dans Supabase n'est pas encore activé : il nécessitera une validation serveur sécurisée, la détection des doublons et une transaction pour préserver les dates et les montants historiques.</p>
+              </div>
+            </section>
+          )}
+
+          <div className="flex items-start gap-2 text-xs leading-5 text-[#64748b]"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" /> Les dates d'inscription et de paiement doivent rester les dates réelles. La date d'importation sera conservée séparément lors de la future intégration.</div>
+          {invalidFiles.length > 0 && <p className="flex items-center gap-2 text-xs text-[#b42318]"><AlertCircle className="h-4 w-4" /> Corrigez les colonnes manquantes avant de poursuivre.</p>}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <section className="border border-[#d7dae3] bg-white">
+            <div className="border-b border-[#e5e7eb] px-4 py-3">
+              <h2 className="text-sm font-semibold text-[#172033]">Choisir les données à exporter</h2>
+              <p className="mt-1 text-xs text-[#64748b]">Les fichiers sont générés à partir des données accessibles à votre établissement.</p>
+            </div>
+            <div className="divide-y divide-[#e5e7eb]">
+              {exportTypes.map((item) => (
+                <label key={item.id} className="flex cursor-pointer items-start gap-3 px-4 py-3 hover:bg-[#fafbfc]">
+                  <input type="checkbox" checked={selectedExports.includes(item.id)} onChange={(event) => setSelectedExports((current) => event.target.checked ? [...current, item.id] : current.filter((value) => value !== item.id))} className="mt-1 h-4 w-4 accent-[#173b8f]" />
+                  <span><span className="block text-sm font-medium text-[#172033]">{item.label}</span><span className="mt-0.5 block text-xs text-[#64748b]">{item.description}</span></span>
+                </label>
+              ))}
+            </div>
+            <div className="flex flex-col gap-3 border-t border-[#e5e7eb] bg-[#fafbfc] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-xs text-[#64748b]">{selectedExports.length} catégorie(s) sélectionnée(s) · format CSV compatible Excel</span>
+              <Button type="button" onClick={() => void exportSelected()} disabled={isExporting || selectedExports.length === 0} className="w-full bg-[#173b8f] text-white hover:bg-[#123176] sm:w-auto">{isExporting ? "Préparation…" : "Exporter les données"} <ArrowUpFromLine className="ml-2 h-4 w-4" /></Button>
+            </div>
+          </section>
+          {exportMessage && <p className="flex items-center gap-2 border border-[#b7dfc5] bg-[#f0faf3] px-3 py-2 text-xs text-[#237044]"><CheckCircle2 className="h-4 w-4" />{exportMessage}</p>}
+          {exportError && <p className="flex items-center gap-2 border border-[#f0c4c0] bg-[#fff6f5] px-3 py-2 text-xs text-[#b42318]"><AlertCircle className="h-4 w-4" />{exportError}</p>}
+          <p className="flex items-start gap-2 text-xs leading-5 text-[#64748b]"><Info className="mt-0.5 h-4 w-4 shrink-0" /> Les exports respectent les droits d'accès Supabase du compte connecté. Les données non autorisées ou indisponibles ne sont pas extraites.</p>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -22,6 +22,7 @@ export default function ImportOrganizationStudentsPage() {
   const [organizationId, setOrganizationId] = useState("")
   const [organizationName, setOrganizationName] = useState("")
   const [enrollments, setEnrollments] = useState<EnrollmentRow[]>([])
+  const [assignedEnrollmentIds, setAssignedEnrollmentIds] = useState<Set<string>>(new Set())
   const [rows, setRows] = useState<StudentRow[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(false)
@@ -74,6 +75,23 @@ export default function ImportOrganizationStudentsPage() {
     return () => { cancelled = true }
   }, [establishmentId, activeYear?.id])
 
+  useEffect(() => {
+    if (!establishmentId || !organizationId || !activeYear?.id) return
+    let cancelled = false
+    supabaseBrowser.from("organization_student_assignments")
+      .select("enrollment_id")
+      .eq("establishment_id", establishmentId)
+      .eq("organization_id", organizationId)
+      .eq("academic_year_id", activeYear.id)
+      .eq("status", "active")
+      .then(({ data, error }) => {
+        if (error) throw error
+        if (!cancelled) setAssignedEnrollmentIds(new Set((data ?? []).map((row: any) => row.enrollment_id)))
+      })
+      .catch((error) => { if (!cancelled) toast.error(error instanceof Error ? error.message : "Impossible de vérifier les élèves déjà rattachés.") })
+    return () => { cancelled = true }
+  }, [establishmentId, organizationId, activeYear?.id])
+
   const matchedCount = useMemo(() => rows.filter((row) => row.enrollmentId && !row.error).length, [rows])
   const unmatchedCount = useMemo(() => rows.filter((row) => row.error).length, [rows])
 
@@ -110,6 +128,7 @@ export default function ImportOrganizationStudentsPage() {
         : norm(entry.student.first_name) === norm(row.first_name) && norm(entry.student.last_name) === norm(row.last_name))
       if (candidates.length === 0) return { ...row, error: "Élève introuvable dans les inscriptions de l’année active." }
       if (candidates.length > 1) return { ...row, error: "Correspondance ambiguë : utilisez le matricule." }
+      if (assignedEnrollmentIds.has(candidates[0].id)) return { ...row, first_name: candidates[0].student.first_name, last_name: candidates[0].student.last_name, className: candidates[0].className, error: "Cet élève est déjà rattaché à cet organisme pour cette année." }
       return { ...row, first_name: row.first_name || candidates[0].student.first_name, last_name: row.last_name || candidates[0].student.last_name, student_number: row.student_number || candidates[0].student.student_number || "", enrollmentId: candidates[0].id, studentId: candidates[0].student_id, className: candidates[0].className }
     })
     setRows(resolved)

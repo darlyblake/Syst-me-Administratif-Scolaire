@@ -201,7 +201,7 @@ export default function PrisesEnChargeSettingsPage() {
   }
 
   const assignEnrollment = async (item: Organization, enrollment: EnrollmentCandidate, previous?: OrganizationAssignment) => {
-    const { error } = await supabaseBrowser.rpc("manage_organization_student_assignment", {
+    const { data, error } = await supabaseBrowser.rpc("manage_organization_student_assignment", {
       p_establishment_id: establishmentId,
       p_organization_id: item.id,
       p_enrollment_id: enrollment.id,
@@ -209,6 +209,7 @@ export default function PrisesEnChargeSettingsPage() {
       p_renewed_from_assignment_id: previous?.id ?? null,
     })
     if (error) throw error
+    return Boolean((data as any)?.has_financial_coverage)
   }
 
   const addSelectedStudent = async () => {
@@ -219,8 +220,9 @@ export default function PrisesEnChargeSettingsPage() {
     try {
       const previous = organizationStudentRows.find((row) => row.student_id === enrollment.student_id && row.status === "active")
         ?? organizationStudentRows.find((row) => row.student_id === enrollment.student_id)
-      await assignEnrollment(selectedOrganization, enrollment, previous)
+      const hasCoverage = await assignEnrollment(selectedOrganization, enrollment, previous)
       toast.success(previous ? "Prise en charge renouvelée pour cet élève." : "Élève ajouté à la prise en charge pour l’année active.")
+      if (!hasCoverage) toast.info("Aucun taux de couverture actif ne correspond à ses frais. Vérifiez les règles de l’organisme.")
       await loadOrganizationStudentCount(selectedOrganization)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Impossible d’ajouter cet élève.")
@@ -239,14 +241,19 @@ export default function PrisesEnChargeSettingsPage() {
     if (!eligible.length) return toast.info("Aucun renouvellement en attente pour cette année.")
     setAssignmentActionLoading(true)
     let done = 0
+    let withoutCoverage = 0
     const errors: string[] = []
     try {
       for (const enrollment of eligible) {
         const previous = organizationStudentRows.find((row) => row.student_id === enrollment.student_id && row.academic_year_id !== activeYear.id)
-        try { await assignEnrollment(selectedOrganization, enrollment, previous); done++ }
-        catch (error) { errors.push(enrollment.name + ": " + (error instanceof Error ? error.message : "Erreur")) }
+        try {
+          const covered = await assignEnrollment(selectedOrganization, enrollment, previous)
+          done++
+          if (!covered) withoutCoverage++
+        } catch (error) { errors.push(enrollment.name + ": " + (error instanceof Error ? error.message : "Erreur")) }
       }
       toast.success(`${done} prise(s) en charge renouvelée(s).`)
+      if (withoutCoverage) toast.info(`${withoutCoverage} élève(s) renouvelé(s) sans taux de couverture correspondant. Vérifiez les règles financières.`)
       if (errors.length) toast.error(`${errors.length} élève(s) n’ont pas pu être renouvelés. Vérifiez les autorisations et les règles de couverture.`)
       await loadOrganizationStudentCount(selectedOrganization)
     } finally {
@@ -256,6 +263,7 @@ export default function PrisesEnChargeSettingsPage() {
 
   const stopAssignment = async (assignment: OrganizationAssignment) => {
     if (!selectedOrganization) return
+    if (!window.confirm(`Arrêter la prise en charge de ${assignment.name} pour cette année ? Les échéances non encaissées seront transférées à la famille et l’historique sera conservé.`)) return
     setAssignmentActionLoading(true)
     try {
       const { error } = await supabaseBrowser.rpc("manage_organization_student_assignment", {

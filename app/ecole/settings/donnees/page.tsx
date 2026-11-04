@@ -230,8 +230,7 @@ export default function DataTransferPage() {
               const matchedClass = knownClasses.find(item => normalizeText(item.name) === normalizeText(levelValue) || normalizeText(item.grade_level_name + " " + item.name) === normalizeText(levelValue))
               const matchedLevel = knownClasses.find(item => normalizeText(item.grade_level_name) === normalizeText(levelValue))
               if (!matchedClass && !matchedLevel) issues.push({ code: "level-not-found", field: "level", message: "Ce niveau ou cette classe n’existe pas dans la structure active de l’établissement.", severity: "error" })
-              else if (matchedClass) values.resolved_class_id = matchedClass.id
-              else values.resolved_grade_level_id = matchedLevel?.grade_level_id ?? ""
+              
             }
             const first = normalizeText(values.first_name)
             const last = normalizeText(values.last_name)
@@ -357,7 +356,7 @@ export default function DataTransferPage() {
           <section className="border border-[#d7dae3] bg-white">
             <div className="border-b border-[#e5e7eb] px-4 py-3">
               <h2 className="text-sm font-semibold text-[#172033]">1. Choisir le type de données</h2>
-              <p className="mt-1 text-xs text-[#64748b]">Importez chaque catégorie séparément pour faciliter les contrôles et les rapprochements.</p>
+              <p className="mt-1 text-xs text-[#64748b]">Pour inscrire un élève, seuls le nom, le prénom et le niveau sont indispensables. La date historique et le numéro de reçu papier sont facultatifs.</p>
             </div>
             <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
               {importTypes.map((item) => (
@@ -376,7 +375,7 @@ export default function DataTransferPage() {
           <section className="border border-[#d7dae3] bg-white">
             <div className="border-b border-[#e5e7eb] px-4 py-3">
               <h2 className="text-sm font-semibold text-[#172033]">2. Ajouter le fichier à vérifier</h2>
-              <p className="mt-1 text-xs text-[#64748b]">Format accepté : CSV standard (.csv), ouvrable avec Excel, OnlyOffice et LibreOffice Calc. Les anciens fichiers .xls HTML ne sont plus acceptés.</p>
+              <p className="mt-1 text-xs text-[#64748b]">Format accepté : CSV standard (.csv). Le matricule et le montant annuel sont ignorés pour l’import des élèves et inscriptions : ils ne doivent pas être saisis dans le fichier.</p>
             </div>
             <div className="p-4">
               <input ref={fileInput} type="file" accept=".csv,text/csv" multiple onChange={(event) => void handleFiles(event.target.files)} className="sr-only" id="data-import-file" />

@@ -141,7 +141,7 @@ function normalizeImportHeaders(headers: string[]) {
     nom: "last_name", prenom: "first_name", eleve: "student_name", "nom eleve": "last_name",
     classe: "class_name", "niveau ou classe": "class_name", "annee scolaire": "academic_year",
     "mode de paiement": "method", "date paiement": "payment_date", "date du paiement": "payment_date",
-    reference: "reference", notes: "notes",
+    montant: "amount", "montant fcfa": "amount", reference: "reference", notes: "notes",
   }
   return headers.map((header) => reverseLabels[normalizeText(header)] ?? aliases[normalizeText(header)] ?? header.trim())
 }
@@ -431,6 +431,12 @@ export default function DataTransferPage() {
                 </button>
               ))}
             </div>
+            {selectedKind === "paiements" && (
+              <div className="border-t border-[#dbe4f0] bg-[#f5f8ff] px-4 py-3">
+                <p className="text-xs leading-5 text-[#334155]"><strong>Comment l’élève est retrouvé :</strong> indiquez son nom, son prénom, sa classe et son année scolaire pour chaque paiement. L’application vérifie l’existence de l’élève et de son inscription. Si plusieurs dossiers correspondent ou si l’inscription est introuvable, la ligne est signalée et aucun rattachement automatique n’est proposé.</p>
+                <p className="mt-1 text-xs leading-5 text-[#64748b]">Les élèves doivent déjà être présents dans l’application avec leur inscription correspondante. Ce module réalise actuellement l’analyse et la vérification ; l’enregistrement définitif des imports n’est pas encore activé.</p>
+              </div>
+            )}
             <div className="flex flex-col gap-3 border-t border-[#e5e7eb] bg-[#fafbfc] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-[#64748b]">Les imports historiques conservent les dates et références d’origine. Les dépenses sont reprises comme sorties déjà effectuées, pas comme de nouvelles opérations du jour.</p>
               <Button type="button" variant="outline" size="sm" onClick={() => downloadTemplate(selectedKind)} className="w-full sm:w-auto"><FileSpreadsheet className="mr-2 h-4 w-4" /> Télécharger le modèle CSV</Button>

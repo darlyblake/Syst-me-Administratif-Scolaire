@@ -112,6 +112,10 @@ export default function PrisesEnChargeSettingsPage() {
 
   // L’État est un organisme à part entière : il doit participer aux mêmes règles de couverture.
   const activeOrganizations = useMemo(() => organizations.filter((item) => item.active), [organizations])
+  const activeAcademicYear = academicYears.find((year) => year.status === "active")
+  const pendingRenewalCount = activeAcademicYear ? enrollmentCandidates.filter((candidate) =>
+    organizationStudentRows.some((row) => row.student_id === candidate.student_id && row.academic_year_id !== activeAcademicYear.id)
+  ).length : 0
 
   const createStateOrganization = async () => {
     if (!establishmentId) return
@@ -216,7 +220,7 @@ export default function PrisesEnChargeSettingsPage() {
       const previous = organizationStudentRows.find((row) => row.student_id === enrollment.student_id && row.status === "active")
         ?? organizationStudentRows.find((row) => row.student_id === enrollment.student_id)
       await assignEnrollment(selectedOrganization, enrollment, previous)
-      toast.success("Élève ajouté à la prise en charge pour l’année active.")
+      toast.success(previous ? "Prise en charge renouvelée pour cet élève." : "Élève ajouté à la prise en charge pour l’année active.")
       await loadOrganizationStudentCount(selectedOrganization)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Impossible d’ajouter cet élève.")

@@ -55,9 +55,9 @@ function validateEditedRow(values: Record<string, string>, kind: ImportKind, stu
 
 
 const importTypes: { id: ImportKind; label: string; required: string[]; description: string }[] = [
-  { id: "eleves", label: "Élèves", required: ["student_number", "first_name", "last_name"], description: "Identité, matricule et coordonnées des élèves." },
+  { id: "eleves", label: "Élèves et inscriptions", required: ["first_name", "last_name", "level"], description: "Nom, prénom et niveau. Le matricule et les frais sont générés ou calculés par le système." },
   { id: "parents", label: "Parents et tuteurs", required: ["student_number", "first_name", "last_name", "relationship"], description: "Responsables associés à chaque élève par son matricule." },
-  { id: "inscriptions", label: "Inscriptions", required: ["student_number", "academic_year", "class_name", "enrollment_date"], description: "Classe, année scolaire et date réelle d'inscription." },
+  { id: "inscriptions", label: "Inscriptions", required: ["first_name", "last_name", "level"], description: "Nom, prénom et niveau obligatoires. Date d'inscription et ancien numéro de reçu facultatifs." },
   { id: "echeances", label: "Frais et échéances", required: ["student_number", "label", "due_date", "amount"], description: "Frais d'inscription, mensualités et tranches prévues." },
   { id: "paiements", label: "Paiements historiques", required: ["student_number", "payment_date", "amount", "method"], description: "Encaissements passés avec leur date réelle et référence de reçu." },
   { id: "options", label: "Options et services", required: ["student_number", "option_name", "subscription_date", "amount"], description: "Cantine, assurance, transport, sport et autres services." },
@@ -71,7 +71,9 @@ const exportTypes: { id: ExportKind; label: string; description: string }[] = [
 ]
 
 const fieldLabels: Record<string, string> = {
-  student_number: "Matricule de l'élève",
+  student_number: "Matricule (attribué automatiquement)",
+  level: "Niveau ou classe",
+  receipt_number: "Ancien numéro de reçu",
   birth_date: "Date de naissance",
   annual_tuition: "Tarif annuel attendu (FCFA)",
   tuition_amount: "Tarif annuel attendu (FCFA)",
@@ -180,21 +182,18 @@ export default function DataTransferPage() {
         let knownClasses: ImportClass[] = []
         let knownTariffs: ImportTariff[] = []
         if (establishmentId) {
-          const [studentsResult, classesResult, tariffsResult] = await Promise.all([
-            supabaseBrowser.from("students").select("id, student_number, first_name, last_name, birth_date").eq("establishment_id", establishmentId).limit(10000),
+          const [studentsResult, classesResult] = await Promise.all([
+            supabaseBrowser.from("students").select("id, student_number, first_name, last_name, birth_date").eq("establishment_id", establishmentId).is("merged_into_student_id", null).limit(10000),
             supabaseBrowser.from("school_classes").select("id, name, grade_level_id, grade_levels(name)").eq("establishment_id", establishmentId).eq("active", true).limit(2000),
-            supabaseBrowser.from("tuition_plans").select("annual_tuition, grade_level_id, grade_levels(name), academic_years(name)").eq("establishment_id", establishmentId).eq("active", true).limit(2000),
           ])
           if (studentsResult.error) throw studentsResult.error
           if (classesResult.error) throw classesResult.error
-          if (tariffsResult.error) throw tariffsResult.error
           existing = (studentsResult.data ?? []) as ExistingStudent[]
           knownClasses = (classesResult.data ?? []).map((item: any) => ({ id: item.id, name: item.name, grade_level_id: item.grade_level_id, grade_level_name: item.grade_levels?.name ?? "" }))
-          knownTariffs = (tariffsResult.data ?? []).map((item: any) => ({ grade_level_id: item.grade_level_id, academic_year_name: item.academic_years?.name ?? "", annual_tuition: Number(item.annual_tuition) }))
         }
         setExistingStudents(existing)
         setImportClasses(knownClasses)
-        setImportTariffs(knownTariffs)
+        setImportTariffs([])
         const analyzed: ReviewRow[] = []
         for (const file of parsed) {
           file.rows.forEach((source, index) => {
@@ -214,28 +213,21 @@ export default function DataTransferPage() {
             ;["enrollment_date", "payment_date", "due_date", "subscription_date", "birth_date"].forEach((field) => {
               if (values[field] && !validIsoDate(values[field])) issues.push({ code: "date-format", field, message: "Date invalide. Utilisez le format AAAA-MM-JJ.", severity: "error" })
             })
-            if (values.class_name?.trim()) {
-              const matchedClass = knownClasses.find(item => normalizeText(item.name) === normalizeText(values.class_name) || normalizeText(item.grade_level_name + " " + item.name) === normalizeText(values.class_name))
-              if (!matchedClass) issues.push({ code: "class-not-found", field: "class_name", message: "Cette classe n’existe pas ou n’est pas active dans l’établissement.", severity: "error" })
-              else {
-                const tariffField = values.annual_tuition ? "annual_tuition" : values.tuition_amount ? "tuition_amount" : null
-                if (tariffField) {
-                  const tariff = knownTariffs.find(item => item.grade_level_id === matchedClass.grade_level_id && (!values.academic_year || normalizeText(item.academic_year_name) === normalizeText(values.academic_year)))
-                  const raw = values[tariffField].trim().replace(/\\s/g, "").replace(/FCFA/gi, "").replace(",", ".")
-                  if (!tariff) issues.push({ code: "tariff-not-found", field: tariffField, message: "Aucun tarif annuel actif ne correspond à cette classe et à cette année scolaire.", severity: "error" })
-                  else if (/^\\d+(\\.\\d{1,2})?$/.test(raw) && Math.abs(Number(raw) - tariff.annual_tuition) > 1) issues.push({ code: "tariff-mismatch", field: tariffField, message: "Le tarif importé diffère du tarif configuré (" + tariff.annual_tuition.toLocaleString("fr-FR") + " FCFA).", severity: "warning" })
-                }
-              }
+            const levelValue = values.level || values.class_name || ""
+            if (levelValue.trim()) {
+              const matchedClass = knownClasses.find(item => normalizeText(item.name) === normalizeText(levelValue) || normalizeText(item.grade_level_name + " " + item.name) === normalizeText(levelValue))
+              const matchedLevel = knownClasses.find(item => normalizeText(item.grade_level_name) === normalizeText(levelValue))
+              if (!matchedClass && !matchedLevel) issues.push({ code: "level-not-found", field: "level", message: "Ce niveau ou cette classe n’existe pas dans la structure active de l’établissement.", severity: "error" })
+              else if (matchedClass) values.resolved_class_id = matchedClass.id
+              else values.resolved_grade_level_id = matchedLevel?.grade_level_id ?? ""
             }
-            const number = normalizeText(values.student_number)
             const first = normalizeText(values.first_name)
             const last = normalizeText(values.last_name)
-            let candidate = number ? existing.find((item) => normalizeText(item.student_number) === number) : undefined
-            if (!candidate && first && last) candidate = existing.find((item) => normalizeText(item.first_name) === first && normalizeText(item.last_name) === last && (!values.birth_date || !item.birth_date || item.birth_date === values.birth_date))
+            let candidate = first && last ? existing.find((item) => normalizeText(item.first_name) === first && normalizeText(item.last_name) === last && (!values.birth_date || !item.birth_date || item.birth_date === values.birth_date)) : undefined
             if (candidate) issues.push({ code: "possible-duplicate", message: "Un élève correspondant semble déjà exister. Vérifiez s'il s'agit du même élève.", severity: "warning", candidate })
-            const duplicateInFile = number && analyzed.find(item => normalizeText(item.values.student_number) === number)
-            if (duplicateInFile) issues.push({ code: "possible-duplicate", message: "Ce matricule apparaît déjà dans une ligne précédente de cet import. Vérifiez s'il s'agit d'une réinscription ou d'une erreur de saisie.", severity: "warning" })
-            analyzed.push({ key: file.id + ":" + index, fileName: file.name, rowIndex: index + 2, kind: file.kind, values, issues, duplicateChoice: candidate ? "pending" : undefined })
+            const duplicateInFile = first && last && analyzed.find(item => normalizeText(item.values.first_name) === first && normalizeText(item.values.last_name) === last)
+            if (duplicateInFile) issues.push({ code: "possible-duplicate", message: "Ce nom et ce prénom apparaissent déjà dans une ligne précédente de cet import. Vérifiez s’il s’agit d’une réinscription ou d’un doublon.", severity: "warning" })
+            analyzed.push({ key: file.id + ":" + index, fileName: file.name, rowIndex: index + 2, kind: file.kind, values, issues, duplicateChoice: candidate || duplicateInFile ? "pending" : undefined })
           })
         }
         setReviewRows(analyzed)
@@ -255,7 +247,7 @@ export default function DataTransferPage() {
 
   const downloadTemplate = (kind: ImportKind) => {
     const config = importTypes.find((item) => item.id === kind)!
-    const example: Record<string, string> = Object.fromEntries(config.required.map((field) => [field, ""]))
+    const example: Record<string, string> = Object.fromEntries([...config.required, ...(kind === "eleves" || kind === "inscriptions" ? ["enrollment_date", "receipt_number", "academic_year"] : [])].map((field) => [field, ""]))
     downloadCsv("modele_" + kind + ".csv", [example])
   }
 
@@ -333,7 +325,7 @@ export default function DataTransferPage() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-[#172033]">Importation et exportation des données</h1>
-            <p className="mt-1 max-w-3xl text-sm text-[#64748b]">Transférez les dossiers de votre établissement et conservez une copie exploitable de vos données scolaires.</p>
+            <p className="mt-1 max-w-3xl text-sm text-[#64748b]">Transférez les dossiers de votre établissement. Pour une inscription, indiquez simplement le nom, le prénom et le niveau ; les références et frais connus sont gérés par le système.</p>
           </div>
           <span className="text-xs text-[#64748b]">Fichiers CSV compatibles Excel et OnlyOffice</span>
         </div>
@@ -364,7 +356,7 @@ export default function DataTransferPage() {
               ))}
             </div>
             <div className="flex flex-col gap-3 border-t border-[#e5e7eb] bg-[#fafbfc] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-[#64748b]">Commencez par les élèves, puis importez les autres fichiers en utilisant leur matricule.</p>
+              <p className="text-xs text-[#64748b]">Pour les élèves et inscriptions, le matricule est attribué automatiquement. Les autres imports peuvent utiliser le matricule déjà attribué pour retrouver un élève.</p>
               <Button type="button" variant="outline" size="sm" onClick={() => downloadTemplate(selectedKind)} className="w-full sm:w-auto"><FileSpreadsheet className="mr-2 h-4 w-4" /> Télécharger le modèle CSV</Button>
             </div>
           </section>

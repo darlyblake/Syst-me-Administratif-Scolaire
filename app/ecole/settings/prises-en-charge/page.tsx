@@ -104,7 +104,8 @@ export default function PrisesEnChargeSettingsPage() {
   }, [establishmentId, ruleOrgId])
   useEffect(() => { void load() }, [load])
 
-  // L’État est un organisme à part entière : il doit participer aux mêmes règles de couverture.\n  const activeOrganizations = useMemo(() => organizations.filter((item) => item.active), [organizations])
+  // L’État est un organisme à part entière : il doit participer aux mêmes règles de couverture.
+  const activeOrganizations = useMemo(() => organizations.filter((item) => item.active), [organizations])
 
   const createStateOrganization = async () => {
     if (!establishmentId) return

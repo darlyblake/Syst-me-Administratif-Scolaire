@@ -18,6 +18,8 @@ type DiscountRule = { id: string; name: string; min_children: number; max_childr
 type AcademicYearOption = { id: string; name: string; status: string; start_date: string }
 type GradeLevelOption = { id: string; name: string; active: boolean; display_order: number }
 type FamilyRow = { id: string; family_code: string; display_name: string | null; members?: Array<{ id: string; relationship: string | null; active: boolean; student?: { first_name: string; last_name: string; student_number: string | null } | null }> }
+type OrganizationAssignment = { id: string; student_id: string; enrollment_id: string; academic_year_id: string; status: "active" | "ended"; year: string; name: string; studentNumber: string | null }
+type EnrollmentCandidate = { id: string; student_id: string; name: string; studentNumber: string | null; className: string }
 const CATEGORIES = [
   { value: "registration", label: "Frais d'inscription" }, { value: "tuition", label: "Scolarité" },
   { value: "option", label: "Options scolaires" }, { value: "caution", label: "Caution" }, { value: "other", label: "Autres frais" },
@@ -40,7 +42,10 @@ export default function PrisesEnChargeSettingsPage() {
   const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null)
   const [selectedDiscount, setSelectedDiscount] = useState<DiscountRule | null>(null)
   const [organizationStudentCount, setOrganizationStudentCount] = useState<number | null>(null)
-  const [organizationStudentRows, setOrganizationStudentRows] = useState<Array<{ key: string; name: string; studentNumber: string | null; year: string }>>([])
+  const [organizationStudentRows, setOrganizationStudentRows] = useState<OrganizationAssignment[]>([])
+  const [enrollmentCandidates, setEnrollmentCandidates] = useState<EnrollmentCandidate[]>([])
+  const [selectedEnrollmentId, setSelectedEnrollmentId] = useState("")
+  const [assignmentActionLoading, setAssignmentActionLoading] = useState(false)
   const [organizationStudentsLoading, setOrganizationStudentsLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -138,34 +143,157 @@ export default function PrisesEnChargeSettingsPage() {
     setOrganizationStudentsLoading(true)
     setOrganizationStudentCount(null)
     setOrganizationStudentRows([])
+    setEnrollmentCandidates([])
+    setSelectedEnrollmentId("")
     try {
-      const { data, error } = await supabaseBrowser
-        .from("payment_schedules")
-        .select("enrollment_id,enrollments!inner(student_id,academic_year_id,students!inner(first_name,last_name,student_number),academic_years(name))")
+      const { data: assignments, error: assignmentError } = await supabaseBrowser
+        .from("organization_student_assignments")
+        .select("id,student_id,enrollment_id,academic_year_id,status,students!inner(first_name,last_name,student_number),academic_years(name)")
         .eq("organization_id", item.id)
-      if (error) throw error
-      const unique = new Map<string, { key: string; name: string; studentNumber: string | null; year: string }>()
-      for (const schedule of data ?? []) {
-        const enrollment: any = (schedule as any).enrollments
-        const student = enrollment?.students
-        if (!student || !enrollment?.student_id) continue
-        const year = enrollment.academic_years?.name ?? "Année non renseignée"
-        const key = enrollment.student_id + ":" + (enrollment.academic_year_id ?? "none")
-        unique.set(key, {
-          key,
-          name: [student.first_name, student.last_name].filter(Boolean).join(" "),
-          studentNumber: student.student_number ?? null,
-          year,
-        })
-      }
-      const rows = Array.from(unique.values()).sort((a, b) => a.year.localeCompare(b.year, "fr") || a.name.localeCompare(b.name, "fr"))
+        .eq("establishment_id", establishmentId)
+        .order("created_at", { ascending: false })
+      if (assignmentError) throw assignmentError
+      const rows: OrganizationAssignment[] = (assignments ?? []).map((entry: any) => ({
+        id: entry.id,
+        student_id: entry.student_id,
+        enrollment_id: entry.enrollment_id,
+        academic_year_id: entry.academic_year_id,
+        status: entry.status,
+        year: entry.academic_years?.name ?? "Année non renseignée",
+        name: [entry.students?.first_name, entry.students?.last_name].filter(Boolean).join(" "),
+        studentNumber: entry.students?.student_number ?? null,
+      }))
       setOrganizationStudentRows(rows)
-      setOrganizationStudentCount(new Set(rows.map((row) => row.key.split(":")[0])).size)
+      const activeYear = academicYears.find((year) => year.status === "active")
+      if (activeYear) {
+        const { data: enrollments, error: enrollmentError } = await supabaseBrowser
+          .from("enrollments")
+          .select("id,student_id,students!inner(first_name,last_name,student_number),school_classes(name)")
+          .eq("establishment_id", establishmentId)
+          .eq("academic_year_id", activeYear.id)
+          .eq("status", "active")
+        if (enrollmentError) throw enrollmentError
+        const alreadyAssigned = new Set(rows.filter((row) => row.academic_year_id === activeYear.id && row.status === "active").map((row) => row.enrollment_id))
+        const candidates: EnrollmentCandidate[] = (enrollments ?? [])
+          .filter((entry: any) => !alreadyAssigned.has(entry.id))
+          .map((entry: any) => ({
+            id: entry.id,
+            student_id: entry.student_id,
+            name: [entry.students?.first_name, entry.students?.last_name].filter(Boolean).join(" "),
+            studentNumber: entry.students?.student_number ?? null,
+            className: entry.school_classes?.name ?? "Classe non renseignée",
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name, "fr"))
+        setEnrollmentCandidates(candidates)
+      }
+      const currentYearId = activeYear?.id
+      setOrganizationStudentCount(rows.filter((row) => row.status === "active" && (!currentYearId || row.academic_year_id === currentYearId)).length)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Impossible de charger l’effectif pris en charge.")
+      toast.error(error instanceof Error ? error.message : "Impossible de charger les élèves rattachés.")
       setOrganizationStudentCount(0)
     } finally {
       setOrganizationStudentsLoading(false)
+    }
+  }
+
+  const assignEnrollment = async (item: Organization, enrollment: EnrollmentCandidate, previous?: OrganizationAssignment) => {
+    const { error } = await supabaseBrowser.rpc("manage_organization_student_assignment", {
+      p_establishment_id: establishmentId,
+      p_organization_id: item.id,
+      p_enrollment_id: enrollment.id,
+      p_action: "assign",
+      p_renewed_from_assignment_id: previous?.id ?? null,
+    })
+    if (error) throw error
+  }
+
+  const addSelectedStudent = async () => {
+    if (!selectedOrganization || !selectedEnrollmentId) return
+    const enrollment = enrollmentCandidates.find((candidate) => candidate.id === selectedEnrollmentId)
+    if (!enrollment) return
+    setAssignmentActionLoading(true)
+    try {
+      const previous = organizationStudentRows.find((row) => row.student_id === enrollment.student_id && row.status === "active")
+        ?? organizationStudentRows.find((row) => row.student_id === enrollment.student_id)
+      await assignEnrollment(selectedOrganization, enrollment, previous)
+      toast.success("Élève ajouté à la prise en charge pour l’année active.")
+      await loadOrganizationStudentCount(selectedOrganization)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible d’ajouter cet élève.")
+    } finally {
+      setAssignmentActionLoading(false)
+    }
+  }
+
+  const renewAllEligible = async () => {
+    if (!selectedOrganization) return
+    const activeYear = academicYears.find((year) => year.status === "active")
+    if (!activeYear) return toast.error("Aucune année scolaire active.")
+    const eligible = enrollmentCandidates.filter((candidate) =>
+      organizationStudentRows.some((row) => row.student_id === candidate.student_id && row.academic_year_id !== activeYear.id)
+    )
+    if (!eligible.length) return toast.info("Aucun renouvellement en attente pour cette année.")
+    setAssignmentActionLoading(true)
+    let done = 0
+    const errors: string[] = []
+    try {
+      for (const enrollment of eligible) {
+        const previous = organizationStudentRows.find((row) => row.student_id === enrollment.student_id && row.academic_year_id !== activeYear.id)
+        try { await assignEnrollment(selectedOrganization, enrollment, previous); done++ }
+        catch (error) { errors.push(enrollment.name + ": " + (error instanceof Error ? error.message : "Erreur")) }
+      }
+      toast.success(`${done} prise(s) en charge renouvelée(s).`)
+      if (errors.length) toast.error(`${errors.length} élève(s) n’ont pas pu être renouvelés. Vérifiez les autorisations et les règles de couverture.`)
+      await loadOrganizationStudentCount(selectedOrganization)
+    } finally {
+      setAssignmentActionLoading(false)
+    }
+  }
+
+  const stopAssignment = async (assignment: OrganizationAssignment) => {
+    if (!selectedOrganization) return
+    setAssignmentActionLoading(true)
+    try {
+      const { error } = await supabaseBrowser.rpc("manage_organization_student_assignment", {
+        p_establishment_id: establishmentId,
+        p_organization_id: selectedOrganization.id,
+        p_enrollment_id: assignment.enrollment_id,
+        p_action: "stop",
+        p_renewed_from_assignment_id: null,
+      })
+      if (error) throw error
+      toast.success("La prise en charge est arrêtée pour cet élève. Son historique est conservé.")
+      await loadOrganizationStudentCount(selectedOrganization)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible d’arrêter cette prise en charge.")
+    } finally {
+      setAssignmentActionLoading(false)
+    }
+  }
+
+  const stopAllCurrentAssignments = async () => {
+    if (!selectedOrganization) return
+    const activeYear = academicYears.find((year) => year.status === "active")
+    const activeRows = organizationStudentRows.filter((row) => row.status === "active" && (!activeYear || row.academic_year_id === activeYear.id))
+    if (!activeRows.length) return toast.info("Aucune prise en charge active à arrêter.")
+    if (!window.confirm(`Arrêter la prise en charge pour les ${activeRows.length} élève(s) de l’année active ? L’historique sera conservé.`)) return
+    setAssignmentActionLoading(true)
+    let done = 0
+    try {
+      for (const row of activeRows) {
+        const { error } = await supabaseBrowser.rpc("manage_organization_student_assignment", {
+          p_establishment_id: establishmentId,
+          p_organization_id: selectedOrganization.id,
+          p_enrollment_id: row.enrollment_id,
+          p_action: "stop",
+          p_renewed_from_assignment_id: null,
+        })
+        if (!error) done++
+      }
+      toast.success(`Prise en charge arrêtée pour ${done} élève(s). Les années précédentes restent dans l’historique.`)
+      await loadOrganizationStudentCount(selectedOrganization)
+    } finally {
+      setAssignmentActionLoading(false)
     }
   }
 
@@ -305,7 +433,7 @@ export default function PrisesEnChargeSettingsPage() {
             <h3 className="text-sm font-semibold">Élèves rattachés par année scolaire</h3>
             {organizationStudentsLoading ? <p className="text-sm text-slate-500">Chargement des élèves…</p> : organizationStudentRows.length ? (
               <div className="max-h-64 divide-y overflow-y-auto border border-slate-200">
-                {organizationStudentRows.map((student) => <div key={student.key} className="flex items-center justify-between gap-3 px-3 py-2 text-sm"><div><p className="font-medium">{student.name}</p><p className="text-xs text-slate-500">{student.studentNumber || "Matricule non renseigné"}</p></div><span className="shrink-0 text-xs text-slate-500">{student.year}</span></div>)}
+                {organizationStudentRows.map((student) => <div key={student.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm"><div className="min-w-0"><p className="font-medium">{student.name}</p><p className="text-xs text-slate-500">{student.studentNumber || "Matricule non renseigné"} · {student.status === "active" ? "Prise en charge active" : "Arrêtée"}</p></div><div className="flex shrink-0 items-center gap-2"><span className="text-xs text-slate-500">{student.year}</span>{student.status === "active" && <Button size="sm" variant="ghost" disabled={assignmentActionLoading} onClick={() => stopAssignment(student)}>Arrêter</Button>}</div></div>)}
               </div>
             ) : <p className="border border-dashed border-slate-300 px-3 py-4 text-center text-sm text-slate-500">Aucun élève n’est encore rattaché à cet organisme pour le moment.</p>}
           </div>

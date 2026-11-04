@@ -61,7 +61,7 @@ function downloadCsv(name: string, rows: Record<string, unknown>[], title = "Don
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement("a")
   anchor.href = url
-  anchor.download = name.replace(/\\.(csv|xls|xlsx)$/i, "") + ".csv"
+  anchor.download = name.replace(/\.(csv|xls|xlsx)$/i, "") + ".csv"
   document.body.appendChild(anchor)
   anchor.click()
   anchor.remove()

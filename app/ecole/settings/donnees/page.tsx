@@ -321,7 +321,7 @@ export default function DataTransferPage() {
         let knownClasses: ImportClass[] = []
         let knownPlans: ImportTuitionPlan[] = []
         let activeYear: ImportAcademicYear | null = null
-        if (establishmentId) {
+        if (establishmentId && parsed.some(file => file.kind === "inscriptions")) {
           const [studentsResult, classesResult, yearResult] = await Promise.all([
             supabaseBrowser.from("students").select("id, student_number, first_name, last_name, birth_date, place_of_birth").eq("establishment_id", establishmentId).is("merged_into_student_id", null).limit(10000),
             supabaseBrowser.from("school_classes").select("id, name, grade_level_id, grade_levels(name)").eq("establishment_id", establishmentId).eq("active", true).limit(2000),
@@ -368,7 +368,7 @@ export default function DataTransferPage() {
             const last = normalizeText(values.last_name)
             const duplicateInFile = file.kind === "inscriptions" && first && last && analyzed.find(item => item.kind === "inscriptions" && normalizeText(item.values.first_name) === first && normalizeText(item.values.last_name) === last && item.values.birth_date === values.birth_date)
             if (duplicateInFile) issues.push({ code: "possible-duplicate", message: "Ce nom et ce prénom apparaissent déjà dans une ligne précédente de cet import. Vérifiez s’il s’agit d’une réinscription ou d’un doublon.", severity: "warning" })
-            analyzed.push({ key: file.id + ":" + index, fileName: file.name, rowIndex: index + 2, kind: file.kind, values, issues, duplicateChoice: candidate || duplicateInFile ? "pending" : undefined })
+            analyzed.push({ key: file.id + ":" + index, fileName: file.name, rowIndex: index + 2, kind: file.kind, values, issues, duplicateChoice: rowIssues.some(issue => issue.code === "possible-duplicate") || duplicateInFile ? "pending" : undefined })
           })
         }
         setReviewRows(analyzed)

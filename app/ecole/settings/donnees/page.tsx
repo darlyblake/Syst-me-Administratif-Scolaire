@@ -435,16 +435,25 @@ export default function DataTransferPage() {
             if (error) throw error
             downloadCsv("inscriptions.csv", (data ?? []) as Record<string, unknown>[])
           } else if (kind === "classes") {
-            const [years, levels, classes] = await Promise.all([
+            const [years, classes] = await Promise.all([
               supabaseBrowser.from("academic_years").select("*").eq("establishment_id", establishmentId).limit(1000),
-              supabaseBrowser.from("grade_levels").select("*").eq("establishment_id", establishmentId).limit(1000),
               supabaseBrowser.from("school_classes").select("*").eq("establishment_id", establishmentId).limit(1000),
             ])
-            const error = years.error || levels.error || classes.error
+            const error = years.error || classes.error
             if (error) throw error
+            // grade_levels est un référentiel partagé : cette table ne possède pas
+            // establishment_id. On exporte uniquement les niveaux utilisés par
+            // les classes de l'établissement courant.
+            const gradeLevelIds = Array.from(new Set((classes.data ?? []).map((row) => row.grade_level_id).filter(Boolean)))
+            let levelsData: Record<string, unknown>[] = []
+            if (gradeLevelIds.length) {
+              const levels = await supabaseBrowser.from("grade_levels").select("*").in("id", gradeLevelIds).limit(1000)
+              if (levels.error) throw levels.error
+              levelsData = (levels.data ?? []) as Record<string, unknown>[]
+            }
             downloadCsv("structure_scolaire.csv", [
               ...(years.data ?? []).map((row) => ({ type: "annee_scolaire", ...row })),
-              ...(levels.data ?? []).map((row) => ({ type: "niveau", ...row })),
+              ...levelsData.map((row) => ({ type: "niveau", ...row })),
               ...(classes.data ?? []).map((row) => ({ type: "classe", ...row })),
             ] as Record<string, unknown>[])
           } else {

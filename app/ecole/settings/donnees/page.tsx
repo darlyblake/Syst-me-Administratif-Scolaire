@@ -388,7 +388,8 @@ export default function DataTransferPage() {
 
   const downloadTemplate = (kind: ImportKind) => {
     const config = importTypes.find((item) => item.id === kind)!
-    const example: Record<string, string> = Object.fromEntries([...config.required, ...(kind === "inscriptions" ? ["sex"] : ["payment_method", "reference"])].map((field) => [field, ""]))
+    const optionalFields = kind === "inscriptions" ? ["sex"] : kind === "depenses" ? [] : ["payment_method", "reference"]
+    const example: Record<string, string> = Object.fromEntries([...config.required, ...optionalFields].map((field) => [field, ""]))
     downloadCsv("modele_" + kind + ".csv", [example])
   }
 

@@ -90,7 +90,6 @@ const fieldLabels: Record<string, string> = {
   category: "Catégorie de dépense",
   description: "Description",
   payment_method: "Mode de règlement",
-  supplier: "Fournisseur",
   method: "Mode de paiement",
   option_name: "Nom de l'option ou du service",
   subscription_date: "Date de souscription",
@@ -235,7 +234,7 @@ export default function DataTransferPage() {
               
             }
             const first = file.kind === "inscriptions" ? normalizeText(values.first_name) : ""
-            const last = file.kind === "inscriptions" ? normalizeText(values.last_name)
+            const last = file.kind === "inscriptions" ? normalizeText(values.last_name) : ""
             let candidate = first && last ? existing.find((item) => normalizeText(item.first_name) === first && normalizeText(item.last_name) === last && (!values.birth_date || !item.birth_date || item.birth_date === values.birth_date)) : undefined
             if (candidate) issues.push({ code: "possible-duplicate", message: "Un élève correspondant semble déjà exister. Vérifiez s'il s'agit du même élève.", severity: "warning", candidate })
             const duplicateInFile = file.kind === "inscriptions" && first && last && analyzed.find(item => item.kind === "inscriptions" && normalizeText(item.values.first_name) === first && normalizeText(item.values.last_name) === last)
@@ -260,7 +259,7 @@ export default function DataTransferPage() {
 
   const downloadTemplate = (kind: ImportKind) => {
     const config = importTypes.find((item) => item.id === kind)!
-    const example: Record<string, string> = Object.fromEntries([...config.required, ...(kind === "inscriptions" ? ["enrollment_date", "receipt_number"] : kind === "depenses" ? ["payment_method", "reference", "supplier"] : ["reference", "notes"])].map((field) => [field, ""]))
+    const example: Record<string, string> = Object.fromEntries([...config.required, ...(kind === "inscriptions" ? ["enrollment_date", "receipt_number"] : kind === "depenses" ? ["payment_method", "reference"] : ["reference", "notes"])].map((field) => [field, ""]))
     downloadCsv("modele_" + kind + ".csv", [example])
   }
 

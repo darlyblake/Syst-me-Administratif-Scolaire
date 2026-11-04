@@ -13,6 +13,8 @@ type ParsedFile = { id: string; name: string; kind: ImportKind; rows: Record<str
 type ExistingStudent = { id: string; student_number: string | null; first_name: string | null; last_name: string | null; birth_date: string | null }
 type ReviewIssue = { code: string; message: string; field?: string; severity: "error" | "warning"; candidate?: ExistingStudent }
 type ReviewRow = { key: string; fileName: string; rowIndex: number; kind: ImportKind; values: Record<string, string>; issues: ReviewIssue[]; duplicateChoice?: "same" | "separate" | "pending" }
+type ImportClass = { id: string; name: string; grade_level_id: string; grade_level_name: string }
+type ImportTariff = { grade_level_id: string; academic_year_name: string; annual_tuition: number }
 function normalizeText(value: unknown) {
   return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("fr").replace(/\s+/g, " ")
 }
@@ -99,6 +101,9 @@ export default function DataTransferPage() {
   const [reviewOpen, setReviewOpen] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [reviewFilter, setReviewFilter] = useState<"all" | "errors" | "duplicates">("all")
+  const [importClasses, setImportClasses] = useState<ImportClass[]>([])
+  const [importTariffs, setImportTariffs] = useState<ImportTariff[]>([])
+  const [existingStudents, setExistingStudents] = useState<ExistingStudent[]>([])
 
   const totalRows = useMemo(() => files.reduce((sum, file) => sum + file.rows.length, 0), [files])
   const invalidFiles = files.filter((file) => file.errors.length > 0)
@@ -138,11 +143,24 @@ export default function DataTransferPage() {
       setIsAnalyzing(true)
       try {
         let existing: ExistingStudent[] = []
+        let knownClasses: ImportClass[] = []
+        let knownTariffs: ImportTariff[] = []
         if (establishmentId) {
-          const { data, error } = await supabaseBrowser.from("students").select("id, student_number, first_name, last_name, birth_date").eq("establishment_id", establishmentId).limit(10000)
-          if (error) throw error
-          existing = (data ?? []) as ExistingStudent[]
+          const [studentsResult, classesResult, tariffsResult] = await Promise.all([
+            supabaseBrowser.from("students").select("id, student_number, first_name, last_name, birth_date").eq("establishment_id", establishmentId).limit(10000),
+            supabaseBrowser.from("school_classes").select("id, name, grade_level_id, grade_levels(name)").eq("establishment_id", establishmentId).eq("active", true).limit(2000),
+            supabaseBrowser.from("tuition_plans").select("annual_tuition, grade_level_id, grade_levels(name), academic_years(name)").eq("establishment_id", establishmentId).eq("active", true).limit(2000),
+          ])
+          if (studentsResult.error) throw studentsResult.error
+          if (classesResult.error) throw classesResult.error
+          if (tariffsResult.error) throw tariffsResult.error
+          existing = (studentsResult.data ?? []) as ExistingStudent[]
+          knownClasses = (classesResult.data ?? []).map((item: any) => ({ id: item.id, name: item.name, grade_level_id: item.grade_level_id, grade_level_name: item.grade_levels?.name ?? "" }))
+          knownTariffs = (tariffsResult.data ?? []).map((item: any) => ({ grade_level_id: item.grade_level_id, academic_year_name: item.academic_years?.name ?? "", annual_tuition: Number(item.annual_tuition) }))
         }
+        setExistingStudents(existing)
+        setImportClasses(knownClasses)
+        setImportTariffs(knownTariffs)
         const analyzed: ReviewRow[] = []
         for (const file of parsed) {
           file.rows.forEach((source, index) => {

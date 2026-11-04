@@ -20,7 +20,6 @@ import { supabaseBrowser } from "@/lib/supabase/client"
 import { financeService } from "@/lib/supabase/services/finance.service"
 import { saveStudentGuardianContact } from "@/lib/supabase/services/enrollment.service"
 import { searchFamilySiblingCandidates, listSponsoringOrganizations, listOrganizationCoverageRules, type FamilySiblingCandidate, type SponsoringOrganization, type OrganizationCoverageRule } from "@/lib/supabase/services/family-funding.service"
-import { getStateFinanceSettings, type StateFinanceSettings } from "@/lib/supabase/services/state-financing.service"
 import type { TuitionPlanInstallment, TuitionPlanWithInstallments } from "@/lib/supabase/types"
 
 interface StudentOption {
@@ -74,11 +73,9 @@ export default function NouvelleInscriptionModal({
   const [existingStudentId, setExistingStudentId] = useState<string | null>(null)
   const [duplicateStudents, setDuplicateStudents] = useState<DuplicateStudentCandidate[]>([])
   const [checkingDuplicate, setCheckingDuplicate] = useState(false)
-  const [fundingSource, setFundingSource] = useState<"family" | "state" | "other">("family")
+  const [fundingSource, setFundingSource] = useState<"family" | "other">("family")
   const [waiveRegistration, setWaiveRegistration] = useState(false)
   const [waiveTuition, setWaiveTuition] = useState(false)
-  const [stateFinanceSettings, setStateFinanceSettings] = useState<StateFinanceSettings | null>(null)
-  const [stateSettingsError, setStateSettingsError] = useState<string | null>(null)
 
   // ─── Données élève ──────────────────────────────────────────────────────────
   const [lastName, setLastName] = useState("")
@@ -214,15 +211,6 @@ export default function NouvelleInscriptionModal({
       .catch(() => { if (!cancelled) setOrganizationRules([]) })
     return () => { cancelled = true }
   }, [establishmentId, selectedOrganizationId])
-
-  useEffect(() => {
-    if (!isOpen || !establishmentId) return
-    let cancelled = false
-    getStateFinanceSettings(establishmentId)
-      .then((settings) => { if (!cancelled) { setStateFinanceSettings(settings); setStateSettingsError(null) } })
-      .catch(() => { if (!cancelled) { setStateFinanceSettings(null); setStateSettingsError("Les règles de prise en charge ne sont pas disponibles. Vérifiez Paramètres → Scolarité.") } })
-    return () => { cancelled = true }
-  }, [isOpen, establishmentId])
 
   // ─── Vérification des impayés des années précédentes ─────────────────────────
   useEffect(() => {
@@ -731,32 +719,22 @@ export default function NouvelleInscriptionModal({
               <div className="space-y-3 border border-[#d7dae3] p-3">
                 <div>
                   <Label>Qui prend en charge les frais de l'élève ?</Label>
-                  <Select value={fundingSource} onValueChange={(value) => { setFundingSource(value as "family" | "state" | "other"); if (value !== "family") setSelectedOrganizationId("") }}>
+                  <Select value={fundingSource} onValueChange={(value) => { setFundingSource(value as "family" | "other"); if (value !== "family") setSelectedOrganizationId("") }}>
                     <SelectTrigger><SelectValue placeholder="Choisir la prise en charge" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="family">Famille — paiement normal</SelectItem>
-                      {stateFinanceSettings?.state_students_enabled && <SelectItem value="state">Élève envoyé / pris en charge par l'État</SelectItem>}
                       <SelectItem value="other">Exonération ou autre organisme</SelectItem>
                     </SelectContent>
                   </Select>
-                  {stateSettingsError && <p className="mt-1 text-xs text-amber-700">{stateSettingsError}</p>}
                   {fundingSource === "family" && (
                     <div className="mt-3 space-y-2 border-t border-slate-200 pt-3">
                       <Label htmlFor="sponsoring-organization">Prise en charge partielle par un organisme (facultatif)</Label>
                       <select id="sponsoring-organization" value={selectedOrganizationId} onChange={(e) => setSelectedOrganizationId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                         <option value="">Aucun organisme — frais à la charge de la famille</option>
-                        {sponsoringOrganizations.filter((org) => org.active && !org.is_state).map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
+                        {sponsoringOrganizations.filter((org) => org.active).map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
                       </select>
                       {selectedOrganizationId && <div className="border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900"><div className="flex items-center gap-2 font-medium"><Building2 className="h-3.5 w-3.5" />Répartition selon la convention</div>{organizationRules.length ? organizationRules.map((rule) => <p key={rule.id} className="mt-1">{rule.category_label}: {rule.coverage_percent}% pris en charge par l'organisme, le solde restant à la famille.</p>) : <p className="mt-1">Aucune règle active trouvée. La répartition restera familiale tant qu'une règle n'aura pas été configurée.</p>}</div>}
                     </div>
-                  )}
-                  {fundingSource === "state" && stateFinanceSettings && (
-                    <p className="mt-2 text-xs text-slate-600">
-                      Selon les paramètres de l'établissement, l'État couvre {[
-                        stateFinanceSettings.state_covers_registration ? "les frais d'inscription" : null,
-                        stateFinanceSettings.state_covers_tuition ? "la scolarité" : null,
-                      ].filter(Boolean).join(" et ") || "aucun de ces deux frais"}. Les autres frais restent à la charge de la famille.
-                    </p>
                   )}
                 </div>
                 {fundingSource !== "other" && (
@@ -930,8 +908,8 @@ export default function NouvelleInscriptionModal({
               <h3 className="font-medium text-sm border-b pb-2">Prise en charge financière</h3>
               <p className="text-sm text-slate-700">L'inscription sera enregistrée sans simuler un encaissement. Les frais couverts ne seront pas réclamés à la famille. Les options scolaires restent consultables et seront suivies séparément dans Finance.</p>
               <div className="divide-y border-y border-slate-200">
-                <div className="flex justify-between gap-4 py-3 text-sm"><span>Frais d'inscription</span><span className="font-medium">{waiveRegistration || fundingSource === "other" ? "Exonérés" : fundingSource === "state" && stateFinanceSettings?.state_covers_registration ? "Pris en charge par l'État" : "À la charge de la famille"}</span></div>
-                <div className="flex justify-between gap-4 py-3 text-sm"><span>Scolarité</span><span className="font-medium">{waiveTuition || fundingSource === "other" ? "Exonérée" : fundingSource === "state" && stateFinanceSettings?.state_covers_tuition ? "Prise en charge par l'État" : "À la charge de la famille"}</span></div>
+                <div className="flex justify-between gap-4 py-3 text-sm"><span>Frais d'inscription</span><span className="font-medium">{waiveRegistration || fundingSource === "other" ? "Exonérés" : selectedOrganizationId ? "Selon la convention de l’organisme" : "À la charge de la famille"}</span></div>
+                <div className="flex justify-between gap-4 py-3 text-sm"><span>Scolarité</span><span className="font-medium">{waiveTuition || fundingSource === "other" ? "Exonérée" : selectedOrganizationId ? "Selon la convention de l’organisme" : "À la charge de la famille"}</span></div>
                 {selectedOptionIds.size > 0 && (
                   <div className="py-3 text-sm">
                     <div className="flex justify-between gap-4 font-medium">
@@ -1236,9 +1214,9 @@ export default function NouvelleInscriptionModal({
                   <p className="font-medium">Aucun paiement à encaisser maintenant</p>
                   <p className="mt-1 text-xs text-slate-600">
                     {fundingSource === "other"
-                      ? "Les frais d'inscription et de scolarité sont affectés à l'exonération / à l'autre organisme."
-                      : fundingSource === "state"
-                        ? "La prise en charge et les éventuels frais restant à la famille seront enregistrés dans les échéances financières."
+                      ? "Les frais d'inscription et de scolarité sont exonérés."
+                      : selectedOrganizationId
+                        ? "La part de l’organisme et le solde familial seront calculés selon les règles de couverture configurées."
                         : "Les frais exonérés ne seront pas réclamés maintenant."}
                     {" "}Aucun paiement ne sera enregistré automatiquement.
                   </p>

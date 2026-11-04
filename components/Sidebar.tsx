@@ -8,7 +8,7 @@ import {
   ClipboardList, FileText, FolderOpen, GraduationCap, LayoutDashboard,
   LogOut, Timer, UserRound, Wrench, Inbox, Wallet, CreditCard, Layers,
   School, UserCog, Fingerprint, ReceiptText, AlertTriangle, ClipboardCheck,
-  CalendarRange, ArrowRightLeft, Users
+  CalendarRange, ArrowRightLeft, Users, FileSpreadsheet
 } from "lucide-react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -120,6 +120,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
       { href: "/ecole/settings/structure", label: "Structure académique", icon: Layers, permission: "settings.view" },
       { href: "/ecole/settings/options-scolaires", label: "Options scolaires", icon: Wrench, permission: "settings.view" },
       { href: "/ecole/settings/prises-en-charge", label: "Organismes et réductions familiales", icon: Users, permission: "settings.view" },
+      { href: "/ecole/settings/donnees", label: "Importation / Exportation", icon: FileSpreadsheet, permission: "settings.view" },
     ]},
   ]
 

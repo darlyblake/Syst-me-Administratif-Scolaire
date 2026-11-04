@@ -36,9 +36,11 @@ function validateEditedRow(values: Record<string, string>, kind: ImportKind, stu
   }
   ;["enrollment_date", "payment_date", "due_date", "subscription_date", "birth_date"].forEach(field => { if (values[field] && !validIsoDate(values[field])) issues.push({ code: "date-format", field, message: "Date invalide. Utilisez une date réelle au format AAAA-MM-JJ.", severity: "error" }) })
   let matchedClass: ImportClass | undefined
-  if (values.class_name?.trim()) {
-    matchedClass = classes.find(item => normalizeText(item.name) === normalizeText(values.class_name) || normalizeText(item.grade_level_name + " " + item.name) === normalizeText(values.class_name))
-    if (!matchedClass) issues.push({ code: "class-not-found", field: "class_name", message: "Cette classe n’existe pas ou n’est pas active dans l’établissement.", severity: "error" })
+  const levelValue = values.level || values.class_name || ""
+  if (levelValue.trim()) {
+    matchedClass = classes.find(item => normalizeText(item.name) === normalizeText(levelValue) || normalizeText(item.grade_level_name + " " + item.name) === normalizeText(levelValue))
+    const matchedLevel = classes.find(item => normalizeText(item.grade_level_name) === normalizeText(levelValue))
+    if (!matchedClass && !matchedLevel) issues.push({ code: "level-not-found", field: "level", message: "Ce niveau ou cette classe n’existe pas dans la structure active de l’établissement.", severity: "error" })
   }
   const tariffField = values.annual_tuition ? "annual_tuition" : values.tuition_amount ? "tuition_amount" : null
   if (matchedClass && tariffField) {
@@ -47,8 +49,8 @@ function validateEditedRow(values: Record<string, string>, kind: ImportKind, stu
     if (!tariff) issues.push({ code: "tariff-not-found", field: tariffField, message: "Aucun tarif annuel actif ne correspond à cette classe et à cette année scolaire.", severity: "error" })
     else if (/^\d+(\.\d{1,2})?$/.test(raw) && Math.abs(Number(raw) - tariff.annual_tuition) > 1) issues.push({ code: "tariff-mismatch", field: tariffField, message: "Le tarif importé diffère du tarif configuré (" + tariff.annual_tuition.toLocaleString("fr-FR") + " FCFA).", severity: "warning" })
   }
-  const number = normalizeText(values.student_number), first = normalizeText(values.first_name), last = normalizeText(values.last_name)
-  const candidate = (number && students.find(item => normalizeText(item.student_number) === number)) || (first && last && students.find(item => normalizeText(item.first_name) === first && normalizeText(item.last_name) === last && (!values.birth_date || !item.birth_date || item.birth_date === values.birth_date)))
+  const first = normalizeText(values.first_name), last = normalizeText(values.last_name)
+  const candidate = first && last ? students.find(item => normalizeText(item.first_name) === first && normalizeText(item.last_name) === last && (!values.birth_date || !item.birth_date || item.birth_date === values.birth_date)) : undefined
   if (candidate) issues.push({ code: "possible-duplicate", message: "Un élève correspondant semble déjà exister. Vérifiez s’il s’agit du même élève.", severity: "warning", candidate })
   return issues
 }
@@ -164,7 +166,17 @@ export default function DataTransferPage() {
               const result = await new Promise<Papa.ParseResult<Record<string, string>>>((done) => Papa.parse<Record<string, string>>(file, { header: true, skipEmptyLines: "greedy", delimiter: "", complete: done }))
               const rawHeaders = (result.meta.fields ?? []).map((field) => field.trim().replace(/^\uFEFF/, ""))
               headers = normalizeImportHeaders(rawHeaders)
-              rows = result.data.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeImportHeaders([key.replace(/^\uFEFF/, "").trim()])[0], value ?? ""])))
+              rows = result.data.map((row) => {
+                const normalized = Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeImportHeaders([key.replace(/^\uFEFF/, "").trim()])[0], value ?? ""]))
+                if ((selectedKind === "eleves" || selectedKind === "inscriptions") && !normalized.level && normalized.class_name) normalized.level = normalized.class_name
+                if (selectedKind === "eleves" || selectedKind === "inscriptions") {
+                  delete normalized.student_number
+                  delete normalized.annual_tuition
+                  delete normalized.tuition_amount
+                  delete normalized.amount
+                }
+                return normalized
+              })
               if (result.errors.length) errors.push(result.errors.length + " ligne(s) contiennent une erreur de lecture.")
             }
             const missing = config.required.filter((field) => !headers.includes(field))

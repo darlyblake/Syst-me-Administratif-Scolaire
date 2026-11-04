@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react"
 import Papa from "papaparse"
-import { AlertCircle, ArrowDownToLine, ArrowUpFromLine, CheckCircle2, FileSpreadsheet, FileUp, Info, RefreshCw, ShieldCheck, X } from "lucide-react"
+import { AlertCircle, ArrowDownToLine, ArrowUpFromLine, CheckCircle2, FileSpreadsheet, FileUp, Info, RefreshCw, ShieldCheck, UserPlus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { supabaseBrowser } from "@/lib/supabase/client"
@@ -38,7 +38,7 @@ function validateEditedRow(values: Record<string, string>, kind: ImportKind, stu
   ;["enrollment_date", "expense_date", "due_date", "subscription_date", "birth_date"].forEach(field => { if (values[field] && !validIsoDate(values[field])) issues.push({ code: "date-format", field, message: "Date invalide. Utilisez une date réelle au format AAAA-MM-JJ.", severity: "error" }) })
   if (kind === "inscriptions") {
     const classValue = values.class_name || values.level || ""
-    matchedClass = classes.find(item => normalizeText(item.name) === normalizeText(classValue) || normalizeText(item.grade_level_name + " " + item.name) === normalizeText(classValue))
+    const matchedClass = classes.find(item => normalizeText(item.name) === normalizeText(classValue) || normalizeText(item.grade_level_name + " " + item.name) === normalizeText(classValue))
     if (!matchedClass) issues.push({ code: "class-not-found", field: "class_name", message: "Cette classe n’existe pas dans la structure de l’établissement.", severity: "error" })
     const plan = matchedClass && activeYear ? plans.find(item => item.grade_level_id === matchedClass?.grade_level_id && item.academic_year_id === activeYear.id) : undefined
     if (!activeYear) issues.push({ code: "active-year-not-found", message: "Aucune année scolaire active n’a été trouvée pour cet établissement.", severity: "error" })
@@ -157,9 +157,62 @@ export default function DataTransferPage() {
   const [importTuitionPlans, setImportTuitionPlans] = useState<ImportTuitionPlan[]>([])
   const [importActiveYear, setImportActiveYear] = useState<ImportAcademicYear | null>(null)
   const [existingStudents, setExistingStudents] = useState<ExistingStudent[]>([])
+  const [manualOpen, setManualOpen] = useState(false)
+  const [manualLoading, setManualLoading] = useState(false)
+  const [manualValues, setManualValues] = useState<Record<string, string>>({ first_name: "", last_name: "", birth_date: "", place_of_birth: "", class_name: "", enrollment_date: new Date().toISOString().slice(0, 10), amount_paid: "0" })
+  const [manualErrors, setManualErrors] = useState<string[]>([])
 
   const totalRows = useMemo(() => files.reduce((sum, file) => sum + file.rows.length, 0), [files])
   const invalidFiles = files.filter((file) => file.errors.length > 0)
+
+  const openManualEntry = async () => {
+    setManualOpen(true)
+    if (importClasses.length || manualLoading) return
+    if (!establishmentId) { setManualErrors(["Établissement non identifié. Reconnectez-vous puis réessayez."]); return }
+    setManualLoading(true)
+    setManualErrors([])
+    try {
+      const [studentsResult, classesResult, yearResult] = await Promise.all([
+        supabaseBrowser.from("students").select("id, student_number, first_name, last_name, birth_date, place_of_birth").eq("establishment_id", establishmentId).is("merged_into_student_id", null).limit(10000),
+        supabaseBrowser.from("school_classes").select("id, name, grade_level_id, grade_levels(name)").eq("establishment_id", establishmentId).eq("active", true).limit(2000),
+        supabaseBrowser.from("academic_years").select("id, name").eq("establishment_id", establishmentId).eq("status", "active").order("updated_at", { ascending: false }).limit(1).maybeSingle(),
+      ])
+      if (studentsResult.error) throw studentsResult.error
+      if (classesResult.error) throw classesResult.error
+      if (yearResult.error) throw yearResult.error
+      const knownClasses = (classesResult.data ?? []).map((item: any) => ({ id: item.id, name: item.name, grade_level_id: item.grade_level_id, grade_level_name: item.grade_levels?.name ?? "" }))
+      const activeYear = yearResult.data as ImportAcademicYear | null
+      let plans: ImportTuitionPlan[] = []
+      if (activeYear) {
+        const result = await supabaseBrowser.from("tuition_plans").select("id, grade_level_id, academic_year_id, annual_tuition, registration_fee, payment_mode, installment_count, late_enrollment_billing_policy").eq("establishment_id", establishmentId).eq("academic_year_id", activeYear.id).eq("active", true).limit(1000)
+        if (result.error) throw result.error
+        plans = (result.data ?? []) as ImportTuitionPlan[]
+      }
+      setExistingStudents((studentsResult.data ?? []) as ExistingStudent[])
+      setImportClasses(knownClasses)
+      setImportActiveYear(activeYear)
+      setImportTuitionPlans(plans)
+      if (!knownClasses.length) setManualErrors(["Aucune classe active n’est configurée pour l’établissement."])
+      else if (!activeYear) setManualErrors(["Aucune année scolaire active n’a été trouvée."])
+    } catch (error) {
+      setManualErrors([error instanceof Error ? error.message : "Impossible de charger les classes et tarifs."])
+    } finally { setManualLoading(false) }
+  }
+
+  const submitManualEntry = () => {
+    const values = { ...manualValues, amount_paid: String(Number(String(manualValues.amount_paid ?? "0").replace(/\s/g, "").replace(/FCFA/gi, "").replace(",", "."))) }
+    const issues = validateEditedRow(values, "inscriptions", existingStudents, importClasses, importTuitionPlans, importActiveYear)
+    const errors = issues.filter(issue => issue.severity === "error").map(issue => issue.message)
+    if (errors.length) { setManualErrors(errors); return }
+    const duplicate = issues.some(issue => issue.code === "possible-duplicate")
+    const row: ReviewRow = { key: "manual-" + Date.now(), fileName: "Saisie manuelle", rowIndex: reviewRows.length + 1, kind: "inscriptions", values, issues, duplicateChoice: duplicate ? "pending" : undefined }
+    setReviewRows(current => [...current, row])
+    setReviewFilter("all")
+    setManualOpen(false)
+    setReviewOpen(true)
+    setManualValues({ first_name: "", last_name: "", birth_date: "", place_of_birth: "", class_name: "", enrollment_date: new Date().toISOString().slice(0, 10), amount_paid: "0" })
+    setManualErrors([])
+  }
 
   const handleFiles = async (selected: FileList | null) => {
     if (!selected?.length) return
@@ -391,6 +444,12 @@ export default function DataTransferPage() {
                 <p className="mt-1 text-xs leading-5 text-[#64748b]">L’import définitif et l’imputation du cumul restent à activer après validation de la transaction sécurisée.</p>
               </div>
             )}
+            {selectedKind === "inscriptions" && (
+              <div className="flex flex-col gap-3 border-t border-[#e5e7eb] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div><p className="text-sm font-medium text-[#172033]">Vous préférez saisir les élèves un par un ?</p><p className="mt-1 text-xs text-[#64748b]">Renseignez directement l’identité, la classe et le cumul déjà payé, sans préparer de fichier.</p></div>
+                <Button type="button" onClick={() => void openManualEntry()} className="w-full bg-[#173b8f] text-white hover:bg-[#123176] sm:w-auto"><UserPlus className="mr-2 h-4 w-4" /> Saisie manuelle</Button>
+              </div>
+            )}
             <div className="flex flex-col gap-3 border-t border-[#e5e7eb] bg-[#fafbfc] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-[#64748b]">Le tarif, le mode (mensuel, par tranches ou unique) et les échéances proviennent du plan tarifaire du niveau. Les dépenses historiques restent indépendantes.</p>
               <Button type="button" variant="outline" size="sm" onClick={() => downloadTemplate(selectedKind)} className="w-full sm:w-auto"><FileSpreadsheet className="mr-2 h-4 w-4" /> Télécharger le modèle CSV</Button>
@@ -449,6 +508,32 @@ export default function DataTransferPage() {
             </section>
           )}
 
+
+          {manualOpen && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/55 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="manual-entry-title">
+              <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-[#d7dae3] bg-white shadow-2xl">
+                <div className="flex items-start justify-between gap-3 border-b border-[#e5e7eb] px-5 py-4">
+                  <div><h2 id="manual-entry-title" className="text-lg font-semibold text-[#172033]">Ajouter un élève et son inscription</h2><p className="mt-1 text-sm text-[#64748b]">Saisie individuelle · année active : {importActiveYear?.name ?? "chargement…"}</p></div>
+                  <button type="button" onClick={() => setManualOpen(false)} className="rounded p-2 text-[#64748b] hover:bg-slate-100" aria-label="Fermer"><X className="h-5 w-5" /></button>
+                </div>
+                <div className="min-h-0 space-y-4 overflow-y-auto p-5">
+                  {manualLoading && <p className="text-sm text-[#64748b]">Chargement des classes, tarifs et dossiers existants…</p>}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {([["last_name","Nom"],["first_name","Prénom"],["birth_date","Date de naissance"],["place_of_birth","Lieu de naissance"]] as const).map(([field,label]) => <label key={field} className="block text-xs font-medium text-[#475569]">{label}<input type={field === "birth_date" ? "date" : "text"} value={manualValues[field] ?? ""} onChange={event => setManualValues(current => ({ ...current, [field]: event.target.value }))} className="mt-1 w-full rounded border border-[#cbd5e1] px-3 py-2.5 text-sm text-[#172033] outline-none focus:border-[#173b8f] focus:ring-2 focus:ring-[#173b8f]/10" /></label>)}
+                    <label className="block text-xs font-medium text-[#475569]">Classe<select value={manualValues.class_name ?? ""} onChange={event => setManualValues(current => ({ ...current, class_name: event.target.value }))} className="mt-1 w-full rounded border border-[#cbd5e1] bg-white px-3 py-2.5 text-sm text-[#172033] outline-none focus:border-[#173b8f]"><option value="">Sélectionner une classe</option>{importClasses.map(item => <option key={item.id} value={item.name}>{item.grade_level_name ? item.grade_level_name + " · " : ""}{item.name}</option>)}</select></label>
+                    <label className="block text-xs font-medium text-[#475569]">Date d'inscription<input type="date" value={manualValues.enrollment_date ?? ""} onChange={event => setManualValues(current => ({ ...current, enrollment_date: event.target.value }))} className="mt-1 w-full rounded border border-[#cbd5e1] px-3 py-2.5 text-sm text-[#172033] outline-none focus:border-[#173b8f]" /></label>
+                    <label className="block text-xs font-medium text-[#475569] sm:col-span-2">Total déjà payé depuis l’arrivée (FCFA)<input inputMode="decimal" value={manualValues.amount_paid ?? "0"} onChange={event => setManualValues(current => ({ ...current, amount_paid: event.target.value }))} placeholder="0" className="mt-1 w-full rounded border border-[#cbd5e1] px-3 py-2.5 text-sm text-[#172033] outline-none focus:border-[#173b8f]" /><span className="mt-1 block font-normal text-[#64748b]">Le tarif et le nombre d’échéances sont récupérés depuis le plan du niveau. Aucun faux reçu ne sera créé.</span></label>
+                  </div>
+                  {manualErrors.length > 0 && <div className="border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">{manualErrors.map((error,index) => <p key={index}>{error}</p>)}</div>}
+                  {importClasses.length > 0 && importActiveYear && <p className="border border-[#dbe4f0] bg-[#f5f8ff] px-3 py-2 text-xs text-[#334155]">Année active : <strong>{importActiveYear.name}</strong>. Plan tarifaire recherché automatiquement selon la classe sélectionnée.</p>}
+                </div>
+                <div className="flex flex-col-reverse gap-2 border-t border-[#e5e7eb] bg-[#fafbfc] px-5 py-4 sm:flex-row sm:justify-end">
+                  <Button type="button" variant="outline" onClick={() => setManualOpen(false)}>Annuler</Button>
+                  <Button type="button" disabled={manualLoading || !importClasses.length} onClick={submitManualEntry} className="bg-[#173b8f] text-white hover:bg-[#123176]">Vérifier cette saisie</Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {reviewOpen && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="import-review-title">

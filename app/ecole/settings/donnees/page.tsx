@@ -72,6 +72,9 @@ const exportTypes: { id: ExportKind; label: string; description: string }[] = [
 
 const fieldLabels: Record<string, string> = {
   student_number: "Matricule de l'élève",
+  birth_date: "Date de naissance",
+  annual_tuition: "Tarif annuel attendu (FCFA)",
+  tuition_amount: "Tarif annuel attendu (FCFA)",
   first_name: "Prénom",
   last_name: "Nom",
   relationship: "Lien avec l'élève",
@@ -229,6 +232,8 @@ export default function DataTransferPage() {
             let candidate = number ? existing.find((item) => normalizeText(item.student_number) === number) : undefined
             if (!candidate && first && last) candidate = existing.find((item) => normalizeText(item.first_name) === first && normalizeText(item.last_name) === last && (!values.birth_date || !item.birth_date || item.birth_date === values.birth_date))
             if (candidate) issues.push({ code: "possible-duplicate", message: "Un élève correspondant semble déjà exister. Vérifiez s'il s'agit du même élève.", severity: "warning", candidate })
+            const duplicateInFile = number && analyzed.find(item => normalizeText(item.values.student_number) === number)
+            if (duplicateInFile) issues.push({ code: "possible-duplicate", message: "Ce matricule apparaît déjà dans une ligne précédente de cet import. Vérifiez s'il s'agit d'une réinscription ou d'une erreur de saisie.", severity: "warning" })
             analyzed.push({ key: file.id + ":" + index, fileName: file.name, rowIndex: index + 2, kind: file.kind, values, issues, duplicateChoice: candidate ? "pending" : undefined })
           })
         }

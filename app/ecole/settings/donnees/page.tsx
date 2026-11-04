@@ -19,7 +19,38 @@ function normalizeText(value: unknown) {
   return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("fr").replace(/\s+/g, " ")
 }
 function validIsoDate(value: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value.trim()) && !Number.isNaN(new Date(value).getTime())
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
+  if (!match) return false
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])))
+  return date.getUTCFullYear() === Number(match[1]) && date.getUTCMonth() + 1 === Number(match[2]) && date.getUTCDate() === Number(match[3])
+}
+
+function validateEditedRow(values: Record<string, string>, kind: ImportKind, students: ExistingStudent[], classes: ImportClass[], tariffs: ImportTariff[]): ReviewIssue[] {
+  const issues: ReviewIssue[] = []
+  const required = importTypes.find(item => item.id === kind)?.required ?? []
+  required.forEach(field => { if (!String(values[field] ?? "").trim()) issues.push({ code: "required", field, message: "Valeur obligatoire manquante : " + humanizeField(field), severity: "error" }) })
+  if (values.amount?.trim()) {
+    const amount = values.amount.trim().replace(/\s/g, "").replace(/FCFA/gi, "").replace(",", ".")
+    if (!/^\d+(\.\d{1,2})?$/.test(amount)) issues.push({ code: "amount-format", field: "amount", message: "Le montant contient des caractères non numériques.", severity: "error" })
+    else if (Number(amount) < 0) issues.push({ code: "amount-negative", field: "amount", message: "Un montant ne peut pas être négatif.", severity: "error" })
+  }
+  ;["enrollment_date", "payment_date", "due_date", "subscription_date", "birth_date"].forEach(field => { if (values[field] && !validIsoDate(values[field])) issues.push({ code: "date-format", field, message: "Date invalide. Utilisez une date réelle au format AAAA-MM-JJ.", severity: "error" }) })
+  let matchedClass: ImportClass | undefined
+  if (values.class_name?.trim()) {
+    matchedClass = classes.find(item => normalizeText(item.name) === normalizeText(values.class_name) || normalizeText(item.grade_level_name + " " + item.name) === normalizeText(values.class_name))
+    if (!matchedClass) issues.push({ code: "class-not-found", field: "class_name", message: "Cette classe n’existe pas ou n’est pas active dans l’établissement.", severity: "error" })
+  }
+  const tariffField = values.annual_tuition ? "annual_tuition" : values.tuition_amount ? "tuition_amount" : null
+  if (matchedClass && tariffField) {
+    const tariff = tariffs.find(item => item.grade_level_id === matchedClass?.grade_level_id && (!values.academic_year || normalizeText(item.academic_year_name) === normalizeText(values.academic_year)))
+    const raw = values[tariffField].trim().replace(/\s/g, "").replace(/FCFA/gi, "").replace(",", ".")
+    if (!tariff) issues.push({ code: "tariff-not-found", field: tariffField, message: "Aucun tarif annuel actif ne correspond à cette classe et à cette année scolaire.", severity: "error" })
+    else if (/^\d+(\.\d{1,2})?$/.test(raw) && Math.abs(Number(raw) - tariff.annual_tuition) > 1) issues.push({ code: "tariff-mismatch", field: tariffField, message: "Le tarif importé diffère du tarif configuré (" + tariff.annual_tuition.toLocaleString("fr-FR") + " FCFA).", severity: "warning" })
+  }
+  const number = normalizeText(values.student_number), first = normalizeText(values.first_name), last = normalizeText(values.last_name)
+  const candidate = (number && students.find(item => normalizeText(item.student_number) === number)) || (first && last && students.find(item => normalizeText(item.first_name) === first && normalizeText(item.last_name) === last && (!values.birth_date || !item.birth_date || item.birth_date === values.birth_date)))
+  if (candidate) issues.push({ code: "possible-duplicate", message: "Un élève correspondant semble déjà exister. Vérifiez s’il s’agit du même élève.", severity: "warning", candidate })
+  return issues
 }
 
 
@@ -393,7 +424,7 @@ export default function DataTransferPage() {
                     <div key={row.key} className="border-b border-[#eef0f3] px-5 py-4">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-[#172033]">Ligne {row.rowIndex} · {row.fileName}</strong><span className="text-xs text-[#64748b]">{row.kind}</span></div>
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        {Object.entries(row.values).map(([field, value]) => <label key={field} className="block min-w-0 text-xs text-[#64748b]">{humanizeField(field)}<input value={value} onChange={event => setReviewRows(current => current.map(item => item.key === row.key ? { ...item, values: { ...item.values, [field]: event.target.value } } : item))} className="mt-1 w-full rounded border border-[#cbd5e1] px-2.5 py-2 text-sm text-[#172033] outline-none focus:border-[#173b8f] focus:ring-2 focus:ring-[#173b8f]/10" /></label>)}
+                        {Object.entries(row.values).map(([field, value]) => <label key={field} className="block min-w-0 text-xs text-[#64748b]">{humanizeField(field)}<input value={value} onChange={event => { const values = { ...row.values, [field]: event.target.value }; const issues = validateEditedRow(values, row.kind, existingStudents, importClasses, importTariffs); const duplicate = issues.find(issue => issue.code === "possible-duplicate"); setReviewRows(current => current.map(item => item.key === row.key ? { ...item, values, issues, duplicateChoice: duplicate ? item.duplicateChoice ?? "pending" : undefined } : item)); }} className="mt-1 w-full rounded border border-[#cbd5e1] px-2.5 py-2 text-sm text-[#172033] outline-none focus:border-[#173b8f] focus:ring-2 focus:ring-[#173b8f]/10" /></label>)}
                       </div>
                       {row.issues.map((issue, index) => <div key={issue.code + index} className={"mt-3 rounded border px-3 py-2 text-xs " + (issue.severity === "error" ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900")}>
                         <strong>{issue.message}</strong>
@@ -409,7 +440,7 @@ export default function DataTransferPage() {
                   {reviewRows.length === 0 && <p className="p-8 text-center text-sm text-[#64748b]">Aucune ligne à analyser.</p>}
                 </div>
                 <div className="flex flex-col gap-2 border-t border-[#e5e7eb] bg-[#fafbfc] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-[#64748b]">Analyse frontend uniquement : les corrections restent dans cet aperçu et rien n'est encore écrit dans Supabase.</p>
+                  <p className="text-xs text-[#64748b]">Les erreurs sont recalculées après chaque correction. L’enregistrement reste désactivé jusqu’à la mise en place d’une transaction serveur sécurisée.</p>
                   <Button type="button" variant="outline" onClick={() => setReviewOpen(false)}>Fermer</Button>
                 </div>
               </div>

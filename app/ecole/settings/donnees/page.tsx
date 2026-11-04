@@ -27,15 +27,36 @@ const exportTypes: { id: ExportKind; label: string; description: string }[] = [
   { id: "finance", label: "Données financières", description: "Échéances et paiements enregistrés." },
 ]
 
+const fieldLabels: Record<string, string> = {
+  student_number: "Matricule de l'élève",
+  first_name: "Prénom",
+  last_name: "Nom",
+  relationship: "Lien avec l'élève",
+  academic_year: "Année scolaire",
+  class_name: "Classe",
+  enrollment_date: "Date d'inscription",
+  label: "Libellé du frais",
+  due_date: "Date limite de paiement",
+  amount: "Montant (FCFA)",
+  payment_date: "Date du paiement",
+  method: "Mode de paiement",
+  option_name: "Nom de l'option ou du service",
+  subscription_date: "Date de souscription",
+}
+
+function humanizeField(field: string) {
+  return fieldLabels[field] ?? field.replace(/_/g, " ").replace(/\\b\\w/g, (letter) => letter.toUpperCase())
+}
+
 function escapeExcelCell(value: unknown) {
   return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
 }
 
-function downloadExcel(name: string, rows: Record<string, unknown>[]) {
+function downloadExcel(name: string, rows: Record<string, unknown>[], title = "Données de l'établissement", instructions = "Ce document contient les données sélectionnées. Ne modifiez pas les identifiants techniques.") {
   const data = rows.length ? rows : [{ information: "Aucune donnée disponible" }]
   const headers = Array.from(new Set(data.flatMap((row) => Object.keys(row))))
-  const tableRows = ["<tr>" + headers.map((header) => "<th>" + escapeExcelCell(header) + "</th>").join("") + "</tr>", ...data.map((row) => "<tr>" + headers.map((header) => "<td>" + escapeExcelCell(row[header]) + "</td>").join("") + "</tr>")].join("")
-  const workbook = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>table{border-collapse:collapse}th{background:#17365d;color:white;font-weight:bold}th,td{border:1px solid #cbd5e1;padding:5px}</style></head><body><table>' + tableRows + '</table></body></html>'
+  const tableRows = ["<tr>" + headers.map((header) => "<th>" + escapeExcelCell(humanizeField(header)) + "</th>").join("") + "</tr>", ...data.map((row) => "<tr>" + headers.map((header) => "<td>" + escapeExcelCell(row[header]) + "</td>").join("") + "</tr>")].join("")
+  const workbook = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;color:#172033}h1{color:#173b8f;font-size:18pt}p{color:#475569;font-size:10pt}table{border-collapse:collapse;width:100%}th{background:#173b8f;color:white;font-weight:bold}th,td{border:1px solid #cbd5e1;padding:7px;text-align:left}tr:nth-child(even){background:#f3f6fb}</style></head><body><h1>' + escapeExcelCell(title) + '</h1><p>' + escapeExcelCell(instructions) + '</p><table>' + tableRows + '</table></body></html>'
   const blob = new Blob(["\\uFEFF", workbook], { type: "application/vnd.ms-excel;charset=utf-8;" })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement("a")
@@ -190,7 +211,7 @@ export default function DataTransferPage() {
             <h1 className="text-2xl font-semibold tracking-tight text-[#172033]">Importation et exportation des données</h1>
             <p className="mt-1 max-w-3xl text-sm text-[#64748b]">Transférez les dossiers de votre établissement et conservez une copie exploitable de vos données scolaires.</p>
           </div>
-          <span className="text-xs text-[#64748b]">Fichiers Excel (.xls)</span>
+          <span className="text-xs text-[#64748b]">Fichiers Excel · modèles en français</span>
         </div>
       </header>
 
@@ -227,7 +248,7 @@ export default function DataTransferPage() {
           <section className="border border-[#d7dae3] bg-white">
             <div className="border-b border-[#e5e7eb] px-4 py-3">
               <h2 className="text-sm font-semibold text-[#172033]">2. Ajouter le fichier à vérifier</h2>
-              <p className="mt-1 text-xs text-[#64748b]">Formats acceptés : Excel .xls (modèle téléchargé ici) ou CSV. Les classeurs .xlsx doivent être enregistrés en .xls ou CSV avant import.</p>
+              <p className="mt-1 text-xs text-[#64748b]">Formats acceptés : modèle Excel téléchargé ici (.xls) ou fichier CSV. Les fichiers .xlsx ne sont pas encore pris en charge.</p>
             </div>
             <div className="p-4">
               <input ref={fileInput} type="file" accept=".xls,text/csv" multiple onChange={(event) => void handleFiles(event.target.files)} className="sr-only" id="data-import-file" />

@@ -67,7 +67,7 @@ function validateEditedRow(values: Record<string, string>, kind: ImportKind, stu
 
 const importTypes: { id: ImportKind; label: string; required: string[]; description: string }[] = [
   { id: "inscriptions", label: "Élèves, inscriptions et situation financière", required: ["first_name", "last_name", "birth_date", "place_of_birth", "class_name", "enrollment_date", "amount_paid"], description: "Une ligne par élève : identité, lieu de naissance, classe, date d’entrée dans l’établissement et total déjà payé. Le tarif et les échéances viennent automatiquement du plan configuré pour son niveau." },
-  { id: "depenses", label: "Dépenses historiques", required: ["category", "description", "expense_date", "amount"], description: "Dépenses déjà effectuées par l’établissement, avec date, montant, catégorie et mode de règlement facultatif." },
+  { id: "depenses", label: "Dépenses", required: ["expense_date", "description", "amount"], description: "Une ligne par dépense : date, motif et montant. La catégorie est renseignée automatiquement." },
 ]
 
 const exportTypes: { id: ExportKind; label: string; description: string }[] = [
@@ -98,7 +98,7 @@ const fieldLabels: Record<string, string> = {
   payment_date: "Date du paiement",
   expense_date: "Date de la dépense",
   category: "Catégorie de dépense",
-  description: "Description",
+  description: "Motif de la dépense",
   payment_method: "Mode de règlement",
   method: "Mode de paiement",
   option_name: "Nom de l'option ou du service",
@@ -137,7 +137,7 @@ function normalizeImportHeaders(headers: string[]) {
     "mode de paiement": "method", "date paiement": "payment_date", "date du paiement": "payment_date",
     "lieu de naissance": "place_of_birth", "ville de naissance": "place_of_birth",
     "montant deja paye": "amount_paid", "montant deja payé": "amount_paid", "total deja paye": "amount_paid", "total déjà payé": "amount_paid",
-    montant: "amount", "montant fcfa": "amount", reference: "reference", notes: "notes",
+    montant: "amount", "montant fcfa": "amount", motif: "description", "motif de la depense": "description", "date": "expense_date", reference: "reference", notes: "notes",
   }
   return headers.map((header) => reverseLabels[normalizeText(header)] ?? aliases[normalizeText(header)] ?? header.trim())
 }
@@ -166,6 +166,10 @@ export default function DataTransferPage() {
   const [manualLoading, setManualLoading] = useState(false)
   const [manualValues, setManualValues] = useState<Record<string, string>>({ first_name: "", last_name: "", birth_date: "", place_of_birth: "", class_name: "", enrollment_date: new Date().toISOString().slice(0, 10), amount_paid: "0" })
   const [manualErrors, setManualErrors] = useState<string[]>([])
+  const [manualExpenseOpen, setManualExpenseOpen] = useState(false)
+  const [manualExpenseValues, setManualExpenseValues] = useState({ expense_date: new Date().toISOString().slice(0, 10), description: "", amount: "" })
+  const [isSavingExpenses, setIsSavingExpenses] = useState(false)
+  const [expenseSaveMessage, setExpenseSaveMessage] = useState("")
 
   const totalRows = useMemo(() => files.reduce((sum, file) => sum + file.rows.length, 0), [files])
   const invalidFiles = files.filter((file) => file.errors.length > 0)
@@ -217,6 +221,56 @@ export default function DataTransferPage() {
     setReviewOpen(true)
     setManualValues({ first_name: "", last_name: "", birth_date: "", place_of_birth: "", class_name: "", enrollment_date: new Date().toISOString().slice(0, 10), amount_paid: "0" })
     setManualErrors([])
+  }
+
+  const openManualExpense = () => {
+    setManualExpenseValues({ expense_date: new Date().toISOString().slice(0, 10), description: "", amount: "" })
+    setManualErrors([])
+    setManualExpenseOpen(true)
+  }
+
+  const submitManualExpense = () => {
+    const amountText = manualExpenseValues.amount.trim().replace(/\s/g, "").replace(/FCFA/gi, "").replace(",", ".")
+    const values = { ...manualExpenseValues, amount: amountText }
+    const issues = validateEditedRow(values, "depenses", [], [], [], null)
+    if (!Number.isFinite(Number(amountText)) || Number(amountText) <= 0) issues.push({ code: "expense-amount-positive", field: "amount", message: "Le montant doit être supérieur à zéro.", severity: "error" })
+    const errors = issues.filter(issue => issue.severity === "error").map(issue => issue.message)
+    if (errors.length) { setManualErrors(errors); return }
+    setReviewRows(current => [...current, { key: "expense-manual-" + Date.now(), fileName: "Saisie manuelle", rowIndex: current.length + 1, kind: "depenses", values, issues }])
+    setReviewFilter("all")
+    setManualExpenseOpen(false)
+    setReviewOpen(true)
+  }
+
+  const saveReviewedExpenses = async () => {
+    const expenses = reviewRows.filter(row => row.kind === "depenses")
+    if (!expenses.length || !establishmentId) return
+    const invalid = expenses.filter(row => row.issues.some(issue => issue.severity === "error") || !validIsoDate(row.values.expense_date || "") || !row.values.description?.trim() || !(Number(row.values.amount) > 0))
+    if (invalid.length) { setExportError("Corrigez les erreurs des dépenses avant l’enregistrement."); return }
+    setIsSavingExpenses(true)
+    setExportError("")
+    try {
+      const { data: authData, error: authError } = await supabaseBrowser.auth.getUser()
+      if (authError) throw authError
+      if (!authData.user) throw new Error("Votre session a expiré. Reconnectez-vous.")
+      const payload = expenses.map(row => ({
+        establishment_id: establishmentId,
+        category: row.values.category?.trim() || "Autres",
+        description: row.values.description.trim(),
+        expense_date: row.values.expense_date,
+        amount: Number(row.values.amount),
+        payment_method: row.values.payment_method?.trim() || null,
+        reference: row.values.reference?.trim() || null,
+        created_by: authData.user.id,
+      }))
+      const { error } = await supabaseBrowser.from("expenses").insert(payload)
+      if (error) throw error
+      setExpenseSaveMessage(expenses.length + " dépense(s) enregistrée(s). Les mouvements financiers ont été actualisés automatiquement.")
+      setReviewRows(current => current.filter(row => row.kind !== "depenses"))
+      if (reviewRows.every(row => row.kind === "depenses")) setReviewOpen(false)
+    } catch (error) {
+      setExportError("Enregistrement des dépenses impossible : " + (error instanceof Error ? error.message : "erreur inconnue"))
+    } finally { setIsSavingExpenses(false) }
   }
 
   const handleFiles = async (selected: FileList | null) => {

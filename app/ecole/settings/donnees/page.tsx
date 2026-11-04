@@ -27,7 +27,7 @@ function validIsoDate(value: string) {
   return date.getUTCFullYear() === Number(match[1]) && date.getUTCMonth() + 1 === Number(match[2]) && date.getUTCDate() === Number(match[3])
 }
 
-function validateEditedRow(values: Record<string, string>, kind: ImportKind, students: ExistingStudent[], classes: ImportClass[], tariffs: ImportTariff[]): ReviewIssue[] {
+function validateEditedRow(values: Record<string, string>, kind: ImportKind, students: ExistingStudent[], classes: ImportClass[], tariffs: ImportTariff[], years: ImportAcademicYear[], enrollments: ImportEnrollment[]): ReviewIssue[] {
   const issues: ReviewIssue[] = []
   const required = importTypes.find(item => item.id === kind)?.required ?? []
   required.forEach(field => { if (!String(values[field] ?? "").trim()) issues.push({ code: "required", field, message: "Valeur obligatoire manquante : " + humanizeField(field), severity: "error" }) })
@@ -54,6 +54,20 @@ function validateEditedRow(values: Record<string, string>, kind: ImportKind, stu
   const first = kind === "inscriptions" ? normalizeText(values.first_name) : "", last = kind === "inscriptions" ? normalizeText(values.last_name) : ""
   const candidate = first && last ? students.find(item => normalizeText(item.first_name) === first && normalizeText(item.last_name) === last && (!values.birth_date || !item.birth_date || item.birth_date === values.birth_date)) : undefined
   if (candidate) issues.push({ code: "possible-duplicate", message: "Un élève correspondant semble déjà exister. Vérifiez s’il s’agit du même élève.", severity: "warning", candidate })
+  if (kind === "paiements" && values.first_name && values.last_name && values.class_name && values.academic_year) {
+    const studentMatches = students.filter(item => normalizeText(item.first_name) === normalizeText(values.first_name) && normalizeText(item.last_name) === normalizeText(values.last_name))
+    const classMatches = classes.filter(item => normalizeText(item.name) === normalizeText(values.class_name) || normalizeText(item.grade_level_name + " " + item.name) === normalizeText(values.class_name))
+    const yearMatches = years.filter(item => normalizeText(item.name) === normalizeText(values.academic_year))
+    if (!studentMatches.length) issues.push({ code: "payment-student-not-found", message: "Aucun élève ne correspond à ce nom et ce prénom.", severity: "error" })
+    else if (!classMatches.length) issues.push({ code: "payment-class-not-found", message: "Cette classe n’existe pas dans la structure de l’établissement.", severity: "error" })
+    else if (!yearMatches.length) issues.push({ code: "payment-year-not-found", message: "Cette année scolaire n’existe pas dans l’établissement.", severity: "error" })
+    else {
+      const matches = enrollments.filter(enrollment => studentMatches.some(student => student.id === enrollment.student_id) && classMatches.some(schoolClass => schoolClass.id === enrollment.class_id) && yearMatches.some(year => year.id === enrollment.academic_year_id))
+      if (matches.length === 0) issues.push({ code: "payment-enrollment-not-found", message: "Aucune inscription ne correspond à cet élève, cette classe et cette année scolaire.", severity: "error" })
+      else if (matches.length > 1 || studentMatches.length > 1 || classMatches.length > 1 || yearMatches.length > 1) issues.push({ code: "payment-enrollment-ambiguous", message: "Plusieurs inscriptions correspondent. Vérifiez les informations avant de continuer.", severity: "error" })
+      else issues.push({ code: "payment-enrollment-matched", message: "Élève et inscription retrouvés. Le paiement sera rattaché à cette inscription lors de l’enregistrement définitif.", severity: "warning" })
+    }
+  }
   return issues
 }
 
@@ -497,7 +511,7 @@ export default function DataTransferPage() {
                     <div key={row.key} className="border-b border-[#eef0f3] px-5 py-4">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-[#172033]">Ligne {row.rowIndex} · {row.fileName}</strong><span className="text-xs text-[#64748b]">{row.kind}</span></div>
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        {Object.entries(row.values).map(([field, value]) => <label key={field} className="block min-w-0 text-xs text-[#64748b]">{humanizeField(field)}<input value={value} onChange={event => { const values = { ...row.values, [field]: event.target.value }; const issues = validateEditedRow(values, row.kind, existingStudents, importClasses, importTariffs); const duplicate = issues.find(issue => issue.code === "possible-duplicate"); setReviewRows(current => current.map(item => item.key === row.key ? { ...item, values, issues, duplicateChoice: duplicate ? item.duplicateChoice ?? "pending" : undefined } : item)); }} className="mt-1 w-full rounded border border-[#cbd5e1] px-2.5 py-2 text-sm text-[#172033] outline-none focus:border-[#173b8f] focus:ring-2 focus:ring-[#173b8f]/10" /></label>)}
+                        {Object.entries(row.values).map(([field, value]) => <label key={field} className="block min-w-0 text-xs text-[#64748b]">{humanizeField(field)}<input value={value} onChange={event => { const values = { ...row.values, [field]: event.target.value }; const issues = validateEditedRow(values, row.kind, existingStudents, importClasses, importTariffs, importAcademicYears, importEnrollments); const duplicate = issues.find(issue => issue.code === "possible-duplicate"); setReviewRows(current => current.map(item => item.key === row.key ? { ...item, values, issues, duplicateChoice: duplicate ? item.duplicateChoice ?? "pending" : undefined } : item)); }} className="mt-1 w-full rounded border border-[#cbd5e1] px-2.5 py-2 text-sm text-[#172033] outline-none focus:border-[#173b8f] focus:ring-2 focus:ring-[#173b8f]/10" /></label>)}
                       </div>
                       {row.issues.map((issue, index) => <div key={issue.code + index} className={"mt-3 rounded border px-3 py-2 text-xs " + (issue.severity === "error" ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900")}>
                         <strong>{issue.message}</strong>

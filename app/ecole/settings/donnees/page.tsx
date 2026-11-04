@@ -44,6 +44,16 @@ function downloadExcel(name: string, rows: Record<string, unknown>[]) {
   anchor.click()
   URL.revokeObjectURL(url)
 }
+function parseExcelHtml(text: string) {
+  const parsedDocument = new DOMParser().parseFromString(text, "text/html")
+  const table = parsedDocument.querySelector("table")
+  if (!table) throw new Error("Feuille Excel illisible. Utilisez le modèle Excel téléchargé depuis cette page.")
+  const matrix = Array.from(table.querySelectorAll("tr")).map((tr) => Array.from(tr.querySelectorAll("th,td")).map((cell) => (cell.textContent ?? "").trim()))
+  if (matrix.length < 2) throw new Error("La feuille Excel ne contient aucune ligne de données.")
+  const headers = matrix[0]
+  const rows = matrix.slice(1).filter((row) => row.some(Boolean)).map((row) => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""])))
+  return { headers, rows }
+}
 
 export default function DataTransferPage() {
   const { utilisateur } = useAuthentification()
@@ -66,20 +76,30 @@ export default function DataTransferPage() {
     setIsParsing(true)
     try {
       const parsed = await Promise.all(Array.from(selected).map((file) => new Promise<ParsedFile>((resolve) => {
-        Papa.parse<Record<string, string>>(file, {
-          header: true,
-          skipEmptyLines: "greedy",
-          delimiter: "",
-          complete: (result) => {
-            const headers = (result.meta.fields ?? []).map((field) => field.trim())
+        void (async () => {
+          try {
             const config = importTypes.find((item) => item.id === selectedKind)!
+            const extension = file.name.toLowerCase().split(".").pop()
+            let headers: string[] = []
+            let rows: Record<string, string>[] = []
+            const errors: string[] = []
+            if (extension === "xls" || extension === "html" || extension === "htm") {
+              const parsedExcel = parseExcelHtml(await file.text())
+              headers = parsedExcel.headers
+              rows = parsedExcel.rows
+            } else {
+              const result = await new Promise<Papa.ParseResult<Record<string, string>>>((done) => Papa.parse<Record<string, string>>(file, { header: true, skipEmptyLines: "greedy", delimiter: "", complete: done }))
+              headers = (result.meta.fields ?? []).map((field) => field.trim())
+              rows = result.data
+              if (result.errors.length) errors.push(result.errors.length + " ligne(s) contiennent une erreur de lecture.")
+            }
             const missing = config.required.filter((field) => !headers.includes(field))
-            const errors = [...missing.map((field) => "Colonne obligatoire absente : " + field)]
-            if (result.errors.length) errors.push(result.errors.length + " ligne(s) contiennent une erreur de lecture.")
-            resolve({ id: file.name + file.size + file.lastModified, name: file.name, kind: selectedKind, rows: result.data, headers, errors })
-          },
-          error: () => resolve({ id: file.name + file.size, name: file.name, kind: selectedKind, rows: [], headers: [], errors: ["Impossible de lire ce fichier."] }),
-        })
+            errors.push(...missing.map((field) => "Colonne obligatoire absente : " + field))
+            resolve({ id: file.name + file.size + file.lastModified, name: file.name, kind: selectedKind, rows, headers, errors })
+          } catch (error) {
+            resolve({ id: file.name + file.size, name: file.name, kind: selectedKind, rows: [], headers: [], errors: [error instanceof Error ? error.message : "Impossible de lire ce fichier."] })
+          }
+        })()
       })))
       setFiles((current) => [...current.filter((item) => !parsed.some((next) => next.id === item.id)), ...parsed])
     } finally {
@@ -207,7 +227,7 @@ export default function DataTransferPage() {
           <section className="border border-[#d7dae3] bg-white">
             <div className="border-b border-[#e5e7eb] px-4 py-3">
               <h2 className="text-sm font-semibold text-[#172033]">2. Ajouter le fichier à vérifier</h2>
-              <p className="mt-1 text-xs text-[#64748b]">Si vous avez un classeur Excel (.xlsx), enregistrez d'abord la feuille concernée au format CSV UTF-8 avec séparateur point-virgule.</p>
+              <p className="mt-1 text-xs text-[#64748b]">Formats acceptés : Excel .xls (modèle téléchargé ici) ou CSV. Les classeurs .xlsx doivent être enregistrés en .xls ou CSV avant import.</p>
             </div>
             <div className="p-4">
               <input ref={fileInput} type="file" accept=".xls,text/csv" multiple onChange={(event) => void handleFiles(event.target.files)} className="sr-only" id="data-import-file" />

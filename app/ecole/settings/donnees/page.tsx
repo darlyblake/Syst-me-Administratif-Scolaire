@@ -503,10 +503,10 @@ export default function DataTransferPage() {
                 <p className="mt-1 text-xs leading-5 text-[#64748b]">L’import définitif et l’imputation du cumul restent à activer après validation de la transaction sécurisée.</p>
               </div>
             )}
-            {selectedKind === "inscriptions" && (
+            {(selectedKind === "inscriptions" || selectedKind === "depenses") && (
               <div className="flex flex-col gap-3 border-t border-[#e5e7eb] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div><p className="text-sm font-medium text-[#172033]">Vous préférez saisir les élèves un par un ?</p><p className="mt-1 text-xs text-[#64748b]">Renseignez directement l’identité, la classe et le cumul déjà payé, sans préparer de fichier.</p></div>
-                <Button type="button" onClick={() => void openManualEntry()} className="w-full bg-[#173b8f] text-white hover:bg-[#123176] sm:w-auto"><UserPlus className="mr-2 h-4 w-4" /> Saisie manuelle</Button>
+                <div><p className="text-sm font-medium text-[#172033]">{selectedKind === "depenses" ? "Ajouter une dépense sans fichier ?" : "Vous préférez saisir les élèves un par un ?"}</p><p className="mt-1 text-xs text-[#64748b]">{selectedKind === "depenses" ? "Saisissez la date, le motif et le montant." : "Renseignez directement l’identité, la classe et le cumul déjà payé, sans préparer de fichier."}</p></div>
+                <Button type="button" onClick={() => selectedKind === "depenses" ? openManualExpense() : void openManualEntry()} className="w-full bg-[#173b8f] text-white hover:bg-[#123176] sm:w-auto"><UserPlus className="mr-2 h-4 w-4" /> {selectedKind === "depenses" ? "Ajouter une dépense" : "Saisie manuelle"}</Button>
               </div>
             )}
             <div className="flex flex-col gap-3 border-t border-[#e5e7eb] bg-[#fafbfc] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -567,6 +567,27 @@ export default function DataTransferPage() {
             </section>
           )}
 
+
+          {manualExpenseOpen && (
+            <div className="fixed inset-0 z-[115] flex items-center justify-center bg-slate-950/55 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="manual-expense-title">
+              <div className="w-full max-w-lg overflow-hidden rounded-lg border border-[#d7dae3] bg-white shadow-2xl">
+                <div className="flex items-start justify-between border-b border-[#e5e7eb] px-5 py-4">
+                  <div><h2 id="manual-expense-title" className="text-lg font-semibold text-[#172033]">Ajouter une dépense</h2><p className="mt-1 text-sm text-[#64748b]">La dépense sera ajoutée aux mouvements financiers.</p></div>
+                  <button type="button" onClick={() => setManualExpenseOpen(false)} className="rounded p-2 text-[#64748b] hover:bg-slate-100" aria-label="Fermer"><X className="h-5 w-5" /></button>
+                </div>
+                <div className="space-y-4 p-5">
+                  <label className="block text-xs font-medium text-[#475569]">Date de la dépense<input type="date" value={manualExpenseValues.expense_date} onChange={event => setManualExpenseValues(current => ({ ...current, expense_date: event.target.value }))} className="mt-1 w-full rounded border border-[#cbd5e1] px-3 py-2.5 text-sm text-[#172033] outline-none focus:border-[#173b8f]" /></label>
+                  <label className="block text-xs font-medium text-[#475569]">Motif de la dépense<textarea rows={3} value={manualExpenseValues.description} onChange={event => setManualExpenseValues(current => ({ ...current, description: event.target.value }))} placeholder="Ex. Achat de fournitures, réparation…" className="mt-1 w-full rounded border border-[#cbd5e1] px-3 py-2.5 text-sm text-[#172033] outline-none focus:border-[#173b8f]" /></label>
+                  <label className="block text-xs font-medium text-[#475569]">Montant (FCFA)<input inputMode="decimal" value={manualExpenseValues.amount} onChange={event => setManualExpenseValues(current => ({ ...current, amount: event.target.value }))} placeholder="Ex. 25 000" className="mt-1 w-full rounded border border-[#cbd5e1] px-3 py-2.5 text-sm text-[#172033] outline-none focus:border-[#173b8f]" /></label>
+                  {manualErrors.length > 0 && <div className="border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">{manualErrors.map((error,index) => <p key={index}>{error}</p>)}</div>}
+                </div>
+                <div className="flex justify-end gap-2 border-t border-[#e5e7eb] bg-[#fafbfc] px-5 py-4">
+                  <Button type="button" variant="outline" onClick={() => setManualExpenseOpen(false)}>Annuler</Button>
+                  <Button type="button" onClick={submitManualExpense} className="bg-[#173b8f] text-white hover:bg-[#123176]">Vérifier la dépense</Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {manualOpen && (
             <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/55 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="manual-entry-title">
@@ -631,8 +652,14 @@ export default function DataTransferPage() {
                   {reviewRows.length === 0 && <p className="p-8 text-center text-sm text-[#64748b]">Aucune ligne à analyser.</p>}
                 </div>
                 <div className="flex flex-col gap-2 border-t border-[#e5e7eb] bg-[#fafbfc] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-[#64748b]">Les erreurs sont recalculées après chaque correction. La validation finale sera activée avec la transaction sécurisée de reprise historique.</p>
-                  <Button type="button" variant="outline" onClick={() => setReviewOpen(false)}>Fermer</Button>
+                  <div className="text-xs text-[#64748b]">
+                    {reviewRows.some(row => row.kind === "depenses") ? "Les dépenses valides seront enregistrées dans Supabase et intégrées aux mouvements financiers." : "Les erreurs sont recalculées après chaque correction."}
+                    {expenseSaveMessage && <p className="mt-1 font-medium text-[#166534]">{expenseSaveMessage}</p>}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={() => setReviewOpen(false)}>Fermer</Button>
+                    {reviewRows.some(row => row.kind === "depenses") && <Button type="button" disabled={isSavingExpenses || reviewRows.filter(row => row.kind === "depenses").some(row => row.issues.some(issue => issue.severity === "error"))} onClick={() => void saveReviewedExpenses()} className="bg-[#173b8f] text-white hover:bg-[#123176]">{isSavingExpenses ? "Enregistrement…" : "Enregistrer les dépenses"}</Button>}
+                  </div>
                 </div>
               </div>
             </div>
@@ -640,6 +667,7 @@ export default function DataTransferPage() {
 
           <div className="flex items-start gap-2 text-xs leading-5 text-[#64748b]"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" /> Les dates d’inscription, de paiement et de dépense restent les dates réelles. La date de migration sera conservée séparément.</div>
           {invalidFiles.length > 0 && <p className="flex items-center gap-2 text-xs text-[#b42318]"><AlertCircle className="h-4 w-4" /> Corrigez les colonnes manquantes avant de poursuivre.</p>}
+          {expenseSaveMessage && <p className="border border-[#b7dfc5] bg-[#f0faf3] px-3 py-2 text-xs text-[#237044]">{expenseSaveMessage}</p>}
         </div>
       ) : (
         <div className="space-y-4">

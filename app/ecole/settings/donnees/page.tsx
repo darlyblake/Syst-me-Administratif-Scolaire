@@ -10,6 +10,16 @@ import { supabaseBrowser } from "@/lib/supabase/client"
 type ImportKind = "eleves" | "parents" | "inscriptions" | "echeances" | "paiements" | "options"
 type ExportKind = "eleves" | "inscriptions" | "classes" | "finance"
 type ParsedFile = { id: string; name: string; kind: ImportKind; rows: Record<string, string>[]; headers: string[]; errors: string[] }
+type ExistingStudent = { id: string; student_number: string | null; first_name: string | null; last_name: string | null; birth_date: string | null }
+type ReviewIssue = { code: string; message: string; field?: string; severity: "error" | "warning"; candidate?: ExistingStudent }
+type ReviewRow = { key: string; fileName: string; rowIndex: number; kind: ImportKind; values: Record<string, string>; issues: ReviewIssue[]; duplicateChoice?: "same" | "separate" | "pending" }
+function normalizeText(value: unknown) {
+  return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("fr").replace(/\s+/g, " ")
+}
+function validIsoDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value.trim()) && !Number.isNaN(new Date(value).getTime())
+}
+
 
 const importTypes: { id: ImportKind; label: string; required: string[]; description: string }[] = [
   { id: "eleves", label: "Élèves", required: ["student_number", "first_name", "last_name"], description: "Identité, matricule et coordonnées des élèves." },
@@ -85,6 +95,10 @@ export default function DataTransferPage() {
   const [isExporting, setIsExporting] = useState(false)
   const [exportMessage, setExportMessage] = useState("")
   const [exportError, setExportError] = useState("")
+  const [reviewRows, setReviewRows] = useState<ReviewRow[]>([])
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [reviewFilter, setReviewFilter] = useState<"all" | "errors" | "duplicates">("all")
 
   const totalRows = useMemo(() => files.reduce((sum, file) => sum + file.rows.length, 0), [files])
   const invalidFiles = files.filter((file) => file.errors.length > 0)
@@ -107,8 +121,9 @@ export default function DataTransferPage() {
               rows = parsedExcel.rows
             } else {
               const result = await new Promise<Papa.ParseResult<Record<string, string>>>((done) => Papa.parse<Record<string, string>>(file, { header: true, skipEmptyLines: "greedy", delimiter: "", complete: done }))
-              headers = (result.meta.fields ?? []).map((field) => field.trim())
-              rows = result.data
+              const rawHeaders = (result.meta.fields ?? []).map((field) => field.trim().replace(/^\uFEFF/, ""))
+              headers = normalizeImportHeaders(rawHeaders)
+              rows = result.data.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeImportHeaders([key.replace(/^\uFEFF/, "").trim()])[0], value ?? ""])))
               if (result.errors.length) errors.push(result.errors.length + " ligne(s) contiennent une erreur de lecture.")
             }
             const missing = config.required.filter((field) => !headers.includes(field))
@@ -120,6 +135,50 @@ export default function DataTransferPage() {
         })()
       })))
       setFiles((current) => [...current.filter((item) => !parsed.some((next) => next.id === item.id)), ...parsed])
+      setIsAnalyzing(true)
+      try {
+        let existing: ExistingStudent[] = []
+        if (establishmentId) {
+          const { data, error } = await supabaseBrowser.from("students").select("id, student_number, first_name, last_name, birth_date").eq("establishment_id", establishmentId).limit(10000)
+          if (error) throw error
+          existing = (data ?? []) as ExistingStudent[]
+        }
+        const analyzed: ReviewRow[] = []
+        for (const file of parsed) {
+          file.rows.forEach((source, index) => {
+            const values = { ...source }
+            const issues: ReviewIssue[] = []
+            const required = importTypes.find((item) => item.id === file.kind)?.required ?? []
+            required.forEach((field) => {
+              if (!String(values[field] ?? "").trim()) issues.push({ code: "required", field, message: "Valeur obligatoire manquante : " + humanizeField(field), severity: "error" })
+            })
+            if (values.amount?.trim()) {
+              const normalizedAmount = values.amount.trim().replace(/\s/g, "").replace(/FCFA/gi, "").replace(",", ".")
+              if (!/^\d+(\.\d{1,2})?$/.test(normalizedAmount)) issues.push({ code: "amount-format", field: "amount", message: "Le montant contient des caractères non numériques. Corrigez cette valeur.", severity: "error" })
+              else if (Number(normalizedAmount) < 0) issues.push({ code: "amount-negative", field: "amount", message: "Un montant ne peut pas être négatif.", severity: "error" })
+              else values.amount = String(Number(normalizedAmount))
+            }
+            ;["enrollment_date", "payment_date", "due_date", "subscription_date"].forEach((field) => {
+              if (values[field] && !validIsoDate(values[field])) issues.push({ code: "date-format", field, message: "Date invalide. Utilisez le format AAAA-MM-JJ.", severity: "error" })
+            })
+            const number = normalizeText(values.student_number)
+            const first = normalizeText(values.first_name)
+            const last = normalizeText(values.last_name)
+            let candidate = number ? existing.find((item) => normalizeText(item.student_number) === number) : undefined
+            if (!candidate && first && last) candidate = existing.find((item) => normalizeText(item.first_name) === first && normalizeText(item.last_name) === last && (!values.birth_date || !item.birth_date || item.birth_date === values.birth_date))
+            if (candidate) issues.push({ code: "possible-duplicate", message: "Un élève correspondant semble déjà exister. Vérifiez s'il s'agit du même élève.", severity: "warning", candidate })
+            analyzed.push({ key: file.id + ":" + index, fileName: file.name, rowIndex: index + 2, kind: file.kind, values, issues, duplicateChoice: candidate ? "pending" : undefined })
+          })
+        }
+        setReviewRows(analyzed)
+        setReviewOpen(true)
+      } catch (error) {
+        setReviewRows([])
+        setReviewOpen(true)
+        setExportError("Analyse des dossiers existants impossible : " + (error instanceof Error ? error.message : "erreur inconnue"))
+      } finally {
+        setIsAnalyzing(false)
+      }
     } finally {
       setIsParsing(false)
       if (fileInput.current) fileInput.current.value = ""
@@ -292,6 +351,51 @@ export default function DataTransferPage() {
                 <p className="flex items-start gap-2 text-xs leading-5 text-[#805b16]"><Info className="mt-0.5 h-4 w-4 shrink-0" /> Cette première étape contrôle la lecture et les colonnes. L'enregistrement définitif dans Supabase n'est pas encore activé : il nécessitera une validation serveur sécurisée, la détection des doublons et une transaction pour préserver les dates et les montants historiques.</p>
               </div>
             </section>
+          )}
+
+
+          {reviewOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="import-review-title">
+              <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-[#d7dae3] bg-white shadow-2xl">
+                <div className="flex items-start justify-between gap-3 border-b border-[#e5e7eb] px-5 py-4">
+                  <div><h2 id="import-review-title" className="text-lg font-semibold text-[#172033]">{isAnalyzing ? "Analyse des fichiers…" : "Analyse et vérification des données"}</h2><p className="mt-1 text-sm text-[#64748b]">Aucune donnée n'est enregistrée pendant cette vérification.</p></div>
+                  <button type="button" onClick={() => setReviewOpen(false)} className="rounded p-2 text-[#64748b] hover:bg-slate-100" aria-label="Fermer"><X className="h-5 w-5" /></button>
+                </div>
+                <div className="grid grid-cols-3 gap-2 border-b border-[#e5e7eb] bg-[#fafbfc] px-5 py-3 text-center text-xs">
+                  <div><strong className="block text-lg text-[#172033]">{reviewRows.length}</strong>Lignes analysées</div>
+                  <div><strong className="block text-lg text-[#b54708]">{reviewRows.filter(row => row.issues.some(issue => issue.severity === "warning")).length}</strong>À vérifier</div>
+                  <div><strong className="block text-lg text-[#b42318]">{reviewRows.filter(row => row.issues.some(issue => issue.severity === "error")).length}</strong>Erreurs</div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 border-b border-[#e5e7eb] px-5 py-3">
+                  <span className="text-xs font-medium text-[#475569]">Afficher :</span>
+                  {(["all", "errors", "duplicates"] as const).map(filter => <button key={filter} type="button" onClick={() => setReviewFilter(filter)} className={"rounded border px-3 py-1.5 text-xs " + (reviewFilter === filter ? "border-[#173b8f] bg-[#f3f6ff] text-[#173b8f]" : "border-[#d7dae3] text-[#475569]")}>{filter === "all" ? "Toutes" : filter === "errors" ? "Erreurs" : "Doublons"}</button>)}
+                </div>
+                <div className="min-h-0 flex-1 overflow-auto">
+                  {reviewRows.filter(row => reviewFilter === "all" || (reviewFilter === "errors" ? row.issues.some(issue => issue.severity === "error") : row.issues.some(issue => issue.code === "possible-duplicate"))).map(row => (
+                    <div key={row.key} className="border-b border-[#eef0f3] px-5 py-4">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-[#172033]">Ligne {row.rowIndex} · {row.fileName}</strong><span className="text-xs text-[#64748b]">{row.kind}</span></div>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        {Object.entries(row.values).map(([field, value]) => <label key={field} className="block min-w-0 text-xs text-[#64748b]">{humanizeField(field)}<input value={value} onChange={event => setReviewRows(current => current.map(item => item.key === row.key ? { ...item, values: { ...item.values, [field]: event.target.value } } : item))} className="mt-1 w-full rounded border border-[#cbd5e1] px-2.5 py-2 text-sm text-[#172033] outline-none focus:border-[#173b8f] focus:ring-2 focus:ring-[#173b8f]/10" /></label>)}
+                      </div>
+                      {row.issues.map((issue, index) => <div key={issue.code + index} className={"mt-3 rounded border px-3 py-2 text-xs " + (issue.severity === "error" ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900")}>
+                        <strong>{issue.message}</strong>
+                        {issue.candidate && <p className="mt-1">Dossier existant : {issue.candidate.first_name} {issue.candidate.last_name} · Matricule : {issue.candidate.student_number || "non renseigné"}</p>}
+                        {issue.code === "possible-duplicate" && <div className="mt-2 flex flex-wrap gap-2">
+                          <button type="button" onClick={() => setReviewRows(current => current.map(item => item.key === row.key ? { ...item, duplicateChoice: "same" } : item))} className={"rounded border px-3 py-1.5 " + (row.duplicateChoice === "same" ? "border-[#173b8f] bg-[#173b8f] text-white" : "border-amber-300 bg-white")}>Même élève : réinscrire</button>
+                          <button type="button" onClick={() => setReviewRows(current => current.map(item => item.key === row.key ? { ...item, duplicateChoice: "separate" } : item))} className={"rounded border px-3 py-1.5 " + (row.duplicateChoice === "separate" ? "border-[#173b8f] bg-[#173b8f] text-white" : "border-amber-300 bg-white")}>Deux élèves différents</button>
+                          <button type="button" onClick={() => setReviewRows(current => current.map(item => item.key === row.key ? { ...item, duplicateChoice: "pending" } : item))} className="rounded border border-amber-300 bg-white px-3 py-1.5">À vérifier</button>
+                        </div>}
+                      </div>)}
+                    </div>
+                  ))}
+                  {reviewRows.length === 0 && <p className="p-8 text-center text-sm text-[#64748b]">Aucune ligne à analyser.</p>}
+                </div>
+                <div className="flex flex-col gap-2 border-t border-[#e5e7eb] bg-[#fafbfc] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-[#64748b]">Analyse frontend uniquement : les corrections restent dans cet aperçu et rien n'est encore écrit dans Supabase.</p>
+                  <Button type="button" variant="outline" onClick={() => setReviewOpen(false)}>Fermer</Button>
+                </div>
+              </div>
+            </div>
           )}
 
           <div className="flex items-start gap-2 text-xs leading-5 text-[#64748b]"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" /> Les dates d'inscription et de paiement doivent rester les dates réelles. La date d'importation sera conservée séparément lors de la future intégration.</div>

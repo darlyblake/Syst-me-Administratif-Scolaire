@@ -385,6 +385,7 @@ export default function NouvelleInscriptionModal({
   const handleSelectSibling = async (candidate: FamilySiblingCandidate) => {
     setSelectedSibling(candidate)
     setSelectedFamilyForSearch(null)
+    setFamilyNameSearch("")
     setSiblingSearch("")
     setSiblingCandidates([])
     setLoadingFamilyDetails(true)
@@ -409,7 +410,6 @@ export default function NouvelleInscriptionModal({
         if (familyInfoError) throw familyInfoError
         if (familyInfo?.display_name) {
           setFamilyName(familyInfo.display_name)
-          setFamilyNameSearch(familyInfo.display_name)
         }
       }
       setApplyFamilyDiscount(true)

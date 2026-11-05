@@ -974,7 +974,7 @@ export default function NouvelleInscriptionModal({
                       </div>}
                     </>
                   )}
-                  {selectedSibling && <><label className="flex items-start gap-2 rounded border border-blue-200 bg-blue-50 p-3"><Checkbox checked={applyFamilyDiscount} onCheckedChange={(checked) => setApplyFamilyDiscount(checked === true)} /><span><span className="block text-sm font-medium text-blue-950">Activer la réduction familiale pour toute la fratrie</span><span className="mt-1 block text-xs text-blue-900">Le barème sera recalculé pour tous les enfants de cette famille, y compris ceux déjà inscrits pour cette année scolaire.</span></span></label><p className="text-xs text-emerald-800">La réduction est calculée selon le nombre d’enfants ayant une inscription active et les règles configurées dans Paramètres → Réductions familiales.</p><div className="space-y-1"><Label>Lien entre les enfants</Label><Select value={siblingRelationship} onValueChange={(value) => setSiblingRelationship(value as "frere" | "soeur" | "autre")}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="frere">Frère</SelectItem><SelectItem value="soeur">Sœur</SelectItem><SelectItem value="autre">Autre lien familial</SelectItem></SelectContent></Select></div></>}
+                  {selectedSibling && <><p className="text-xs text-emerald-800">Famille sélectionnée : {familyName || selectedSibling.family_code || "Famille existante"}. La réduction pourra être activée à l’étape Scolarité.</p><div className="space-y-1"><Label>Lien entre les enfants</Label><Select value={siblingRelationship} onValueChange={(value) => setSiblingRelationship(value as "frere" | "soeur" | "autre")}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="frere">Frère</SelectItem><SelectItem value="soeur">Sœur</SelectItem><SelectItem value="autre">Autre lien familial</SelectItem></SelectContent></Select></div></>}
                 </section>
               )}
             </div>
@@ -1025,6 +1025,19 @@ export default function NouvelleInscriptionModal({
                   </p>
                 )}
               </div>
+
+              {selectedSibling && typeInscription === "inscription" && (
+                <section className="space-y-2 border border-blue-200 bg-blue-50 p-3">
+                  <label className="flex items-start gap-2">
+                    <Checkbox checked={applyFamilyDiscount} onCheckedChange={(checked) => setApplyFamilyDiscount(checked === true)} />
+                    <span>
+                      <span className="block text-sm font-medium text-blue-950">Activer la réduction familiale pour toute la fratrie</span>
+                      <span className="mt-1 block text-xs text-blue-900">La réduction sera recalculée selon le nombre d’enfants inscrits et appliquée à tous les enfants de cette famille, y compris ceux déjà inscrits pour cette année scolaire.</span>
+                    </span>
+                  </label>
+                  <p className="text-xs text-blue-900">Le calcul suit les barèmes actifs dans Paramètres → Réductions familiales. Les paiements déjà encaissés sont conservés.</p>
+                </section>
+              )}
 
               <section className="space-y-2 border border-[#d7dae3] p-3">
                 <div>

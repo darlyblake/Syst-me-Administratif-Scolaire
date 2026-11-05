@@ -406,7 +406,7 @@ export default function NouvelleInscriptionModal({
         academicYearId: activeYear.id,
         classId: selectedClass.id,
         tuitionPlanId: selectedPlan.id,
-        enrollmentDate: new Date().toISOString().slice(0, 10),
+        enrollmentDate: localToday,
         firstName,
         lastName,
         birthDate,
@@ -949,6 +949,7 @@ export default function NouvelleInscriptionModal({
           {step === 4 && selectedPlan && (fundingSource !== "family" || waiveRegistration || waiveTuition || selectedSibling || selectedOrganizationId) && (
             <div className="space-y-4">
               <h3 className="font-medium text-sm border-b pb-2">Prise en charge financière</h3>
+              {applicablePromotion && promotionSaving > 0 && <div className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900"><p className="font-medium">{applicablePromotion.name}</p><p className="mt-1 text-xs">Frais d’inscription : {fmt(registrationFee)} → {fmt(effectiveRegistrationFee)} (économie de {fmt(promotionSaving)}).</p></div>}
               <p className="text-sm text-slate-700">L'inscription sera enregistrée sans simuler un encaissement. Les frais couverts ne seront pas réclamés à la famille. Les options scolaires restent consultables et seront suivies séparément dans Finance.</p>
               <div className="divide-y border-y border-slate-200">
                 <div className="flex justify-between gap-4 py-3 text-sm"><span>Frais d'inscription</span><span className="font-medium">{waiveRegistration || fundingSource === "other" ? "Exonérés" : selectedOrganizationId ? "Selon la convention de l’organisme" : "À la charge de la famille"}</span></div>

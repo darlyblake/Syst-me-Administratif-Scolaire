@@ -142,9 +142,9 @@ export default function NouvelleInscriptionModal({
     const now = new Date()
     return now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0")
   })()
-  const applicablePromotion = typeInscription === "inscription" && selectedLevelId
+  const applicablePromotion = selectedLevelId
     ? schoolPromotions
-        .filter((promotion) => promotion.active && promotion.valid_from <= localToday && promotion.valid_until >= localToday
+         .filter((promotion) => promotion.active && (typeInscription === "reinscription" ? promotion.applies_to_re_registration : promotion.applies_to_registration) && promotion.valid_from <= localToday && promotion.valid_until >= localToday
           && (!promotion.academic_year_id || promotion.academic_year_id === activeYear?.id)
           && (!(promotion.grade_level_ids ?? []).length || promotion.grade_level_ids.includes(selectedLevelId)))
         .map((promotion) => ({
@@ -205,13 +205,13 @@ export default function NouvelleInscriptionModal({
   }, [isOpen, loadOptions])
 
   useEffect(() => {
-    if (!isOpen || !establishmentId || typeInscription !== "inscription") {
+    if (!isOpen || !establishmentId) {
       setSchoolPromotions([])
       return
     }
     let cancelled = false
     supabaseBrowser.from("school_promotions")
-      .select("id,name,promotion_type,promotion_value,grade_level_ids,academic_year_id,valid_from,valid_until,active,created_at")
+      .select("id,name,promotion_type,promotion_value,grade_level_ids,academic_year_id,valid_from,valid_until,active,applies_to_registration,applies_to_re_registration,created_at")
       .eq("establishment_id", establishmentId).eq("active", true)
       .then(({ data, error }) => {
         if (cancelled) return
@@ -223,7 +223,7 @@ export default function NouvelleInscriptionModal({
         setSchoolPromotions(data ?? [])
       })
     return () => { cancelled = true }
-  }, [isOpen, establishmentId, typeInscription])
+  }, [isOpen, establishmentId])
 
   useEffect(() => {
     if (!isOpen || !establishmentId || typeInscription !== "inscription") return

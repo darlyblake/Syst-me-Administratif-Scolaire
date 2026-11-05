@@ -99,6 +99,7 @@ export default function NouvelleInscriptionModal({
   const [sponsoringOrganizations, setSponsoringOrganizations] = useState<SponsoringOrganization[]>([])
   const [selectedOrganizationId, setSelectedOrganizationId] = useState("")
   const [organizationRules, setOrganizationRules] = useState<OrganizationCoverageRule[]>([])
+  const [schoolPromotions, setSchoolPromotions] = useState<any[]>([])
 
   // ─── Sélection académique ───────────────────────────────────────────────────
   const [selectedCycleId, setSelectedCycleId] = useState("")
@@ -137,6 +138,27 @@ export default function NouvelleInscriptionModal({
       ? (selectedPlan?.re_registration_fee ?? selectedPlan?.registration_fee ?? 0)
       : (selectedPlan?.registration_fee ?? 0)
 
+  const localToday = (() => {
+    const now = new Date()
+    return now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0")
+  })()
+  const applicablePromotion = typeInscription === "inscription" && selectedLevelId
+    ? schoolPromotions
+        .filter((promotion) => promotion.active && promotion.valid_from <= localToday && promotion.valid_until >= localToday
+          && (!promotion.academic_year_id || promotion.academic_year_id === activeYear?.id)
+          && (!(promotion.grade_level_ids ?? []).length || promotion.grade_level_ids.includes(selectedLevelId)))
+        .map((promotion) => ({
+          ...promotion,
+          finalAmount: promotion.promotion_type === "fixed_price"
+            ? Math.min(registrationFee, Number(promotion.promotion_value))
+            : Math.max(0, Math.round(registrationFee * (1 - Number(promotion.promotion_value) / 100))),
+        }))
+        .filter((promotion) => promotion.finalAmount < registrationFee)
+        .sort((a, b) => a.finalAmount - b.finalAmount || String(b.created_at).localeCompare(String(a.created_at)))[0] ?? null
+    : null
+  const effectiveRegistrationFee = applicablePromotion?.finalAmount ?? registrationFee
+  const promotionSaving = Math.max(0, registrationFee - effectiveRegistrationFee)
+
   // Total en temps réel
   const installmentTotal = selectedPlan?.payment_mode === "single"
     ? (paySingleTuitionNow ? selectedPlan.annual_tuition : 0)
@@ -152,7 +174,7 @@ export default function NouvelleInscriptionModal({
   // apparaissent ici. Une exonération/prise en charge ne doit pas être réclamée au parent.
   // Calculer uniquement les montants réellement dus par la famille.
   // Une exonération partielle ne doit pas effacer les autres frais encore dus.
-  const registrationDue = fundingSource === "family" && !waiveRegistration ? registrationFee : 0
+  const registrationDue = fundingSource === "family" && !waiveRegistration ? effectiveRegistrationFee : 0
   const tuitionDue = fundingSource === "family" && !waiveTuition ? installmentTotal : 0
   // Les options choisies restent à la charge de la famille, même si la scolarité
   // ou les frais d'inscription sont exonérés / pris en charge par un organisme.
@@ -181,6 +203,27 @@ export default function NouvelleInscriptionModal({
   useEffect(() => {
     if (isOpen) loadOptions()
   }, [isOpen, loadOptions])
+
+  useEffect(() => {
+    if (!isOpen || !establishmentId || typeInscription !== "inscription") {
+      setSchoolPromotions([])
+      return
+    }
+    let cancelled = false
+    supabaseBrowser.from("school_promotions")
+      .select("id,name,promotion_type,promotion_value,grade_level_ids,academic_year_id,valid_from,valid_until,active,created_at")
+      .eq("establishment_id", establishmentId).eq("active", true)
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (error) {
+          console.error("Chargement des promotions scolaires impossible:", error)
+          setSchoolPromotions([])
+          return
+        }
+        setSchoolPromotions(data ?? [])
+      })
+    return () => { cancelled = true }
+  }, [isOpen, establishmentId, typeInscription])
 
   useEffect(() => {
     if (!isOpen || !establishmentId || typeInscription !== "inscription") return
@@ -363,7 +406,7 @@ export default function NouvelleInscriptionModal({
         academicYearId: activeYear.id,
         classId: selectedClass.id,
         tuitionPlanId: selectedPlan.id,
-        enrollmentDate: new Date().toISOString().slice(0, 10),
+        enrollmentDate: localToday,
         firstName,
         lastName,
         birthDate,
@@ -906,6 +949,7 @@ export default function NouvelleInscriptionModal({
           {step === 4 && selectedPlan && (fundingSource !== "family" || waiveRegistration || waiveTuition || selectedSibling || selectedOrganizationId) && (
             <div className="space-y-4">
               <h3 className="font-medium text-sm border-b pb-2">Prise en charge financière</h3>
+              {applicablePromotion && promotionSaving > 0 && <div className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900"><p className="font-medium">{applicablePromotion.name}</p><p className="mt-1 text-xs">Frais d’inscription : {fmt(registrationFee)} → {fmt(effectiveRegistrationFee)} (économie de {fmt(promotionSaving)}).</p></div>}
               <p className="text-sm text-slate-700">L'inscription sera enregistrée sans simuler un encaissement. Les frais couverts ne seront pas réclamés à la famille. Les options scolaires restent consultables et seront suivies séparément dans Finance.</p>
               <div className="divide-y border-y border-slate-200">
                 <div className="flex justify-between gap-4 py-3 text-sm"><span>Frais d'inscription</span><span className="font-medium">{waiveRegistration || fundingSource === "other" ? "Exonérés" : selectedOrganizationId ? "Selon la convention de l’organisme" : "À la charge de la famille"}</span></div>
@@ -984,8 +1028,14 @@ export default function NouvelleInscriptionModal({
                 </p>
                 <div className="flex justify-between text-sm border rounded px-3 py-2 bg-slate-50">
                   <span>{typeInscription === "reinscription" ? "Réinscription" : "Inscription"}</span>
-                  <span className="font-medium">{fmt(registrationFee)}</span>
+                  <span className="font-medium">{fmt(effectiveRegistrationFee)}</span>
                 </div>
+                {applicablePromotion && promotionSaving > 0 && (
+                  <div className="mt-2 border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+                    <div className="flex items-center justify-between gap-3"><span className="font-medium">{applicablePromotion.name}</span><span className="font-semibold">-{fmt(promotionSaving)}</span></div>
+                    <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs"><span>Tarif normal : {fmt(registrationFee)}</span><span>Tarif promotionnel : {fmt(effectiveRegistrationFee)}</span></div>
+                  </div>
+                )}
               </div>
 
               {/* Scolarité selon mode */}

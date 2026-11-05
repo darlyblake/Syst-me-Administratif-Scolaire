@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { Building2, Users, Percent, Plus, RefreshCw, Save, FileSpreadsheet } from "lucide-react"
+import { Building2, Users, Percent, Plus, RefreshCw, Save, FileSpreadsheet, CalendarDays } from "lucide-react"
+import SchoolPromotionsPanel from "@/components/settings/SchoolPromotionsPanel"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,7 +12,7 @@ import { useUserContext } from "@/hooks/useUserContext"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
-type Tab = "organismes" | "couverture" | "familles" | "reductions"
+type Tab = "organismes" | "couverture" | "familles" | "reductions" | "promotions"
 type Organization = { id: string; name: string; organization_type: string; reference: string | null; contact_name: string | null; phone: string | null; email: string | null; active: boolean; is_state: boolean }
 type CoverageRule = { id: string; organization_id: string; category: string; option_type: string | null; coverage_percent: number; active: boolean; grade_level_id: string | null; academic_year_id: string | null; valid_from: string | null; valid_until: string | null }
 type DiscountRule = { id: string; name: string; min_children: number; max_children: number | null; discount_type: "percentage" | "fixed"; discount_value: number; applies_to_categories: string[]; option_type: string | null; active: boolean; stackable: boolean; academic_year_id: string | null; valid_from: string | null; valid_until: string | null }
@@ -386,6 +387,7 @@ export default function PrisesEnChargeSettingsPage() {
   const tabs: Array<{ id: Tab; label: string; icon: typeof Building2 }> = [
     { id: "organismes", label: "Organismes", icon: Building2 }, { id: "couverture", label: "Taux de couverture", icon: Percent },
     { id: "familles", label: "Familles", icon: Users }, { id: "reductions", label: "Réductions familiales", icon: Percent },
+    { id: "promotions", label: "Promotions scolaires", icon: CalendarDays },
   ]
 
   return <main className="space-y-5 p-4 md:p-6">
@@ -437,6 +439,7 @@ export default function PrisesEnChargeSettingsPage() {
       </DialogContent></Dialog>
       <div className="border border-slate-200 bg-white"><div className="border-b px-4 py-3"><h2 className="text-sm font-semibold">Barèmes configurés ({discounts.length})</h2></div><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-sm"><thead className="bg-slate-50 text-left text-xs text-slate-500"><tr><th className="px-4 py-3">Barème</th><th className="px-4 py-3">Enfants requis</th><th className="px-4 py-3">Réduction</th><th className="px-4 py-3">Frais</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3">Action</th></tr></thead><tbody className="divide-y">{discounts.map((d) => <tr key={d.id}><td className="px-4 py-3 font-medium">{d.name}</td><td className="px-4 py-3">{d.min_children}{d.max_children ? " à " + d.max_children : " et plus"}</td><td className="px-4 py-3">{d.discount_type === "percentage" ? d.discount_value + "%" : money(d.discount_value)}</td><td className="px-4 py-3">{(d.applies_to_categories ?? []).map((c) => CATEGORIES.find((x) => x.value === c)?.label || c).join(", ")}{d.option_type ? " — " + optionTypeLabel(d.option_type) : ""}<span className="block text-xs text-slate-500">{academicYears.find((y) => y.id === d.academic_year_id)?.name || "Toutes les années"}{d.valid_from || d.valid_until ? " · " + (d.valid_from || "début libre") + " → " + (d.valid_until || "sans fin") : ""}</span></td><td className="px-4 py-3">{d.active ? "Actif" : "Inactif"}</td><td className="px-4 py-3"><Button size="sm" variant="outline" onClick={() => setSelectedDiscount(d)}>Gérer</Button></td></tr>)}{discounts.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Aucune réduction configurée.</td></tr>}</tbody></table></div></div>
     </section>}
+    {tab === "promotions" && <SchoolPromotionsPanel establishmentId={establishmentId} academicYears={academicYears} gradeLevels={gradeLevels} onChanged={load} />}
     <Dialog open={!!selectedOrganization} onOpenChange={(open) => { if (!open) { setSelectedOrganization(null); setOrganizationStudentCount(null); setOrganizationStudentRows([]) } }}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader><DialogTitle>Gestion de l’organisme</DialogTitle><DialogDescription>{selectedOrganization?.name}</DialogDescription></DialogHeader>

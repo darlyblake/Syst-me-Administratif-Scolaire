@@ -94,6 +94,8 @@ export default function NouvelleInscriptionModal({
   const [siblingSearch, setSiblingSearch] = useState("")
   const [siblingCandidates, setSiblingCandidates] = useState<FamilySiblingCandidate[]>([])
   const [selectedSibling, setSelectedSibling] = useState<FamilySiblingCandidate | null>(null)
+  const [familyLinkedChildren, setFamilyLinkedChildren] = useState<string[]>([])
+  const [loadingFamilyDetails, setLoadingFamilyDetails] = useState(false)
   const [siblingRelationship, setSiblingRelationship] = useState<"frere" | "soeur" | "autre">("frere")
   const [siblingSearchLoading, setSiblingSearchLoading] = useState(false)
   const [sponsoringOrganizations, setSponsoringOrganizations] = useState<SponsoringOrganization[]>([])
@@ -299,6 +301,64 @@ export default function NouvelleInscriptionModal({
       }
     }
   }, [typeInscription, studentId, students])
+
+  // ─── Sélection d’un frère / d’une sœur et récupération de la famille ────────
+  const handleSelectSibling = async (candidate: FamilySiblingCandidate) => {
+    setSelectedSibling(candidate)
+    setSiblingSearch("")
+    setSiblingCandidates([])
+    setLoadingFamilyDetails(true)
+    setFamilyLinkedChildren([candidate.first_name + " " + candidate.last_name])
+
+    try {
+      const { data: membership, error: membershipError } = await supabaseBrowser
+        .from("student_family_members")
+        .select("family_id")
+        .eq("establishment_id", establishmentId)
+        .eq("student_id", candidate.student_id)
+        .eq("active", true)
+        .maybeSingle()
+      if (membershipError) throw membershipError
+
+      let familyStudentIds = [candidate.student_id]
+      if (membership?.family_id) {
+        const { data: members, error: membersError } = await supabaseBrowser
+          .from("student_family_members")
+          .select("student_id")
+          .eq("establishment_id", establishmentId)
+          .eq("family_id", membership.family_id)
+          .eq("active", true)
+        if (membersError) throw membersError
+        familyStudentIds = Array.from(new Set((members ?? []).map((member: any) => member.student_id)))
+      }
+
+      const { data: familyStudents, error: studentsError } = await supabaseBrowser
+        .from("students")
+        .select("id,first_name,last_name,guardian_first_name,guardian_last_name,guardian_phone,guardian_email,guardian_address")
+        .eq("establishment_id", establishmentId)
+        .in("id", familyStudentIds)
+      if (studentsError) throw studentsError
+
+      const source = (familyStudents ?? []).find((student: any) =>
+        student.guardian_first_name || student.guardian_last_name || student.guardian_phone || student.guardian_email || student.guardian_address
+      ) as any
+      if (source) {
+        setParentFirstName(source.guardian_first_name ?? "")
+        setParentLastName(source.guardian_last_name ?? "")
+        setParentPhone(source.guardian_phone ?? "")
+        setParentEmail(source.guardian_email ?? "")
+        setParentAddress(source.guardian_address ?? "")
+      }
+      setFamilyLinkedChildren((familyStudents ?? []).map((student: any) =>
+        ((student.first_name ?? "") + " " + (student.last_name ?? "")).trim()
+      ).filter(Boolean))
+    } catch (error) {
+      console.error("Récupération des informations familiales impossible:", error)
+      toast.error("L’élève est sélectionné, mais les informations familiales n’ont pas pu être récupérées.")
+    } finally {
+      setLoadingFamilyDetails(false)
+    }
+  }
 
   // ─── Réinitialiser cascade sélection académique ─────────────────────────────
   const handleCycleChange = (cycleId: string) => {
@@ -737,13 +797,13 @@ export default function NouvelleInscriptionModal({
                   <div className="flex items-start gap-2"><Users className="mt-0.5 h-4 w-4 text-[#00236f]" /><div><h4 className="text-sm font-medium">Même famille — frère ou sœur</h4><p className="mt-1 text-xs text-slate-500">Recherchez un enfant déjà inscrit pour rattacher les deux dossiers à la même famille et vérifier les réductions applicables. Le nom de famille seul ne suffit pas.</p></div></div>
                   {selectedSibling ? (
                     <div className="flex items-center justify-between gap-3 border border-emerald-200 bg-emerald-50 p-3"><div className="min-w-0"><p className="text-sm font-medium text-emerald-900">{selectedSibling.first_name} {selectedSibling.last_name}</p><p className="text-xs text-emerald-800">Matricule : {selectedSibling.student_number || "—"} · Classe : {selectedSibling.class_name || "Non renseignée"}</p>
-<p className="mt-1 text-xs text-emerald-800">Code famille : {selectedSibling.family_code || "Famille à vérifier"}</p></div><Button type="button" variant="outline" size="sm" onClick={() => { setSelectedSibling(null); setSiblingSearch("") }}>Retirer</Button></div>
+<p className="mt-1 text-xs text-emerald-800">Code famille : {selectedSibling.family_code || "Famille à vérifier"}</p>{loadingFamilyDetails ? <p className="mt-2 text-xs text-emerald-800">Récupération des coordonnées du parent et de la fratrie…</p> : familyLinkedChildren.length > 1 ? <p className="mt-2 text-xs text-emerald-800">Enfants déjà rattachés à cette famille : {familyLinkedChildren.join(", ")}. Ils seront conservés dans le même groupe familial.</p> : <p className="mt-2 text-xs text-emerald-800">Les coordonnées du parent ont été reprises depuis le dossier familial lorsqu’elles étaient disponibles.</p>}</div><Button type="button" variant="outline" size="sm" onClick={() => { setSelectedSibling(null); setFamilyLinkedChildren([]); setSiblingSearch("") }}>Retirer</Button></div>
                   ) : (
                     <>
                       <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><Input className="pl-9" value={siblingSearch} onChange={(e) => setSiblingSearch(e.target.value)} placeholder="Nom, prénom ou matricule de l'enfant" /></div>
                       {siblingSearch.trim().length >= 2 && <div className="divide-y border">
                         {siblingSearchLoading ? <p className="px-3 py-3 text-xs text-slate-500">Recherche en cours…</p> :
-                          siblingCandidates.length ? siblingCandidates.map((candidate) => <button key={candidate.student_id} type="button" onClick={() => { setSelectedSibling(candidate); setSiblingSearch(""); setSiblingCandidates([]) }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50"><span><span className="block text-sm font-medium">{candidate.first_name} {candidate.last_name}</span><span className="block text-xs text-slate-500">Matricule : {candidate.student_number || "—"} · {candidate.class_name || "Classe inconnue"}</span><span className="block text-xs text-slate-500">Code famille : {candidate.family_code || "Famille à vérifier"}</span></span><span className="text-xs font-medium text-[#00236f]">Associer</span></button>) :
+                          siblingCandidates.length ? siblingCandidates.map((candidate) => <button key={candidate.student_id} type="button" onClick={() => { void handleSelectSibling(candidate) }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50"><span><span className="block text-sm font-medium">{candidate.first_name} {candidate.last_name}</span><span className="block text-xs text-slate-500">Matricule : {candidate.student_number || "—"} · {candidate.class_name || "Classe inconnue"}</span><span className="block text-xs text-slate-500">Code famille : {candidate.family_code || "Famille à vérifier"}</span></span><span className="text-xs font-medium text-[#00236f]">Associer</span></button>) :
                           <p className="px-3 py-3 text-xs text-slate-500">Aucun élève correspondant. Vérifiez l'orthographe ou laissez ce champ vide.</p>}
                       </div>}
                     </>

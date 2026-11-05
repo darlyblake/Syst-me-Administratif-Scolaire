@@ -454,37 +454,6 @@ export default function NouvelleInscriptionModal({
     }
   }
 
-  // Recherche automatiquement une fratrie lorsque le même parent est déjà enregistré.
-  const handleFindFamilyByParent = async () => {
-    if (selectedSibling || !establishmentId || !parentPhone.trim() || !parentLastName.trim()) return
-    try {
-      let query = supabaseBrowser.from("students")
-        .select("id,first_name,last_name,student_number,birth_date")
-        .eq("establishment_id", establishmentId)
-        .eq("guardian_phone", parentPhone.trim())
-        .ilike("guardian_last_name", parentLastName.trim())
-        .eq("active", true)
-        .is("merged_into_student_id", null)
-        .limit(1)
-      if (parentFirstName.trim()) query = query.ilike("guardian_first_name", parentFirstName.trim())
-      if (existingStudentId) query = query.neq("id", existingStudentId)
-      const { data, error } = await query.maybeSingle()
-      if (error) throw error
-      if (!data) return
-      await handleSelectSibling({
-        student_id: data.id,
-        first_name: data.first_name,
-        last_name: data.last_name,
-        student_number: data.student_number,
-        birth_date: data.birth_date,
-        class_name: null,
-        family_code: null,
-      })
-      toast.success("Un enfant déjà enregistré avec ce parent a été retrouvé. La fratrie sera rattachée à la même famille.")
-    } catch (error) {
-      console.error("Recherche automatique de la fratrie impossible:", error)
-    }
-  }
 
   // ─── Réinitialiser cascade sélection académique ─────────────────────────────
   const handleCycleChange = (cycleId: string) => {
@@ -937,7 +906,7 @@ export default function NouvelleInscriptionModal({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Nom *</Label>
-                  <Input value={parentLastName} onChange={(e) => setParentLastName(e.target.value)} onBlur={() => { void handleFindFamilyByParent() }} />
+                  <Input value={parentLastName} onChange={(e) => setParentLastName(e.target.value)} />
                 </div>
                 <div>
                   <Label>Prénom</Label>
@@ -947,7 +916,7 @@ export default function NouvelleInscriptionModal({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Téléphone *</Label>
-                  <Input value={parentPhone} onChange={(e) => setParentPhone(e.target.value)} onBlur={() => { void handleFindFamilyByParent() }} type="tel" />
+                  <Input value={parentPhone} onChange={(e) => setParentPhone(e.target.value)} type="tel" />
                 </div>
                 <div>
                   <Label>E-mail</Label>

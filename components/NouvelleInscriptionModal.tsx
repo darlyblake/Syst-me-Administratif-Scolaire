@@ -919,7 +919,7 @@ export default function NouvelleInscriptionModal({
                                 <td className="py-0.5 text-slate-600">
                                   {typeInscription === "reinscription" ? "Frais de réinscription" : "Frais d'inscription"}
                                 </td>
-                                <td className="py-0.5 text-right font-medium">{fmt(registrationFee)}</td>
+                                <td className="py-0.5 text-right font-medium">{fmt(effectiveRegistrationFee)}</td>
                               </tr>
                               <tr>
                                 <td className="py-0.5 text-slate-600">Mode de paiement</td>
@@ -949,7 +949,7 @@ export default function NouvelleInscriptionModal({
           {step === 4 && selectedPlan && (fundingSource !== "family" || waiveRegistration || waiveTuition || selectedSibling || selectedOrganizationId) && (
             <div className="space-y-4">
               <h3 className="font-medium text-sm border-b pb-2">Prise en charge financière</h3>
-              {applicablePromotion && promotionSaving > 0 && <div className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900"><p className="font-medium">{applicablePromotion.name}</p><p className="mt-1 text-xs">Frais d’inscription : {fmt(registrationFee)} → {fmt(effectiveRegistrationFee)} (économie de {fmt(promotionSaving)}).</p></div>}
+              {applicablePromotion && promotionSaving > 0 && <div className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900"><p className="font-medium">{applicablePromotion.name}</p><p className="mt-1 text-xs">Frais d’inscription : {fmt(effectiveRegistrationFee)} → {fmt(effectiveRegistrationFee)} (économie de {fmt(promotionSaving)}).</p></div>}
               <p className="text-sm text-slate-700">L'inscription sera enregistrée sans simuler un encaissement. Les frais couverts ne seront pas réclamés à la famille. Les options scolaires restent consultables et seront suivies séparément dans Finance.</p>
               <div className="divide-y border-y border-slate-200">
                 <div className="flex justify-between gap-4 py-3 text-sm"><span>Frais d'inscription</span><span className="font-medium">{waiveRegistration || fundingSource === "other" ? "Exonérés" : selectedOrganizationId ? "Selon la convention de l’organisme" : "À la charge de la famille"}</span></div>
@@ -1033,7 +1033,7 @@ export default function NouvelleInscriptionModal({
                 {applicablePromotion && promotionSaving > 0 && (
                   <div className="mt-2 border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
                     <div className="flex items-center justify-between gap-3"><span className="font-medium">{applicablePromotion.name}</span><span className="font-semibold">-{fmt(promotionSaving)}</span></div>
-                    <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs"><span>Tarif normal : {fmt(registrationFee)}</span><span>Tarif promotionnel : {fmt(effectiveRegistrationFee)}</span></div>
+                    <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs"><span>Tarif normal : {fmt(effectiveRegistrationFee)}</span><span>Tarif promotionnel : {fmt(effectiveRegistrationFee)}</span></div>
                   </div>
                 )}
               </div>
@@ -1134,7 +1134,7 @@ export default function NouvelleInscriptionModal({
                 <div className="divide-y px-3">
                   <div className="flex justify-between py-1.5 text-sm">
                     <span>{typeInscription === "reinscription" ? "Frais de réinscription" : "Frais d'inscription"}</span>
-                    <span>{fmt(registrationFee)}</span>
+                    <span>{fmt(effectiveRegistrationFee)}</span>
                   </div>
                   {selectedPlan?.payment_mode === "single" && paySingleTuitionNow && (
                     <div className="flex justify-between py-1.5 text-sm">
@@ -1232,7 +1232,7 @@ export default function NouvelleInscriptionModal({
                     {registrationFee > 0 && (
                       <div className="flex justify-between">
                         <span>{typeInscription === "reinscription" ? "Frais de réinscription" : "Frais d'inscription"}</span>
-                        <span>{fmt(registrationFee)}</span>
+                        <span>{fmt(effectiveRegistrationFee)}</span>
                       </div>
                     )}
                     {selectedPlan?.payment_mode === "single" && paySingleTuitionNow && (

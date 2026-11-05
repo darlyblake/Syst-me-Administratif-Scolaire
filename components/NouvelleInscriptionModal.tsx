@@ -384,6 +384,7 @@ export default function NouvelleInscriptionModal({
   // ─── Sélection d’un frère / d’une sœur et récupération de la famille ────────
   const handleSelectSibling = async (candidate: FamilySiblingCandidate) => {
     setSelectedSibling(candidate)
+    setSelectedFamilyForSearch(null)
     setSiblingSearch("")
     setSiblingCandidates([])
     setLoadingFamilyDetails(true)
@@ -853,43 +854,6 @@ export default function NouvelleInscriptionModal({
                   </div>
                 </div>
               )}
-              {typeInscription === "inscription" && (
-                <section className="space-y-2 border border-[#d7dae3] p-3">
-                  <div>
-                    <Label>Nom de la famille</Label>
-                    <Input
-                      value={familyName}
-                      onChange={(e) => { setFamilyName(e.target.value); setFamilyNameSearch(e.target.value); setSelectedFamilyForSearch(null) }}
-                      placeholder="Ex. Famille MOUEMBANZA"
-                    />
-                    <p className="mt-1 text-xs text-slate-500">Saisissez le nom pour retrouver une famille déjà enregistrée et ses enfants.</p>
-                  </div>
-                  {!selectedFamilyForSearch && familyNameSearch.trim().length >= 2 && familyMatches.length > 0 && (
-                    <div className="divide-y border">
-                      {familyMatches.map((family) => (
-                        <button key={family.id} type="button" onClick={() => { setSelectedFamilyForSearch(family); setFamilyName(family.display_name) }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50">
-                          <span><span className="block text-sm font-medium">{family.display_name}</span><span className="block text-xs text-slate-500">{family.children.length} enfant(s) · {family.family_code}</span></span>
-                          <span className="text-xs font-medium text-[#00236f]">Voir les enfants</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {selectedFamilyForSearch && (
-                    <div className="space-y-2 rounded border border-blue-200 bg-blue-50 p-3">
-                      <div className="flex items-center justify-between gap-2"><p className="text-sm font-medium text-blue-950">{selectedFamilyForSearch.display_name}</p><Button type="button" size="sm" variant="outline" onClick={() => { setSelectedFamilyForSearch(null);  setFamilyNameSearch(familyName) }}>Changer</Button></div>
-                      <p className="text-xs text-blue-900">Sélectionnez un enfant de cette famille pour rattacher le nouvel élève.</p>
-                      <div className="divide-y border border-blue-100 bg-white">
-                        {selectedFamilyForSearch.children.map((child) => (
-                          <button key={child.student_id} type="button" onClick={() => { void handleSelectSibling(child) }} className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-slate-50">
-                            <span><span className="block text-sm font-medium">{child.first_name} {child.last_name}</span><span className="block text-xs text-slate-500">Matricule : {child.student_number || "—"}</span></span>
-                            <span className="text-xs font-medium text-[#00236f]">Associer</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </section>
-              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Nom *</Label>
@@ -933,6 +897,43 @@ export default function NouvelleInscriptionModal({
           {step === 2 && (
             <div className="space-y-4">
               <h3 className="font-medium text-sm border-b pb-2">Informations du parent / tuteur</h3>
+              {typeInscription === "inscription" && (
+                <section className="space-y-2 border border-[#d7dae3] p-3">
+                  <div>
+                    <Label>Nom de la famille</Label>
+                    <Input
+                      value={familyName}
+                      onChange={(e) => { setFamilyName(e.target.value); setFamilyNameSearch(e.target.value); setSelectedFamilyForSearch(null) }}
+                      placeholder="Ex. Famille MOUEMBANZA"
+                    />
+                    <p className="mt-1 text-xs text-slate-500">Saisissez le nom pour retrouver une famille déjà enregistrée et ses enfants.</p>
+                  </div>
+                  {!selectedFamilyForSearch && familyNameSearch.trim().length >= 2 && familyMatches.length > 0 && (
+                    <div className="divide-y border">
+                      {familyMatches.map((family) => (
+                        <button key={family.id} type="button" onClick={() => { setSelectedFamilyForSearch(family); setFamilyName(family.display_name) }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50">
+                          <span><span className="block text-sm font-medium">{family.display_name}</span><span className="block text-xs text-slate-500">{family.children.length} enfant(s) · {family.family_code}</span></span>
+                          <span className="text-xs font-medium text-[#00236f]">Voir les enfants</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {selectedFamilyForSearch && (
+                    <div className="space-y-2 rounded border border-blue-200 bg-blue-50 p-3">
+                      <div className="flex items-center justify-between gap-2"><p className="text-sm font-medium text-blue-950">{selectedFamilyForSearch.display_name}</p><Button type="button" size="sm" variant="outline" onClick={() => { setSelectedFamilyForSearch(null);  setFamilyNameSearch(familyName) }}>Changer</Button></div>
+                      <p className="text-xs text-blue-900">Sélectionnez un enfant de cette famille pour rattacher le nouvel élève.</p>
+                      <div className="divide-y border border-blue-100 bg-white">
+                        {selectedFamilyForSearch.children.map((child) => (
+                          <button key={child.student_id} type="button" onClick={() => { void handleSelectSibling(child) }} className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-slate-50">
+                            <span><span className="block text-sm font-medium">{child.first_name} {child.last_name}</span><span className="block text-xs text-slate-500">Matricule : {child.student_number || "—"}</span></span>
+                            <span className="text-xs font-medium text-[#00236f]">Associer</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Nom *</Label>
@@ -962,7 +963,7 @@ export default function NouvelleInscriptionModal({
                   <div className="flex items-start gap-2"><Users className="mt-0.5 h-4 w-4 text-[#00236f]" /><div><h4 className="text-sm font-medium">Même famille — frère ou sœur</h4><p className="mt-1 text-xs text-slate-500">Recherchez un enfant déjà inscrit pour rattacher les deux dossiers à la même famille et vérifier les réductions applicables. Le nom de famille seul ne suffit pas.</p></div></div>
                   {selectedSibling ? (
                     <div className="flex items-center justify-between gap-3 border border-emerald-200 bg-emerald-50 p-3"><div className="min-w-0"><p className="text-sm font-medium text-emerald-900">{selectedSibling.first_name} {selectedSibling.last_name}</p><p className="text-xs text-emerald-800">Matricule : {selectedSibling.student_number || "—"} · Classe : {selectedSibling.class_name || "Non renseignée"}</p>
-<p className="mt-1 text-xs text-emerald-800">Code famille : {selectedSibling.family_code || "Famille à vérifier"}</p>{loadingFamilyDetails ? <p className="mt-2 text-xs text-emerald-800">Récupération des coordonnées du parent et de la fratrie…</p> : familyLinkedChildren.length > 1 ? <p className="mt-2 text-xs text-emerald-800">Enfants déjà rattachés à cette famille : {familyLinkedChildren.join(", ")}. Ils seront conservés dans le même groupe familial.</p> : <p className="mt-2 text-xs text-emerald-800">Les coordonnées du parent ont été reprises depuis le dossier familial lorsqu’elles étaient disponibles.</p>}</div><Button type="button" variant="outline" size="sm" onClick={() => { setSelectedSibling(null); setSelectedFamilyId(null); setSelectedFamilyForSearch(null); setFamilyLinkedChildren([]); setApplyFamilyDiscount(false); setSiblingSearch("") }}>Retirer</Button></div>
+<p className="mt-1 text-xs text-emerald-800">Code famille : {selectedSibling.family_code || "Famille à vérifier"}</p>{loadingFamilyDetails ? <p className="mt-2 text-xs text-emerald-800">Récupération des coordonnées du parent et de la fratrie…</p> : familyLinkedChildren.length > 1 ? <p className="mt-2 text-xs text-emerald-800">Enfants déjà rattachés à cette famille : {familyLinkedChildren.join(", ")}. Ils seront conservés dans le même groupe familial.</p> : <p className="mt-2 text-xs text-emerald-800">Les coordonnées du parent ont été reprises depuis le dossier familial lorsqu’elles étaient disponibles.</p>}</div><Button type="button" variant="outline" size="sm" onClick={() => { setSelectedSibling(null); setSelectedFamilyForSearch(null); setFamilyLinkedChildren([]); setApplyFamilyDiscount(false); setSiblingSearch("") }}>Retirer</Button></div>
                   ) : (
                     <>
                       <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><Input className="pl-9" value={siblingSearch} onChange={(e) => setSiblingSearch(e.target.value)} placeholder="Nom, prénom ou matricule de l'enfant" /></div>

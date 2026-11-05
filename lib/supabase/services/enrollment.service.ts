@@ -92,6 +92,8 @@ export async function createStudentEnrollmentWithSchedule(data: {
   relatedStudentId?: string | null
   siblingRelationship?: "frere" | "soeur" | "autre"
   organizationId?: string | null
+  familyName?: string | null
+  applyFamilyDiscount?: boolean
 }): Promise<StudentEnrollmentResult> {
   const rpcName = data.relatedStudentId || data.organizationId
     ? "create_student_enrollment_with_family_funding"
@@ -121,6 +123,8 @@ export async function createStudentEnrollmentWithSchedule(data: {
     rpcArgs.p_related_student_id = data.relatedStudentId || null
     rpcArgs.p_sibling_relationship = data.siblingRelationship || "autre"
     rpcArgs.p_organization_id = data.organizationId || null
+    rpcArgs.p_family_name = data.familyName?.trim() || null
+    rpcArgs.p_apply_family_discount = data.applyFamilyDiscount ?? false
   }
   const { data: result, error } = await supabaseBrowser.rpc(rpcName, rpcArgs)
 

@@ -62,7 +62,7 @@ revoke all on function public.create_student_enrollment_with_family_funding(
   uuid,uuid,uuid,uuid,date,uuid,text,text,text,date,text,text,text,uuid[],uuid[],boolean,text,boolean,boolean,uuid,text,uuid,text,boolean
 ) from public, anon;
 grant execute on function public.create_student_enrollment_with_family_funding(
-  uuid,uuid,uuid,uuid,date,uuid,text,text,text,date,uuid,text,text,text,uuid[],uuid[],boolean,text,boolean,boolean,uuid,text,uuid,text,boolean
+  uuid,uuid,uuid,uuid,date,uuid,text,text,text,date,text,text,text,uuid[],uuid[],boolean,text,boolean,boolean,uuid,text,uuid,text,boolean
 ) to authenticated;
 
 notify pgrst, 'reload schema';

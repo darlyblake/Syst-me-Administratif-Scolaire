@@ -102,7 +102,6 @@ export default function NouvelleInscriptionModal({
   const [familyNameSearch, setFamilyNameSearch] = useState("")
   const [familyMatches, setFamilyMatches] = useState<FamilySearchResult[]>([])
   const [selectedFamilyForSearch, setSelectedFamilyForSearch] = useState<FamilySearchResult | null>(null)
-  const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null)
   const [applyFamilyDiscount, setApplyFamilyDiscount] = useState(true)
   const [siblingSearch, setSiblingSearch] = useState("")
   const [siblingCandidates, setSiblingCandidates] = useState<FamilySiblingCandidate[]>([])
@@ -399,7 +398,6 @@ export default function NouvelleInscriptionModal({
         .eq("active", true)
         .maybeSingle()
       if (membershipError) throw membershipError
-      setSelectedFamilyId(membership?.family_id ?? null)
       if (membership?.family_id) {
         const { data: familyInfo, error: familyInfoError } = await supabaseBrowser
           .from("school_families")
@@ -658,7 +656,7 @@ export default function NouvelleInscriptionModal({
     setExistingStudentId(null); setDuplicateStudents([]); setCheckingDuplicate(false)
     setLastName(""); setFirstName(""); setBirthDate(""); setBirthPlace(""); setSex(""); setStudentNumber("")
     setParentLastName(""); setParentFirstName(""); setParentPhone(""); setParentEmail(""); setParentAddress("")
-    setFamilyName(""); setFamilyNameSearch(""); setFamilyMatches([]); setSelectedFamilyForSearch(null); setSelectedFamilyId(null); setApplyFamilyDiscount(true)
+    setFamilyName(""); setFamilyNameSearch(""); setFamilyMatches([]); setSelectedFamilyForSearch(null); setApplyFamilyDiscount(true)
     setSiblingSearch(""); setSiblingCandidates([]); setSelectedSibling(null); setFamilyLinkedChildren([]); setSiblingRelationship("frere")
     setSelectedOrganizationId(""); setOrganizationRules([])
     setSelectedCycleId(""); setSelectedLevelId(""); setSelectedClassId("")
@@ -869,7 +867,7 @@ export default function NouvelleInscriptionModal({
                   {!selectedFamilyForSearch && familyNameSearch.trim().length >= 2 && familyMatches.length > 0 && (
                     <div className="divide-y border">
                       {familyMatches.map((family) => (
-                        <button key={family.id} type="button" onClick={() => { setSelectedFamilyForSearch(family); setSelectedFamilyId(family.id); setFamilyName(family.display_name) }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50">
+                        <button key={family.id} type="button" onClick={() => { setSelectedFamilyForSearch(family); setFamilyName(family.display_name) }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50">
                           <span><span className="block text-sm font-medium">{family.display_name}</span><span className="block text-xs text-slate-500">{family.children.length} enfant(s) · {family.family_code}</span></span>
                           <span className="text-xs font-medium text-[#00236f]">Voir les enfants</span>
                         </button>
@@ -878,7 +876,7 @@ export default function NouvelleInscriptionModal({
                   )}
                   {selectedFamilyForSearch && (
                     <div className="space-y-2 rounded border border-blue-200 bg-blue-50 p-3">
-                      <div className="flex items-center justify-between gap-2"><p className="text-sm font-medium text-blue-950">{selectedFamilyForSearch.display_name}</p><Button type="button" size="sm" variant="outline" onClick={() => { setSelectedFamilyForSearch(null); setSelectedFamilyId(null); setFamilyNameSearch(familyName) }}>Changer</Button></div>
+                      <div className="flex items-center justify-between gap-2"><p className="text-sm font-medium text-blue-950">{selectedFamilyForSearch.display_name}</p><Button type="button" size="sm" variant="outline" onClick={() => { setSelectedFamilyForSearch(null);  setFamilyNameSearch(familyName) }}>Changer</Button></div>
                       <p className="text-xs text-blue-900">Sélectionnez un enfant de cette famille pour rattacher le nouvel élève.</p>
                       <div className="divide-y border border-blue-100 bg-white">
                         {selectedFamilyForSearch.children.map((child) => (

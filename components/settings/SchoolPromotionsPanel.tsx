@@ -106,7 +106,7 @@ export default function SchoolPromotionsPanel({ establishmentId, academicYears, 
 
   return <section className="space-y-4">
     <div className="flex flex-col gap-3 border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div><h2 className="text-sm font-semibold">Promotions sur les frais d’inscription</h2><p className="mt-1 max-w-2xl text-xs text-slate-500">Offres temporaires pour tous les niveaux ou pour des niveaux sélectionnés. Le tarif normal du forfait scolaire reste inchangé.</p></div>
+      <div><h2 className="text-sm font-semibold">Promotions sur les frais d’inscription et de réinscription</h2><p className="mt-1 max-w-2xl text-xs text-slate-500">Offres temporaires applicables aux premières inscriptions, aux réinscriptions, ou aux deux. Le tarif de scolarité reste inchangé.</p></div>
       <Button onClick={() => { resetForm(); setOpen(true) }}><Plus className="mr-2 h-4 w-4" />Nouvelle promotion</Button>
     </div>
     <Dialog open={open} onOpenChange={setOpen}>

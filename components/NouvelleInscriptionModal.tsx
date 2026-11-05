@@ -28,6 +28,13 @@ interface StudentOption {
   amount: number
 }
 
+interface FamilySearchResult {
+  id: string
+  display_name: string
+  family_code: string
+  children: FamilySiblingCandidate[]
+}
+
 interface NouvelleInscriptionModalProps {
   isOpen: boolean
   onClose: () => void
@@ -91,6 +98,12 @@ export default function NouvelleInscriptionModal({
   const [parentPhone, setParentPhone] = useState("")
   const [parentEmail, setParentEmail] = useState("")
   const [parentAddress, setParentAddress] = useState("")
+  const [familyName, setFamilyName] = useState("")
+  const [familyNameSearch, setFamilyNameSearch] = useState("")
+  const [familyMatches, setFamilyMatches] = useState<FamilySearchResult[]>([])
+  const [selectedFamilyForSearch, setSelectedFamilyForSearch] = useState<FamilySearchResult | null>(null)
+  const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null)
+  const [applyFamilyDiscount, setApplyFamilyDiscount] = useState(true)
   const [siblingSearch, setSiblingSearch] = useState("")
   const [siblingCandidates, setSiblingCandidates] = useState<FamilySiblingCandidate[]>([])
   const [selectedSibling, setSelectedSibling] = useState<FamilySiblingCandidate | null>(null)
@@ -249,6 +262,73 @@ export default function NouvelleInscriptionModal({
   }, [isOpen, establishmentId, siblingSearch, typeInscription, existingStudentId])
 
   useEffect(() => {
+    if (!isOpen || !establishmentId || familyNameSearch.trim().length < 2 || typeInscription !== "inscription") {
+      setFamilyMatches([])
+      return
+    }
+    let cancelled = false
+    const loadFamilies = async () => {
+      try {
+        const { data: families, error: familyError } = await supabaseBrowser
+          .from("school_families")
+          .select("id,display_name,family_code")
+          .eq("establishment_id", establishmentId)
+          .ilike("display_name", "%" + familyNameSearch.trim() + "%")
+          .order("display_name")
+          .limit(10)
+        if (familyError) throw familyError
+        const familyIds = (families ?? []).map((family: any) => family.id)
+        if (!familyIds.length) {
+          if (!cancelled) setFamilyMatches([])
+          return
+        }
+        const { data: memberships, error: membershipError } = await supabaseBrowser
+          .from("student_family_members")
+          .select("family_id,student_id")
+          .eq("establishment_id", establishmentId)
+          .eq("active", true)
+          .in("family_id", familyIds)
+        if (membershipError) throw membershipError
+        const studentIds = Array.from(new Set((memberships ?? []).map((member: any) => member.student_id)))
+        const { data: familyStudents, error: studentsError } = studentIds.length
+          ? await supabaseBrowser.from("students")
+              .select("id,first_name,last_name,student_number,birth_date")
+              .eq("establishment_id", establishmentId)
+              .in("id", studentIds)
+              .eq("active", true)
+          : { data: [], error: null }
+        if (studentsError) throw studentsError
+        const rows = (families ?? []).map((family: any) => ({
+          id: family.id,
+          display_name: family.display_name || "Famille sans nom",
+          family_code: family.family_code,
+          children: (memberships ?? [])
+            .filter((member: any) => member.family_id === family.id)
+            .map((member: any) => {
+              const student: any = (familyStudents ?? []).find((item: any) => item.id === member.student_id)
+              return student ? {
+                student_id: student.id,
+                first_name: student.first_name,
+                last_name: student.last_name,
+                student_number: student.student_number,
+                birth_date: student.birth_date,
+                class_name: null,
+                family_code: family.family_code,
+              } : null
+            })
+            .filter(Boolean) as FamilySiblingCandidate[],
+        })).filter((family: FamilySearchResult) => family.children.length > 0)
+        if (!cancelled) setFamilyMatches(rows)
+      } catch (error) {
+        console.error("Recherche par nom de famille impossible:", error)
+        if (!cancelled) setFamilyMatches([])
+      }
+    }
+    void loadFamilies()
+    return () => { cancelled = true }
+  }, [isOpen, establishmentId, familyNameSearch, typeInscription])
+
+  useEffect(() => {
     if (!establishmentId || !selectedOrganizationId) { setOrganizationRules([]); return }
     let cancelled = false
     listOrganizationCoverageRules(establishmentId, selectedOrganizationId)
@@ -319,6 +399,21 @@ export default function NouvelleInscriptionModal({
         .eq("active", true)
         .maybeSingle()
       if (membershipError) throw membershipError
+      setSelectedFamilyId(membership?.family_id ?? null)
+      if (membership?.family_id) {
+        const { data: familyInfo, error: familyInfoError } = await supabaseBrowser
+          .from("school_families")
+          .select("id,display_name,family_code")
+          .eq("id", membership.family_id)
+          .eq("establishment_id", establishmentId)
+          .maybeSingle()
+        if (familyInfoError) throw familyInfoError
+        if (familyInfo?.display_name) {
+          setFamilyName(familyInfo.display_name)
+          setFamilyNameSearch(familyInfo.display_name)
+        }
+      }
+      setApplyFamilyDiscount(true)
 
       let familyStudentIds = [candidate.student_id]
       if (membership?.family_id) {
@@ -517,6 +612,8 @@ export default function NouvelleInscriptionModal({
         relatedStudentId: selectedSibling?.student_id ?? null,
         siblingRelationship,
         organizationId: fundingSource === "family" ? (selectedOrganizationId || null) : null,
+        familyName: familyName.trim() || null,
+        applyFamilyDiscount: !!selectedSibling && applyFamilyDiscount,
         waiveRegistration,
         waiveTuition,
       })
@@ -561,7 +658,8 @@ export default function NouvelleInscriptionModal({
     setExistingStudentId(null); setDuplicateStudents([]); setCheckingDuplicate(false)
     setLastName(""); setFirstName(""); setBirthDate(""); setBirthPlace(""); setSex(""); setStudentNumber("")
     setParentLastName(""); setParentFirstName(""); setParentPhone(""); setParentEmail(""); setParentAddress("")
-    setSiblingSearch(""); setSiblingCandidates([]); setSelectedSibling(null); setSiblingRelationship("frere")
+    setFamilyName(""); setFamilyNameSearch(""); setFamilyMatches([]); setSelectedFamilyForSearch(null); setSelectedFamilyId(null); setApplyFamilyDiscount(true)
+    setSiblingSearch(""); setSiblingCandidates([]); setSelectedSibling(null); setFamilyLinkedChildren([]); setSiblingRelationship("frere")
     setSelectedOrganizationId(""); setOrganizationRules([])
     setSelectedCycleId(""); setSelectedLevelId(""); setSelectedClassId("")
     setSelectedInstallmentIds(new Set()); setSelectedOptionIds(new Set())
@@ -757,6 +855,43 @@ export default function NouvelleInscriptionModal({
                   </div>
                 </div>
               )}
+              {typeInscription === "inscription" && (
+                <section className="space-y-2 border border-[#d7dae3] p-3">
+                  <div>
+                    <Label>Nom de la famille</Label>
+                    <Input
+                      value={familyName}
+                      onChange={(e) => { setFamilyName(e.target.value); setFamilyNameSearch(e.target.value); setSelectedFamilyForSearch(null) }}
+                      placeholder="Ex. Famille MOUEMBANZA"
+                    />
+                    <p className="mt-1 text-xs text-slate-500">Saisissez le nom pour retrouver une famille déjà enregistrée et ses enfants.</p>
+                  </div>
+                  {!selectedFamilyForSearch && familyNameSearch.trim().length >= 2 && familyMatches.length > 0 && (
+                    <div className="divide-y border">
+                      {familyMatches.map((family) => (
+                        <button key={family.id} type="button" onClick={() => { setSelectedFamilyForSearch(family); setSelectedFamilyId(family.id); setFamilyName(family.display_name) }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50">
+                          <span><span className="block text-sm font-medium">{family.display_name}</span><span className="block text-xs text-slate-500">{family.children.length} enfant(s) · {family.family_code}</span></span>
+                          <span className="text-xs font-medium text-[#00236f]">Voir les enfants</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {selectedFamilyForSearch && (
+                    <div className="space-y-2 rounded border border-blue-200 bg-blue-50 p-3">
+                      <div className="flex items-center justify-between gap-2"><p className="text-sm font-medium text-blue-950">{selectedFamilyForSearch.display_name}</p><Button type="button" size="sm" variant="outline" onClick={() => { setSelectedFamilyForSearch(null); setSelectedFamilyId(null); setFamilyNameSearch(familyName) }}>Changer</Button></div>
+                      <p className="text-xs text-blue-900">Sélectionnez un enfant de cette famille pour rattacher le nouvel élève.</p>
+                      <div className="divide-y border border-blue-100 bg-white">
+                        {selectedFamilyForSearch.children.map((child) => (
+                          <button key={child.student_id} type="button" onClick={() => { void handleSelectSibling(child) }} className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-slate-50">
+                            <span><span className="block text-sm font-medium">{child.first_name} {child.last_name}</span><span className="block text-xs text-slate-500">Matricule : {child.student_number || "—"}</span></span>
+                            <span className="text-xs font-medium text-[#00236f]">Associer</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Nom *</Label>
@@ -829,7 +964,7 @@ export default function NouvelleInscriptionModal({
                   <div className="flex items-start gap-2"><Users className="mt-0.5 h-4 w-4 text-[#00236f]" /><div><h4 className="text-sm font-medium">Même famille — frère ou sœur</h4><p className="mt-1 text-xs text-slate-500">Recherchez un enfant déjà inscrit pour rattacher les deux dossiers à la même famille et vérifier les réductions applicables. Le nom de famille seul ne suffit pas.</p></div></div>
                   {selectedSibling ? (
                     <div className="flex items-center justify-between gap-3 border border-emerald-200 bg-emerald-50 p-3"><div className="min-w-0"><p className="text-sm font-medium text-emerald-900">{selectedSibling.first_name} {selectedSibling.last_name}</p><p className="text-xs text-emerald-800">Matricule : {selectedSibling.student_number || "—"} · Classe : {selectedSibling.class_name || "Non renseignée"}</p>
-<p className="mt-1 text-xs text-emerald-800">Code famille : {selectedSibling.family_code || "Famille à vérifier"}</p>{loadingFamilyDetails ? <p className="mt-2 text-xs text-emerald-800">Récupération des coordonnées du parent et de la fratrie…</p> : familyLinkedChildren.length > 1 ? <p className="mt-2 text-xs text-emerald-800">Enfants déjà rattachés à cette famille : {familyLinkedChildren.join(", ")}. Ils seront conservés dans le même groupe familial.</p> : <p className="mt-2 text-xs text-emerald-800">Les coordonnées du parent ont été reprises depuis le dossier familial lorsqu’elles étaient disponibles.</p>}</div><Button type="button" variant="outline" size="sm" onClick={() => { setSelectedSibling(null); setFamilyLinkedChildren([]); setSiblingSearch("") }}>Retirer</Button></div>
+<p className="mt-1 text-xs text-emerald-800">Code famille : {selectedSibling.family_code || "Famille à vérifier"}</p>{loadingFamilyDetails ? <p className="mt-2 text-xs text-emerald-800">Récupération des coordonnées du parent et de la fratrie…</p> : familyLinkedChildren.length > 1 ? <p className="mt-2 text-xs text-emerald-800">Enfants déjà rattachés à cette famille : {familyLinkedChildren.join(", ")}. Ils seront conservés dans le même groupe familial.</p> : <p className="mt-2 text-xs text-emerald-800">Les coordonnées du parent ont été reprises depuis le dossier familial lorsqu’elles étaient disponibles.</p>}</div><Button type="button" variant="outline" size="sm" onClick={() => { setSelectedSibling(null); setSelectedFamilyId(null); setSelectedFamilyForSearch(null); setFamilyLinkedChildren([]); setApplyFamilyDiscount(false); setSiblingSearch("") }}>Retirer</Button></div>
                   ) : (
                     <>
                       <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><Input className="pl-9" value={siblingSearch} onChange={(e) => setSiblingSearch(e.target.value)} placeholder="Nom, prénom ou matricule de l'enfant" /></div>
@@ -840,7 +975,7 @@ export default function NouvelleInscriptionModal({
                       </div>}
                     </>
                   )}
-                  {selectedSibling && <><p className="text-xs text-emerald-800">La réduction familiale sera vérifiée automatiquement à l’enregistrement selon le nombre d’enfants éligibles et les barèmes configurés.</p><div className="space-y-1"><Label>Lien entre les enfants</Label><Select value={siblingRelationship} onValueChange={(value) => setSiblingRelationship(value as "frere" | "soeur" | "autre")}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="frere">Frère</SelectItem><SelectItem value="soeur">Sœur</SelectItem><SelectItem value="autre">Autre lien familial</SelectItem></SelectContent></Select></div></>}
+                  {selectedSibling && <><label className="flex items-start gap-2 rounded border border-blue-200 bg-blue-50 p-3"><Checkbox checked={applyFamilyDiscount} onCheckedChange={(checked) => setApplyFamilyDiscount(checked === true)} /><span><span className="block text-sm font-medium text-blue-950">Activer la réduction familiale pour toute la fratrie</span><span className="mt-1 block text-xs text-blue-900">Le barème sera recalculé pour tous les enfants de cette famille, y compris ceux déjà inscrits pour cette année scolaire.</span></span></label><p className="text-xs text-emerald-800">La réduction est calculée selon le nombre d’enfants ayant une inscription active et les règles configurées dans Paramètres → Réductions familiales.</p><div className="space-y-1"><Label>Lien entre les enfants</Label><Select value={siblingRelationship} onValueChange={(value) => setSiblingRelationship(value as "frere" | "soeur" | "autre")}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="frere">Frère</SelectItem><SelectItem value="soeur">Sœur</SelectItem><SelectItem value="autre">Autre lien familial</SelectItem></SelectContent></Select></div></>}
                 </section>
               )}
             </div>
@@ -1040,9 +1175,9 @@ export default function NouvelleInscriptionModal({
           {/* ── Étape 4 : Paiement ───────────────────────────────────────────── */}
           {step === 4 && selectedPlan && (fundingSource !== "family" || waiveRegistration || waiveTuition || selectedSibling || selectedOrganizationId) && (
             <div className="space-y-4">
-              <h3 className="font-medium text-sm border-b pb-2">Prise en charge financière</h3>
+              <h3 className="font-medium text-sm border-b pb-2">Récapitulatif des frais</h3>
               {applicablePromotion && promotionSaving > 0 && <div className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900"><p className="font-medium">{applicablePromotion.name}</p><p className="mt-1 text-xs">Frais d’inscription : {fmt(effectiveRegistrationFee)} → {fmt(effectiveRegistrationFee)} (économie de {fmt(promotionSaving)}).</p></div>}
-              <p className="text-sm text-slate-700">L'inscription sera enregistrée sans simuler un encaissement. Les frais couverts ne seront pas réclamés à la famille. Les options scolaires restent consultables et seront suivies séparément dans Finance.</p>
+              <p className="text-sm text-slate-700">Les montants ci-dessous seront ajoutés au dossier de l’élève. Aucun paiement ne sera enregistré automatiquement. Les options restent suivies séparément dans Finance.</p>
               <div className="divide-y border-y border-slate-200">
                 <div className="flex justify-between gap-4 py-3 text-sm"><span>Frais d'inscription</span><span className="font-medium">{waiveRegistration || fundingSource === "other" ? "Exonérés" : selectedOrganizationId ? "Selon la convention de l’organisme" : "À la charge de la famille"}</span></div>
                 <div className="flex justify-between gap-4 py-3 text-sm"><span>Scolarité</span><span className="font-medium">{waiveTuition || fundingSource === "other" ? "Exonérée" : selectedOrganizationId ? "Selon la convention de l’organisme" : "À la charge de la famille"}</span></div>

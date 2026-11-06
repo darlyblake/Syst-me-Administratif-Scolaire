@@ -42,6 +42,21 @@ export const financeService = {
     return (data ?? []) as any[];
   },
 
+  // Échéances de la famille réellement dépassées pour le tableau de bord.
+  async getOverdueSchedules(establishmentId: string, academicYearId: string, today: string) {
+    const { data, error } = await supabaseBrowser
+      .from("v_finance_student_payment_board")
+      .select("schedule_id, enrollment_id, student_id, class_id, label, due_date, amount_due, amount_paid, remaining_amount, days_overdue, payment_state, category, first_name, last_name, student_number, class_name")
+      .eq("establishment_id", establishmentId)
+      .eq("academic_year_id", academicYearId)
+      .gt("remaining_amount", 0)
+      .lt("due_date", today)
+      .order("due_date", { ascending: true });
+
+    if (error) throw new Error("Impossible de charger les échéances en retard.");
+    return data ?? [];
+  },
+
   // 2. Vue Mouvements
   async getMovements(establishmentId: string, from?: string, to?: string, direction?: 'credit' | 'debit'): Promise<FinanceMovementRow[]> {
     let query = supabaseBrowser

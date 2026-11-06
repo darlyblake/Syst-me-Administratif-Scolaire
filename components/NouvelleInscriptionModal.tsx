@@ -192,13 +192,11 @@ export default function NouvelleInscriptionModal({
   // apparaissent ici. Une exonération/prise en charge ne doit pas être réclamée au parent.
   // Calculer uniquement les montants réellement dus par la famille.
   // Une exonération partielle ne doit pas effacer les autres frais encore dus.
-  const canPayDuringEnrollment = fundingSource === "family" && !waiveRegistration && !waiveTuition
-    && !selectedSibling && !selectedFamilyId && !selectedOrganizationId
-  const registrationDue = canPayDuringEnrollment ? effectiveRegistrationFee : 0
-  const tuitionDue = canPayDuringEnrollment ? installmentTotal : 0
-  // Les options sont sélectionnées une seule fois dans Scolarité. Elles ne sont
-  // comptées comme paiement immédiat que dans le parcours de paiement classique.
-  const optionsDue = canPayDuringEnrollment ? optionTotal : 0
+  // Le total de la sélection reste visible pour les familles liées également.
+  // La part d'un organisme est exclue tant que sa convention n'a pas été calculée.
+  const registrationDue = fundingSource === "other" || waiveRegistration || selectedOrganizationId ? 0 : effectiveRegistrationFee
+  const tuitionDue = fundingSource === "other" || waiveTuition || selectedOrganizationId ? 0 : installmentTotal
+  const optionsDue = fundingSource === "other" || selectedOrganizationId ? 0 : optionTotal
   const totalNow = registrationDue + tuitionDue + optionsDue
   const familyDiscountEligible = !!(selectedSibling || selectedFamilyId) && applyFamilyDiscount && !!familyDiscountRule
     && familyDiscountChildrenCount >= Number(familyDiscountRule.min_children ?? 2)
@@ -1091,45 +1089,7 @@ export default function NouvelleInscriptionModal({
                 </section>
               )}
 
-              <section className="space-y-2 border border-[#d7dae3] p-3">
-                <div>
-                  <h4 className="text-sm font-medium">Options scolaires</h4>
-                  <p className="text-xs text-slate-500">Sélectionnez ici les options à associer à l'élève. Elles restent distinctes des frais d'inscription et de scolarité.</p>
-                </div>
-                {isLoadingOptions ? (
-                  <p className="text-sm text-slate-500">Chargement des options…</p>
-                ) : availableOptions.length > 0 ? (
-                  <div className="divide-y border text-sm">
-                    {availableOptions.map((opt) => (
-                      <label key={opt.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50">
-                        <Checkbox
-                          checked={selectedOptionIds.has(opt.id)}
-                          onCheckedChange={(checked) => {
-                            const isChecked = checked === true
-                            setSelectedOptionIds((prev) => {
-                              const next = new Set(prev)
-                              if (isChecked) next.add(opt.id)
-                              else next.delete(opt.id)
-                              return next
-                            })
-                          }}
-                        />
-                        <span className="flex-1">{opt.name}</span>
-                        <span className="font-medium">{fmt(opt.amount)}</span>
-                      </label>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-500">Aucune option active n'est configurée dans cet établissement. Vérifiez Paramètres → Scolarité.</p>
-                )}
-                {selectedOptionIds.size > 0 && (
-                  <p className="text-xs font-medium text-slate-700">
-                    {selectedOptionIds.size} option(s) sélectionnée(s) — {fmt(optionTotal)}
-                  </p>
-                )}
-              </section>
-
-              {!activeYear && !isYearLoading && (
+                            {!activeYear && !isYearLoading && (
                 <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
                   Aucune année scolaire active. Définissez l'année actuelle dans Paramètres → Années académiques.
                 </p>
@@ -1237,158 +1197,83 @@ export default function NouvelleInscriptionModal({
           )}
 
           {/* ── Étape 4 : Paiement ───────────────────────────────────────────── */}
-          {step === 4 && selectedPlan && (fundingSource !== "family" || waiveRegistration || waiveTuition || selectedSibling || selectedFamilyId || selectedOrganizationId) && (
+          {step === 4 && selectedPlan && (
             <div className="space-y-5">
-              <h3 className="font-medium text-sm border-b pb-2">Échéancier et prise en charge</h3>
-              {applicablePromotion && promotionSaving > 0 && <div className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900"><p className="font-medium">{applicablePromotion.name}</p><p className="mt-1 text-xs">Frais d'inscription : {fmt(registrationFee)} → {fmt(effectiveRegistrationFee)} · Remise : {fmt(promotionSaving)}.</p></div>}
-              <p className="text-sm text-slate-600">L'échéancier est rattaché à l'inscription et sera disponible dans Finance pour le suivi des règlements. Aucun encaissement n'est enregistré automatiquement ici.</p>
-              <div className="border divide-y">
-                <div className="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span>{typeInscription === "reinscription" ? "Frais de réinscription" : "Frais d'inscription"}</span><span className="font-medium">{waiveRegistration || fundingSource === "other" ? "Exonérés" : selectedOrganizationId ? "Selon la convention" : fmt(effectiveRegistrationFee)}</span></div>
-                <div className="px-3 py-3">
-                  <div className="mb-2 flex items-center justify-between gap-3 text-sm font-medium"><span>Scolarité · {selectedPlan.payment_mode === "monthly" ? "Mensuelle" : selectedPlan.payment_mode === "installments" ? "Par tranches" : "Paiement unique"}</span><span>{waiveTuition || fundingSource === "other" ? "Exonérée" : selectedOrganizationId ? "Selon la convention" : familyDiscountEligible ? "Après remise familiale" : fmt(Number(selectedPlan.annual_tuition))}</span></div>
-                  {selectedPlan.payment_mode === "single" ? (
-                    <div className="flex justify-between gap-3 border-t py-2 text-sm"><span>Scolarité annuelle</span><span className="font-medium">{fmt(Math.max(0, Number(selectedPlan.annual_tuition) - familyDiscountForAmount(Number(selectedPlan.annual_tuition))) )}</span></div>
-                  ) : installments.length > 0 ? (
-                    <div className="divide-y border-t">
-                      {installments.map((inst) => { const saving = familyDiscountForAmount(Number(inst.amount)); return (
-                        <div key={inst.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                          <span className="min-w-0">{inst.label}{inst.due_date && <span className="ml-2 text-xs text-slate-500">{new Date(inst.due_date).toLocaleDateString("fr-FR")}</span>}</span>
-                          <span className="shrink-0 text-right">{saving > 0 && <span className="mr-2 text-xs text-slate-400 line-through">{fmt(Number(inst.amount))}</span>}<span className="font-medium">{fmt(Math.max(0, Number(inst.amount) - saving))}</span></span>
-                        </div>
-                      )})}
-                    </div>
-                  ) : <p className="border-t py-2 text-xs text-amber-700">Aucune échéance n'est configurée pour ce forfait. Ajoutez les échéances dans Paramètres → Scolarité avant de valider l'inscription.</p>}
-                </div>
-                {selectedOptionIds.size > 0 && <div className="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span>Options sélectionnées à l'étape Scolarité</span><span className="font-medium">{fmt(optionTotal)}</span></div>}
-              </div>
-              {familyDiscountEligible && <div className="border border-blue-200 bg-blue-50 px-3 py-3 text-sm text-blue-950"><div className="flex items-center justify-between gap-3"><span className="font-medium">{familyDiscountRule.name || "Réduction familiale"}</span><span className="font-semibold">− {fmt(familyDiscountEstimatedSaving)}</span></div><p className="mt-1 text-xs">La remise estimée est visible sur chaque échéance ci-dessus. Le calcul définitif sera enregistré et répercuté sur les autres enfants de la famille.</p></div>}
-              {selectedOrganizationId && <p className="text-xs text-slate-600">Les montants pris en charge par l'organisme et le solde familial seront répartis selon les règles configurées pour cette organisation.</p>}
-            </div>
-          )}
-          {step === 4 && selectedPlan && fundingSource === "family" && !waiveRegistration && !waiveTuition && !selectedSibling && !selectedFamilyId && !selectedOrganizationId && (
-            <div className="space-y-5">
-              <h3 className="font-medium text-sm border-b pb-2">Paiement</h3>
-
-              {/* Résumé contexte */}
-              <div className="text-xs text-slate-500 flex gap-4">
-                <span><span className="font-medium text-slate-700">{selectedCycle?.name}</span></span>
-                <span>›</span>
-                <span><span className="font-medium text-slate-700">{selectedLevel?.name}</span></span>
-                <span>›</span>
-                <span><span className="font-medium text-slate-700">{selectedClass?.name}</span></span>
-              </div>
-
-              {/* Frais inscription (toujours inclus) */}
               <div>
-                <p className="text-sm font-medium mb-2">
-                  {typeInscription === "reinscription" ? "Frais de réinscription" : "Frais d'inscription"}
-                </p>
-                <div className="flex justify-between text-sm border rounded px-3 py-2 bg-slate-50">
+                <h3 className="font-medium text-sm border-b pb-2">Préparer le premier règlement</h3>
+                <p className="mt-2 text-sm text-slate-600">Cochez les frais que le parent souhaite régler. Le total se met à jour automatiquement. Les autres échéances resteront à régler plus tard dans Finance.</p>
+              </div>
+              <section className="space-y-2">
+                <p className="text-sm font-medium">Frais d'inscription</p>
+                <div className="flex items-center justify-between gap-3 rounded border px-3 py-3 text-sm">
                   <span>{typeInscription === "reinscription" ? "Réinscription" : "Inscription"}</span>
-                  <span className="font-medium">{fmt(effectiveRegistrationFee)}</span>
+                  <span className="font-semibold">{waiveRegistration || fundingSource === "other" ? "Exonérés" : selectedOrganizationId ? "Selon la convention" : fmt(effectiveRegistrationFee)}</span>
                 </div>
-                {applicablePromotion && promotionSaving > 0 && (
-                  <div className="mt-2 border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
-                    <div className="flex items-center justify-between gap-3"><span className="font-medium">{applicablePromotion.name}</span><span className="font-semibold">-{fmt(promotionSaving)}</span></div>
-                    <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs"><span>Tarif normal : {fmt(registrationFee)}</span><span>Tarif après remise : {fmt(effectiveRegistrationFee)}</span></div>
-                  </div>
-                )}
-              </div>
-
-              {/* Scolarité selon mode */}
-              <div>
-                <p className="text-sm font-medium mb-2">
-                  Scolarité — {selectedPlan.payment_mode === "monthly" ? "Mensuel" : selectedPlan.payment_mode === "installments" ? "Par tranches" : "Paiement unique"}
-                </p>
-
-                {selectedPlan.payment_mode === "single" && (
-                  <label className="flex items-center gap-3 px-3 py-2 border rounded cursor-pointer hover:bg-slate-50">
-                    <Checkbox
-                      checked={paySingleTuitionNow}
-                      onCheckedChange={(checked) => setPaySingleTuitionNow(!!checked)}
-                    />
+                {applicablePromotion && promotionSaving > 0 && <p className="text-xs text-blue-800">{applicablePromotion.name} : remise de {fmt(promotionSaving)} appliquée. Tarif retenu : {fmt(effectiveRegistrationFee)}.</p>}
+              </section>
+              <section className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium">Scolarité — {selectedPlan.payment_mode === "monthly" ? "Mensualités" : selectedPlan.payment_mode === "installments" ? "Tranches" : "Paiement unique"}</p>
+                  <span className="text-xs text-slate-500">Annuel : {fmt(Number(selectedPlan.annual_tuition))}</span>
+                </div>
+                {waiveTuition || fundingSource === "other" ? <p className="rounded border bg-slate-50 px-3 py-3 text-sm text-slate-600">Scolarité exonérée : aucune échéance à sélectionner.</p>
+                : selectedOrganizationId ? <p className="rounded border bg-blue-50 px-3 py-3 text-sm text-blue-900">La part à payer par la famille sera déterminée selon la convention de l'organisme.</p>
+                : selectedPlan.payment_mode === "single" ? (
+                  <label className="flex cursor-pointer items-center gap-3 rounded border px-3 py-3 text-sm hover:bg-slate-50">
+                    <Checkbox checked={paySingleTuitionNow} onCheckedChange={(checked) => setPaySingleTuitionNow(checked === true)} />
                     <span className="flex-1">Scolarité annuelle complète</span>
-                    <span className="font-medium">{fmt(selectedPlan.annual_tuition)}</span>
+                    <span className="font-semibold">{fmt(Math.max(0, Number(selectedPlan.annual_tuition) - familyDiscountForAmount(Number(selectedPlan.annual_tuition))) )}</span>
                   </label>
-                )}
-
-                {(selectedPlan.payment_mode === "monthly" || selectedPlan.payment_mode === "installments") && (
-                  <>
-                    {installments.length === 0 ? (
-                      <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-                        "Aucune échéance n'est configurée pour ce forfait. Ajoutez les échéances dans Paramètres → Scolarité avant de valider l'inscription."
-                      </p>
-                    ) : (
-                      <div className="border rounded divide-y text-sm">
-                        {installments.map((inst) => (
-                          <label key={inst.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50">
-                            <Checkbox
-                              checked={selectedInstallmentIds.has(inst.id)}
-                              onCheckedChange={(checked) => {
-                                setSelectedInstallmentIds((prev) => {
-                                  const next = new Set(prev)
-                                  if (checked) next.add(inst.id)
-                                  else next.delete(inst.id)
-                                  return next
-                                })
-                              }}
-                            />
-                            <span className="flex-1">
-                              {inst.label}
-                              {inst.due_date && (
-                                <span className="text-slate-400 ml-2 text-xs">
-                                  {new Date(inst.due_date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                                </span>
-                              )}
-                            </span>
-                            <span className="font-medium">{fmt(inst.amount)}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                    <p className="text-xs text-slate-500 mt-1">
-                      Scolarité annuelle totale : {fmt(selectedPlan.annual_tuition)}
-                    </p>
-                  </>
-                )}
-              </div>
-
-
-              {/* Récapitulatif total */}
-              <div className="border rounded bg-slate-50">
-                <p className="text-xs font-medium text-slate-500 px-3 pt-2 pb-1 uppercase tracking-wide">Récapitulatif — à payer maintenant</p>
-                <div className="divide-y px-3">
-                  <div className="flex justify-between py-1.5 text-sm">
-                    <span>{typeInscription === "reinscription" ? "Frais de réinscription" : "Frais d'inscription"}</span>
-                    <span>{fmt(effectiveRegistrationFee)}</span>
+                ) : installments.length > 0 ? (
+                  <div className="divide-y rounded border">
+                    {installments.map((inst) => {
+                      const saving = familyDiscountForAmount(Number(inst.amount))
+                      const amount = Math.max(0, Number(inst.amount) - saving)
+                      return <label key={inst.id} className="flex cursor-pointer items-center gap-3 px-3 py-3 text-sm hover:bg-slate-50">
+                        <Checkbox checked={selectedInstallmentIds.has(inst.id)} onCheckedChange={(checked) => setSelectedInstallmentIds((prev) => {
+                          const next = new Set(prev)
+                          if (checked === true) next.add(inst.id)
+                          else next.delete(inst.id)
+                          return next
+                        })} />
+                        <span className="min-w-0 flex-1"><span className="block font-medium">{inst.label}</span>{inst.due_date && <span className="text-xs text-slate-500">Échéance : {new Date(inst.due_date).toLocaleDateString("fr-FR")}</span>}</span>
+                        <span className="shrink-0 text-right">{saving > 0 && <span className="block text-xs text-slate-400 line-through">{fmt(Number(inst.amount))}</span>}<span className="font-semibold">{fmt(amount)}</span></span>
+                      </label>
+                    })}
                   </div>
-                  {selectedPlan?.payment_mode === "single" && paySingleTuitionNow && (
-                    <div className="flex justify-between py-1.5 text-sm">
-                      <span>Scolarité annuelle complète</span>
-                      <span>{fmt(selectedPlan.annual_tuition)}</span>
-                    </div>
-                  )}
-                  {installments.filter((i) => selectedInstallmentIds.has(i.id)).map((i) => (
-                    <div key={i.id} className="flex justify-between py-1.5 text-sm">
-                      <span>{i.label}</span>
-                      <span>{fmt(i.amount)}</span>
-                    </div>
-                  ))}
-                  {selectedOptionIds.size > 0 && (
-                    <div className="flex justify-between py-1.5 text-sm">
-                      <span>Options choisies à l'étape Scolarité ({selectedOptionIds.size})</span>
-                      <span>{fmt(optionTotal)}</span>
-                    </div>
-                  )}
+                ) : <p className="rounded border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">Aucune mensualité ou tranche n'est configurée pour ce forfait. Ajoutez les échéances dans Paramètres → Scolarité.</p>}
+                {familyDiscountEligible && <p className="text-xs text-blue-800">Réduction familiale « {familyDiscountRule.name} » incluse dans les montants affichés.</p>}
+              </section>
+              <section className="space-y-2">
+                <div><p className="text-sm font-medium">Tenue et autres options</p><p className="text-xs text-slate-500">Cochez les options que le parent souhaite régler avec l'inscription.</p></div>
+                {isLoadingOptions ? <p className="text-sm text-slate-500">Chargement des options…</p> : availableOptions.length > 0 ? (
+                  <div className="divide-y rounded border">
+                    {availableOptions.map((option) => <label key={option.id} className="flex cursor-pointer items-center gap-3 px-3 py-3 text-sm hover:bg-slate-50">
+                      <Checkbox checked={selectedOptionIds.has(option.id)} onCheckedChange={(checked) => setSelectedOptionIds((prev) => {
+                        const next = new Set(prev)
+                        if (checked === true) next.add(option.id)
+                        else next.delete(option.id)
+                        return next
+                      })} />
+                      <span className="flex-1">{option.name}</span><span className="font-semibold">{fmt(option.amount)}</span>
+                    </label>)}
+                  </div>
+                ) : <p className="text-sm text-slate-500">Aucune option active configurée.</p>}
+              </section>
+              <section className="rounded border border-blue-200 bg-blue-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-900">Récapitulatif du montant sélectionné</p>
+                <div className="mt-2 space-y-2 text-sm">
+                  <div className="flex justify-between gap-3"><span>Inscription</span><span>{waiveRegistration || fundingSource === "other" ? fmt(0) : selectedOrganizationId ? "Convention" : fmt(effectiveRegistrationFee)}</span></div>
+                  {selectedPlan.payment_mode === "single" && paySingleTuitionNow && <div className="flex justify-between gap-3"><span>Scolarité annuelle</span><span>{fmt(Math.max(0, Number(selectedPlan.annual_tuition) - familyDiscountForAmount(Number(selectedPlan.annual_tuition))) )}</span></div>}
+                  {selectedPlan.payment_mode !== "single" && installments.filter((item) => selectedInstallmentIds.has(item.id)).map((item) => <div key={item.id} className="flex justify-between gap-3"><span>{item.label}</span><span>{fmt(Math.max(0, Number(item.amount) - familyDiscountForAmount(Number(item.amount))))}</span></div>)}
+                  {availableOptions.filter((option) => selectedOptionIds.has(option.id)).map((option) => <div key={option.id} className="flex justify-between gap-3"><span>{option.name}</span><span>{fmt(option.amount)}</span></div>)}
                 </div>
-                <div className="flex justify-between px-3 py-2 border-t font-semibold text-sm">
-                  <span>Total</span>
-                  <span>{fmt(totalNow)}</span>
-                </div>
-              </div>
+                <div className="mt-3 flex items-center justify-between gap-3 border-t border-blue-200 pt-3"><span className="text-sm font-semibold text-blue-950">Total estimé à régler</span><span className="text-lg font-bold text-blue-950">{selectedOrganizationId ? "À calculer selon convention" : fmt(totalNow)}</span></div>
+                <p className="mt-2 text-xs text-blue-900">Cette sélection prépare le règlement. Elle ne constitue pas un reçu : tout paiement réellement encaissé doit être confirmé dans Finance.</p>
+              </section>
+              {selectedOrganizationId && <p className="text-xs text-slate-600">La répartition finale entre l'organisme et la famille dépend des règles de couverture configurées.</p>}
             </div>
           )}
-
           {step === 4 && !selectedPlan && (
             <div className="space-y-3">
               <h3 className="font-medium text-sm border-b pb-2">Paiement</h3>

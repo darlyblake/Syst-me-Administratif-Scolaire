@@ -42,6 +42,45 @@ export const financeService = {
     return (data ?? []) as any[];
   },
 
+  // Indicateurs opérationnels du tableau de bord scolaire.
+  async getSchoolDashboardSummary(establishmentId: string, academicYearId: string, today: string, monthStart: string) {
+    const [classes, teachers, staff, staffAttendance, pendingEnrollments, attendance, revenue] = await Promise.all([
+      supabaseBrowser.from("school_classes").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("active", true),
+      supabaseBrowser.from("teachers").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("active", true),
+      supabaseBrowser.from("staff_members").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("active", true),
+      supabaseBrowser.from("staff_attendance").select("staff_type, staff_id, status").eq("establishment_id", establishmentId).eq("attendance_date", today),
+      supabaseBrowser.from("enrollments").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("academic_year_id", academicYearId).eq("status", "pending"),
+      supabaseBrowser.from("attendance_records").select("status").eq("establishment_id", establishmentId).eq("attendance_date", today),
+      supabaseBrowser.rpc("finance_movement_summary", { p_establishment_id: establishmentId, p_from: monthStart, p_to: today, p_direction: "credit" }),
+    ]);
+
+    const results = [classes, teachers, staff, staffAttendance, pendingEnrollments, attendance, revenue];
+    const failed = results.find((result) => result.error);
+    if (failed?.error) throw new Error("Impossible de charger tous les indicateurs du tableau de bord.");
+
+    const attendanceRows = staffAttendance.data ?? [];
+    const presentStaff = new Set(
+      attendanceRows
+        .filter((row: any) => ["present", "late"].includes(String(row.status).toLowerCase()))
+        .map((row: any) => `${row.staff_type}:${row.staff_id}`),
+    );
+    const attendanceStatuses = (attendance.data ?? []).map((row: any) => String(row.status).toLowerCase());
+    const revenueRow = Array.isArray(revenue.data) ? revenue.data[0] : revenue.data;
+
+    return {
+      activeClasses: classes.count ?? 0,
+      activeTeachers: teachers.count ?? 0,
+      activeStaff: (staff.count ?? 0) + (teachers.count ?? 0),
+      staffPresent: presentStaff.size,
+      staffAttendanceRecorded: attendanceRows.length,
+      pendingEnrollments: pendingEnrollments.count ?? 0,
+      absences: attendanceStatuses.filter((status) => status === "absent").length,
+      lateArrivals: attendanceStatuses.filter((status) => status === "late").length,
+      justifiedAbsences: attendanceStatuses.filter((status) => status === "justified").length,
+      monthlyReceipts: Number(revenueRow?.total_in ?? 0),
+    };
+  },
+
   // Échéances de la famille réellement dépassées pour le tableau de bord.
   async getOverdueSchedules(establishmentId: string, academicYearId: string, today: string) {
     const { data, error } = await supabaseBrowser

@@ -8,7 +8,6 @@ import {
   ReceiptText, School, UserPlus, Users
 } from "lucide-react"
 import { financeService } from "@/lib/supabase/services/finance.service"
-import { serviceEvenements } from "@/services/evenements.service"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { useEnrollments } from "@/hooks/useEnrollments"
@@ -30,17 +29,9 @@ export default function PageTableauBord() {
   const [dashboardSummary, setDashboardSummary] = useState<any | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(false)
   const [dashboardError, setDashboardError] = useState<string | null>(null)
-  const [evenements, setEvenements] = useState<any[]>([])
   const [overdueSchedules, setOverdueSchedules] = useState<any[]>([])
   const [overdueLoading, setOverdueLoading] = useState(false)
   const [overdueError, setOverdueError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const events = serviceEvenements
-      .obtenirTousLesEvenements()
-      .sort((a, b) => new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime())
-    setEvenements(events.slice(0, 6))
-  }, [])
 
   useEffect(() => {
     if (!establishmentId || !activeYear?.id) {
@@ -99,6 +90,8 @@ export default function PageTableauBord() {
   }), [overdueSchedules])
 
   const indicatorsLoading = academicYearLoading || dashboardLoading
+  const evenements = dashboardSummary?.upcomingEvents ?? []
+  const activitesRecentes = dashboardSummary?.recentActivity ?? []
 
   const dateLabel = useMemo(
     () => new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Libreville" }),
@@ -293,12 +286,12 @@ export default function PageTableauBord() {
           </div>
 
           <div className="divide-y divide-[#c5c5d3]/45">
-            {evenements.length ? evenements.map((event, index) => (
+            {activitesRecentes.length ? activitesRecentes.map((event: any, index: number) => (
               <div key={event.id ?? index} className="flex items-start gap-3 px-3 py-2.5">
                 <span className="mt-0.5 w-10 shrink-0 font-mono text-[11px] text-[#515f74]">{String(index + 1).padStart(2, "0")}</span>
                 <div className="min-w-0">
-                  <p className="text-[12px] font-semibold text-[#131b2e]">{event.titre}</p>
-                  <p className="mt-0.5 text-[11px] leading-4 text-[#515f74]">{event.description ?? "Opération enregistrée dans l'établissement."}</p>
+                  <p className="text-[12px] font-semibold text-[#131b2e]">{String(event.action || "Opération enregistrée").replace(/[._]/g, " ")}</p>
+                  <p className="mt-0.5 text-[11px] leading-4 text-[#515f74]">{event.entity_type ? "Élément concerné : " + event.entity_type : "Opération enregistrée dans l'établissement."}</p>
                 </div>
               </div>
             )) : (
@@ -307,7 +300,7 @@ export default function PageTableauBord() {
           </div>
 
           <Link href="/ecole/evenements" className="flex items-center justify-center gap-1 border-t border-[#c5c5d3]/55 px-3 py-2 text-[11px] font-medium text-[#00236f] hover:bg-[#f2f3ff]">
-            Consulter le journal d'activité complet <ArrowRight className="h-3.5 w-3.5" />
+            Ouvrir les événements scolaires <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
@@ -317,12 +310,12 @@ export default function PageTableauBord() {
               <CalendarDays className="h-[17px] w-[17px] text-[#515f74]" strokeWidth={1.8} />
               Calendrier institutionnel
             </h2>
-            <span className="text-[11px] text-[#515f74]">{evenements.length ? `${evenements.length} événement(s)` : "Aucun événement"}</span>
+            <span className="text-[11px] text-[#515f74]">{(dashboardSummary?.upcomingEventsCount ?? 0) + " événement(s) à venir"}</span>
           </div>
 
           <div className="divide-y divide-[#c5c5d3]/45">
-            {evenements.slice(0, 3).map((event, index) => {
-              const date = event.date ? new Date(event.date) : null
+            {evenements.slice(0, 3).map((event: any, index: number) => {
+              const date = event.starts_at ? new Date(event.starts_at) : null
               return (
                 <div key={event.id ?? index} className="flex gap-3 px-3 py-3">
                   <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded border border-[#c5c5d3]/60 bg-[#f2f3ff]">
@@ -330,13 +323,13 @@ export default function PageTableauBord() {
                     <span className="text-[16px] font-semibold text-[#00236f]">{date ? date.getDate() : "—"}</span>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[12px] font-semibold text-[#131b2e]">{event.titre}</p>
+                    <p className="text-[12px] font-semibold text-[#131b2e]">{event.title}</p>
                     <p className="mt-0.5 text-[11px] leading-4 text-[#515f74]">{event.description ?? "Événement institutionnel"}</p>
                   </div>
                 </div>
               )
             })}
-            {!evenements.length && <div className="px-3 py-5 text-[12px] text-[#515f74]">Aucun événement institutionnel planifié.</div>}
+            {!evenements.length && <div className="px-3 py-5 text-[12px] text-[#515f74]">Aucun événement institutionnel à venir pour cette année scolaire.</div>}
           </div>
 
           <Link href="/ecole/evenements" className="flex items-center justify-center gap-1 border-t border-[#c5c5d3]/55 px-3 py-2 text-[11px] font-medium text-[#00236f] hover:bg-[#f2f3ff]">

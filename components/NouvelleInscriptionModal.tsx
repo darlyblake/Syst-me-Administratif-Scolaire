@@ -192,11 +192,13 @@ export default function NouvelleInscriptionModal({
   // apparaissent ici. Une exonération/prise en charge ne doit pas être réclamée au parent.
   // Calculer uniquement les montants réellement dus par la famille.
   // Une exonération partielle ne doit pas effacer les autres frais encore dus.
-  const registrationDue = fundingSource === "family" && !waiveRegistration ? effectiveRegistrationFee : 0
-  const tuitionDue = fundingSource === "family" && !waiveTuition ? installmentTotal : 0
-  // Les options choisies restent à la charge de la famille, même si la scolarité
-  // ou les frais d'inscription sont exonérés / pris en charge par un organisme.
-  const optionsDue = optionTotal
+  const canPayDuringEnrollment = fundingSource === "family" && !waiveRegistration && !waiveTuition
+    && !selectedSibling && !selectedFamilyId && !selectedOrganizationId
+  const registrationDue = canPayDuringEnrollment ? effectiveRegistrationFee : 0
+  const tuitionDue = canPayDuringEnrollment ? installmentTotal : 0
+  // Les options sont sélectionnées une seule fois dans Scolarité. Elles ne sont
+  // comptées comme paiement immédiat que dans le parcours de paiement classique.
+  const optionsDue = canPayDuringEnrollment ? optionTotal : 0
   const totalNow = registrationDue + tuitionDue + optionsDue
   const familyDiscountEligible = !!(selectedSibling || selectedFamilyId) && applyFamilyDiscount && !!familyDiscountRule
     && familyDiscountChildrenCount >= Number(familyDiscountRule.min_children ?? 2)
@@ -1487,11 +1489,13 @@ export default function NouvelleInscriptionModal({
                 <div className="border rounded bg-slate-50 p-3 text-sm text-slate-700">
                   <p className="font-medium">Aucun paiement à encaisser maintenant</p>
                   <p className="mt-1 text-xs text-slate-600">
-                    {fundingSource === "other"
-                      ? "Les frais d'inscription et de scolarité sont exonérés."
+                    {selectedSibling || selectedFamilyId
+                      ? "Les échéances sont rattachées à l'inscription. Les règlements pourront ensuite être enregistrés dans Finance."
                       : selectedOrganizationId
                         ? "La part de l’organisme et le solde familial seront calculés selon les règles de couverture configurées."
-                        : "Les frais exonérés ne seront pas réclamés maintenant."}
+                        : fundingSource === "other"
+                          ? "Les frais d'inscription et de scolarité sont exonérés."
+                          : "Aucun paiement immédiat n'a été sélectionné."}
                     {" "}Aucun paiement ne sera enregistré automatiquement.
                   </p>
                   {selectedOptionIds.size > 0 && (

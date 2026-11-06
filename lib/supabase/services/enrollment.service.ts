@@ -94,8 +94,9 @@ export async function createStudentEnrollmentWithSchedule(data: {
   organizationId?: string | null
   familyName?: string | null
   applyFamilyDiscount?: boolean
+  familyId?: string | null
 }): Promise<StudentEnrollmentResult> {
-  const rpcName = data.relatedStudentId || data.organizationId
+  const rpcName = data.relatedStudentId || data.organizationId || data.familyId
     ? "create_student_enrollment_with_family_funding"
     : "create_student_enrollment_with_funding"
   const rpcArgs: Record<string, unknown> = {
@@ -125,6 +126,7 @@ export async function createStudentEnrollmentWithSchedule(data: {
     rpcArgs.p_organization_id = data.organizationId || null
     rpcArgs.p_family_name = data.familyName?.trim() || null
     rpcArgs.p_apply_family_discount = data.applyFamilyDiscount ?? false
+    rpcArgs.p_family_id = data.familyId || null
   }
   const { data: result, error } = await supabaseBrowser.rpc(rpcName, rpcArgs)
 

@@ -23,6 +23,13 @@ type FamilyMember = {
   first_name: string
   last_name: string
   student_number: string | null
+  guardian_first_name: string | null
+  guardian_last_name: string | null
+  guardian_phone: string | null
+  guardian_email: string | null
+  guardian_address: string | null
+  guardian_relationship: string | null
+  discount_plan_names: string[]
 }
 type StudentResult = {
   id: string
@@ -85,13 +92,42 @@ export default function FamillesPage() {
       if (error) throw error
       const ids = (links ?? []).map((link: any) => link.student_id)
       const { data: students, error: studentsError } = ids.length
-        ? await supabaseBrowser.from("students").select("id,first_name,last_name,student_number")
+        ? await supabaseBrowser.from("students")
+            .select("id,first_name,last_name,student_number,guardian_first_name,guardian_last_name,guardian_phone,guardian_email,guardian_address,guardian_relationship")
             .eq("establishment_id", establishmentId).in("id", ids)
         : { data: [], error: null }
       if (studentsError) throw studentsError
+
+      // Le plan affiché provient de la dernière inscription de chaque élève.
+      const { data: enrollments, error: enrollmentsError } = ids.length
+        ? await supabaseBrowser.from("enrollments")
+            .select("id,student_id,created_at")
+            .eq("establishment_id", establishmentId).in("student_id", ids)
+            .order("created_at", { ascending: false })
+        : { data: [], error: null }
+      if (enrollmentsError) throw enrollmentsError
+      const latestEnrollmentByStudent = new Map<string, string>()
+      for (const enrollment of enrollments ?? []) {
+        if (!latestEnrollmentByStudent.has(enrollment.student_id)) {
+          latestEnrollmentByStudent.set(enrollment.student_id, enrollment.id)
+        }
+      }
+      const latestEnrollmentIds = Array.from(latestEnrollmentByStudent.values())
+      const { data: discountSnapshots, error: discountsError } = latestEnrollmentIds.length
+        ? await supabaseBrowser.from("enrollment_discount_snapshots")
+            .select("enrollment_id,rule_name")
+            .eq("establishment_id", establishmentId).in("enrollment_id", latestEnrollmentIds)
+        : { data: [], error: null }
+      if (discountsError) throw discountsError
+
       setMembers((links ?? []).flatMap((link: any) => {
         const student = (students ?? []).find((row: any) => row.id === link.student_id)
-        return student ? [{ ...link, ...student }] : []
+        if (!student) return []
+        const enrollmentId = latestEnrollmentByStudent.get(student.id)
+        const planNames = Array.from(new Set((discountSnapshots ?? [])
+          .filter((snapshot: any) => snapshot.enrollment_id === enrollmentId && snapshot.rule_name)
+          .map((snapshot: any) => snapshot.rule_name as string)))
+        return [{ ...link, ...student, discount_plan_names: planNames }]
       }))
     } catch (error) {
       console.error("Chargement des membres impossible", error)
@@ -324,6 +360,33 @@ export default function FamillesPage() {
                 <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-[#64748b]" /><div><p className="text-[11px] uppercase tracking-wide text-[#64748b]">Créée le</p><p className="text-sm font-medium">{selectedFamily.created_at ? new Date(selectedFamily.created_at).toLocaleDateString("fr-FR") : "—"}</p></div></div>
               </div>
 
+              <section className="space-y-3">
+                <h3 className="font-semibold">Informations des parents / responsables</h3>
+                {(() => {
+                  const contacts = Array.from(new Map(members
+                    .filter((member) => member.guardian_first_name || member.guardian_last_name || member.guardian_phone || member.guardian_email || member.guardian_address)
+                    .map((member) => {
+                      const key = [member.guardian_first_name, member.guardian_last_name, member.guardian_phone, member.guardian_email].map((value) => (value ?? "").trim().toLowerCase()).join("|")
+                      return [key, member] as const
+                    })).values())
+                  return contacts.length ? (
+                    <div className="divide-y divide-[#e5e7eb] border-y border-[#e5e7eb]">
+                      {contacts.map((contact, index) => (
+                        <div key={contact.student_id + "-" + index} className="space-y-1 py-3">
+                          <p className="text-sm font-medium">{[contact.guardian_first_name, contact.guardian_last_name].filter(Boolean).join(" ") || "Responsable sans nom"}</p>
+                          <div className="grid gap-x-5 gap-y-1 text-xs text-[#64748b] sm:grid-cols-2">
+                            {contact.guardian_relationship && <p>Lien : {contact.guardian_relationship}</p>}
+                            {contact.guardian_phone && <p>Téléphone : {contact.guardian_phone}</p>}
+                            {contact.guardian_email && <p>E-mail : {contact.guardian_email}</p>}
+                            {contact.guardian_address && <p className="sm:col-span-2">Adresse : {contact.guardian_address}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <p className="border-y border-dashed border-[#d7dce5] py-4 text-sm text-[#64748b]">Aucune information parentale n’est renseignée dans les dossiers des élèves rattachés.</p>
+                })()}
+              </section>
+
               <div>
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <h3 className="font-semibold">Membres de la famille</h3>
@@ -333,7 +396,13 @@ export default function FamillesPage() {
                   <div className="divide-y divide-[#e5e7eb] border-y border-[#e5e7eb]">
                     {members.map((member) => (
                       <div key={member.id} className="flex items-center justify-between gap-3 py-3">
-                        <div className="min-w-0"><p className="truncate text-sm font-medium">{member.first_name} {member.last_name}</p><p className="text-xs text-[#64748b]">Matricule : {member.student_number || "—"} · {member.relationship === "frere" ? "Frère" : member.relationship === "soeur" ? "Sœur" : "Autre"}</p></div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{member.first_name} {member.last_name}</p>
+                          <p className="text-xs text-[#64748b]">Matricule : {member.student_number || "—"} · {member.relationship === "frere" ? "Frère" : member.relationship === "soeur" ? "Sœur" : "Autre"}</p>
+                          {member.discount_plan_names.length > 0 ? (
+                            <p className="mt-1 text-xs text-[#1e3a8a]">Plan de réduction : {member.discount_plan_names.join(", ")}</p>
+                          ) : <p className="mt-1 text-xs text-[#94a3b8]">Aucun plan de réduction associé</p>}
+                        </div>
                         <Button size="sm" variant="ghost" disabled={saving} onClick={() => void removeStudent(member)} className="shrink-0 gap-1 text-[#9f2929] hover:bg-[#fff0f0]"><UserMinus className="h-4 w-4" /><span className="hidden sm:inline">Retirer</span></Button>
                       </div>
                     ))}

@@ -177,27 +177,6 @@ export default function NouvelleInscriptionModal({
   const effectiveRegistrationFee = applicablePromotion?.finalAmount ?? registrationFee
   const promotionSaving = Math.max(0, registrationFee - effectiveRegistrationFee)
 
-  // Total en temps réel
-  const installmentTotal = selectedPlan?.payment_mode === "single"
-    ? (paySingleTuitionNow ? selectedPlan.annual_tuition : 0)
-    : installments
-        .filter((i) => selectedInstallmentIds.has(i.id))
-        .reduce((sum, i) => sum + i.amount, 0)
-
-  const optionTotal = availableOptions
-    .filter((o) => selectedOptionIds.has(o.id))
-    .reduce((sum, o) => sum + o.amount, 0)
-
-  // Seules les sommes réellement prévues pour un encaissement immédiat familial
-  // apparaissent ici. Une exonération/prise en charge ne doit pas être réclamée au parent.
-  // Calculer uniquement les montants réellement dus par la famille.
-  // Une exonération partielle ne doit pas effacer les autres frais encore dus.
-  // Le total de la sélection reste visible pour les familles liées également.
-  // La part d'un organisme est exclue tant que sa convention n'a pas été calculée.
-  const registrationDue = fundingSource === "other" || waiveRegistration || selectedOrganizationId ? 0 : effectiveRegistrationFee
-  const tuitionDue = fundingSource === "other" || waiveTuition || selectedOrganizationId ? 0 : installmentTotal
-  const optionsDue = fundingSource === "other" || selectedOrganizationId ? 0 : optionTotal
-  const totalNow = registrationDue + tuitionDue + optionsDue
   const familyDiscountEligible = !!(selectedSibling || selectedFamilyId) && applyFamilyDiscount && !!familyDiscountRule
     && familyDiscountChildrenCount >= Number(familyDiscountRule.min_children ?? 2)
     && (familyDiscountRule.max_children == null || familyDiscountChildrenCount <= Number(familyDiscountRule.max_children))
@@ -207,6 +186,25 @@ export default function NouvelleInscriptionModal({
       ? Math.round(amount * Number(familyDiscountRule.discount_value)) / 100
       : Math.min(amount, Number(familyDiscountRule.discount_value))
   }
+
+  // Total en temps réel : les échéances cochées sont calculées après réduction familiale.
+  const installmentTotal = selectedPlan?.payment_mode === "single"
+    ? (paySingleTuitionNow ? Math.max(0, Number(selectedPlan.annual_tuition) - familyDiscountForAmount(Number(selectedPlan.annual_tuition))) : 0)
+    : installments
+        .filter((i) => selectedInstallmentIds.has(i.id))
+        .reduce((sum, i) => sum + Math.max(0, Number(i.amount) - familyDiscountForAmount(Number(i.amount))), 0)
+
+  const optionTotal = availableOptions
+    .filter((o) => selectedOptionIds.has(o.id))
+    .reduce((sum, o) => sum + o.amount, 0)
+
+  // Le total de la sélection reste visible pour les familles liées également.
+  // La part d'un organisme est exclue tant que sa convention n'a pas été calculée.
+  const registrationDue = fundingSource === "other" || waiveRegistration || selectedOrganizationId ? 0 : effectiveRegistrationFee
+  const tuitionDue = fundingSource === "other" || waiveTuition || selectedOrganizationId ? 0 : installmentTotal
+  const optionsDue = fundingSource === "other" || selectedOrganizationId ? 0 : optionTotal
+  const totalNow = registrationDue + tuitionDue + optionsDue
+
   const familyDiscountBaseAmounts = selectedPlan?.payment_mode === "single"
     ? [Number(selectedPlan.annual_tuition) || 0]
     : installments.length > 0 ? installments.map((item) => Number(item.amount) || 0) : [Number(selectedPlan?.annual_tuition) || 0]

@@ -44,6 +44,8 @@ export const financeService = {
 
   // Indicateurs opérationnels du tableau de bord scolaire.
   async getSchoolDashboardSummary(establishmentId: string, academicYearId: string, today: string, monthStart: string) {
+    const activitySince = new Date(today + "T00:00:00+01:00");
+    activitySince.setDate(activitySince.getDate() - 30);
     const [classes, teachers, staff, staffAttendance, pendingEnrollments, attendance, revenue] = await Promise.all([
       supabaseBrowser.from("school_classes").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("active", true),
       supabaseBrowser.from("teachers").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("active", true),
@@ -53,7 +55,7 @@ export const financeService = {
       supabaseBrowser.from("attendance_records").select("status").eq("establishment_id", establishmentId).eq("attendance_date", today),
       supabaseBrowser.rpc("finance_movement_summary", { p_establishment_id: establishmentId, p_from: monthStart, p_to: today, p_direction: "credit" }),
       supabaseBrowser.from("school_events").select("id, title, description, event_type, starts_at, ends_at, location", { count: "exact" }).eq("establishment_id", establishmentId).eq("academic_year_id", academicYearId).gte("starts_at", today + "T00:00:00+01:00").order("starts_at", { ascending: true }).limit(6),
-      supabaseBrowser.from("audit_logs").select("id, action, entity_type, created_at").eq("establishment_id", establishmentId).order("created_at", { ascending: false }).limit(6),
+      supabaseBrowser.from("audit_logs").select("id, action, entity_type, created_at").eq("establishment_id", establishmentId).gte("created_at", activitySince.toISOString()).order("created_at", { ascending: false }).limit(6),
     ]);
 
     const results = [classes, teachers, staff, staffAttendance, pendingEnrollments, attendance, revenue, schoolEvents, auditLogs];

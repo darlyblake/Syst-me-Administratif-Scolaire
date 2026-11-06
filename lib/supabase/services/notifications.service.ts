@@ -17,6 +17,8 @@ export interface NotificationRecord {
   recipient_id?: string | null
   establishment_id?: string | null
   status?: string | null
+  entity_type?: string | null
+  entity_id?: string | null
 }
 
 export interface NotificationPage {

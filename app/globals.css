@@ -1282,13 +1282,13 @@
 .ecole-shell [class*="hover:bg-slate-50"]:hover {
   background-color: #f2f3ff !important;
 }
-.ecole-shell [class*="bg-primary"] {
+.ecole-shell [data-state="checked"][class*="bg-primary"] {
   background-color: #00236f !important;
 }
-.ecole-shell [class*="text-primary"] {
+.ecole-shell [data-state="checked"][class*="text-primary"] {
   color: #00236f !important;
 }
-.ecole-shell [class*="border-primary"] {
+.ecole-shell [data-state="checked"][class*="border-primary"] {
   border-color: #00236f !important;
 }
 .ecole-shell .rounded-xl,

@@ -1255,7 +1255,7 @@ export default function NouvelleInscriptionModal({
                         </div>
                       )})}
                     </div>
-                  ) : <p className="border-t py-2 text-xs text-amber-700">Les échéances mensuelles seront générées à partir du forfait lors de l'enregistrement de l'inscription.</p>}
+                  ) : <p className="border-t py-2 text-xs text-amber-700">Aucune échéance n'est configurée pour ce forfait. Ajoutez les échéances dans Paramètres → Scolarité avant de valider l'inscription.</p>}
                 </div>
                 {selectedOptionIds.size > 0 && <div className="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span>Options sélectionnées à l'étape Scolarité</span><span className="font-medium">{fmt(optionTotal)}</span></div>}
               </div>
@@ -1314,9 +1314,7 @@ export default function NouvelleInscriptionModal({
                   <>
                     {installments.length === 0 ? (
                       <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-                        {selectedPlan.payment_mode === "monthly"
-                          ? "Ce plan mensuel n'a pas encore d'échéances générées. Les échéances sont créées automatiquement lors de l'inscription."
-                          : "Aucune échéance configurée pour ce plan. Configurez les tranches dans Paramètres → Scolarité."}
+                        "Aucune échéance n'est configurée pour ce forfait. Ajoutez les échéances dans Paramètres → Scolarité avant de valider l'inscription."
                       </p>
                     ) : (
                       <div className="border rounded divide-y text-sm">

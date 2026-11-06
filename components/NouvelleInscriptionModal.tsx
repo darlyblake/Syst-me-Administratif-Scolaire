@@ -385,6 +385,7 @@ export default function NouvelleInscriptionModal({
   // ─── Sélection d’un frère / d’une sœur et récupération de la famille ────────
   const handleSelectSibling = async (candidate: FamilySiblingCandidate) => {
     setSelectedSibling(candidate)
+    setSiblingRelationship("frere")
     setSelectedFamilyForSearch(null)
     setSelectedFamilyId(null)
     setFamilyNameSearch("")
@@ -879,12 +880,12 @@ export default function NouvelleInscriptionModal({
                       onChange={(e) => { setFamilyName(e.target.value); setFamilyNameSearch(e.target.value); setSelectedFamilyForSearch(null); setSelectedFamilyId(null) }}
                       placeholder="Ex. Famille MOUEMBANZA"
                     />
-                    <p className="mt-1 text-xs text-slate-500">Saisissez le nom pour retrouver une famille déjà enregistrée et ses enfants.</p>
+                    <p className="mt-1 text-xs text-slate-500">Recherchez une famille déjà enregistrée, même si aucun élève n’y est encore rattaché.</p>
                   </div>
                   {!selectedFamilyForSearch && familyNameSearch.trim().length >= 2 && familyMatches.length > 0 && (
                     <div className="divide-y border">
                       {familyMatches.map((family) => (
-                        <button key={family.id} type="button" onClick={() => { setSelectedFamilyForSearch(family); setSelectedFamilyId(family.id); setFamilyName(family.display_name) }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50">
+                        <button key={family.id} type="button" onClick={() => { setSelectedFamilyForSearch(family); setSelectedFamilyId(family.id); setSiblingRelationship("autre"); setFamilyName(family.display_name) }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50">
                           <span><span className="block text-sm font-medium">{family.display_name}</span><span className="block text-xs text-slate-500">{family.children.length} enfant(s) · {family.family_code}</span></span>
                           <span className="text-xs font-medium text-[#00236f]">Voir les enfants</span>
                         </button>

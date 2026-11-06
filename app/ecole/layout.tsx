@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Bell, ChevronDown, Menu, UserCircle } from "lucide-react"
+import { ChevronDown, Menu, UserCircle } from "lucide-react"
+import NotificationBell from "@/components/notifications/NotificationBell"
 import type React from "react"
 import Sidebar from "@/components/Sidebar"
 import { PermissionRoute } from "@/components/auth/PermissionRoute"
@@ -40,14 +41,7 @@ export default function EcoleLayout({ children }: Readonly<{ children: React.Rea
                   <span className="text-[11px] text-[#515f74]">(En cours)</span>
                 </div>
 
-                <button
-                  type="button"
-                  aria-label="Notifications"
-                  className="relative flex h-8 w-8 items-center justify-center rounded text-[#444651] hover:bg-[#f2f3ff]"
-                >
-                  <Bell className="h-[18px] w-[18px]" strokeWidth={1.8} />
-                  <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[#ba1a1a]" />
-                </button>
+                <NotificationBell />
 
                 <div className="hidden items-center gap-2 border-l border-[#c5c5d3]/50 pl-3 sm:flex">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#00236f] text-white">

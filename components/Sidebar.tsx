@@ -73,7 +73,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
     { section: "Scolarité", items: [
       { href: "/ecole/students", label: "Élèves", icon: School, permission: "students.view" },
       { href: "/ecole/inscriptions/transfert?mode=review", label: "Transferts d’élèves", icon: ArrowRightLeft, permission: "students.view" },
-      { href: "/ecole/inscriptions", label: "Inscriptions", icon: ClipboardCheck, permission: "inscriptions.view" },
+      { href: "/ecole/inscriptions", label: "Inscriptions", icon: ClipboardCheck, permission: "inscriptions.view" },\n      { href: "/ecole/familles", label: "Familles", icon: Users, permission: "students.manage" },
       { href: "/ecole/classes", label: "Classes", icon: GraduationCap, permission: "classes.view" },
       { href: "/ecole/matieres", label: "Matières", icon: BookOpen, permission: "subjects.view" },
       { href: "/ecole/emploi-du-temps", label: "Emploi du temps", icon: CalendarDays, permission: "timetable.view" },

@@ -133,7 +133,7 @@ export default function PageTableauBord() {
         : dashboardError
           ? dashboardError
           : (dashboardSummary?.absences ?? 0) + (dashboardSummary?.lateArrivals ?? 0) > 0
-            ? (dashboardSummary?.absences ?? 0) + " absence(s) et " + (dashboardSummary?.lateArrivals ?? 0) + " retard(s) signalés aujourd'hui.",
+            ? (dashboardSummary?.absences ?? 0) + " absence(s) et " + (dashboardSummary?.lateArrivals ?? 0) + " retard(s) signalés aujourd'hui."
             : "Aucune absence ni aucun retard signalé aujourd'hui.",
       href: "/ecole/absences",
       action: "Traiter les absences",

@@ -52,9 +52,11 @@ export const financeService = {
       supabaseBrowser.from("enrollments").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("academic_year_id", academicYearId).eq("status", "pending"),
       supabaseBrowser.from("attendance_records").select("status").eq("establishment_id", establishmentId).eq("attendance_date", today),
       supabaseBrowser.rpc("finance_movement_summary", { p_establishment_id: establishmentId, p_from: monthStart, p_to: today, p_direction: "credit" }),
+      supabaseBrowser.from("school_events").select("id, title, description, event_type, starts_at, ends_at, location", { count: "exact" }).eq("establishment_id", establishmentId).eq("academic_year_id", academicYearId).gte("starts_at", today + "T00:00:00+01:00").order("starts_at", { ascending: true }).limit(6),
+      supabaseBrowser.from("audit_logs").select("id, action, entity_type, created_at").eq("establishment_id", establishmentId).order("created_at", { ascending: false }).limit(6),
     ]);
 
-    const results = [classes, teachers, staff, staffAttendance, pendingEnrollments, attendance, revenue];
+    const results = [classes, teachers, staff, staffAttendance, pendingEnrollments, attendance, revenue, schoolEvents, auditLogs];
     const failed = results.find((result) => result.error);
     if (failed?.error) throw new Error("Impossible de charger tous les indicateurs du tableau de bord.");
 
@@ -78,6 +80,9 @@ export const financeService = {
       lateArrivals: attendanceStatuses.filter((status) => status === "late").length,
       justifiedAbsences: attendanceStatuses.filter((status) => status === "justified").length,
       monthlyReceipts: Number(revenueRow?.total_in ?? 0),
+      upcomingEvents: schoolEvents.data ?? [],
+      upcomingEventsCount: schoolEvents.count ?? 0,
+      recentActivity: auditLogs.data ?? [],
     };
   },
 

@@ -895,12 +895,12 @@ export default function NouvelleInscriptionModal({
                   {selectedFamilyForSearch && (
                     <div className="space-y-2 rounded border border-blue-200 bg-blue-50 p-3">
                       <div className="flex items-center justify-between gap-2"><p className="text-sm font-medium text-blue-950">{selectedFamilyForSearch.display_name}</p><Button type="button" size="sm" variant="outline" onClick={() => { setSelectedFamilyForSearch(null); setSelectedFamilyId(null); setFamilyNameSearch(familyName) }}>Changer</Button></div>
-                      {selectedFamilyForSearch.children.length > 0 ? <p className="text-xs text-blue-900">Sélectionnez un enfant de cette famille pour confirmer le rattachement.</p> : <p className="text-xs text-blue-900">Cette famille ne contient pas encore d’élève. Le nouvel élève y sera rattaché lors de son inscription.</p>}
+                      {selectedFamilyForSearch.children.length > 0 ? <p className="text-xs text-blue-900">Le nouvel élève sera rattaché à cette famille. Vous pouvez sélectionner un enfant pour reprendre les coordonnées du parent.</p> : <p className="text-xs text-blue-900">Cette famille ne contient pas encore d’élève. Le nouvel élève y sera rattaché lors de son inscription.</p>}
                       {selectedFamilyForSearch.children.length > 0 && <div className="divide-y border border-blue-100 bg-white">
                         {selectedFamilyForSearch.children.map((child) => (
                           <button key={child.student_id} type="button" onClick={() => { void handleSelectSibling(child) }} className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-slate-50">
                             <span><span className="block text-sm font-medium">{child.first_name} {child.last_name}</span><span className="block text-xs text-slate-500">Matricule : {child.student_number || "—"}</span></span>
-                            <span className="text-xs font-medium text-[#00236f]">Associer</span>
+                            <span className="text-xs font-medium text-[#00236f]">Utiliser</span>
                           </button>
                         ))}
                       </div>}

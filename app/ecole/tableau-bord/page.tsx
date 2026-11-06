@@ -8,6 +8,7 @@ import {
   ReceiptText, School, UserPlus, Users
 } from "lucide-react"
 import { serviceStatistiques } from "@/services/statistiques.service"
+import { financeService } from "@/lib/supabase/services/finance.service"
 import { serviceEvenements } from "@/services/evenements.service"
 import type { StatistiquesTableauBord } from "@/types/models"
 import { useUserContext } from "@/hooks/useUserContext"
@@ -42,6 +43,9 @@ export default function PageTableauBord() {
     tauxPresenceEnseignants: 0,
   })
   const [evenements, setEvenements] = useState<any[]>([])
+  const [overdueSchedules, setOverdueSchedules] = useState<any[]>([])
+  const [overdueLoading, setOverdueLoading] = useState(false)
+  const [overdueError, setOverdueError] = useState<string | null>(null)
 
   useEffect(() => {
     setStatistiques(serviceStatistiques.calculerStatistiquesTableauBord())
@@ -55,6 +59,36 @@ export default function PageTableauBord() {
     if (!activeYear?.id || enrollmentCountLoading || enrollmentCountError) return
     setStatistiques((current) => ({ ...current, totalEleves: activeEnrollmentCount }))
   }, [activeYear?.id, activeEnrollmentCount, enrollmentCountLoading, enrollmentCountError])
+
+  useEffect(() => {
+    if (!establishmentId || !activeYear?.id) {
+      setOverdueSchedules([])
+      return
+    }
+
+    let active = true
+    setOverdueLoading(true)
+    setOverdueError(null)
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Libreville" })
+
+    void financeService.getOverdueSchedules(establishmentId, activeYear.id, today)
+      .then((rows) => { if (active) setOverdueSchedules(rows) })
+      .catch((error: any) => {
+        if (active) {
+          setOverdueSchedules([])
+          setOverdueError(error?.message || "Impossible de vérifier les échéances.")
+        }
+      })
+      .finally(() => { if (active) setOverdueLoading(false) })
+
+    return () => { active = false }
+  }, [establishmentId, activeYear?.id])
+
+  const overdueSummary = useMemo(() => ({
+    schedules: overdueSchedules.length,
+    students: new Set(overdueSchedules.map((row) => row.student_id)).size,
+    amount: overdueSchedules.reduce((sum, row) => sum + Number(row.remaining_amount || 0), 0),
+  }), [overdueSchedules])
 
   const dateLabel = useMemo(
     () => new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
@@ -73,9 +107,13 @@ export default function PageTableauBord() {
     {
       label: "Finance",
       tone: "finance",
-      text: statistiques.elevesImpayes > 0
-        ? `${statistiques.elevesImpayes} dossier(s) présentent un impayé à contrôler`
-        : "Aucun dossier impayé signalé.",
+      text: overdueLoading
+        ? "Vérification des échéances de l’année scolaire en cours…"
+        : overdueError
+          ? overdueError
+          : overdueSummary.schedules > 0
+            ? overdueSummary.schedules + " échéance(s) en retard pour " + overdueSummary.students + " élève(s) — " + money(overdueSummary.amount) + " restant dû."
+            : "Aucune échéance échue et impayée pour l’année scolaire en cours.",
       href: "/ecole/finance/paiements",
       action: "Consulter la liste",
     },
@@ -110,7 +148,7 @@ export default function PageTableauBord() {
     { label: "Enseignants", value: statistiques.totalEnseignants.toLocaleString("fr-FR"), note: `${statistiques.enseignantsPresents} présents`, icon: Users },
     { label: "Présence personnel", value: `${statistiques.tauxPresenceEnseignants.toFixed(1)}%`, note: "Service administratif & technique", icon: CheckCircle2 },
     { label: "Recettes du mois", value: money(statistiques.totalRecettes), note: "Encaissements scolarité", icon: CreditCard },
-    { label: "Impayés cumulés", value: statistiques.elevesImpayes.toLocaleString("fr-FR"), note: "Dossiers débiteurs", icon: AlertTriangle, danger: true },
+    { label: "Échéances en retard", value: overdueLoading ? "…" : overdueSummary.schedules.toLocaleString("fr-FR"), note: overdueLoading ? "Vérification…" : overdueSummary.students + " élève(s) concernés", icon: AlertTriangle, danger: overdueSummary.schedules > 0 },
     { label: "Absences du jour", value: absencesDuJourList.length.toLocaleString("fr-FR"), note: "Présences à contrôler", icon: CalendarDays },
     { label: "Inscriptions en attente", value: "—", note: "Dossiers à instruire", icon: ClipboardCheck },
   ]
@@ -185,6 +223,49 @@ export default function PageTableauBord() {
         </div>
       </section>
 
+      <section className="mt-3 overflow-hidden rounded border border-[#c5c5d3]/55 bg-white">
+        <div className="flex flex-col gap-1 border-b border-[#c5c5d3]/55 bg-[#fff1f0] px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-[14px] font-semibold text-[#93000a]">
+              <FileWarning className="h-4 w-4" /> Échéances de scolarité en retard
+            </h2>
+            <p className="text-[11px] text-[#7f1d1d]">Année scolaire active · Montants restant réellement à payer</p>
+          </div>
+          <Link href="/ecole/finance/paiements" className="inline-flex w-fit items-center gap-1 rounded border border-[#e5b8b5] bg-white px-2.5 py-1.5 text-[11px] font-medium text-[#93000a] hover:bg-[#fff7f6]">
+            Voir toutes les échéances <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        {overdueLoading ? (
+          <p className="px-3 py-4 text-[12px] text-[#515f74]">Chargement des échéances en retard…</p>
+        ) : overdueError ? (
+          <p className="px-3 py-4 text-[12px] text-red-700">{overdueError}</p>
+        ) : overdueSchedules.length === 0 ? (
+          <p className="px-3 py-4 text-[12px] text-[#515f74]">Aucune échéance en retard détectée pour cette année scolaire.</p>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-x-5 gap-y-1 border-b border-[#c5c5d3]/45 px-3 py-2 text-[11px]">
+              <span><strong className="text-[#93000a]">{overdueSummary.schedules}</strong> échéance(s)</span>
+              <span><strong className="text-[#93000a]">{overdueSummary.students}</strong> élève(s)</span>
+              <span className="font-semibold text-[#93000a]">{money(overdueSummary.amount)} à recouvrer</span>
+            </div>
+            <div className="divide-y divide-[#c5c5d3]/40">
+              {overdueSchedules.slice(0, 6).map((row) => (
+                <div key={row.schedule_id} className="flex flex-col gap-1 px-3 py-2 sm:flex-row sm:items-center sm:gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] font-semibold text-[#131b2e]">{row.last_name || ""} {row.first_name || ""}</p>
+                    <p className="text-[11px] text-[#515f74]">{row.class_name || "Classe non renseignée"} · {row.label} · échéance du {new Date(row.due_date).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric", timeZone: "Africa/Libreville" })}</p>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 sm:justify-end">
+                    <span className="text-[10px] font-medium text-[#93000a]">{Math.max(0, Number(row.days_overdue) || 0)} jour(s) de retard</span>
+                    <strong className="text-[12px] tabular-nums text-[#93000a]">{money(Number(row.remaining_amount || 0))}</strong>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {overdueSchedules.length > 6 && <p className="border-t border-[#c5c5d3]/45 px-3 py-2 text-[11px] text-[#515f74]">Et {overdueSchedules.length - 6} autre(s) échéance(s) en retard dans le suivi financier.</p>}
+          </>
+        )}
+      </section>
       <section className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div className="overflow-hidden rounded border border-[#c5c5d3]/55 bg-white">
           <div className="flex items-center justify-between border-b border-[#c5c5d3]/55 bg-[#f2f3ff] px-3 py-2">

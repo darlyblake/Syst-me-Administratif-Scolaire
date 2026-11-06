@@ -46,7 +46,7 @@ export const financeService = {
   async getSchoolDashboardSummary(establishmentId: string, academicYearId: string, today: string, monthStart: string) {
     const activitySince = new Date(today + "T00:00:00+01:00");
     activitySince.setDate(activitySince.getDate() - 30);
-    const [classes, teachers, staff, staffAttendance, pendingEnrollments, attendance, revenue] = await Promise.all([
+    const [classes, teachers, staff, staffAttendance, pendingEnrollments, attendance, revenue, schoolEvents, auditLogs] = await Promise.all([
       supabaseBrowser.from("school_classes").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("active", true),
       supabaseBrowser.from("teachers").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("active", true),
       supabaseBrowser.from("staff_members").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("active", true),

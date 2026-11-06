@@ -104,6 +104,9 @@ export default function NouvelleInscriptionModal({
   const [selectedFamilyForSearch, setSelectedFamilyForSearch] = useState<FamilySearchResult | null>(null)
   const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null)
   const [applyFamilyDiscount, setApplyFamilyDiscount] = useState(true)
+  const [familyDiscountRule, setFamilyDiscountRule] = useState<any | null>(null)
+  const [familyDiscountChildrenCount, setFamilyDiscountChildrenCount] = useState(0)
+  const [familyDiscountLoading, setFamilyDiscountLoading] = useState(false)
   const [siblingSearch, setSiblingSearch] = useState("")
   const [siblingCandidates, setSiblingCandidates] = useState<FamilySiblingCandidate[]>([])
   const [selectedSibling, setSelectedSibling] = useState<FamilySiblingCandidate | null>(null)
@@ -195,6 +198,20 @@ export default function NouvelleInscriptionModal({
   // ou les frais d'inscription sont exonérés / pris en charge par un organisme.
   const optionsDue = optionTotal
   const totalNow = registrationDue + tuitionDue + optionsDue
+  const familyDiscountEligible = !!(selectedSibling || selectedFamilyId) && applyFamilyDiscount && !!familyDiscountRule
+    && familyDiscountChildrenCount >= Number(familyDiscountRule.min_children ?? 2)
+    && (familyDiscountRule.max_children == null || familyDiscountChildrenCount <= Number(familyDiscountRule.max_children))
+  const familyDiscountForAmount = (amount: number) => {
+    if (!familyDiscountEligible || !familyDiscountRule) return 0
+    return familyDiscountRule.discount_type === "percentage"
+      ? Math.round(amount * Number(familyDiscountRule.discount_value)) / 100
+      : Math.min(amount, Number(familyDiscountRule.discount_value))
+  }
+  const familyDiscountBaseAmounts = selectedPlan?.payment_mode === "single"
+    ? [Number(selectedPlan.annual_tuition) || 0]
+    : installments.length > 0 ? installments.map((item) => Number(item.amount) || 0) : [Number(selectedPlan?.annual_tuition) || 0]
+  const familyDiscountEstimatedSaving = familyDiscountBaseAmounts.reduce((sum, amount) => sum + familyDiscountForAmount(amount), 0)
+  const familyDiscountEstimatedTuition = Math.max(0, familyDiscountBaseAmounts.reduce((sum, amount) => sum + amount, 0) - familyDiscountEstimatedSaving)
 
   // ─── Chargement options depuis Supabase ─────────────────────────────────────
   const loadOptions = useCallback(async () => {
@@ -336,6 +353,54 @@ export default function NouvelleInscriptionModal({
       .catch(() => { if (!cancelled) setOrganizationRules([]) })
     return () => { cancelled = true }
   }, [establishmentId, selectedOrganizationId])
+
+  // Vérifie les inscriptions réelles de la famille et le barème actif de l'année.
+  useEffect(() => {
+    if (!isOpen || !establishmentId || !activeYear?.id || (!selectedFamilyId && !selectedSibling?.student_id)) {
+      setFamilyDiscountRule(null); setFamilyDiscountChildrenCount(0); setFamilyDiscountLoading(false); return
+    }
+    let cancelled = false
+    const loadFamilyDiscountPreview = async () => {
+      setFamilyDiscountLoading(true)
+      try {
+        let studentIds: string[] = selectedSibling?.student_id ? [selectedSibling.student_id] : []
+        if (selectedFamilyId) {
+          const { data, error } = await supabaseBrowser.from("student_family_members").select("student_id")
+            .eq("establishment_id", establishmentId).eq("family_id", selectedFamilyId).eq("active", true)
+          if (error) throw error
+          studentIds = (data ?? []).map((row: any) => row.student_id)
+        }
+        studentIds = Array.from(new Set(studentIds))
+        let enrolledCount = 0
+        if (studentIds.length) {
+          const { data, error } = await supabaseBrowser.from("enrollments").select("student_id")
+            .eq("establishment_id", establishmentId).eq("academic_year_id", activeYear.id).eq("status", "active")
+            .in("student_id", studentIds)
+          if (error) throw error
+          enrolledCount = new Set((data ?? []).map((row: any) => row.student_id)).size
+        }
+        const resultingCount = enrolledCount + 1
+        const { data: rules, error: rulesError } = await supabaseBrowser.from("family_discount_rules")
+          .select("id,name,min_children,max_children,discount_type,discount_value,applies_to_categories,academic_year_id,valid_from,valid_until,option_type")
+          .eq("establishment_id", establishmentId).eq("active", true)
+          .or(`academic_year_id.is.null,academic_year_id.eq.${activeYear.id}`)
+        if (rulesError) throw rulesError
+        const matching = (rules ?? []).filter((rule: any) =>
+          (rule.applies_to_categories ?? []).includes("tuition") && !rule.option_type
+          && Number(rule.min_children ?? 2) <= resultingCount
+          && (rule.max_children == null || Number(rule.max_children) >= resultingCount)
+          && (!rule.valid_from || rule.valid_from <= localToday)
+          && (!rule.valid_until || rule.valid_until >= localToday)
+        ).sort((a: any,b: any) => Number(b.min_children)-Number(a.min_children))[0] ?? null
+        if (!cancelled) { setFamilyDiscountChildrenCount(resultingCount); setFamilyDiscountRule(matching) }
+      } catch (error) {
+        console.error("Prévisualisation de la réduction familiale impossible:", error)
+        if (!cancelled) { setFamilyDiscountChildrenCount(0); setFamilyDiscountRule(null) }
+      } finally { if (!cancelled) setFamilyDiscountLoading(false) }
+    }
+    void loadFamilyDiscountPreview()
+    return () => { cancelled = true }
+  }, [isOpen, establishmentId, activeYear?.id, selectedFamilyId, selectedSibling?.student_id, localToday])
 
   // ─── Vérification des impayés des années précédentes ─────────────────────────
   useEffect(() => {
@@ -631,7 +696,7 @@ export default function NouvelleInscriptionModal({
     setExistingStudentId(null); setDuplicateStudents([]); setCheckingDuplicate(false)
     setLastName(""); setFirstName(""); setBirthDate(""); setBirthPlace(""); setSex(""); setStudentNumber("")
     setParentLastName(""); setParentFirstName(""); setParentPhone(""); setParentEmail(""); setParentAddress("")
-    setFamilyName(""); setFamilyNameSearch(""); setFamilyMatches([]); setSelectedFamilyForSearch(null); setSelectedFamilyId(null); setApplyFamilyDiscount(true)
+    setFamilyName(""); setFamilyNameSearch(""); setFamilyMatches([]); setSelectedFamilyForSearch(null); setSelectedFamilyId(null); setApplyFamilyDiscount(true); setFamilyDiscountRule(null); setFamilyDiscountChildrenCount(0)
     setSiblingSearch(""); setSiblingCandidates([]); setSelectedSibling(null); setFamilyLinkedChildren([]); setSiblingRelationship("frere")
     setSelectedOrganizationId(""); setOrganizationRules([])
     setSelectedCycleId(""); setSelectedLevelId(""); setSelectedClassId("")
@@ -1005,11 +1070,22 @@ export default function NouvelleInscriptionModal({
                   <label className="flex items-start gap-2">
                     <Checkbox checked={applyFamilyDiscount} onCheckedChange={(checked) => setApplyFamilyDiscount(checked === true)} />
                     <span>
-                      <span className="block text-sm font-medium text-blue-950">Activer la réduction familiale pour toute la fratrie</span>
-                      <span className="mt-1 block text-xs text-blue-900">La réduction sera recalculée selon le nombre d’enfants inscrits et appliquée à tous les enfants de cette famille, y compris ceux déjà inscrits pour cette année scolaire.</span>
+                      <span className="block text-sm font-medium text-blue-950">Appliquer la réduction familiale selon le barème configuré</span>
+                      <span className="mt-1 block text-xs text-blue-900">Le système vérifie les enfants ayant une inscription active pour {activeYear?.name ?? "l'année scolaire"} et applique la remise correspondante à toute la fratrie.</span>
                     </span>
                   </label>
-                  <p className="text-xs text-blue-900">Le calcul suit les barèmes actifs dans Paramètres → Réductions familiales. Les paiements déjà encaissés sont conservés.</p>
+                  {familyDiscountLoading ? <p className="text-xs text-blue-900">Vérification du barème et des inscriptions de la famille…</p> : familyDiscountEligible ? (
+                    <div className="rounded border border-blue-200 bg-white p-3 text-sm text-blue-950">
+                      <p className="font-semibold">{familyDiscountRule.name || "Réduction familiale applicable"}</p>
+                      <p className="mt-1 text-xs">{familyDiscountChildrenCount} enfant(s) avec inscription active après cette inscription · Barème : {familyDiscountRule.discount_type === "percentage" ? `${Number(familyDiscountRule.discount_value)} %` : fmt(Number(familyDiscountRule.discount_value))} sur la scolarité.</p>
+                      <div className="mt-2 flex items-center justify-between gap-3 text-xs"><span>Scolarité avant remise</span><span>{fmt(familyDiscountBaseAmounts.reduce((sum, amount) => sum + amount, 0))}</span></div>
+                      <div className="flex items-center justify-between gap-3 text-sm font-semibold text-blue-800"><span>Remise estimée</span><span>− {fmt(familyDiscountEstimatedSaving)}</span></div>
+                      <div className="mt-1 flex items-center justify-between gap-3 border-t pt-2 text-sm font-semibold"><span>Après remise estimée</span><span>{fmt(familyDiscountEstimatedTuition)}</span></div>
+                      <p className="mt-2 text-[11px] text-slate-500">Estimation pour cet élève. Le calcul définitif est enregistré par le système et recalculé pour les autres enfants de la famille.</p>
+                    </div>
+                  ) : <p className="text-xs text-blue-900">{familyDiscountChildrenCount} enfant(s) avec inscription active après cette inscription. Aucun barème actif ne correspond à cet effectif pour la scolarité : aucune remise ne sera appliquée.</p>}
+                  {!applyFamilyDiscount && <p className="text-xs text-slate-600">La réduction familiale est désactivée pour cette inscription.</p>}
+                  <p className="text-xs text-blue-900">Les paiements déjà encaissés sont conservés.</p>
                 </section>
               )}
 
@@ -1160,65 +1236,31 @@ export default function NouvelleInscriptionModal({
 
           {/* ── Étape 4 : Paiement ───────────────────────────────────────────── */}
           {step === 4 && selectedPlan && (fundingSource !== "family" || waiveRegistration || waiveTuition || selectedSibling || selectedFamilyId || selectedOrganizationId) && (
-            <div className="space-y-4">
-              <h3 className="font-medium text-sm border-b pb-2">Récapitulatif des frais</h3>
-              {applicablePromotion && promotionSaving > 0 && <div className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900"><p className="font-medium">{applicablePromotion.name}</p><p className="mt-1 text-xs">Frais d’inscription : {fmt(effectiveRegistrationFee)} → {fmt(effectiveRegistrationFee)} (économie de {fmt(promotionSaving)}).</p></div>}
-              <p className="text-sm text-slate-700">Les montants ci-dessous seront ajoutés au dossier de l’élève. Aucun paiement ne sera enregistré automatiquement. Les options restent suivies séparément dans Finance.</p>
-              <div className="divide-y border-y border-slate-200">
-                <div className="flex justify-between gap-4 py-3 text-sm"><span>Frais d'inscription</span><span className="font-medium">{waiveRegistration || fundingSource === "other" ? "Exonérés" : selectedOrganizationId ? "Selon la convention de l’organisme" : "À la charge de la famille"}</span></div>
-                <div className="flex justify-between gap-4 py-3 text-sm"><span>Scolarité</span><span className="font-medium">{waiveTuition || fundingSource === "other" ? "Exonérée" : selectedOrganizationId ? "Selon la convention de l’organisme" : "À la charge de la famille"}</span></div>
-                {selectedOptionIds.size > 0 && (
-                  <div className="py-3 text-sm">
-                    <div className="flex justify-between gap-4 font-medium">
-                      <span>Options scolaires à payer par la famille</span><span>{fmt(optionsDue)}</span>
+            <div className="space-y-5">
+              <h3 className="font-medium text-sm border-b pb-2">Échéancier et prise en charge</h3>
+              {applicablePromotion && promotionSaving > 0 && <div className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900"><p className="font-medium">{applicablePromotion.name}</p><p className="mt-1 text-xs">Frais d'inscription : {fmt(registrationFee)} → {fmt(effectiveRegistrationFee)} · Remise : {fmt(promotionSaving)}.</p></div>}
+              <p className="text-sm text-slate-600">L'échéancier est rattaché à l'inscription et sera disponible dans Finance pour le suivi des règlements. Aucun encaissement n'est enregistré automatiquement ici.</p>
+              <div className="border divide-y">
+                <div className="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span>{typeInscription === "reinscription" ? "Frais de réinscription" : "Frais d'inscription"}</span><span className="font-medium">{waiveRegistration || fundingSource === "other" ? "Exonérés" : selectedOrganizationId ? "Selon la convention" : fmt(effectiveRegistrationFee)}</span></div>
+                <div className="px-3 py-3">
+                  <div className="mb-2 flex items-center justify-between gap-3 text-sm font-medium"><span>Scolarité · {selectedPlan.payment_mode === "monthly" ? "Mensuelle" : selectedPlan.payment_mode === "installments" ? "Par tranches" : "Paiement unique"}</span><span>{waiveTuition || fundingSource === "other" ? "Exonérée" : selectedOrganizationId ? "Selon la convention" : familyDiscountEligible ? "Après remise familiale" : fmt(Number(selectedPlan.annual_tuition))}</span></div>
+                  {selectedPlan.payment_mode === "single" ? (
+                    <div className="flex justify-between gap-3 border-t py-2 text-sm"><span>Scolarité annuelle</span><span className="font-medium">{fmt(Math.max(0, Number(selectedPlan.annual_tuition) - familyDiscountForAmount(Number(selectedPlan.annual_tuition))) )}</span></div>
+                  ) : installments.length > 0 ? (
+                    <div className="divide-y border-t">
+                      {installments.map((inst) => { const saving = familyDiscountForAmount(Number(inst.amount)); return (
+                        <div key={inst.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                          <span className="min-w-0">{inst.label}{inst.due_date && <span className="ml-2 text-xs text-slate-500">{new Date(inst.due_date).toLocaleDateString("fr-FR")}</span>}</span>
+                          <span className="shrink-0 text-right">{saving > 0 && <span className="mr-2 text-xs text-slate-400 line-through">{fmt(Number(inst.amount))}</span>}<span className="font-medium">{fmt(Math.max(0, Number(inst.amount) - saving))}</span></span>
+                        </div>
+                      )})}
                     </div>
-                    {availableOptions.filter((o) => selectedOptionIds.has(o.id)).map((o) => (
-                      <div key={o.id} className="mt-1 flex justify-between gap-3 pl-2 text-xs text-slate-600">
-                        <span>{o.name}</span><span>{fmt(o.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {selectedOptionIds.size > 0 && (
-                <div className="border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                  <div className="flex justify-between gap-3 font-semibold">
-                    <span>Total des options à payer</span><span>{fmt(optionsDue)}</span>
-                  </div>
-                  <p className="mt-1 text-xs">L'exonération de la scolarité ne couvre pas les options sélectionnées. Leur montant reste dû par la famille et sera suivi dans Finance.</p>
+                  ) : <p className="border-t py-2 text-xs text-amber-700">Les échéances mensuelles seront générées à partir du forfait lors de l'enregistrement de l'inscription.</p>}
                 </div>
-              )}
-
-              <div>
-                <p className="text-sm font-medium mb-2">Options scolaires</p>
-                {isLoadingOptions ? (
-                  <p className="text-sm text-slate-500">Chargement des options…</p>
-                ) : availableOptions.length > 0 ? (
-                  <div className="border rounded divide-y text-sm">
-                    {availableOptions.map((opt) => (
-                      <label key={opt.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50">
-                        <Checkbox
-                          checked={selectedOptionIds.has(opt.id)}
-                          className="bg-white border-slate-400 data-[state=unchecked]:bg-white data-[state=unchecked]:border-slate-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                          onCheckedChange={(checked) => {
-                            const isChecked = checked === true
-                            setSelectedOptionIds((prev) => {
-                              const next = new Set(prev)
-                              if (isChecked) next.add(opt.id)
-                              else next.delete(opt.id)
-                              return next
-                            })
-                          }}
-                        />
-                        <span className="flex-1">{opt.name}</span>
-                        <span className="font-medium">{fmt(opt.amount)}</span>
-                      </label>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-500">Aucune option supplémentaire configurée pour cet établissement.</p>
-                )}
+                {selectedOptionIds.size > 0 && <div className="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span>Options sélectionnées à l'étape Scolarité</span><span className="font-medium">{fmt(optionTotal)}</span></div>}
               </div>
+              {familyDiscountEligible && <div className="border border-blue-200 bg-blue-50 px-3 py-3 text-sm text-blue-950"><div className="flex items-center justify-between gap-3"><span className="font-medium">{familyDiscountRule.name || "Réduction familiale"}</span><span className="font-semibold">− {fmt(familyDiscountEstimatedSaving)}</span></div><p className="mt-1 text-xs">La remise estimée est visible sur chaque échéance ci-dessus. Le calcul définitif sera enregistré et répercuté sur les autres enfants de la famille.</p></div>}
+              {selectedOrganizationId && <p className="text-xs text-slate-600">Les montants pris en charge par l'organisme et le solde familial seront répartis selon les règles configurées pour cette organisation.</p>}
             </div>
           )}
           {step === 4 && selectedPlan && fundingSource === "family" && !waiveRegistration && !waiveTuition && !selectedSibling && !selectedFamilyId && !selectedOrganizationId && (
@@ -1246,7 +1288,7 @@ export default function NouvelleInscriptionModal({
                 {applicablePromotion && promotionSaving > 0 && (
                   <div className="mt-2 border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
                     <div className="flex items-center justify-between gap-3"><span className="font-medium">{applicablePromotion.name}</span><span className="font-semibold">-{fmt(promotionSaving)}</span></div>
-                    <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs"><span>Tarif normal : {fmt(effectiveRegistrationFee)}</span><span>Tarif promotionnel : {fmt(effectiveRegistrationFee)}</span></div>
+                    <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs"><span>Tarif normal : {fmt(registrationFee)}</span><span>Tarif après remise : {fmt(effectiveRegistrationFee)}</span></div>
                   </div>
                 )}
               </div>
@@ -1311,35 +1353,6 @@ export default function NouvelleInscriptionModal({
                 )}
               </div>
 
-              {/* Options dynamiques */}
-              <div>
-                <p className="text-sm font-medium mb-2">Options</p>
-                {isLoadingOptions ? (
-                  <p className="text-sm text-slate-500">Chargement des options…</p>
-                ) : availableOptions.length > 0 ? (
-                  <div className="border rounded divide-y text-sm">
-                    {availableOptions.map((opt) => (
-                      <label key={opt.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50">
-                        <Checkbox
-                          checked={selectedOptionIds.has(opt.id)}
-                          onCheckedChange={(checked) => {
-                            setSelectedOptionIds((prev) => {
-                              const next = new Set(prev)
-                              if (checked) next.add(opt.id)
-                              else next.delete(opt.id)
-                              return next
-                            })
-                          }}
-                        />
-                        <span className="flex-1">{opt.name}</span>
-                        <span className="font-medium">{fmt(opt.amount)}</span>
-                      </label>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-500">Aucune option supplémentaire configurée.</p>
-                )}
-              </div>
 
               {/* Récapitulatif total */}
               <div className="border rounded bg-slate-50">
@@ -1361,12 +1374,12 @@ export default function NouvelleInscriptionModal({
                       <span>{fmt(i.amount)}</span>
                     </div>
                   ))}
-                  {availableOptions.filter((o) => selectedOptionIds.has(o.id)).map((o) => (
-                    <div key={o.id} className="flex justify-between py-1.5 text-sm">
-                      <span>{o.name}</span>
-                      <span>{fmt(o.amount)}</span>
+                  {selectedOptionIds.size > 0 && (
+                    <div className="flex justify-between py-1.5 text-sm">
+                      <span>Options choisies à l'étape Scolarité ({selectedOptionIds.size})</span>
+                      <span>{fmt(optionTotal)}</span>
                     </div>
-                  ))}
+                  )}
                 </div>
                 <div className="flex justify-between px-3 py-2 border-t font-semibold text-sm">
                   <span>Total</span>

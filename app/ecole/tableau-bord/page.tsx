@@ -19,9 +19,9 @@ const money = (value: number) =>
 export default function PageTableauBord() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
-  const { activeYear } = useAcademicYears(establishmentId)
+  const { activeYear, isLoading: academicYearLoading } = useAcademicYears(establishmentId)
   const { total: activeEnrollmentCount, isLoading: enrollmentCountLoading, error: enrollmentCountError } = useEnrollments({
-    establishmentId,
+    establishmentId: activeYear?.id ? establishmentId : null,
     page: 1,
     pageSize: 1,
     academicYearId: activeYear?.id ?? null,
@@ -98,6 +98,8 @@ export default function PageTableauBord() {
     amount: overdueSchedules.reduce((sum, row) => sum + Number(row.remaining_amount || 0), 0),
   }), [overdueSchedules])
 
+  const indicatorsLoading = academicYearLoading || dashboardLoading
+
   const dateLabel = useMemo(
     () => new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Libreville" }),
     []
@@ -156,16 +158,16 @@ export default function PageTableauBord() {
 
   const metrics = [
     { label: "Élèves actifs", value: enrollmentCountLoading ? "…" : enrollmentCountError ? "—" : activeEnrollmentCount.toLocaleString("fr-FR"), note: enrollmentCountError ? "Données indisponibles" : "Inscriptions de l’année active", icon: School },
-    { label: "Classes ouvertes", value: dashboardLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.activeClasses ?? 0).toLocaleString("fr-FR"), note: "Classes actives configurées", icon: GraduationCap },
-    { label: "Enseignants", value: dashboardLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.activeTeachers ?? 0).toLocaleString("fr-FR"), note: "Enseignants actifs", icon: Users },
-    { label: "Présence personnel", value: dashboardLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.staffAttendanceRecorded ?? 0) === 0 ? "Non pointé" : (dashboardSummary?.staffPresent ?? 0) + "/" + (dashboardSummary?.activeStaff ?? 0), note: dashboardLoading ? "Chargement…" : dashboardError ? "Données indisponibles" : (dashboardSummary?.staffAttendanceRecorded ?? 0) === 0 ? "Aucun pointage aujourd’hui" : (dashboardSummary?.staffAttendanceRecorded ?? 0) + " pointage(s) saisi(s) aujourd’hui", icon: CheckCircle2 },
-    { label: "Recettes du mois", value: dashboardLoading ? "…" : dashboardError ? "—" : money(dashboardSummary?.monthlyReceipts ?? 0), note: "Encaissements enregistrés ce mois", icon: CreditCard },
+    { label: "Classes ouvertes", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.activeClasses ?? 0).toLocaleString("fr-FR"), note: "Classes actives configurées", icon: GraduationCap },
+    { label: "Enseignants", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.activeTeachers ?? 0).toLocaleString("fr-FR"), note: "Enseignants actifs", icon: Users },
+    { label: "Présence personnel", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.staffAttendanceRecorded ?? 0) === 0 ? "Non pointé" : (dashboardSummary?.staffPresent ?? 0) + "/" + (dashboardSummary?.activeStaff ?? 0), note: indicatorsLoading ? "Chargement…" : dashboardError ? "Données indisponibles" : (dashboardSummary?.staffAttendanceRecorded ?? 0) === 0 ? "Aucun pointage aujourd’hui" : (dashboardSummary?.staffAttendanceRecorded ?? 0) + " pointage(s) saisi(s) aujourd’hui", icon: CheckCircle2 },
+    { label: "Recettes du mois", value: indicatorsLoading ? "…" : dashboardError ? "—" : money(dashboardSummary?.monthlyReceipts ?? 0), note: "Encaissements enregistrés ce mois", icon: CreditCard },
     { label: "Échéances en retard", value: overdueLoading ? "…" : overdueError ? "—" : overdueSummary.schedules.toLocaleString("fr-FR"), note: overdueLoading ? "Vérification…" : overdueError ? "Données indisponibles" : overdueSummary.students + " élève(s) concernés", icon: AlertTriangle, danger: overdueSummary.schedules > 0 },
-    { label: "Absences du jour", value: dashboardLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.absences ?? 0).toLocaleString("fr-FR"), note: dashboardLoading ? "Chargement…" : dashboardError ? "Données indisponibles" : (dashboardSummary?.lateArrivals ?? 0) + " retard(s) · " + (dashboardSummary?.justifiedAbsences ?? 0) + " justifiée(s)", icon: CalendarDays },
-    { label: "Inscriptions en attente", value: dashboardLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.pendingEnrollments ?? 0).toLocaleString("fr-FR"), note: "Dossiers à valider · année active", icon: ClipboardCheck },
+    { label: "Absences du jour", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.absences ?? 0).toLocaleString("fr-FR"), note: indicatorsLoading ? "Chargement…" : dashboardError ? "Données indisponibles" : (dashboardSummary?.lateArrivals ?? 0) + " retard(s) · " + (dashboardSummary?.justifiedAbsences ?? 0) + " justifiée(s)", icon: CalendarDays },
+    { label: "Inscriptions en attente", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.pendingEnrollments ?? 0).toLocaleString("fr-FR"), note: "Dossiers à valider · année active", icon: ClipboardCheck },
   ]
 
-  const urgentCount = (overdueSummary.schedules > 0 ? 1 : 0) + ((dashboardSummary?.absences ?? 0) > 0 ? 1 : 0) + ((dashboardSummary?.pendingEnrollments ?? 0) > 0 ? 1 : 0)
+  const urgentCount = (overdueSummary.schedules > 0 ? 1 : 0) + (((dashboardSummary?.absences ?? 0) + (dashboardSummary?.lateArrivals ?? 0)) > 0 ? 1 : 0) + ((dashboardSummary?.pendingEnrollments ?? 0) > 0 ? 1 : 0)
 
   return (
     <div className="w-full">

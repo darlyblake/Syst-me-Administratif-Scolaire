@@ -154,7 +154,7 @@ export default function FamillesPage() {
       const { data, error } = await supabaseBrowser.from("students")
         .select("id,first_name,last_name,student_number").eq("establishment_id", establishmentId)
         .eq("active", true)
-        .or(\`first_name.ilike.%\${term}%,last_name.ilike.%\${term}%,student_number.ilike.%\${term}%\`)
+        .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,student_number.ilike.%${term}%`)
         .order("last_name").limit(15)
       if (error) throw error
       const alreadyLinked = new Set(members.map((member) => member.student_id))
@@ -193,7 +193,7 @@ export default function FamillesPage() {
   }
 
   const removeStudent = async (member: FamilyMember) => {
-    if (!establishmentId || !window.confirm(\`Retirer \${member.first_name} \${member.last_name} de cette famille ?\`)) return
+    if (!establishmentId || !window.confirm(`Retirer ${member.first_name} ${member.last_name} de cette famille ?`)) return
     setSaving(true)
     try {
       const { error } = await supabaseBrowser.from("student_family_members")

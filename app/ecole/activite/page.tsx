@@ -72,7 +72,7 @@ const VALUE_LABELS: Record<string, string> = {
 const humanize = (value: string) => value.replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim()
 const translateAction = (value: string | null) => {
   if (!value) return "Opération enregistrée"
-  const key = value.toLowerCase().replace(/\\s+/g, " ").trim()
+  const key = value.toLowerCase().replace(/\s+/g, " ").trim()
   if (ACTION_LABELS[key]) return ACTION_LABELS[key]
   const words = key.split(/[._-]+/)
   const translated = words.map((word) => ACTION_LABELS[word] || word).join(" ")

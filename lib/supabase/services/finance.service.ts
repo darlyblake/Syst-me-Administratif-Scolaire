@@ -58,6 +58,12 @@ export const financeService = {
       supabaseBrowser.from("audit_logs").select("id, action, entity_type, created_at").eq("establishment_id", establishmentId).gte("created_at", activitySince.toISOString()).order("created_at", { ascending: false }).limit(6),
     ]);
 
+    const [studentsActivity, enrollmentsActivity, paymentsActivity, expensesActivity] = await Promise.all([
+      supabaseBrowser.from("students").select("id, first_name, last_name, created_at").eq("establishment_id", establishmentId).gte("created_at", activitySince.toISOString()).order("created_at", { ascending: false }).limit(5),
+      supabaseBrowser.from("enrollments").select("id, created_at, status").eq("establishment_id", establishmentId).gte("created_at", activitySince.toISOString()).order("created_at", { ascending: false }).limit(5),
+      supabaseBrowser.from("payments").select("id, amount, created_at").eq("establishment_id", establishmentId).gte("created_at", activitySince.toISOString()).order("created_at", { ascending: false }).limit(5),
+      supabaseBrowser.from("expenses").select("id, description, amount, created_at").eq("establishment_id", establishmentId).gte("created_at", activitySince.toISOString()).order("created_at", { ascending: false }).limit(5),
+    ]);
     const results = [classes, teachers, staff, staffAttendance, pendingEnrollments, attendance, revenue, schoolEvents, auditLogs];
     const failed = results.find((result) => result.error);
     if (failed?.error) throw new Error("Impossible de charger tous les indicateurs du tableau de bord.");
@@ -84,7 +90,13 @@ export const financeService = {
       monthlyReceipts: Number(revenueRow?.total_in ?? 0),
       upcomingEvents: schoolEvents.data ?? [],
       upcomingEventsCount: schoolEvents.count ?? 0,
-      recentActivity: auditLogs.data ?? [],
+      recentActivity: [
+        ...(auditLogs.data ?? []).map((row: any) => ({ id: row.id, action: row.action, entity_type: row.entity_type, created_at: row.created_at })),
+        ...(studentsActivity.data ?? []).map((row: any) => ({ id: "student-" + row.id, action: "Nouvel élève ajouté", entity_type: [row.first_name, row.last_name].filter(Boolean).join(" "), created_at: row.created_at })),
+        ...(enrollmentsActivity.data ?? []).map((row: any) => ({ id: "enrollment-" + row.id, action: "Inscription enregistrée", entity_type: "Dossier " + String(row.status ?? "").toLowerCase(), created_at: row.created_at })),
+        ...(paymentsActivity.data ?? []).map((row: any) => ({ id: "payment-" + row.id, action: "Paiement enregistré", entity_type: Number(row.amount || 0).toLocaleString("fr-FR") + " FCFA", created_at: row.created_at })),
+        ...(expensesActivity.data ?? []).map((row: any) => ({ id: "expense-" + row.id, action: "Dépense enregistrée", entity_type: row.description || (Number(row.amount || 0).toLocaleString("fr-FR") + " FCFA"), created_at: row.created_at })),
+      ].filter((row) => row.created_at).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 8),
     };
   },
 

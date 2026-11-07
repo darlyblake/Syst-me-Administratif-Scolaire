@@ -2,28 +2,23 @@
 
 import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Printer, Edit, Trash2, X } from "lucide-react"
-import { printHtml } from "@/lib/print"
+import { Edit, X } from "lucide-react"
 import type { DonneesEleve } from "@/types/models"
 
 interface StudentDetailsModalProps {
   student: DonneesEleve
   onClose?: () => void
   onEdit?: (student: DonneesEleve) => void
-  onDelete?: (id: string) => void
   onToggleStatus?: (student: DonneesEleve) => void
-  onPrintReceipt?: (student: DonneesEleve) => void
 }
 
-type Tab = "infos" | "contact" | "documents"
+type Tab = "infos" | "contact"
 
 export default function StudentDetailsModal({
   student,
   onClose,
   onEdit,
-  onDelete,
   onToggleStatus,
-  onPrintReceipt,
 }: StudentDetailsModalProps) {
   const [tab, setTab] = useState<Tab>("infos")
   if (!student) return null
@@ -44,7 +39,6 @@ export default function StudentDetailsModal({
   const TABS: { key: Tab; label: string }[] = [
     { key: "infos", label: "Informations" },
     { key: "contact", label: "Contact" },
-    { key: "documents", label: "Documents" },
   ]
 
   return (
@@ -190,39 +184,7 @@ export default function StudentDetailsModal({
             </dl>
           )}
 
-          {tab === "documents" && (
-            <div className="space-y-1.5">
-              {[
-                {
-                  label: "Reçu d'inscription",
-                  onClick: () => onPrintReceipt?.(student),
-                },
-                {
-                  label: "Carte scolaire",
-                  onClick: () =>
-                    printHtml(
-                      `<!doctype html><html><head><meta charset="utf-8"/><title>Carte scolaire</title></head><body><h2>Carte scolaire</h2><p>${student.nom} ${student.prenom}</p><p>Classe : ${student.classe || "—"}</p><p>Matricule : ${student.identifiant || "—"}</p></body></html>`
-                    ),
-                },
-                {
-                  label: "Attestation de scolarité",
-                  onClick: () =>
-                    printHtml(
-                      `<!doctype html><html><head><meta charset="utf-8"/><title>Attestation</title></head><body><h1>Attestation de scolarité</h1><p>Nous attestons que <strong>${student.prenom} ${student.nom}</strong> est inscrit(e) en classe <strong>${student.classe || "—"}</strong>.</p></body></html>`
-                    ),
-                },
-              ].map(({ label, onClick }) => (
-                <button
-                  key={label}
-                  onClick={onClick}
-                  className="flex w-full items-center gap-2.5 rounded border border-gray-200 px-3 py-2.5 text-left text-[11px] text-gray-700 hover:bg-gray-50"
-                >
-                  <Printer className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
+
         </div>
 
         {/* Footer */}
@@ -244,15 +206,6 @@ export default function StudentDetailsModal({
               onClick={() => onToggleStatus?.(student)}
             >
               {isActive ? "Désactiver" : "Activer"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 w-8 shrink-0 border-red-200 p-0 text-red-600 hover:bg-red-50"
-              onClick={() => onDelete?.(student.id || "")}
-              aria-label="Supprimer"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>

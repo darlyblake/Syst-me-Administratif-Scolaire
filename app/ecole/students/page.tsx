@@ -2,10 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { toast } from "sonner"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UserPlus, Wrench, Printer } from "lucide-react"
 import Link from "next/link"
 import { printHtml } from "@/lib/print"
@@ -106,7 +103,6 @@ export default function StudentsPage() {
   useEffect(() => { setSelectedClass("all") }, [selectedLevel])
   useEffect(() => { setCurrentPage(1) }, [selectedClass, selectedStatus, selectedLevel, searchTerm, filterAgeMin, filterAgeMax])
 
-  const handleDeleteStudent = async (id: string) => { if (confirm("Désactiver cet élève ?\n\nSon historique sera conservé.")) { const success = await deactivate(id); if (success) { toast.success("Élève désactivé avec succès"); setSelectedStudent(null) } else toast.error("Impossible de désactiver cet élève") } }
   const handleToggleStatus = async (student: DonneesEleve) => {
     const updatedStudent = { ...student, statut: (student.statut === "actif" ? "inactif" : "actif") as "actif" | "inactif" | "transfere" }
     const success = await update({ studentId: student.id, firstName: updatedStudent.prenom, lastName: updatedStudent.nom, studentNumber: updatedStudent.identifiant, birthDate: updatedStudent.dateNaissance, sex: updatedStudent.sexe, phone: updatedStudent.informationsContact.telephone, email: updatedStudent.informationsContact.email, active: updatedStudent.statut === "actif" })
@@ -285,7 +281,6 @@ export default function StudentsPage() {
         <StudentDetailsModal
           student={selectedStudent}
           onClose={() => setSelectedStudent(null)}
-          onDelete={handleDeleteStudent}
           onToggleStatus={handleToggleStatus}
           onEdit={(student) => {
             setSelectedStudent(null)

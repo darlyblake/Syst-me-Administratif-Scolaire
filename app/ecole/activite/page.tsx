@@ -15,6 +15,7 @@ type ActivityRow = {
   metadata: Record<string, any> | null
   created_at: string
   actor_name?: string
+  target_name?: string
 }
 
 const formatDate = (value: string) =>
@@ -26,6 +27,10 @@ const formatDate = (value: string) =>
 
 const ACTION_LABELS: Record<string, string> = {
   create: "Création", created: "Création", insert: "Ajout", insert_one: "Ajout",
+  "teacher création account": "Création du compte d’un enseignant",
+  "member création user": "Création du compte d’un membre du personnel",
+  "teacher create account": "Création du compte d’un enseignant",
+  "member create user": "Création du compte d’un membre du personnel",
   update: "Modification", updated: "Modification", edit: "Modification",
   delete: "Suppression", deleted: "Suppression", remove: "Suppression",
   restore: "Restauration", restored: "Restauration",
@@ -45,7 +50,8 @@ const ENTITY_LABELS: Record<string, string> = {
   grade: "Note", grades: "Notes", attendance: "Présence",
   user: "Utilisateur", profile: "Profil", teacher: "Enseignant",
   parent: "Parent / responsable", document: "Document",
-  establishment: "Établissement", school_year: "Année scolaire",
+  establishment: "Établissement", establishment_member: "Membre du personnel",
+  "establishment member": "Membre du personnel", school_year: "Année scolaire",
   invoice: "Facture", expense: "Dépense", settings: "Paramètres",
 }
 const FIELD_LABELS: Record<string, string> = {
@@ -66,7 +72,7 @@ const VALUE_LABELS: Record<string, string> = {
 const humanize = (value: string) => value.replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim()
 const translateAction = (value: string | null) => {
   if (!value) return "Opération enregistrée"
-  const key = value.toLowerCase().trim()
+  const key = value.toLowerCase().replace(/\\s+/g, " ").trim()
   if (ACTION_LABELS[key]) return ACTION_LABELS[key]
   const words = key.split(/[._-]+/)
   const translated = words.map((word) => ACTION_LABELS[word] || word).join(" ")
@@ -112,7 +118,15 @@ export default function JournalActivitePage() {
       if (queryError) throw queryError
 
       const logs = (data ?? []) as ActivityRow[]
-      const actorIds = Array.from(new Set(logs.map((row) => row.actor_id).filter((id): id is string => Boolean(id))))
+      const targetIds = logs.flatMap((row) => {
+        const metadata = row.metadata ?? {}
+        return [metadata.target_user_id, metadata.user_id, metadata.target_id]
+          .filter((id): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id))
+      })
+      const actorIds = Array.from(new Set([
+        ...logs.map((row) => row.actor_id),
+        ...targetIds,
+      ].filter((id): id is string => Boolean(id))))
       let names = new Map<string, string>()
       if (actorIds.length) {
         const { data: profiles, error: profileError } = await supabaseBrowser
@@ -125,12 +139,18 @@ export default function JournalActivitePage() {
           [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim(),
         ]))
       }
-      setRows(logs.map((row) => ({
-        ...row,
-        actor_name: row.actor_id
-          ? (names.get(row.actor_id) || "Utilisateur sans nom de profil")
-          : "Auteur non renseigné",
-      })))
+      setRows(logs.map((row) => {
+        const metadata = row.metadata ?? {}
+        const targetId = [metadata.target_user_id, metadata.user_id, metadata.target_id]
+          .find((id) => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id)) as string | undefined
+        return {
+          ...row,
+          actor_name: row.actor_id
+            ? (names.get(row.actor_id) || "Compte utilisateur")
+            : "Compte non identifié",
+          target_name: targetId ? names.get(targetId) || undefined : undefined,
+        }
+      }))
     } catch (e: any) {
       setError(e?.message || "Impossible de charger le journal d'activité.")
       setRows([])
@@ -146,7 +166,7 @@ export default function JournalActivitePage() {
     const term = search.trim().toLocaleLowerCase("fr")
     if (!term) return rows
     return rows.filter((row) => [
-      row.action, row.entity_type, row.entity_id, row.actor_name,
+      row.action, row.entity_type, row.entity_id, row.actor_name, row.target_name,
       JSON.stringify(row.metadata ?? {}),
     ].filter(Boolean).join(" ").toLocaleLowerCase("fr").includes(term))
   }, [rows, search])
@@ -201,16 +221,18 @@ export default function JournalActivitePage() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-[#131b2e]">{translateAction(row.action)}</p>
                   <p className="mt-1 text-xs text-[#64748b]">
-                    {translateEntity(row.entity_type)}
+                    {row.target_name ? `Personne concernée : ${row.target_name}` : translateEntity(row.entity_type)}
                   </p>
                   {row.metadata && Object.keys(row.metadata).length > 0 && (
                     <p className="mt-1 break-words text-xs text-[#64748b]">
-                      {Object.entries(row.metadata).filter(([, value]) => value !== null && value !== undefined && typeof value !== "object").map(([key, value]) => translateField(key) + " : " + translateValue(value)).join(" · ")}
+                      {Object.entries(row.metadata)
+                        .filter(([key, value]) => !/(^|_)id$/i.test(key) && !/^[0-9a-f-]{36}$/i.test(String(value ?? "")) && value !== null && value !== undefined && typeof value !== "object")
+                        .map(([key, value]) => translateField(key) + " : " + translateValue(value)).join(" · ")}
                     </p>
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#64748b] sm:justify-end">
-                  <span className="inline-flex items-center gap-1"><UserRound className="h-3.5 w-3.5" />{row.actor_name}</span>
+                  <span className="inline-flex items-center gap-1"><UserRound className="h-3.5 w-3.5" />Réalisée par : {row.actor_name}</span>
                   <time dateTime={row.created_at}>{formatDate(row.created_at)}</time>
                 </div>
               </article>
@@ -218,7 +240,7 @@ export default function JournalActivitePage() {
           </div>
         )}
       </section>
-      <p className="text-xs leading-5 text-[#64748b]">Ce journal affiche les 100 activités les plus récentes disponibles. Une activité sans nom d’utilisateur est indiquée « Auteur non renseigné ».</p>
+      <p className="text-xs leading-5 text-[#64748b]">Ce journal affiche les 100 activités les plus récentes. Lorsqu’un nom n’est pas disponible, le compte est signalé comme non identifié.</p>
     </div>
   )
 }

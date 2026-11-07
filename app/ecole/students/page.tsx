@@ -1,13 +1,12 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { UserPlus, Download, FileText, RotateCcw, Wrench, Printer } from "lucide-react"
+import { UserPlus, Wrench, Printer } from "lucide-react"
 import Link from "next/link"
 import { printHtml } from "@/lib/print"
 import { useUserContext } from "@/hooks/useUserContext"
@@ -17,16 +16,11 @@ import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import type { DonneesEleve } from "@/types/models"
 
-import StudentFilters from "@/components/StudentFilters"
-import ImportExportTools from "@/components/ImportExportTools"
-import ClassSection from "@/components/ClassSection"
-import StudentListItem from "@/components/StudentListItem"
 import StudentDetailsModal from "@/components/StudentDetailsModal"
 import EditStudentModal from "@/components/students/EditStudentModal"
 import { listStudentsPaginated } from "@/lib/supabase/services/student.service"
 
 export default function StudentsPage() {
-  const router = useRouter()
   const { primaryEstablishment, estEnCoursDeChargement } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
   const [searchTerm, setSearchTerm] = useState("")
@@ -104,7 +98,6 @@ export default function StudentsPage() {
   const [filteredStudents, setFilteredStudents] = useState<DonneesEleve[]>([])
   const [selectedStudent, setSelectedStudent] = useState<DonneesEleve | null>(null)
   const [editingStudent, setEditingStudent] = useState<DonneesEleve | null>(null)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const itemsPerPage = 50
@@ -120,28 +113,6 @@ export default function StudentsPage() {
     if (!success) toast.error("Impossible de modifier le statut de l'élève")
     if (selectedStudent && selectedStudent.id === student.id) setSelectedStudent(updatedStudent)
   }
-  const handleSelectStudent = (id: string, selected: boolean) => { setSelectedIds(prev => { const next = new Set(prev); if (selected) next.add(id); else next.delete(id); return next }) }
-  const handleBulkStatusChange = async () => { for (const id of selectedIds) { const student = students.find(s => s.id === id); if (student) await handleToggleStatus(student) }; setSelectedIds(new Set()) }
-  const handleBulkClassChange = async () => {
-    if (!establishmentId || !activeYear?.id || selectedIds.size === 0) return toast.error("Le contexte académique est indisponible")
-    if (assignmentClasses.length === 0 || tuitionPlans.length === 0) return toast.error("Aucune classe ou aucun forfait actif disponible")
-    const classChoice = prompt(`Classe cible (1-${assignmentClasses.length}) :\n${assignmentClasses.map((item, index) => `${index + 1}. ${item.name}`).join("\n")}`)
-    const classIndex = Number(classChoice) - 1; const targetClass = assignmentClasses[classIndex]; if (!targetClass) return
-    const classPlans = tuitionPlans.filter((plan) => plan.grade_level_id === targetClass.gradeLevelId)
-    const targetPlan = classPlans.length === 1 ? classPlans[0] : classPlans[Number(prompt(`Forfait (1-${classPlans.length}) :\n${classPlans.map((plan, index) => `${index + 1}. ${plan.annual_tuition.toLocaleString()} FCFA`).join("\n")}`)) - 1]
-    if (!targetPlan) return toast.error("Aucun forfait valide sélectionné")
-    const result = await assignToClass({ establishmentId, studentIds: Array.from(selectedIds), academicYearId: activeYear.id, classId: targetClass.id, tuitionPlanId: targetPlan.id, enrollmentDate: new Date().toISOString().slice(0, 10) })
-    if (result) { toast.success(`${result.total} élève(s) affecté(s) : ${result.created} inscription(s) créée(s), ${result.updated} mise(s) à jour`); setSelectedIds(new Set()) } else toast.error("Impossible d'affecter les élèves")
-  }
-  const handleBulkGenerateCertificates = () => {
-    const selectedStudents = students.filter(s => selectedIds.has(s.id)); if (selectedStudents.length === 0) return toast.error("Aucun élève sélectionné")
-    let html = `<!doctype html><html><head><meta charset="utf-8" /><title>Attestations de scolarité</title><style>body { font-family: Inter, Arial, sans-serif; padding: 20px; }.certificate { page-break-after: always; margin-bottom: 40px; border: 1px solid #ccc; padding: 20px; }h1 { color: #333; }.student-info { margin: 20px 0; }.footer { margin-top: 30px; font-size: 12px; color: #666; }</style></head><body><h1>Attestations de scolarité</h1>`
-    selectedStudents.forEach((student, index) => { html += `<div class="certificate"><h2>Attestation de scolarité n°${index + 1}</h2><div class="student-info"><p><strong>Nom:</strong> ${student.nom}</p><p><strong>Prénom:</strong> ${student.prenom}</p><p><strong>Identifiant:</strong> ${student.identifiant}</p><p><strong>Classe:</strong> ${student.classe}</p><p><strong>Date de naissance:</strong> ${new Date(student.dateNaissance).toLocaleDateString('fr-FR')}</p></div><p>Nous attestons par la présente que l'élève ci-dessus est régulièrement inscrit(e) dans notre établissement pour l'année scolaire en cours.</p><div class="footer"><p>École Vivante - ${new Date().toLocaleDateString('fr-FR')}</p></div></div>` })
-    html += `</body></html>`; printHtml(html); toast.success(`${selectedStudents.length} attestation(s) générée(s)`); setSelectedIds(new Set())
-  }
-  const handleBulkArchive = async () => { const selectedCount = selectedIds.size; if (confirm(`Désactiver ${selectedCount} élève(s) ?`)) { for (const id of selectedIds) await deactivate(id); setSelectedIds(new Set()); toast.success(`${selectedCount} élève(s) désactivé(s)`) } }
-  const handleBulkMessage = () => { const message = prompt("Message à envoyer aux parents des élèves sélectionnés:"); if (message) { toast.success("Message envoyé (simulation)"); setSelectedIds(new Set()) } }
-  const handleExportCSV = () => { const headers = "Nom,Prénom,Identifiant,Classe,Statut,Téléphone,Email,Date d'inscription\n"; const csvContent = students.map(student => `"${student.nom}","${student.prenom}","${student.identifiant}","${student.classe}","${student.statut}","${student.informationsContact.telephone}","${student.informationsContact.email}","${new Date(student.dateInscription).toLocaleDateString()}"`).join("\n"); const blob = new Blob([headers + csvContent], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "eleves.csv"; link.click(); URL.revokeObjectURL(url) }
   const handlePrintClassOrLevel = async () => {
     if (!establishmentId) return toast.error("Aucun établissement actif.")
     if (selectedClass === "all" && selectedLevel === "all") return toast.info("Sélectionnez une classe ou un niveau pour imprimer sa liste.")
@@ -170,14 +141,7 @@ export default function StudentsPage() {
       toast.error(error instanceof Error ? error.message : "Impossible de préparer la liste à imprimer.")
     }
   }
-  const handleDownloadTemplate = () => toast.info("Téléchargement du modèle")
-  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => { const reader = new FileReader(); reader.onload = () => toast.info("Import CSV en cours"); const file = e.target.files?.[0]; if (!file) return; reader.readAsText(file) }
-  const handlePrintReceipt = (student: DonneesEleve) => router.push(`/receipt?id=${encodeURIComponent(student.identifiant)}`)
-  const handlePrintSchoolCertificate = (student: DonneesEleve) => alert("Impression attestation")
-  const getClassStats = () => { const stats: { [key: string]: number } = {}; students.forEach(student => { stats[student.classe] = (stats[student.classe] || 0) + 1 }); return stats }
-  const getQuickStats = () => { const activeStudents = students.filter(s => s.statut === 'actif'); const studentsWithoutPhoto = activeStudents.filter(s => !s.photo); return { total: activeStudents.length, withoutPhoto: studentsWithoutPhoto.length, absentToday: 0, byLevel: Object.entries(getClassStats()).reduce((acc, [classe, count]) => { const level = classe.split(' ')[0]; acc[level] = (acc[level] || 0) + count; return acc }, {} as Record<string, number>) } }
   const totalPages = backendTotalPages; const startIndex = (currentPage - 1) * itemsPerPage; const endIndex = startIndex + itemsPerPage; const paginatedStudents = filteredStudents
-  function handlePrintSchoolCard(student: DonneesEleve): void { throw new Error("Function not implemented.") }
 
   return (
     <div className="w-full min-w-0">
@@ -198,17 +162,11 @@ export default function StudentsPage() {
         </div>
 
         <div className="flex flex-wrap justify-start gap-1.5 md:justify-end">
-          <Button variant="outline" className="h-8 rounded px-2.5 text-[11px]" onClick={handleBulkClassChange} disabled={selectedIds.size === 0}>
-            <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Réinscription groupée
-          </Button>
           <Button variant="outline" className="h-8 rounded px-2.5 text-[11px]" onClick={handlePrintClassOrLevel} disabled={isLoadingSupabase}>
             <Printer className="mr-1.5 h-3.5 w-3.5" /> Imprimer la liste
           </Button>
-          <Button variant="outline" className="h-8 rounded px-2.5 text-[11px]" onClick={handleExportCSV}>
-            <Download className="mr-1.5 h-3.5 w-3.5" /> Exporter (.csv)
-          </Button>
           <Button asChild className="h-8 rounded bg-[#1e3a8a] px-3 text-[11px] text-white hover:bg-[#00236f]">
-            <Link href="/ecole/inscriptions"><UserPlus className="mr-1.5 h-3.5 w-3.5" /> Nouvel élève</Link>
+            <Link href="/ecole/inscriptions"><UserPlus className="mr-1.5 h-3.5 w-3.5" /> Nouvelle inscription</Link>
           </Button>
         </div>
       </header>
@@ -268,7 +226,6 @@ export default function StudentsPage() {
             <table className="w-full min-w-[760px] border-collapse">
               <thead>
                 <tr className="border-b border-[#c5c5d3]/60 bg-[#f2f3ff]">
-                  <th className="w-10 px-2 py-2 text-left"><input type="checkbox" aria-label="Sélectionner les élèves visibles" onChange={(e) => setSelectedIds(e.target.checked ? new Set(paginatedStudents.map((s) => s.id)) : new Set())} /></th>
                   <th className="px-2 py-2 text-left">Matricule</th>
                   <th className="px-2 py-2 text-left">Élève</th>
                   <th className="px-2 py-2 text-left">Sexe / âge</th>
@@ -278,7 +235,7 @@ export default function StudentsPage() {
               </thead>
               <tbody>
                 {paginatedStudents.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-[12px] text-[#515f74]">Aucun élève trouvé.</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-12 text-center text-[12px] text-[#515f74]">Aucun élève trouvé.</td></tr>
                 ) : paginatedStudents.map((student) => {
                   const className = assignmentClasses.find((item) => item.id === (student as any).class_id)?.name || student.classe || "—"
                   const birth = student.dateNaissance ? new Date(student.dateNaissance) : null
@@ -291,9 +248,6 @@ export default function StudentsPage() {
                       onClick={() => setSelectedStudent(student)}
                       className={["cursor-pointer border-b border-[#c5c5d3]/45 last:border-b-0 hover:bg-[#f7f8ff]", selected ? "bg-[#eef2ff]" : ""].join(" ")}
                     >
-                      <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
-                        <input type="checkbox" checked={selectedIds.has(student.id)} onChange={(e) => handleSelectStudent(student.id, e.target.checked)} aria-label={`Sélectionner ${student.nom} ${student.prenom}`} />
-                      </td>
                       <td className="px-2 py-2 font-mono text-[11px] text-[#264191]">{student.identifiant || "—"}</td>
                       <td className="px-2 py-2">
                         <div className="flex items-center gap-2">
@@ -333,7 +287,6 @@ export default function StudentsPage() {
           onClose={() => setSelectedStudent(null)}
           onDelete={handleDeleteStudent}
           onToggleStatus={handleToggleStatus}
-          onPrintReceipt={handlePrintReceipt}
           onEdit={(student) => {
             setSelectedStudent(null)
             setEditingStudent(student)
@@ -349,17 +302,6 @@ export default function StudentsPage() {
         />
       )}
 
-      {selectedIds.size > 0 && (
-        <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 border border-[#c5c5d3] bg-white px-3 py-2 shadow-[0_3px_12px_rgba(19,27,46,.10)]">
-          <span className="text-[11px] font-medium text-[#131b2e]">{selectedIds.size} élève(s) sélectionné(s)</span>
-          <div className="flex flex-wrap gap-1.5">
-            <Button size="sm" variant="outline" onClick={handleBulkStatusChange}>Modifier le statut</Button>
-            <Button size="sm" variant="outline" onClick={handleBulkClassChange}>Affecter à une classe</Button>
-            <Button size="sm" variant="outline" onClick={handleBulkGenerateCertificates}><FileText className="mr-1.5 h-3.5 w-3.5" /> Attestations</Button>
-            <Button size="sm" variant="destructive" onClick={handleBulkArchive}>Désactiver</Button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

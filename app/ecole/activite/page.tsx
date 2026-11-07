@@ -63,7 +63,7 @@ const VALUE_LABELS: Record<string, string> = {
   cancelled: "Annulé", canceled: "Annulé", completed: "Terminé",
   approved: "Approuvé", rejected: "Refusé", true: "Oui", false: "Non",
 }
-const humanize = (value: string) => value.replace(/[._-]+/g, " ").replace(/\\s+/g, " ").trim()
+const humanize = (value: string) => value.replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim()
 const translateAction = (value: string | null) => {
   if (!value) return "Opération enregistrée"
   const key = value.toLowerCase().trim()
@@ -75,15 +75,16 @@ const translateAction = (value: string | null) => {
 const translateEntity = (value: string | null) => {
   if (!value) return "Élément concerné"
   const key = value.toLowerCase().trim()
-  return ENTITY_LABELS[key] || humanize(value).replace(/^\\w/, (letter) => letter.toUpperCase())
+  return ENTITY_LABELS[key] || humanize(value).replace(/^\w/, (letter) => letter.toUpperCase())
 }
-const translateField = (value: string) => FIELD_LABELS[value.toLowerCase()] || humanize(value).replace(/^\\w/, (letter) => letter.toUpperCase())
+const translateField = (value: string) => FIELD_LABELS[value.toLowerCase()] || humanize(value).replace(/^\w/, (letter) => letter.toUpperCase())
 const translateValue = (value: unknown) => {
   if (typeof value === "boolean") return value ? "Oui" : "Non"
   const raw = String(value)
   return VALUE_LABELS[raw.toLowerCase()] || raw
 }
-\nexport default function JournalActivitePage() {
+
+export default function JournalActivitePage() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
   const [rows, setRows] = useState<ActivityRow[]>([])

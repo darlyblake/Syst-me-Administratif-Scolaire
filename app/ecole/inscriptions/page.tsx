@@ -467,6 +467,8 @@ export default function InscriptionsPage() {
             <tbody className="text-[12px]">
               {visibleRows.map((row) => {
                 const isActive = row.status === "active"
+                const isCancelled = row.status === "cancelled"
+                const dossierFee = row.gradeLevelId ? effectiveFees[row.gradeLevelId] : undefined
                 return (
                   <tr key={row.id} className="border-b border-[#c5c5d3]/30 hover:bg-[#f2f3ff]">
                     <td className="px-3 py-2 font-mono text-[11px] font-medium text-[#00236f]">{row.dossier}</td>
@@ -511,33 +513,47 @@ export default function InscriptionsPage() {
                     </td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setClassChangeRow(row)}
-                          className="inline-flex h-6 items-center gap-1 border border-[#c5c5d3]/70 px-2 text-[10px] text-[#515f74] hover:bg-[#f2f3ff] hover:text-[#131b2e]"
-                          title={row.classId ? "Changer de classe" : "Affecter une classe"}
-                        >
-                          <ArrowRightLeft className="h-3.5 w-3.5" />
-                          {row.classId ? "Classe" : "Affecter"}
-                        </button>
-                        {isActive && (
+                        {isCancelled ? (
                           <button
                             type="button"
-                            onClick={() => window.open(`/receipt?id=${row.studentNumber || row.studentId}`, "_blank")}
-                            className="inline-flex h-6 items-center gap-1 border border-[#c5c5d3]/70 px-2 text-[10px] text-[#515f74] hover:bg-[#f2f3ff] hover:text-[#131b2e]"
-                            title="Imprimer le reçu"
+                            onClick={() => void restoreCancelledEnrollment(row)}
+                            disabled={restoringId === row.id}
+                            className="inline-flex h-6 items-center gap-1 border border-[#86b99a] bg-[#effaf2] px-2 text-[10px] font-medium text-[#166534] disabled:opacity-50"
                           >
-                            <Printer className="h-3.5 w-3.5" />
-                            Reçu
+                            <RotateCcw className="h-3 w-3" />
+                            {restoringId === row.id ? "Restauration…" : "Restaurer"}
                           </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setClassChangeRow(row)}
+                              className="inline-flex h-6 items-center gap-1 border border-[#c5c5d3]/70 px-2 text-[10px] text-[#515f74] hover:bg-[#f2f3ff] hover:text-[#131b2e]"
+                              title={row.classId ? "Changer de classe" : "Affecter une classe"}
+                            >
+                              <ArrowRightLeft className="h-3.5 w-3.5" />
+                              {row.classId ? "Classe" : "Affecter"}
+                            </button>
+                            {isActive && (
+                              <button
+                                type="button"
+                                onClick={() => window.open(`/receipt?id=${row.studentNumber || row.studentId}`, "_blank")}
+                                className="inline-flex h-6 items-center gap-1 border border-[#c5c5d3]/70 px-2 text-[10px] text-[#515f74] hover:bg-[#f2f3ff] hover:text-[#131b2e]"
+                                title="Imprimer le reçu"
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                                Reçu
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => toast.info(`Dossier ${row.dossier}`)}
+                              className="inline-flex h-6 items-center gap-1 bg-[#1e3a8a] px-2 text-[10px] font-medium text-white hover:bg-[#00236f]"
+                            >
+                              Voir
+                            </button>
+                          </>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => toast.info(`Dossier ${row.dossier}`)}
-                          className="inline-flex h-6 items-center gap-1 bg-[#1e3a8a] px-2 text-[10px] font-medium text-white hover:bg-[#00236f]"
-                        >
-                          Voir
-                        </button>
                       </div>
                     </td>
                   </tr>

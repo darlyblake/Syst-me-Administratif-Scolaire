@@ -38,7 +38,6 @@ type Row = {
   className: string
   date: string
   status: string
-  annualAmount: number
   gradeLevelId: string
   parentFirstName: string
   parentLastName: string
@@ -46,7 +45,6 @@ type Row = {
   parentEmail: string
   parentRelationship: string
   fundingSource: "family" | "state" | "other"
-  registrationFee: number | null
 }
 
 export default function InscriptionsPage() {
@@ -130,7 +128,6 @@ export default function InscriptionsPage() {
       className,
       date: raw.enrollment_date ?? raw.created_at ?? "",
       status: raw.status ?? "active",
-      annualAmount: Number(raw.tuition_plan?.annual_tuition ?? raw.annual_tuition ?? 0),
       gradeLevelId: raw.class?.grade_level_id ?? raw.grade_level_id ?? raw.tuition_plan?.grade_level_id ?? gradeLevelMap.get(classId) ?? "",
       parentFirstName: raw.linked_guardian_first_name ?? raw.guardian_first_name ?? "",
       parentLastName: raw.linked_guardian_last_name ?? raw.guardian_last_name ?? "",
@@ -138,7 +135,6 @@ export default function InscriptionsPage() {
       parentEmail: raw.linked_guardian_email ?? raw.guardian_email ?? "",
       parentRelationship: raw.linked_guardian_relationship ?? raw.guardian_relationship ?? "Parent",
       fundingSource: raw.funding_source === "state" || raw.funding_source === "other" ? raw.funding_source : "family",
-      registrationFee: null,
     }
   }), [enrollments, classMap, gradeLevelMap, activeYear?.name])
 
@@ -356,7 +352,7 @@ export default function InscriptionsPage() {
         })}
       </section>
 
-      <p className="mt-2 text-[11px] text-[#64748b]">Les frais de dossier correspondent aux frais uniques d’ouverture du dossier (inscription ou réinscription). Ils sont distincts des frais de scolarité annuels. « À configurer » signifie qu’aucun montant applicable n’est défini pour le niveau de l’élève.</p>\n\n      <section className="mt-3 overflow-hidden border border-[#c5c5d3]/45 bg-white">
+      <p className="mt-2 text-[11px] text-[#64748b]">Les frais de dossier sont payés une seule fois à l’ouverture du dossier. Ils sont différents de la scolarité annuelle. « À configurer » signifie qu’aucun montant applicable n’est défini pour le niveau. <Link href="/ecole/settings/scolarite" className="font-medium text-[#1e3a8a] underline underline-offset-2">Configurer les frais</Link>.</p>\n\n      <section className="mt-3 overflow-hidden border border-[#c5c5d3]/45 bg-white">
         <div className="flex flex-wrap items-center gap-1 border-b border-[#c5c5d3]/45 px-2 pt-1">
           <button type="button" onClick={() => { setFilterStatut(""); setPage(1) }} className={`border-b-2 px-3 py-2 text-[12px] font-medium ${filterStatut === "" ? "border-[#00236f] text-[#00236f]" : "border-transparent text-[#515f74] hover:bg-[#f2f3ff]"}`}>
             Toutes les demandes <span className="ml-1 text-[11px] text-[#515f74]">{allMatchingTotal}</span>

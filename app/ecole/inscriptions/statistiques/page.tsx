@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { BarChart3, CalendarDays, Filter, RefreshCw, Users, X } from "lucide-react"
+import { CalendarDays, Filter, RefreshCw, Users, X } from "lucide-react"
 import { useUserContext } from "@/hooks/useUserContext"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { financeService } from "@/lib/supabase/services/finance.service"
@@ -111,10 +111,8 @@ export default function StatistiquesInscriptions() {
       }
 
       const movements = await financeService.getMovements(establishmentId, undefined, undefined, "credit")
-      if (allRows.length || movements.length >= 0) {
-        setEnrollments(allRows)
-        setRevenues(movements.map((row) => ({ date: row.transaction_date, amount: Number(row.amount) || 0 })))
-      }
+      setEnrollments(allRows)
+      setRevenues(movements.map((row) => ({ date: row.transaction_date, amount: Number(row.amount) || 0 })))
     } catch (cause) {
       setEnrollments([])
       setRevenues([])

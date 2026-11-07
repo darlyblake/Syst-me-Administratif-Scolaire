@@ -8,7 +8,7 @@ import {
   ClipboardList, FileText, FolderOpen, GraduationCap, LayoutDashboard,
   LogOut, Timer, UserRound, Wrench, Inbox, Wallet, CreditCard, Layers,
   School, UserCog, Fingerprint, ReceiptText, AlertTriangle, ClipboardCheck,
-  CalendarRange, ArrowRightLeft, Users, FileSpreadsheet
+  CalendarRange, ArrowRightLeft, Users, FileSpreadsheet, History
 } from "lucide-react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -69,6 +69,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
   const navGroups = [
     { section: null, items: [
       { href: "/ecole/tableau-bord", label: "Tableau de bord", icon: LayoutDashboard, permission: "dashboard.view" },
+      { href: "/ecole/activite", label: "Journal d’activité", icon: History, permission: "dashboard.view" },
     ]},
     { section: "Scolarité", items: [
       { href: "/ecole/students", label: "Élèves", icon: School, permission: "students.view" },

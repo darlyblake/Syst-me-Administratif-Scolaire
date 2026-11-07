@@ -300,8 +300,8 @@ export default function PageTableauBord() {
             )}
           </div>
 
-          <Link href="/ecole/evenements" className="flex items-center justify-center gap-1 border-t border-[#c5c5d3]/55 px-3 py-2 text-[11px] font-medium text-[#00236f] hover:bg-[#f2f3ff]">
-            Ouvrir les événements scolaires <ArrowRight className="h-3.5 w-3.5" />
+          <Link href="/ecole/activite" className="flex items-center justify-center gap-1 border-t border-[#c5c5d3]/55 px-3 py-2 text-[11px] font-medium text-[#00236f] hover:bg-[#f2f3ff]">
+            Consulter le journal d’activité <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 

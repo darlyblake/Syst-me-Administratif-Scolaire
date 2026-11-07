@@ -258,7 +258,7 @@ export default function PageTableauBord() {
               <span className="font-semibold text-[#93000a]">{money(overdueSummary.amount)} à recouvrer</span>
             </div>
             <div className="divide-y divide-[#c5c5d3]/40">
-              {overdueSchedules.slice(0, 6).map((row) => (
+              {overdueSchedules.slice(0, 8).map((row) => (
                 <div key={row.schedule_id} className="flex flex-col gap-1 px-3 py-2 sm:flex-row sm:items-center sm:gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-[12px] font-semibold text-[#131b2e]">{row.last_name || ""} {row.first_name || ""}</p>
@@ -271,7 +271,7 @@ export default function PageTableauBord() {
                 </div>
               ))}
             </div>
-            {overdueSchedules.length > 6 && <p className="border-t border-[#c5c5d3]/45 px-3 py-2 text-[11px] text-[#515f74]">Et {overdueSchedules.length - 6} autre(s) échéance(s) en retard dans le suivi financier.</p>}
+            {overdueSchedules.length > 8 && <p className="border-t border-[#c5c5d3]/45 px-3 py-2 text-[11px] text-[#515f74]">Et {overdueSchedules.length - 8} autre(s) échéance(s) en retard dans le suivi financier.</p>}
           </>
         )}
       </section>
@@ -292,6 +292,7 @@ export default function PageTableauBord() {
                 <div className="min-w-0">
                   <p className="text-[12px] font-semibold text-[#131b2e]">{String(event.action || "Opération enregistrée").replace(/[._]/g, " ")}</p>
                   <p className="mt-0.5 text-[11px] leading-4 text-[#515f74]">{event.entity_type ? "Élément concerné : " + event.entity_type : "Opération enregistrée dans l'établissement."}</p>
+                  <p className="mt-0.5 text-[11px] text-[#64748b]">Effectuée par : <span className="font-medium text-[#334155]">{event.actor_name || "Auteur non renseigné"}</span></p>
                 </div>
               </div>
             )) : (
@@ -314,7 +315,7 @@ export default function PageTableauBord() {
           </div>
 
           <div className="divide-y divide-[#c5c5d3]/45">
-            {evenements.slice(0, 3).map((event: any, index: number) => {
+            {evenements.slice(0, 8).map((event: any, index: number) => {
               const date = event.starts_at ? new Date(event.starts_at) : null
               return (
                 <div key={event.id ?? index} className="flex gap-3 px-3 py-3">

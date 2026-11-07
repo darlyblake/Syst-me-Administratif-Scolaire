@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, UserPlus, Download, FileText, RotateCcw, Upload, Wrench } from "lucide-react"
+import { UserPlus, Download, FileText, RotateCcw, Wrench, Printer } from "lucide-react"
 import Link from "next/link"
 import { printHtml } from "@/lib/print"
 import { useUserContext } from "@/hooks/useUserContext"
@@ -23,8 +23,7 @@ import ClassSection from "@/components/ClassSection"
 import StudentListItem from "@/components/StudentListItem"
 import StudentDetailsModal from "@/components/StudentDetailsModal"
 import EditStudentModal from "@/components/students/EditStudentModal"
-import StudentImportGuideModal from "@/components/students/StudentImportGuideModal"
-import StudentBulkImportModal from "@/components/students/StudentBulkImportModal"
+import { listStudentsPaginated } from "@/lib/supabase/services/student.service"
 
 export default function StudentsPage() {
   const router = useRouter()
@@ -143,7 +142,34 @@ export default function StudentsPage() {
   const handleBulkArchive = async () => { const selectedCount = selectedIds.size; if (confirm(`Désactiver ${selectedCount} élève(s) ?`)) { for (const id of selectedIds) await deactivate(id); setSelectedIds(new Set()); toast.success(`${selectedCount} élève(s) désactivé(s)`) } }
   const handleBulkMessage = () => { const message = prompt("Message à envoyer aux parents des élèves sélectionnés:"); if (message) { toast.success("Message envoyé (simulation)"); setSelectedIds(new Set()) } }
   const handleExportCSV = () => { const headers = "Nom,Prénom,Identifiant,Classe,Statut,Téléphone,Email,Date d'inscription\n"; const csvContent = students.map(student => `"${student.nom}","${student.prenom}","${student.identifiant}","${student.classe}","${student.statut}","${student.informationsContact.telephone}","${student.informationsContact.email}","${new Date(student.dateInscription).toLocaleDateString()}"`).join("\n"); const blob = new Blob([headers + csvContent], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "eleves.csv"; link.click(); URL.revokeObjectURL(url) }
-  const handleExportIdentifiants = () => toast.info("Export des identifiants")
+  const handlePrintClassOrLevel = async () => {
+    if (!establishmentId) return toast.error("Aucun établissement actif.")
+    if (selectedClass === "all" && selectedLevel === "all") return toast.info("Sélectionnez une classe ou un niveau pour imprimer sa liste.")
+    const classInfo = assignmentClasses.find((item) => item.id === selectedClass)
+    const levelInfo = realGradeLevels.find((item) => item.id === selectedLevel)
+    const title = selectedClass !== "all" ? "Liste des élèves — " + (classInfo?.name ?? "Classe") : "Liste des élèves — " + (levelInfo?.name ?? "Niveau")
+    try {
+      const allStudents: any[] = []
+      let page = 1
+      let pageCount = 1
+      do {
+        const result = await listStudentsPaginated(establishmentId, page, 500, "", selectedStatus === "all" ? null : selectedStatus === "actif", selectedClass !== "all" ? selectedClass : null, null, selectedClass === "all" ? selectedLevel : null, null, null, selectedStatus === "all" ? null : selectedStatus === "actif")
+        allStudents.push(...result.items)
+        pageCount = result.total_pages
+        page += 1
+      } while (page <= pageCount)
+      if (allStudents.length === 0) return toast.info("Aucun élève à imprimer pour cette sélection.")
+      const esc = (value: unknown) => String(value ?? "—").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+      const rows = allStudents.map((student, index) => {
+        const className = student.class_name || assignmentClasses.find((item) => item.id === student.class_id)?.name || "—"
+        return "<tr><td>" + (index + 1) + "</td><td>" + esc(student.student_number) + "</td><td>" + esc(student.last_name) + " " + esc(student.first_name) + "</td><td>" + esc(student.sex || student.gender) + "</td><td>" + esc(className) + "</td><td>" + (student.active === false ? "Inactif" : "Actif") + "</td></tr>"
+      }).join("")
+      const html = '<html lang="fr"><head><meta charset="utf-8"><title>' + esc(title) + '</title><style>@page{size:A4 portrait;margin:15mm}body{font-family:Arial,sans-serif;color:#172033;font-size:11px}h1{font-size:18px;color:#00236f}table{width:100%;border-collapse:collapse}th,td{border:1px solid #cbd2df;padding:7px 6px;text-align:left}th{background:#e9edff;font-size:10px;text-transform:uppercase}tbody tr:nth-child(even){background:#f7f8fc}footer{margin-top:18px;font-size:10px;color:#64748b}</style></head><body><h1>' + esc(title) + '</h1><p>Année scolaire : ' + esc(activeYear?.name || "—") + " · Effectif : " + allStudents.length + '</p><table><thead><tr><th>N°</th><th>Matricule</th><th>Nom et prénom</th><th>Sexe</th><th>Classe</th><th>Statut</th></tr></thead><tbody>' + rows + '</tbody></table><footer>Document généré le ' + new Date().toLocaleDateString("fr-FR") + '</footer></body></html>'
+      printHtml(html)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible de préparer la liste à imprimer.")
+    }
+  }
   const handleDownloadTemplate = () => toast.info("Téléchargement du modèle")
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => { const reader = new FileReader(); reader.onload = () => toast.info("Import CSV en cours"); const file = e.target.files?.[0]; if (!file) return; reader.readAsText(file) }
   const handlePrintReceipt = (student: DonneesEleve) => router.push(`/receipt?id=${encodeURIComponent(student.identifiant)}`)
@@ -175,18 +201,11 @@ export default function StudentsPage() {
           <Button variant="outline" className="h-8 rounded px-2.5 text-[11px]" onClick={handleBulkClassChange} disabled={selectedIds.size === 0}>
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Réinscription groupée
           </Button>
-          <StudentBulkImportModal
-            establishmentId={establishmentId}
-            academicYearId={activeYear?.id ?? null}
-            classes={assignmentClasses}
-            tuitionPlans={tuitionPlans}
-            createStudent={create}
-            assignToClass={assignToClass}
-            onImported={() => { refresh(); setCurrentPage(1); setSelectedIds(new Set()) }}
-          />
-          <StudentImportGuideModal />
+          <Button variant="outline" className="h-8 rounded px-2.5 text-[11px]" onClick={handlePrintClassOrLevel} disabled={isLoadingSupabase}>
+            <Printer className="mr-1.5 h-3.5 w-3.5" /> Imprimer la liste
+          </Button>
           <Button variant="outline" className="h-8 rounded px-2.5 text-[11px]" onClick={handleExportCSV}>
-            <Download className="mr-1.5 h-3.5 w-3.5" /> Exporter (.xlsx)
+            <Download className="mr-1.5 h-3.5 w-3.5" /> Exporter (.csv)
           </Button>
           <Button asChild className="h-8 rounded bg-[#1e3a8a] px-3 text-[11px] text-white hover:bg-[#00236f]">
             <Link href="/ecole/inscriptions"><UserPlus className="mr-1.5 h-3.5 w-3.5" /> Nouvel élève</Link>

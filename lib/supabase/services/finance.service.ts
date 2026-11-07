@@ -66,11 +66,11 @@ export const financeService = {
     ]);
     const actorIds = Array.from(new Set([
       ...(auditLogs.data ?? []).map((row: any) => row.actor_id || row.metadata?.actor_user_id).filter(Boolean),
-      ...(paymentsActivity.data ?? []).map((row: any) => row.recorded_by).filter(Boolean),
-      ...(expensesActivity.data ?? []).map((row: any) => row.created_by).filter(Boolean),
+      ...(paymentsActivity.data ?? []).filter((row: any) => !(auditLogs.data ?? []).some((log: any) => log.entity_id === row.id)).map((row: any) => row.recorded_by).filter(Boolean),
+      ...(expensesActivity.data ?? []).filter((row: any) => !(auditLogs.data ?? []).some((log: any) => log.entity_id === row.id)).map((row: any) => row.created_by).filter(Boolean),
     ]));
     const profilesResult = actorIds.length ? await supabaseBrowser.from("profiles").select("id, first_name, last_name").in("id", actorIds) : { data: [], error: null };
-    const profileNames = new Map((profilesResult.data ?? []).map((profile: any) => [profile.id, [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim()]));
+    const profileNames = new Map<string, string>((profilesResult.data ?? []).map((profile: any) => [profile.id, [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim()]));
     const actorName = (id?: string | null) => id ? (profileNames.get(id) || "Utilisateur sans nom de profil") : "Auteur non renseigné";
 
     const results = [classes, teachers, staff, staffAttendance, pendingEnrollments, attendance, revenue, schoolEvents, auditLogs];
@@ -101,8 +101,8 @@ export const financeService = {
       upcomingEventsCount: schoolEvents.count ?? 0,
       recentActivity: [
         ...(auditLogs.data ?? []).map((row: any) => ({ id: row.id, action: row.action, entity_type: row.entity_type, created_at: row.created_at, actor_name: actorName(row.actor_id || row.metadata?.actor_user_id) })),
-        ...(studentsActivity.data ?? []).map((row: any) => ({ id: "student-" + row.id, action: "Nouvel élève ajouté", entity_type: [row.first_name, row.last_name].filter(Boolean).join(" "), created_at: row.created_at, actor_name: "Auteur non renseigné" })),
-        ...(enrollmentsActivity.data ?? []).map((row: any) => ({ id: "enrollment-" + row.id, action: "Inscription enregistrée", entity_type: "Dossier " + String(row.status ?? "").toLowerCase(), created_at: row.created_at, actor_name: "Auteur non renseigné" })),
+        ...(studentsActivity.data ?? []).filter((row: any) => !(auditLogs.data ?? []).some((log: any) => log.entity_id === row.id)).map((row: any) => ({ id: "student-" + row.id, action: "Nouvel élève ajouté", entity_type: [row.first_name, row.last_name].filter(Boolean).join(" "), created_at: row.created_at, actor_name: "Auteur non renseigné" })),
+        ...(enrollmentsActivity.data ?? []).filter((row: any) => !(auditLogs.data ?? []).some((log: any) => log.entity_id === row.id)).map((row: any) => ({ id: "enrollment-" + row.id, action: "Inscription enregistrée", entity_type: "Dossier " + String(row.status ?? "").toLowerCase(), created_at: row.created_at, actor_name: "Auteur non renseigné" })),
         ...(paymentsActivity.data ?? []).map((row: any) => ({ id: "payment-" + row.id, action: "Paiement enregistré", entity_type: Number(row.amount || 0).toLocaleString("fr-FR") + " FCFA", created_at: row.created_at, actor_name: actorName(row.recorded_by) })),
         ...(expensesActivity.data ?? []).map((row: any) => ({ id: "expense-" + row.id, action: "Dépense enregistrée", entity_type: row.description || (Number(row.amount || 0).toLocaleString("fr-FR") + " FCFA"), created_at: row.created_at, actor_name: actorName(row.created_by) })),
       ].filter((row) => row.created_at).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 8),

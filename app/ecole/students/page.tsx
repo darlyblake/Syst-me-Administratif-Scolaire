@@ -3,8 +3,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { UserPlus, Wrench, Printer } from "lucide-react"
-import Link from "next/link"
+import { Wrench, Printer } from "lucide-react"
 import { printHtml } from "@/lib/print"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
@@ -158,9 +157,6 @@ export default function StudentsPage() {
         <div className="flex flex-wrap justify-start gap-1.5 md:justify-end">
           <Button variant="outline" className="h-8 rounded px-2.5 text-[11px]" onClick={handlePrintClassOrLevel} disabled={isLoadingSupabase}>
             <Printer className="mr-1.5 h-3.5 w-3.5" /> Imprimer la liste
-          </Button>
-          <Button asChild className="h-8 rounded bg-[#1e3a8a] px-3 text-[11px] text-white hover:bg-[#00236f]">
-            <Link href="/ecole/inscriptions"><UserPlus className="mr-1.5 h-3.5 w-3.5" /> Nouvelle inscription</Link>
           </Button>
         </div>
       </header>

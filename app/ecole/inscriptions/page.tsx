@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import {
@@ -25,6 +25,7 @@ import { useUserContext } from "@/hooks/useUserContext"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { useEnrollments } from "@/hooks/useEnrollments"
+import { supabaseBrowser } from "@/lib/supabase/client"
 
 type Row = {
   id: string
@@ -45,6 +46,7 @@ type Row = {
   parentEmail: string
   parentRelationship: string
   fundingSource: "family" | "state" | "other"
+  registrationFee: number | null
 }
 
 export default function InscriptionsPage() {
@@ -62,6 +64,9 @@ export default function InscriptionsPage() {
   const [page, setPage] = useState(1)
   const [refreshKey, setRefreshKey] = useState(0)
   const [classChangeRow, setClassChangeRow] = useState<Row | null>(null)
+  const [effectiveFees, setEffectiveFees] = useState<Record<string, number>>({})
+  const [feeLoading, setFeeLoading] = useState(false)
+  const [restoringId, setRestoringId] = useState<string | null>(null)
 
   const { enrollments, total, totalPages, isLoading, error } = useEnrollments({
     establishmentId,
@@ -100,6 +105,12 @@ export default function InscriptionsPage() {
     return map
   }, [academicStructure])
 
+  const gradeLevelMap = useMemo(() => {
+    const map = new Map<string, string>()
+    academicStructure.forEach((cycle) => cycle.grade_levels?.forEach((level) => level.school_classes?.forEach((schoolClass) => map.set(schoolClass.id, level.id))))
+    return map
+  }, [academicStructure])
+
   const rows = useMemo<Row[]>(() => enrollments.map((enrollment) => {
     const raw = enrollment as any
     const firstName = raw.student?.first_name ?? raw.first_name ?? ""
@@ -120,15 +131,68 @@ export default function InscriptionsPage() {
       date: raw.enrollment_date ?? raw.created_at ?? "",
       status: raw.status ?? "active",
       annualAmount: Number(raw.tuition_plan?.annual_tuition ?? raw.annual_tuition ?? 0),
-      gradeLevelId: raw.class?.grade_level_id ?? raw.grade_level_id ?? raw.tuition_plan?.grade_level_id ?? "",
+      gradeLevelId: raw.class?.grade_level_id ?? raw.grade_level_id ?? raw.tuition_plan?.grade_level_id ?? gradeLevelMap.get(classId) ?? "",
       parentFirstName: raw.linked_guardian_first_name ?? raw.guardian_first_name ?? "",
       parentLastName: raw.linked_guardian_last_name ?? raw.guardian_last_name ?? "",
       parentPhone: raw.linked_guardian_phone ?? raw.guardian_phone ?? "",
       parentEmail: raw.linked_guardian_email ?? raw.guardian_email ?? "",
       parentRelationship: raw.linked_guardian_relationship ?? raw.guardian_relationship ?? "Parent",
       fundingSource: raw.funding_source === "state" || raw.funding_source === "other" ? raw.funding_source : "family",
+      registrationFee: null,
     }
-  }), [enrollments, classMap, activeYear?.name])
+  }), [enrollments, classMap, gradeLevelMap, activeYear?.name])
+
+  useEffect(() => {
+    if (!establishmentId || rows.length === 0) {
+      setEffectiveFees({})
+      return
+    }
+    let cancelled = false
+    const loadFees = async () => {
+      setFeeLoading(true)
+      try {
+        const levelIds = [...new Set(rows.map((row) => row.gradeLevelId).filter(Boolean))]
+        const entries = await Promise.all(levelIds.map(async (levelId) => {
+          const { data, error } = await supabaseBrowser.rpc("get_effective_enrollment_fees", {
+            p_establishment_id: establishmentId,
+            p_grade_level_id: levelId,
+          })
+          if (error) throw error
+          const result = Array.isArray(data) ? data[0] : data
+          return [levelId, result ? Number((result as any).registration_fee ?? 0) : 0] as const
+        }))
+        if (!cancelled) setEffectiveFees(Object.fromEntries(entries))
+      } catch (error) {
+        console.error("Chargement des frais de dossier impossible:", error)
+        if (!cancelled) setEffectiveFees({})
+      } finally {
+        if (!cancelled) setFeeLoading(false)
+      }
+    }
+    void loadFees()
+    return () => { cancelled = true }
+  }, [establishmentId, rows])
+
+  const restoreCancelledEnrollment = async (row: Row) => {
+    const confirmed = window.confirm(`Restaurer le dossier de ${row.lastName} ${row.firstName} ? Il repassera « En attente » et ne sera pas activé automatiquement.`)
+    if (!confirmed || !establishmentId) return
+    setRestoringId(row.id)
+    try {
+      const { error } = await supabaseBrowser
+        .from("enrollments")
+        .update({ status: "pending" })
+        .eq("id", row.id)
+        .eq("establishment_id", establishmentId)
+        .eq("status", "cancelled")
+      if (error) throw error
+      toast.success("Dossier restauré. Il est de nouveau en attente de validation.")
+      setRefreshKey((value) => value + 1)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Impossible de restaurer ce dossier.")
+    } finally {
+      setRestoringId(null)
+    }
+  }
 
   const classes = useMemo(
     () => academicStructure.flatMap((cycle) =>
@@ -292,7 +356,7 @@ export default function InscriptionsPage() {
         })}
       </section>
 
-      <section className="mt-3 overflow-hidden border border-[#c5c5d3]/45 bg-white">
+      <p className="mt-2 text-[11px] text-[#64748b]">Les frais de dossier correspondent aux frais uniques d’ouverture du dossier (inscription ou réinscription). Ils sont distincts des frais de scolarité annuels. « À configurer » signifie qu’aucun montant applicable n’est défini pour le niveau de l’élève.</p>\n\n      <section className="mt-3 overflow-hidden border border-[#c5c5d3]/45 bg-white">
         <div className="flex flex-wrap items-center gap-1 border-b border-[#c5c5d3]/45 px-2 pt-1">
           <button type="button" onClick={() => { setFilterStatut(""); setPage(1) }} className={`border-b-2 px-3 py-2 text-[12px] font-medium ${filterStatut === "" ? "border-[#00236f] text-[#00236f]" : "border-transparent text-[#515f74] hover:bg-[#f2f3ff]"}`}>
             Toutes les demandes <span className="ml-1 text-[11px] text-[#515f74]">{allMatchingTotal}</span>
@@ -390,7 +454,7 @@ export default function InscriptionsPage() {
                   ["Niveau / classe", "w-32"],
                   ["Prise en charge", "w-40"],
                   ["Responsable", ""],
-                  ["Frais dossier", "w-32"],
+                  ["Frais de dossier", "w-36"],
                   ["Statut dossier", "w-40"],
                   ["Actions", "w-36"],
                 ].map(([label, width]) => (
@@ -430,13 +494,13 @@ export default function InscriptionsPage() {
                       </div>
                     </td>
                     <td className="px-3 py-2">
-                      {row.annualAmount > 0 ? (
+                      {dossierFee !== undefined && dossierFee > 0 ? (
                         <span className="inline-flex items-center gap-1 border border-[#bbf7d0] bg-[#dcfce7] px-2 py-0.5 text-[11px] font-semibold text-[#15803d]">
                           <CheckCircle2 className="h-3 w-3" />
-                          {row.annualAmount.toLocaleString("fr-FR")} FCFA
+                          {dossierFee.toLocaleString("fr-FR")} FCFA
                         </span>
                       ) : (
-                        <span className="text-[11px] text-[#515f74]">Non configuré</span>
+                        <span className="text-[11px] text-[#9a3412]" title="Les frais de dossier sont distincts de la scolarité annuelle."> {feeLoading ? "Chargement…" : dossierFee === 0 ? "À configurer" : "Niveau non défini"} </span>
                       )}
                     </td>
                     <td className="px-3 py-2">

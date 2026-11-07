@@ -10,7 +10,6 @@ import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
-import { useTuitionPlans } from "@/hooks/useTuitionPlans"
 import type { DonneesEleve } from "@/types/models"
 
 import StudentDetailsModal from "@/components/StudentDetailsModal"
@@ -30,8 +29,7 @@ export default function StudentsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const { data: academicStructure } = useAcademicStructure(establishmentId)
   const { activeYear } = useAcademicYears(establishmentId)
-  const { data: tuitionPlans } = useTuitionPlans(activeYear?.id ?? null)
-  const { data: supabaseStudents, total, totalPages: backendTotalPages, isLoading: isLoadingSupabase, error: studentsError, create, update, deactivate, assignToClass, isCreating, isUpdating, isDeactivating, isAssigning, refresh } = useStudents(establishmentId, {
+  const { data: supabaseStudents, total, totalPages: backendTotalPages, isLoading: isLoadingSupabase, error: studentsError, update } = useStudents(establishmentId, {
     page: currentPage,
     pageSize: 50,
     search: searchTerm,

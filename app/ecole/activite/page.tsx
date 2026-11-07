@@ -23,7 +23,67 @@ const formatDate = (value: string) =>
     hour: "2-digit", minute: "2-digit", timeZone: "Africa/Libreville",
   })
 
-export default function JournalActivitePage() {
+
+const ACTION_LABELS: Record<string, string> = {
+  create: "Création", created: "Création", insert: "Ajout", insert_one: "Ajout",
+  update: "Modification", updated: "Modification", edit: "Modification",
+  delete: "Suppression", deleted: "Suppression", remove: "Suppression",
+  restore: "Restauration", restored: "Restauration",
+  login: "Connexion", logout: "Déconnexion",
+  payment: "Paiement enregistré", payment_created: "Paiement enregistré",
+  enrollment: "Inscription", enrollment_created: "Inscription créée",
+  student: "Fiche élève", student_created: "Élève ajouté",
+  student_updated: "Fiche élève modifiée", attendance: "Registre d’appel",
+  grade: "Notes", document: "Document", export: "Exportation",
+  import: "Importation", validate: "Validation", validated: "Validation",
+  cancel: "Annulation", cancelled: "Annulation",
+}
+const ENTITY_LABELS: Record<string, string> = {
+  student: "Élève", students: "Élèves", enrollment: "Inscription",
+  enrollments: "Inscriptions", payment: "Paiement", payments: "Paiements",
+  class: "Classe", classes: "Classes", school_class: "Classe",
+  grade: "Note", grades: "Notes", attendance: "Présence",
+  user: "Utilisateur", profile: "Profil", teacher: "Enseignant",
+  parent: "Parent / responsable", document: "Document",
+  establishment: "Établissement", school_year: "Année scolaire",
+  invoice: "Facture", expense: "Dépense", settings: "Paramètres",
+}
+const FIELD_LABELS: Record<string, string> = {
+  first_name: "Prénom", last_name: "Nom", student_name: "Élève",
+  student_number: "Matricule", class_name: "Classe", grade_level: "Niveau",
+  amount: "Montant", total: "Total", status: "Statut", old_status: "Ancien statut",
+  new_status: "Nouveau statut", payment_method: "Mode de paiement",
+  reference: "Référence", phone: "Téléphone", email: "E-mail",
+  date: "Date", reason: "Motif", description: "Description",
+  academic_year: "Année scolaire", actor: "Utilisateur",
+}
+const VALUE_LABELS: Record<string, string> = {
+  active: "Actif", inactive: "Inactif", pending: "En attente",
+  paid: "Payé", partial: "Partiellement payé", unpaid: "Impayé",
+  cancelled: "Annulé", canceled: "Annulé", completed: "Terminé",
+  approved: "Approuvé", rejected: "Refusé", true: "Oui", false: "Non",
+}
+const humanize = (value: string) => value.replace(/[._-]+/g, " ").replace(/\\s+/g, " ").trim()
+const translateAction = (value: string | null) => {
+  if (!value) return "Opération enregistrée"
+  const key = value.toLowerCase().trim()
+  if (ACTION_LABELS[key]) return ACTION_LABELS[key]
+  const words = key.split(/[._-]+/)
+  const translated = words.map((word) => ACTION_LABELS[word] || word).join(" ")
+  return translated.charAt(0).toUpperCase() + translated.slice(1)
+}
+const translateEntity = (value: string | null) => {
+  if (!value) return "Élément concerné"
+  const key = value.toLowerCase().trim()
+  return ENTITY_LABELS[key] || humanize(value).replace(/^\\w/, (letter) => letter.toUpperCase())
+}
+const translateField = (value: string) => FIELD_LABELS[value.toLowerCase()] || humanize(value).replace(/^\\w/, (letter) => letter.toUpperCase())
+const translateValue = (value: unknown) => {
+  if (typeof value === "boolean") return value ? "Oui" : "Non"
+  const raw = String(value)
+  return VALUE_LABELS[raw.toLowerCase()] || raw
+}
+\nexport default function JournalActivitePage() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
   const [rows, setRows] = useState<ActivityRow[]>([])
@@ -97,11 +157,11 @@ export default function JournalActivitePage() {
           <Link href="/ecole/tableau-bord" className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-[#515f74] hover:text-[#00236f]">
             <ArrowLeft className="h-3.5 w-3.5" /> Retour au tableau de bord
           </Link>
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#64748b]">Administration · Traçabilité</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#64748b]">Administration · Historique</p>
           <h1 className="mt-1 flex items-center gap-2 text-2xl font-semibold text-[#00236f]">
             <History className="h-6 w-6" /> Journal d’activité
           </h1>
-          <p className="mt-1 text-sm text-[#515f74]">Historique des opérations enregistrées dans cet établissement.</p>
+          <p className="mt-1 text-sm text-[#515f74]">Consultez les actions effectuées dans votre établissement : inscriptions, paiements et modifications.</p>
         </div>
         <button type="button" onClick={() => void load(true)} disabled={loading || refreshing} className="inline-flex h-9 items-center justify-center gap-2 rounded border border-[#c5c5d3]/70 bg-white px-3 text-sm font-medium text-[#00236f] hover:bg-[#f2f3ff] disabled:opacity-50">
           <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Actualiser
@@ -111,17 +171,17 @@ export default function JournalActivitePage() {
       <div className="flex flex-col gap-3 rounded border border-[#c5c5d3]/55 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher une action, un utilisateur ou un élément…" className="h-10 w-full rounded border border-[#c5c5d3]/70 bg-white pl-9 pr-3 text-sm text-[#131b2e] outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-[#1e3a8a]/10" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher par action, utilisateur ou nom…" className="h-10 w-full rounded border border-[#c5c5d3]/70 bg-white pl-9 pr-3 text-sm text-[#131b2e] outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-[#1e3a8a]/10" />
         </div>
-        <p className="shrink-0 text-xs text-[#64748b]">{filteredRows.length} opération(s) affichée(s) · 100 dernières au maximum</p>
+        <p className="shrink-0 text-xs text-[#64748b]">{filteredRows.length} activité(s) affichée(s) · 100 dernières</p>
       </div>
 
       {error && <div role="alert" className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       <section className="overflow-hidden rounded border border-[#c5c5d3]/55 bg-white">
         <div className="border-b border-[#c5c5d3]/55 bg-[#f2f3ff] px-4 py-3">
-          <h2 className="text-sm font-semibold text-[#131b2e]">Opérations récentes</h2>
-          <p className="mt-0.5 text-xs text-[#515f74]">Les informations proviennent de l’historique Supabase de l’établissement.</p>
+          <h2 className="text-sm font-semibold text-[#131b2e]">Activités récentes</h2>
+          <p className="mt-0.5 text-xs text-[#515f74]">Chaque ligne indique l’action réalisée, la personne concernée et la date.</p>
         </div>
         {loading ? (
           <div className="px-4 py-12 text-center text-sm text-[#64748b]">Chargement du journal…</div>
@@ -138,13 +198,13 @@ export default function JournalActivitePage() {
             {filteredRows.map((row) => (
               <article key={row.id} className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-start">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[#131b2e]">{(row.action || "Opération enregistrée").replace(/[._]/g, " ")}</p>
+                  <p className="text-sm font-semibold text-[#131b2e]">{translateAction(row.action)}</p>
                   <p className="mt-1 text-xs text-[#64748b]">
-                    {row.entity_type || "Élément"}{row.entity_id ? " · Référence : " + row.entity_id : ""}
+                    {translateEntity(row.entity_type)}
                   </p>
                   {row.metadata && Object.keys(row.metadata).length > 0 && (
                     <p className="mt-1 break-words text-xs text-[#64748b]">
-                      {Object.entries(row.metadata).filter(([, value]) => value !== null && value !== undefined && typeof value !== "object").map(([key, value]) => key.replace(/_/g, " ") + " : " + String(value)).join(" · ")}
+                      {Object.entries(row.metadata).filter(([, value]) => value !== null && value !== undefined && typeof value !== "object").map(([key, value]) => translateField(key) + " : " + translateValue(value)).join(" · ")}
                     </p>
                   )}
                 </div>
@@ -157,7 +217,7 @@ export default function JournalActivitePage() {
           </div>
         )}
       </section>
-      <p className="text-xs leading-5 text-[#64748b]">Certaines opérations anciennes ou non encore couvertes par le suivi automatique peuvent ne pas figurer dans ce journal. Les entrées sans auteur identifié sont signalées comme telles.</p>
+      <p className="text-xs leading-5 text-[#64748b]">Ce journal affiche les 100 activités les plus récentes disponibles. Une activité sans nom d’utilisateur est indiquée « Auteur non renseigné ».</p>
     </div>
   )
 }

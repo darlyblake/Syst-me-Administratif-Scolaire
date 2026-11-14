@@ -243,7 +243,7 @@ export default function NotificationBell() {
       {open && (
         <>
           <button type="button" aria-label="Fermer les notifications" className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} />
-          <section role="dialog" aria-label="Centre de notifications" className="absolute right-0 z-50 mt-2 w-[min(92vw,380px)] overflow-hidden rounded-lg border border-[#c5c5d3] bg-white shadow-xl">
+          <section role="dialog" aria-label="Centre de notifications" className="fixed left-3 right-3 top-[4.5rem] z-50 mx-auto w-auto max-w-[380px] overflow-hidden rounded-lg border border-[#c5c5d3] bg-white shadow-xl sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(92vw,380px)] sm:mx-0">
             <div className="flex items-center justify-between border-b border-[#e1e3eb] px-4 py-3">
               <div>
                 <h2 className="text-sm font-semibold text-[#131b2e]">Notifications</h2>

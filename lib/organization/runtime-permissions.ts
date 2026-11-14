@@ -24,7 +24,7 @@ function startsWithAny(value: string, prefixes: string[]) {
 function permissionCategory(permission: string): string | null {
   if (permission === "students" || startsWithAny(permission, ["students."])) return "students"
   if (startsWithAny(permission, ["enrollments.", "inscriptions."])) return "inscriptions"
-  if (startsWithAny(permission, ["payments.", "finance.", "tuition."])) return "finance"
+  if (startsWithAny(permission, ["payments.", "finance."]) || permission === "tuition.manage") return "finance"
   if (startsWithAny(permission, ["grades.", "notes."])) return "notes"
   if (startsWithAny(permission, ["attendance.", "pointage."])) return "attendance"
   if (startsWithAny(permission, ["documents."])) return "documents"

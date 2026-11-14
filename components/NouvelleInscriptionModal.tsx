@@ -35,6 +35,15 @@ interface FamilySearchResult {
   children: FamilySiblingCandidate[]
 }
 
+interface PreviousOrganizationAssignment {
+  id: string
+  organization_id: string
+  organization_name: string
+  academic_year_id: string
+  academic_year_name: string
+  organization_active: boolean
+}
+
 interface NouvelleInscriptionModalProps {
   isOpen: boolean
   onClose: () => void
@@ -116,6 +125,7 @@ export default function NouvelleInscriptionModal({
   const [siblingSearchLoading, setSiblingSearchLoading] = useState(false)
   const [sponsoringOrganizations, setSponsoringOrganizations] = useState<SponsoringOrganization[]>([])
   const [selectedOrganizationId, setSelectedOrganizationId] = useState("")
+  const [previousOrganizationAssignment, setPreviousOrganizationAssignment] = useState<PreviousOrganizationAssignment | null>(null)
   const [organizationRules, setOrganizationRules] = useState<OrganizationCoverageRule[]>([])
   const [schoolPromotions, setSchoolPromotions] = useState<any[]>([])
 
@@ -256,12 +266,70 @@ export default function NouvelleInscriptionModal({
   }, [isOpen, establishmentId])
 
   useEffect(() => {
-    if (!isOpen || !establishmentId || typeInscription !== "inscription") return
+    if (!isOpen || !establishmentId) return
     let cancelled = false
     listSponsoringOrganizations(establishmentId).then((rows) => { if (!cancelled) setSponsoringOrganizations(rows) })
       .catch(() => { if (!cancelled) setSponsoringOrganizations([]) })
     return () => { cancelled = true }
   }, [isOpen, establishmentId, typeInscription])
+
+  useEffect(() => {
+    if (!isOpen || typeInscription !== "reinscription" || !studentId || !establishmentId || !activeYear?.id || !activeYear.start_date) {
+      setPreviousOrganizationAssignment(null)
+      return
+    }
+    let cancelled = false
+    const loadPreviousOrganization = async () => {
+      try {
+        const { data: assignments, error: assignmentError } = await supabaseBrowser
+          .from("organization_student_assignments")
+          .select("id,organization_id,academic_year_id,created_at")
+          .eq("establishment_id", establishmentId)
+          .eq("student_id", studentId)
+        if (assignmentError) throw assignmentError
+        const yearIds = Array.from(new Set((assignments ?? []).map((item: any) => item.academic_year_id)))
+        if (!yearIds.length) {
+          if (!cancelled) setPreviousOrganizationAssignment(null)
+          return
+        }
+        const [{ data: years, error: yearsError }, organizations] = await Promise.all([
+          supabaseBrowser.from("academic_years").select("id,name,start_date").eq("establishment_id", establishmentId).in("id", yearIds),
+          listSponsoringOrganizations(establishmentId),
+        ])
+        if (yearsError) throw yearsError
+        const yearMap = new Map((years ?? []).map((year: any) => [year.id, year]))
+        const previous = (assignments ?? [])
+          .map((item: any) => ({ ...item, year: yearMap.get(item.academic_year_id) }))
+          .filter((item: any) => item.year?.start_date && item.year.start_date < activeYear.start_date)
+          .sort((a: any, b: any) => String(b.year.start_date).localeCompare(String(a.year.start_date)))[0]
+        const organization = previous ? organizations.find((item) => item.id === previous.organization_id) : null
+        if (!previous || !organization) {
+          if (!cancelled) setPreviousOrganizationAssignment(null)
+          return
+        }
+        const previousAssignment = {
+          id: previous.id,
+          organization_id: previous.organization_id,
+          organization_name: organization.name,
+          academic_year_id: previous.academic_year_id,
+          academic_year_name: previous.year.name,
+          organization_active: organization.active,
+        }
+        if (!cancelled) {
+          setPreviousOrganizationAssignment(previousAssignment)
+          if (organization.active) {
+            setFundingSource("family")
+            setSelectedOrganizationId(organization.id)
+          }
+        }
+      } catch (error) {
+        console.error("Récupération de la prise en charge précédente impossible:", error)
+        if (!cancelled) setPreviousOrganizationAssignment(null)
+      }
+    }
+    void loadPreviousOrganization()
+    return () => { cancelled = true }
+  }, [isOpen, typeInscription, studentId, establishmentId, activeYear?.id, activeYear?.start_date])
 
   useEffect(() => {
     if (!isOpen || !establishmentId || siblingSearch.trim().length < 2 || typeInscription !== "inscription") {
@@ -658,6 +726,22 @@ export default function NouvelleInscriptionModal({
         return
       }
 
+      if (
+        typeInscription === "reinscription" &&
+        previousOrganizationAssignment?.organization_active &&
+        selectedOrganizationId === previousOrganizationAssignment.organization_id
+      ) {
+        const { error: renewalLinkError } = await supabaseBrowser.rpc("link_organization_assignment_renewal", {
+          p_establishment_id: establishmentId,
+          p_new_enrollment_id: result.enrollment_id,
+          p_previous_assignment_id: previousOrganizationAssignment.id,
+        })
+        if (renewalLinkError) {
+          console.error("Lien historique de prise en charge non enregistré:", renewalLinkError)
+          toast.warning("Réinscription enregistrée, mais le lien avec la prise en charge précédente n'a pas pu être conservé.")
+        }
+      }
+
       setDuplicateStudents([])
       setExistingStudentId(null)
       await saveStudentGuardianContact({
@@ -696,7 +780,7 @@ export default function NouvelleInscriptionModal({
     setParentLastName(""); setParentFirstName(""); setParentPhone(""); setParentEmail(""); setParentAddress("")
     setFamilyName(""); setFamilyNameSearch(""); setFamilyMatches([]); setSelectedFamilyForSearch(null); setSelectedFamilyId(null); setApplyFamilyDiscount(true); setFamilyDiscountRule(null); setFamilyDiscountChildrenCount(0)
     setSiblingSearch(""); setSiblingCandidates([]); setSelectedSibling(null); setFamilyLinkedChildren([]); setSiblingRelationship("frere")
-    setSelectedOrganizationId(""); setOrganizationRules([])
+    setSelectedOrganizationId(""); setPreviousOrganizationAssignment(null); setOrganizationRules([])
     setSelectedCycleId(""); setSelectedLevelId(""); setSelectedClassId("")
     setSelectedInstallmentIds(new Set()); setSelectedOptionIds(new Set())
     setPaySingleTuitionNow(false)
@@ -1032,6 +1116,13 @@ export default function NouvelleInscriptionModal({
                       <SelectItem value="other">Exonération ou autre organisme</SelectItem>
                     </SelectContent>
                   </Select>
+                  {typeInscription === "reinscription" && previousOrganizationAssignment && (
+                    <div className={previousOrganizationAssignment.organization_active ? "mt-3 border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900" : "mt-3 border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"}>
+                      {previousOrganizationAssignment.organization_active
+                        ? <>Prise en charge précédente détectée : <strong>{previousOrganizationAssignment.organization_name}</strong> ({previousOrganizationAssignment.academic_year_name}). Elle est proposée pour cette nouvelle année. Vous pouvez la conserver ou choisir un autre organisme.</>
+                        : <>L'organisme de l'année précédente ({previousOrganizationAssignment.organization_name}) est inactif. La prise en charge n'a pas été reconduite automatiquement.</>}
+                    </div>
+                  )}
                   {fundingSource === "family" && (
                     <div className="mt-3 space-y-2 border-t border-slate-200 pt-3">
                       <Label htmlFor="sponsoring-organization">Organisme de prise en charge (facultatif)</Label>

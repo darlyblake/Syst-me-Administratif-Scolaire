@@ -13,33 +13,26 @@ export const financeService = {
     async getStudentPaymentBoard(establishmentId: string, academicYearId: string, classId?: string | null): Promise<(FinanceStudentPaymentBoardRow & { student?: any, class?: any })[]> {
     let query = supabaseBrowser
       .from("v_finance_student_payment_board")
-      .select("*, student:students!student_id(first_name, last_name, student_number), class:school_classes!class_id(name)")
+      .select("*")
       .eq("establishment_id", establishmentId)
       .eq("academic_year_id", academicYearId);
-      
-    if (classId) {
-      query = query.eq("class_id", classId);
-    }
-    
-    // Order by student_id and then installment_number for a consistent grid
+
+    if (classId) query = query.eq("class_id", classId);
+
     const { data, error } = await query.order("student_id").order("installment_number");
-    
-    if (error) {
-      console.warn("Failed to join students/classes, falling back to base view", error);
-      // Fallback query if the foreign key names are different or not detected
-      let fallbackQuery = supabaseBrowser
-        .from("v_finance_student_payment_board")
-        .select("*")
-        .eq("establishment_id", establishmentId)
-        .eq("academic_year_id", academicYearId);
-      if (classId) fallbackQuery = fallbackQuery.eq("class_id", classId);
-      
-      const res = await fallbackQuery.order("student_id").order("installment_number");
-      if (res.error) throw new Error("Impossible de charger la grille des scolarités.");
-      return (res.data ?? []) as any[];
-    }
-    
-    return (data ?? []) as any[];
+    if (error) throw new Error("Impossible de charger la grille des scolarités.");
+
+    // The protected view exposes only the identity fields needed by the finance screen.
+    return (data ?? []).map((row: any) => ({
+      ...row,
+      student: {
+        id: row.student_id,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        student_number: row.student_number,
+      },
+      class: { id: row.class_id, name: row.class_name },
+    })) as any[];
   },
 
   // Indicateurs opérationnels du tableau de bord scolaire.
@@ -148,41 +141,22 @@ export const financeService = {
     const sourceType = movement.source_type.toLowerCase()
 
     if (sourceType === "student_payment" || sourceType.includes("payment")) {
-      const { data: payment, error: paymentError } = await supabaseBrowser
-        .from("payments")
-        .select("id, payment_date, amount, method, reference, notes, payer_type, category, enrollment_id")
-        .eq("id", movement.source_id)
-        .maybeSingle()
-      if (paymentError) throw new Error("Impossible de charger le détail du paiement.")
-      if (!payment) return base
+      const { data, error } = await supabaseBrowser.rpc("get_finance_payment_details", {
+        p_payment_id: movement.source_id,
+      })
+      if (error) throw new Error("Impossible de charger le détail du paiement.")
+      if (!data) return base
 
-      const { data: enrollment, error: enrollmentError } = await supabaseBrowser
-        .from("enrollments")
-        .select("id, student_id, class_id, academic_year_id, enrollment_date, funding_source")
-        .eq("id", payment.enrollment_id)
-        .maybeSingle()
-      if (enrollmentError) throw new Error("Impossible de charger l'inscription du paiement.")
-
-      let student: any = null
-      let schoolClass: any = null
-      let academicYear: any = null
-      if (enrollment) {
-        const [studentResult, classResult, yearResult] = await Promise.all([
-          supabaseBrowser.from("students").select("id, first_name, last_name, student_number").eq("id", enrollment.student_id).maybeSingle(),
-          supabaseBrowser.from("school_classes").select("id, name, code").eq("id", enrollment.class_id).maybeSingle(),
-          supabaseBrowser.from("academic_years").select("id, name").eq("id", enrollment.academic_year_id).maybeSingle(),
-        ])
-        student = studentResult.data
-        schoolClass = classResult.data
-        academicYear = yearResult.data
+      return {
+        ...base,
+        kind: "student_payment",
+        payment: data.payment ?? null,
+        enrollment: data.enrollment ?? null,
+        student: data.student ?? null,
+        schoolClass: data.schoolClass ?? null,
+        academicYear: data.academicYear ?? null,
+        allocations: data.allocations ?? [],
       }
-
-      const { data: allocations } = await supabaseBrowser
-        .from("payment_allocations")
-        .select("amount, payment_schedule_id, payment_schedules(id, installment_number, label, due_date, amount_due, category, payer_type)")
-        .eq("payment_id", payment.id)
-
-      return { ...base, kind: "student_payment", payment, enrollment, student, schoolClass, academicYear, allocations: allocations ?? [] }
     }
 
     if (sourceType.includes("expense") || sourceType.includes("depense")) {

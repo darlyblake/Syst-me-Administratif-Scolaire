@@ -110,6 +110,7 @@ export default function SuiviPrisesEnChargePage() {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const [studentsPage, setStudentsPage] = useState(1)
   const [paymentsPage, setPaymentsPage] = useState(1)
+  const [activeTab, setActiveTab] = useState<"students" | "history" | "payments">("students")
   const studentsPerPage = 20
   const paymentsPerPage = 10
 
@@ -439,18 +440,51 @@ export default function SuiviPrisesEnChargePage() {
             </div>
           </div>
 
-          <details open className="group overflow-hidden border border-slate-200 bg-white">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">Élèves couverts par l'organisation</h3>
-                <p className="mt-1 text-xs text-slate-500">
-                  <Users className="mr-1 inline h-3.5 w-3.5" />{coveredStudents.length} élève(s) · détail justificatif du montant annuel
-                </p>
-              </div>
-              <span className="text-xs text-slate-500 group-open:hidden">Afficher</span>
-              <span className="hidden text-xs text-slate-500 group-open:inline">Réduire</span>
-            </summary>
-            <div className="border-t border-slate-200">
+          <nav aria-label="Sections de la fiche organisation" className="grid grid-cols-1 gap-2 border-b border-slate-200 pb-3 sm:grid-cols-3">
+            <button
+              key="students"
+              id="organization-tab-students"
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "students"}
+              aria-controls="organization-tabpanel-students"
+              onClick={() => setActiveTab("students")}
+              className={`flex min-h-12 items-center justify-between gap-2 border px-3 py-2 text-left text-sm transition-colors ${activeTab === "students" ? "border-blue-700 bg-blue-50 font-semibold text-blue-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+            >
+              <span className="flex items-center gap-2"><Users className="h-4 w-4" /><span>Élèves couverts par l'organisation</span></span>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${activeTab === "students" ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>{coveredStudents.length}</span>
+            </button>
+            <button
+              key="history"
+              id="organization-tab-history"
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "history"}
+              aria-controls="organization-tabpanel-history"
+              onClick={() => setActiveTab("history")}
+              className={`flex min-h-12 items-center justify-between gap-2 border px-3 py-2 text-left text-sm transition-colors ${activeTab === "history" ? "border-blue-700 bg-blue-50 font-semibold text-blue-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+            >
+              <span className="flex items-center gap-2"><RefreshCw className="h-4 w-4" /><span>Historique annuel de la prise en charge</span></span>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${activeTab === "history" ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>{organizationYearHistory.length}</span>
+            </button>
+            <button
+              key="payments"
+              id="organization-tab-payments"
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "payments"}
+              aria-controls="organization-tabpanel-payments"
+              onClick={() => setActiveTab("payments")}
+              className={`flex min-h-12 items-center justify-between gap-2 border px-3 py-2 text-left text-sm transition-colors ${activeTab === "payments" ? "border-blue-700 bg-blue-50 font-semibold text-blue-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+            >
+              <span className="flex items-center gap-2"><Wallet className="h-4 w-4" /><span>Détail des versements globaux</span></span>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${activeTab === "payments" ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>{selectedPayments.length}</span>
+            </button>
+          </nav>
+          <div className="min-w-0">
+            {activeTab === "students" && (
+            <section id="organization-tabpanel-students" role="tabpanel" aria-labelledby="organization-tab-students" className="overflow-hidden border border-slate-200 bg-white">
+              <div className="border-t border-slate-200">
               <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs text-slate-500">
                 <span>Affichage de {coveredStudents.length ? (studentsPage - 1) * studentsPerPage + 1 : 0} à {Math.min(studentsPage * studentsPerPage, coveredStudents.length)} sur {coveredStudents.length} élèves</span>
                 <span>20 élèves par page</span>
@@ -492,18 +526,11 @@ export default function SuiviPrisesEnChargePage() {
                 </div>
               )}
             </div>
-          </details>
-
-          <details className="group overflow-hidden border border-slate-200 bg-white">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">Historique annuel de la prise en charge</h3>
-                <p className="mt-1 text-xs text-slate-500">Consulter les montants dus, versés et les soldes de chaque exercice ({organizationYearHistory.length} année(s))</p>
-              </div>
-              <span className="text-xs text-slate-500 group-open:hidden">Afficher</span>
-              <span className="hidden text-xs text-slate-500 group-open:inline">Réduire</span>
-            </summary>
-            <div className="border-t border-slate-200">
+            </section>
+          )}
+          {activeTab === "history" && (
+            <section id="organization-tabpanel-history" role="tabpanel" aria-labelledby="organization-tab-history" className="overflow-hidden border border-slate-200 bg-white">
+              <div className="border-t border-slate-200">
               <p className="px-4 py-2 text-xs text-slate-500">Chaque année conserve son propre montant dû, ses versements et son solde. Les exercices précédents restent consultables.</p>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[680px] text-sm">
@@ -533,18 +560,11 @@ export default function SuiviPrisesEnChargePage() {
                 </table>
               </div>
             </div>
-          </details>
-
-          <details className="group overflow-hidden border border-slate-200 bg-white">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">Détail des versements globaux</h3>
-                <p className="mt-1 text-xs text-slate-500">Consulter les paiements effectués par l'organisation ({selectedPayments.length} versement(s))</p>
-              </div>
-              <span className="text-xs text-slate-500 group-open:hidden">Afficher</span>
-              <span className="hidden text-xs text-slate-500 group-open:inline">Réduire</span>
-            </summary>
-            <div className="border-t border-slate-200">
+            </section>
+          )}
+          {activeTab === "payments" && (
+            <section id="organization-tabpanel-payments" role="tabpanel" aria-labelledby="organization-tab-payments" className="overflow-hidden border border-slate-200 bg-white">
+              <div className="border-t border-slate-200">
               <p className="px-4 py-2 text-xs text-slate-500">Chaque ligne correspond à un versement effectué par l'organisation.</p>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[560px] text-sm">
@@ -583,7 +603,9 @@ export default function SuiviPrisesEnChargePage() {
                 </div>
               )}
             </div>
-          </details>
+            </section>
+          )}
+          </div>
 
           <div className="hidden print:block border-t border-slate-300 pt-4 text-xs text-slate-500">
             Fiche générée le {new Date().toLocaleDateString("fr-FR")} · Document de suivi financier de l'établissement.

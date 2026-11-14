@@ -123,8 +123,15 @@ export default function NotificationBell() {
     setLoading(true)
     setError(null)
     try {
-      const page = await listNotificationsPaginated(establishmentId, 1, 8, false)
-      setItems(page.items.filter(canSeeNotification).slice(0, 8))
+      const firstPage = await listNotificationsPaginated(establishmentId, 1, 50, false)
+      let visibleItems = firstPage.items.filter(canSeeNotification)
+      let pageNumber = 2
+      while (visibleItems.length < 8 && pageNumber <= firstPage.total_pages) {
+        const nextPage = await listNotificationsPaginated(establishmentId, pageNumber, 50, false)
+        visibleItems = visibleItems.concat(nextPage.items.filter(canSeeNotification))
+        pageNumber += 1
+      }
+      setItems(visibleItems.slice(0, 8))
     } catch (cause) {
       console.error("Chargement des notifications impossible", cause)
       setError("Impossible de charger les notifications pour le moment.")

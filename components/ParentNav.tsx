@@ -42,23 +42,42 @@ export function ParentNav() {
 
   useEffect(() => {
     let mounted = true
+    let notificationChannel: ReturnType<typeof supabaseBrowser.channel> | null = null
+    const refreshUnreadNotifications = async () => {
+      if (!utilisateur?.id) return
+      const { count, error } = await supabaseBrowser
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("recipient_user_id", utilisateur.id)
+        .is("read_at", null)
+      if (mounted) setUnreadNotifications(error ? 0 : count ?? 0)
+    }
     const load = async () => {
       if (!utilisateur?.id) return
-      const [n, p] = await Promise.all([
-        supabaseBrowser.from("notifications").select("id", { count: "exact", head: true }).eq("recipient_user_id", utilisateur.id).is("read_at", null),
+      const [p] = await Promise.all([
         supabaseBrowser.from("conversation_participants").select("conversation_id,last_read_at").eq("user_id", utilisateur.id),
+        refreshUnreadNotifications(),
       ])
       if (!mounted) return
-      setUnreadNotifications(n.error ? 0 : n.count ?? 0)
       if (p.error || !p.data?.length) { setUnreadMessages(0); return }
       const ids = p.data.map((x) => x.conversation_id).filter(Boolean)
       if (!ids.length) { setUnreadMessages(0); return }
       const { data: messages } = await supabaseBrowser.from("messages").select("conversation_id,sender_id,created_at").in("conversation_id", ids).neq("sender_id", utilisateur.id)
       const reads = new Map(p.data.map((x) => [x.conversation_id, x.last_read_at ? Date.parse(x.last_read_at) : 0]))
-      setUnreadMessages((messages ?? []).filter((m) => Date.parse(m.created_at) > (reads.get(m.conversation_id) ?? 0)).length)
+      if (mounted) setUnreadMessages((messages ?? []).filter((m) => Date.parse(m.created_at) > (reads.get(m.conversation_id) ?? 0)).length)
     }
     void load()
-    return () => { mounted = false }
+    if (utilisateur?.id) {
+      notificationChannel = supabaseBrowser
+        .channel(`parent-nav-notifications:${utilisateur.id}`)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `recipient_user_id=eq.${utilisateur.id}` }, () => { void refreshUnreadNotifications() })
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "notifications", filter: `recipient_user_id=eq.${utilisateur.id}` }, () => { void refreshUnreadNotifications() })
+        .subscribe()
+    }
+    return () => {
+      mounted = false
+      if (notificationChannel) void supabaseBrowser.removeChannel(notificationChannel)
+    }
   }, [utilisateur?.id, pathname])
 
   const isActive = (href: string) => {

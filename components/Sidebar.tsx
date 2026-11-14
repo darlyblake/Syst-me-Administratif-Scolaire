@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useAuthentification } from "@/providers/authentification.provider"
-import { hasEffectiveSchoolPermission } from "@/lib/organization/runtime-permissions"
+import { hasEffectiveSchoolPermission, isEstablishmentAdmin } from "@/lib/organization/runtime-permissions"
 import { getSchoolRoleLabel, getUserInitials } from "@/lib/organization/role-labels"
 
 interface SidebarProps {
@@ -32,22 +32,19 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
     const route = path.split("?")[0]
     return pathname === route || pathname.startsWith(route + "/")
   }
-  const can = (permission: string) => {
-    const isSchoolAccount = contexte?.account_type === "school_member"
-    const organizationRole =
-      etablissementActif?.role ??
-      contexte?.establishments?.find((e) => e.id === utilisateur?.etablissementId)?.role
-
-    const runtimeUser = utilisateur
-      ? {
-          ...utilisateur,
-          role: isSchoolAccount ? organizationRole : utilisateur.role,
-          etablissementRole: organizationRole,
-        }
-      : null
-
-    return hasEffectiveSchoolPermission(runtimeUser, permission)
-  }
+  const isSchoolAccount = contexte?.account_type === "school_member"
+  const organizationRole =
+    etablissementActif?.role ??
+    contexte?.establishments?.find((e) => e.id === utilisateur?.etablissementId)?.role
+  const runtimeUser = utilisateur
+    ? {
+        ...utilisateur,
+        role: isSchoolAccount ? organizationRole : utilisateur.role,
+        etablissementRole: organizationRole,
+      }
+    : null
+  const canViewAudit = isEstablishmentAdmin(runtimeUser)
+  const can = (permission: string) => hasEffectiveSchoolPermission(runtimeUser, permission)
 
   const handleLogout = async () => {
     if (isLoggingOut) return
@@ -72,7 +69,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
   const navGroups = [
     { section: null, items: [
       { href: "/ecole/tableau-bord", label: "Tableau de bord", icon: LayoutDashboard, permission: "dashboard.view" },
-      { href: "/ecole/activite", label: "Journal d’activité", icon: History, permission: "dashboard.view" },
+      { href: "/ecole/activite", label: "Journal d’activité", icon: History, permission: "dashboard.view", adminOnly: true },
     ]},
     { section: "Scolarité", items: [
       { href: "/ecole/students", label: "Élèves", icon: School, permission: "students.view" },
@@ -130,7 +127,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
   ]
 
   const visibleGroups = navGroups
-    .map((group) => ({ ...group, items: group.items.filter((item) => can(item.permission)) }))
+    .map((group) => ({ ...group, items: group.items.filter((item) => can(item.permission) && (!("adminOnly" in item) || !item.adminOnly || canViewAudit)) }))
     .filter((group) => group.items.length > 0)
 
   return (

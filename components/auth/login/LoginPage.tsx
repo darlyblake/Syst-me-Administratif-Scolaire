@@ -218,9 +218,19 @@ export function LoginPage() {
               </>}
             </div>
           </section>
-          <div className={styles.cover} aria-hidden={bookOpen}><div className={styles.coverBorder} /><div className={styles.emblem}>GS</div><span className={styles.coverKicker}>Établissement scolaire</span><strong>Système de<br />Gestion Scolaire</strong><span className={styles.coverRule} /><small>Un espace pour toute votre école</small></div>
+          <div className={styles.cover} aria-hidden={bookOpen}>
+            <div className={styles.coverBorder} />
+            <div className={styles.emblem}>GS</div>
+            <span className={styles.coverKicker}>Établissement scolaire</span>
+            <strong>Système de<br />Gestion Scolaire</strong>
+            <span className={styles.coverRule} />
+            <small>Un espace pour toute votre école</small>
+            {!bookOpen && <div className={`${styles.actions} ${styles.coverActions} ${introFinished ? styles.actionsReady : ""}`}>
+              <button type="button" className={styles.primaryAction} disabled={!introFinished} onClick={() => openBook("login")}><LogIn size={17} /> Connexion</button>
+              <button type="button" className={styles.secondaryAction} disabled={!introFinished} onClick={() => openBook("register")}><UserPlus size={17} /> Inscription</button>
+            </div>}
+          </div>
         </div>
-        {!bookOpen && <div className={`${styles.actions} ${introFinished ? styles.actionsReady : ""}`}><button type="button" className={styles.primaryAction} disabled={!introFinished} onClick={() => openBook("login")}><LogIn size={17} /> Connexion</button><button type="button" className={styles.secondaryAction} disabled={!introFinished} onClick={() => openBook("register")}><UserPlus size={17} /> Inscription</button></div>}
         {bookOpen && <button type="button" className={styles.innerBack} onClick={closeBook}><ArrowLeft size={15} /> Fermer et revenir au livre</button>}
       </div>
     </main>

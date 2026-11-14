@@ -36,6 +36,8 @@ function construireUtilisateur(base: Utilisateur, accountType: AuthContext["acco
     nomUtilisateur: displayName || base.nomUtilisateur,
     role: roleUtilisateurPourEtablissement(accountType, establishment?.role),
     etablissementRole: establishment?.role,
+    permissions: establishment?.permissions ?? [],
+    revoked_permissions: establishment?.revoked_permissions ?? [],
     etablissementId: establishment?.id ?? base.etablissementId,
   }
 }

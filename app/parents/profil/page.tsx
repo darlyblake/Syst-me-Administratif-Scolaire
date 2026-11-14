@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { supabaseBrowser } from "@/lib/supabase/client"
+import { serviceAuthentification } from "@/services/authentification.supabase.service"
 import { ParentPageHeader } from "@/components/parent/ParentPageHeader"
 
 export default function ParentProfile() {
@@ -27,9 +28,10 @@ export default function ParentProfile() {
     void supabaseBrowser.auth.getUser().then(({ data }) => {
       if (!active || !data.user) return
       const metadata = data.user.user_metadata ?? {}
-      const displayParts = (utilisateur?.nomUtilisateur ?? "").trim().split(/\s+/)
-      setFirstName(String(metadata.first_name ?? displayParts[0] ?? ""))
-      setLastName(String(metadata.last_name ?? displayParts.slice(1).join(" ")))
+      const context = await serviceAuthentification.obtenirContexte()
+      if (!active) return
+      setFirstName(String(metadata.first_name ?? context?.first_name ?? ""))
+      setLastName(String(metadata.last_name ?? context?.last_name ?? ""))
       setEmail(data.user.email ?? "")
       setInitialEmail(data.user.email ?? "")
     })

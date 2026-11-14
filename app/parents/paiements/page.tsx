@@ -204,13 +204,13 @@ export default function ParentPaiements() {
             )}
           </div>
 
-          <div className="flex border-b border-slate-200" role="tablist" aria-label="Paiements">
+          <div className="flex overflow-x-auto border-b border-slate-200" role="tablist" aria-label="Paiements">
             <button
               type="button"
               role="tab"
               aria-selected={section === "echeances"}
               onClick={() => setSection("echeances")}
-              className={"border-b-2 px-4 py-3 text-sm font-semibold " + (section === "echeances" ? "border-terre text-terre" : "border-transparent text-slate-500 hover:text-slate-900")}
+              className={"shrink-0 border-b-2 px-3 py-3 text-xs font-semibold sm:px-4 sm:text-sm " + (section === "echeances" ? "border-terre text-terre" : "border-transparent text-slate-500 hover:text-slate-900")}
             >
               Échéances
             </button>
@@ -239,7 +239,15 @@ export default function ParentPaiements() {
               <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 font-semibold text-slate-900">
                 Échéances
               </div>
-              <div className="overflow-x-auto">
+                            <div className="divide-y divide-slate-100 sm:hidden">
+                {tuitionSchedules.map((schedule) => {
+                  const payer = schedule.payer_type ?? "family"
+                  const rest = Math.max(schedule.amount_due - schedule.amount_paid, 0)
+                  const status = payer === "state" ? (rest === 0 ? "Prise en charge réglée" : "Prise en charge État") : payer === "other" ? schedule.organization_id ? (rest === 0 ? "Part organisme réglée" : schedule.amount_paid > 0 ? "Part organisme partielle" : new Date(schedule.due_date) < new Date() ? "En retard (organisme)" : "En attente organisme") : "Exonérée" : schedule.status === "paid" || rest === 0 ? "Payée" : schedule.amount_paid > 0 ? "Partielle" : new Date(schedule.due_date) < new Date() ? "En retard" : "À venir"
+                  return <article key={schedule.id} className="space-y-3 p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-sm font-semibold text-slate-900">{frenchLabel(schedule.label)}</p><p className="mt-0.5 text-xs text-slate-500">{new Date(schedule.due_date).toLocaleDateString("fr-FR")}</p>{payer !== "family" && <p className="mt-1 text-xs text-slate-500">{payer === "state" ? "Payeur : État" : schedule.organization_id ? "Organisme : " + (schedule.organization?.name || "Partenaire") : "Frais exonérés"}</p>}</div><span className={"shrink-0 text-xs font-semibold " + statusClass(status)}>{status}</span></div><div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-xs"><div><p className="text-slate-500">Dû</p><p className="mt-1 font-semibold text-slate-900">{money(schedule.amount_due)}</p></div><div><p className="text-slate-500">Payé</p><p className="mt-1 font-semibold text-emerald-700">{payer === "family" || payer === "state" || Boolean(schedule.organization_id) ? money(schedule.amount_paid) : "—"}</p></div><div><p className="text-slate-500">Reste</p><p className="mt-1 font-semibold text-slate-900">{payer === "family" || payer === "state" || Boolean(schedule.organization_id) ? money(rest) : "—"}</p></div></div></article>
+                })}
+              </div>
+              <div className="hidden overflow-x-auto sm:block">
                 <table className="w-full min-w-[760px] text-sm">
                   <thead className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
                     <tr>
@@ -286,7 +294,16 @@ export default function ParentPaiements() {
                   Chaque versement enregistré par l’établissement apparaît ici.
                 </p>
               </div>
-              <div className="overflow-x-auto">
+                            <div className="divide-y divide-slate-100 sm:hidden">
+                {list.map((payment) => {
+                  const child = children.find((item) => item.enrollment_id === payment.enrollment_id)
+                  const allocation = paymentAllocations.find((item) => item.payment_id === payment.id)
+                  const schedule = allocation ? paymentSchedules.find((item) => item.id === allocation.payment_schedule_id) : undefined
+                  const allocationLabel = schedule ? frenchLabel(schedule.label) : payment.category === "option" ? "Option" : payment.category === "registration" ? "Frais d'inscription" : "Scolarité"
+                  return <article key={payment.id} className="space-y-2 p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-sm font-semibold text-slate-900">{allocationLabel}</p><p className="mt-0.5 text-xs text-slate-500">{child ? child.first_name + " " + child.last_name : "—"}</p></div><p className="shrink-0 text-sm font-bold text-emerald-700">+ {money(payment.amount)}</p></div><div className="flex flex-wrap justify-between gap-2 border-t border-slate-100 pt-2 text-xs text-slate-500"><span>{new Date(payment.payment_date).toLocaleDateString("fr-FR")}</span><span>{payment.method ? methods[payment.method] ?? payment.method : "—"}</span></div>{payment.reference && <p className="text-xs text-slate-400">Réf. : {payment.reference}</p>}</article>
+                })}
+              </div>
+              <div className="hidden overflow-x-auto sm:block">
                 <table className="w-full min-w-[760px] text-sm">
                   <thead className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
                     <tr>
@@ -342,7 +359,17 @@ export default function ParentPaiements() {
                   Suivez les options associées à l’inscription et leur règlement.
                 </p>
               </div>
-              <div className="overflow-x-auto">
+                            <div className="divide-y divide-slate-100 sm:hidden">
+                {options.map((option) => {
+                  const schedulesForOption = optionSchedules.filter((schedule) => schedule.enrollment_id === option.enrollment_id && schedule.label === option.name)
+                  const optionPaid = schedulesForOption.reduce((sum, schedule) => sum + schedule.amount_paid, 0)
+                  const optionDue = schedulesForOption.length ? schedulesForOption.reduce((sum, schedule) => sum + schedule.amount_due, 0) : option.amount
+                  const rest = Math.max(optionDue - optionPaid, 0)
+                  const status = rest === 0 ? "Payée" : optionPaid > 0 ? "Partielle" : "À payer"
+                  return <article key={option.id} className="space-y-3 p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-sm font-semibold text-slate-900">{option.name}</p>{option.required && <p className="mt-0.5 text-xs text-slate-500">Obligatoire</p>}</div><span className={"shrink-0 text-xs font-semibold " + statusClass(status)}>{status}</span></div><div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-xs"><div><p className="text-slate-500">Montant</p><p className="mt-1 font-semibold text-slate-900">{money(optionDue)}</p></div><div><p className="text-slate-500">Payé</p><p className="mt-1 font-semibold text-emerald-700">{money(optionPaid)}</p></div><div><p className="text-slate-500">Reste</p><p className="mt-1 font-semibold text-slate-900">{money(rest)}</p></div></div></article>
+                })}
+              </div>
+              <div className="hidden overflow-x-auto sm:block">
                 <table className="w-full min-w-[700px] text-sm">
                   <thead className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
                     <tr>

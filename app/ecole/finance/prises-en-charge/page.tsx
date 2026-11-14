@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import Link from "next/link"
 import { Building2, Wallet, Search, RefreshCw } from "lucide-react"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
@@ -186,7 +185,6 @@ export default function SuiviPrisesEnChargePage() {
             <p className="mt-1 text-sm text-slate-500">Élèves financés par un organisme ou par l’État. Les échéances à la charge des parents ne sont pas affichées.</p>
           </div>
         </div>
-        <Button variant="outline" asChild><Link href="/ecole/settings/prises-en-charge">Configurer les organismes</Link></Button>
       </header>
 
       <section className="grid gap-3 sm:grid-cols-3">

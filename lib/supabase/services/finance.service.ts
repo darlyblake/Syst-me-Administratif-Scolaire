@@ -1,5 +1,6 @@
 import { messageErreurFinance } from "@/lib/supabase/error-messages";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { hasEffectiveSchoolPermission } from "@/lib/organization/runtime-permissions";
 import type { 
   FinanceStudentPaymentBoardRow, 
   FinanceMovementRow, 
@@ -37,69 +38,111 @@ export const financeService = {
 
   // Indicateurs opérationnels du tableau de bord scolaire.
   async getSchoolDashboardSummary(establishmentId: string, academicYearId: string, today: string, monthStart: string) {
-    const activitySince = new Date(today + "T00:00:00+01:00");
-    activitySince.setDate(activitySince.getDate() - 30);
-    const [classes, teachers, staff, staffAttendance, pendingEnrollments, attendance, revenue, schoolEvents, auditLogs] = await Promise.all([
-      supabaseBrowser.from("school_classes").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("active", true),
-      supabaseBrowser.from("teachers").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("active", true),
-      supabaseBrowser.from("staff_members").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("active", true),
-      supabaseBrowser.from("staff_attendance").select("staff_type, staff_id, status").eq("establishment_id", establishmentId).eq("attendance_date", today),
-      supabaseBrowser.from("enrollments").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("academic_year_id", academicYearId).eq("status", "pending"),
-      supabaseBrowser.from("attendance_records").select("status").eq("establishment_id", establishmentId).eq("attendance_date", today),
-      supabaseBrowser.rpc("finance_movement_summary", { p_establishment_id: establishmentId, p_from: monthStart, p_to: today, p_direction: "credit" }),
-      supabaseBrowser.from("school_events").select("id, title, description, event_type, starts_at, ends_at, location", { count: "exact" }).eq("establishment_id", establishmentId).eq("academic_year_id", academicYearId).gte("starts_at", today + "T00:00:00+01:00").order("starts_at", { ascending: true }).limit(8),
-      supabaseBrowser.from("audit_logs").select("id, actor_id, action, entity_type, entity_id, metadata, created_at").eq("establishment_id", establishmentId).gte("created_at", activitySince.toISOString()).order("created_at", { ascending: false }).limit(40),
-    ]);
+    const activitySince = new Date(today + "T00:00:00+01:00")
+    activitySince.setDate(activitySince.getDate() - 30)
 
-    const [studentsActivity, enrollmentsActivity, paymentsActivity, expensesActivity] = await Promise.all([
-      supabaseBrowser.from("students").select("id, first_name, last_name, created_at").eq("establishment_id", establishmentId).gte("created_at", activitySince.toISOString()).order("created_at", { ascending: false }).limit(5),
-      supabaseBrowser.from("enrollments").select("id, created_at, status").eq("establishment_id", establishmentId).gte("created_at", activitySince.toISOString()).order("created_at", { ascending: false }).limit(5),
-      supabaseBrowser.from("payments").select("id, amount, recorded_by, created_at").eq("establishment_id", establishmentId).gte("created_at", activitySince.toISOString()).order("created_at", { ascending: false }).limit(5),
-      supabaseBrowser.from("expenses").select("id, description, amount, created_by, created_at").eq("establishment_id", establishmentId).gte("created_at", activitySince.toISOString()).order("created_at", { ascending: false }).limit(5),
-    ]);
-    const actorIds = Array.from(new Set([
-      ...(auditLogs.data ?? []).map((row: any) => row.actor_id || row.metadata?.actor_user_id).filter(Boolean),
-      ...(paymentsActivity.data ?? []).filter((row: any) => !(auditLogs.data ?? []).some((log: any) => log.entity_id === row.id)).map((row: any) => row.recorded_by).filter(Boolean),
-      ...(expensesActivity.data ?? []).filter((row: any) => !(auditLogs.data ?? []).some((log: any) => log.entity_id === row.id)).map((row: any) => row.created_by).filter(Boolean),
-    ]));
-    const profilesResult = actorIds.length ? await supabaseBrowser.from("profiles").select("id, first_name, last_name").in("id", actorIds) : { data: [], error: null };
-    const profileNames = new Map<string, string>((profilesResult.data ?? []).map((profile: any) => [profile.id, [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim()]));
-    const actorName = (id?: string | null) => id ? (profileNames.get(id) || "Utilisateur sans nom de profil") : "Auteur non renseigné";
+    const { data: authContext, error: authError } = await supabaseBrowser.rpc("get_my_auth_context")
+    if (authError) throw new Error("Impossible de vérifier les autorisations du tableau de bord.")
 
-    const results = [classes, teachers, staff, staffAttendance, pendingEnrollments, attendance, revenue, schoolEvents, auditLogs];
-    const failed = results.find((result) => result.error);
-    if (failed?.error) throw new Error("Impossible de charger tous les indicateurs du tableau de bord.");
+    const membership = (authContext?.establishments ?? []).find((item: any) => item.id === establishmentId)
+    if (!membership) throw new Error("Vous n’êtes pas membre de cet établissement.")
 
-    const attendanceRows = staffAttendance.data ?? [];
+    const permissionUser = {
+      role: membership.role,
+      etablissementRole: membership.role,
+      permissions: membership.permissions ?? [],
+      revoked_permissions: membership.revoked_permissions ?? [],
+      account_type: authContext?.account_type,
+    }
+    const can = (permission: string) => hasEffectiveSchoolPermission(permissionUser as any, permission)
+    const isTeacher = authContext?.account_type === "teacher" || ["teacher", "enseignant"].includes(String(membership.role ?? "").toLowerCase())
+    const canSeeClasses = ["classes.view", "inscriptions.read", "students.read", "attendance.read"].some(can)
+    const canSeeTeachers = can("teachers.view")
+    const canSeeStaff = can("staff.view")
+    const canSeeEnrollments = can("inscriptions.read")
+    const canSeeAttendance = can("attendance.read")
+    const canSeeFinance = can("payments.view")
+    const canSeeEvents = can("dashboard.view") || isTeacher
+    const canSeeDashboardActivity = can("dashboard.view")
+
+    const emptyCount = { data: null, count: 0, error: null }
+    const emptyRows = { data: [], count: 0, error: null }
+    const [
+      classes,
+      teachers,
+      staff,
+      staffAttendance,
+      pendingEnrollments,
+      attendance,
+      revenue,
+      schoolEvents,
+      activity,
+    ] = await Promise.all([
+      canSeeClasses
+        ? supabaseBrowser.from("school_classes").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("active", true)
+        : Promise.resolve(emptyCount),
+      canSeeTeachers
+        ? supabaseBrowser.from("teachers").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("active", true)
+        : Promise.resolve(emptyCount),
+      canSeeStaff
+        ? supabaseBrowser.from("staff_members").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("active", true)
+        : Promise.resolve(emptyCount),
+      canSeeStaff
+        ? supabaseBrowser.from("staff_attendance").select("staff_type, staff_id, status").eq("establishment_id", establishmentId).eq("attendance_date", today)
+        : Promise.resolve(emptyRows),
+      canSeeEnrollments
+        ? supabaseBrowser.from("enrollments").select("id", { count: "exact", head: true }).eq("establishment_id", establishmentId).eq("academic_year_id", academicYearId).eq("status", "pending")
+        : Promise.resolve(emptyCount),
+      canSeeAttendance
+        ? supabaseBrowser.from("attendance_records").select("status").eq("establishment_id", establishmentId).eq("attendance_date", today)
+        : Promise.resolve(emptyRows),
+      canSeeFinance
+        ? supabaseBrowser.rpc("finance_movement_summary", { p_establishment_id: establishmentId, p_from: monthStart, p_to: today, p_direction: "credit" })
+        : Promise.resolve({ data: [], error: null }),
+      canSeeEvents
+        ? supabaseBrowser.from("school_events").select("id, title, description, event_type, starts_at, ends_at, location", { count: "exact" }).eq("establishment_id", establishmentId).eq("academic_year_id", academicYearId).gte("starts_at", today + "T00:00:00+01:00").order("starts_at", { ascending: true }).limit(8)
+        : Promise.resolve(emptyRows),
+      canSeeDashboardActivity
+        ? supabaseBrowser.rpc("list_dashboard_activity", {
+            p_establishment_id: establishmentId,
+            p_since: activitySince.toISOString(),
+            p_limit: 8,
+          })
+        : Promise.resolve({ data: [], error: null }),
+    ])
+
+    const results = [classes, teachers, staff, staffAttendance, pendingEnrollments, attendance, revenue, schoolEvents, activity]
+    const failed = results.find((result: any) => result.error)
+    if (failed?.error) throw new Error("Impossible de charger les indicateurs autorisés du tableau de bord.")
+
+    const attendanceRows = (staffAttendance as any).data ?? []
     const presentStaff = new Set(
       attendanceRows
         .filter((row: any) => ["present", "late"].includes(String(row.status).toLowerCase()))
         .map((row: any) => `${row.staff_type}:${row.staff_id}`),
-    );
-    const attendanceStatuses = (attendance.data ?? []).map((row: any) => String(row.status).toLowerCase());
-    const revenueRow = Array.isArray(revenue.data) ? revenue.data[0] : revenue.data;
+    )
+    const attendanceStatuses = ((attendance as any).data ?? []).map((row: any) => String(row.status).toLowerCase())
+    const revenueData = (revenue as any).data
+    const revenueRow = Array.isArray(revenueData) ? revenueData[0] : revenueData
+    const eventsData = (schoolEvents as any).data ?? []
+    const activityData = (activity as any).data
+    const recentActivity = Array.isArray(activityData) ? activityData : []
 
     return {
-      activeClasses: classes.count ?? 0,
-      activeTeachers: teachers.count ?? 0,
-      activeStaff: (staff.count ?? 0) + (teachers.count ?? 0),
+      activeClasses: (classes as any).count ?? 0,
+      activeTeachers: (teachers as any).count ?? 0,
+      activeStaff: ((staff as any).count ?? 0) + ((teachers as any).count ?? 0),
       staffPresent: presentStaff.size,
       staffAttendanceRecorded: attendanceRows.length,
-      pendingEnrollments: pendingEnrollments.count ?? 0,
-      absences: attendanceStatuses.filter((status) => status === "absent").length,
-      lateArrivals: attendanceStatuses.filter((status) => status === "late").length,
-      justifiedAbsences: attendanceStatuses.filter((status) => status === "justified").length,
-      monthlyReceipts: Number(revenueRow?.total_in ?? 0),
-      upcomingEvents: schoolEvents.data ?? [],
-      upcomingEventsCount: schoolEvents.count ?? 0,
-      recentActivity: [
-        ...(auditLogs.data ?? []).map((row: any) => ({ id: row.id, action: row.action, entity_type: row.entity_type, created_at: row.created_at, actor_name: actorName(row.actor_id || row.metadata?.actor_user_id) })),
-        ...(studentsActivity.data ?? []).filter((row: any) => !(auditLogs.data ?? []).some((log: any) => log.entity_id === row.id)).map((row: any) => ({ id: "student-" + row.id, action: "Nouvel élève ajouté", entity_type: [row.first_name, row.last_name].filter(Boolean).join(" "), created_at: row.created_at, actor_name: "Auteur non renseigné" })),
-        ...(enrollmentsActivity.data ?? []).filter((row: any) => !(auditLogs.data ?? []).some((log: any) => log.entity_id === row.id)).map((row: any) => ({ id: "enrollment-" + row.id, action: "Inscription enregistrée", entity_type: "Dossier " + String(row.status ?? "").toLowerCase(), created_at: row.created_at, actor_name: "Auteur non renseigné" })),
-        ...(paymentsActivity.data ?? []).map((row: any) => ({ id: "payment-" + row.id, action: "Paiement enregistré", entity_type: Number(row.amount || 0).toLocaleString("fr-FR") + " FCFA", created_at: row.created_at, actor_name: actorName(row.recorded_by) })),
-        ...(expensesActivity.data ?? []).map((row: any) => ({ id: "expense-" + row.id, action: "Dépense enregistrée", entity_type: row.description || (Number(row.amount || 0).toLocaleString("fr-FR") + " FCFA"), created_at: row.created_at, actor_name: actorName(row.created_by) })),
-      ].filter((row) => row.created_at).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 8),
-    };
+      pendingEnrollments: (pendingEnrollments as any).count ?? 0,
+      absences: attendanceStatuses.filter((status: string) => status === "absent").length,
+      lateArrivals: attendanceStatuses.filter((status: string) => status === "late").length,
+      justifiedAbsences: attendanceStatuses.filter((status: string) => status === "justified").length,
+      monthlyReceipts: canSeeFinance ? Number(revenueRow?.total_in ?? 0) : null,
+      upcomingEvents: eventsData,
+      upcomingEventsCount: (schoolEvents as any).count ?? eventsData.length,
+      recentActivity,
+    }
   },
 
   // Échéances de la famille réellement dépassées pour le tableau de bord.

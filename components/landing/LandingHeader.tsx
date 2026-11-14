@@ -1,14 +1,12 @@
 "use client"
 
-import { useRouter } from "next/navigation"
 import { GraduationCap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { UserProfileDropdown } from "@/components/UserProfileDropdown"
 
-export function LandingHeader() {
-  const router = useRouter()
+export function LandingHeader({ onOpenAuth }: { onOpenAuth: () => void }) {
   const { estConnecte, estEnCoursDeChargement } = useAuthentification()
 
   return (
@@ -41,7 +39,7 @@ export function LandingHeader() {
           <Button
             variant="outline"
             className="rounded-full border-blue-200 bg-white px-5 text-blue-800 transition-all hover:border-blue-800 hover:bg-blue-50"
-            onClick={() => router.push("/login")}
+            onClick={onOpenAuth}
           >
             Se connecter
           </Button>

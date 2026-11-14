@@ -1,5 +1,7 @@
 "use client"
 
+import { useState } from "react"
+import { LoginPage } from "@/components/auth/login/LoginPage"
 import { LandingHeader } from "@/components/landing/LandingHeader"
 import { Hero } from "@/components/landing/Hero"
 import { StatsSection } from "@/components/landing/StatsSection"
@@ -13,10 +15,13 @@ import { LandingFooter } from "@/components/landing/LandingFooter"
 import "./landing.css"
 
 export default function PageAccueil() {
+  const [authOpen, setAuthOpen] = useState(false)
+  const openAuth = () => setAuthOpen(true)
+
   return (
-    <main className="landing-page min-h-screen overflow-x-hidden bg-[#f7faff] text-slate-950">
-      <LandingHeader />
-      <Hero />
+    <div className="landing-page min-h-screen overflow-x-hidden bg-[#f7faff] text-slate-950">
+      <LandingHeader onOpenAuth={openAuth} />
+      <Hero onOpenAuth={openAuth} />
       <StatsSection />
       <RolesSection />
       <FeaturesSection />
@@ -40,8 +45,9 @@ export default function PageAccueil() {
         description="L’espace enseignant facilite le suivi des classes, la saisie des notes, le registre d’appel et le cahier de textes."
         imagePath="/captures/espace-enseignant.png"
       />
-      <CTASection />
+      <CTASection onOpenAuth={openAuth} />
       <LandingFooter />
-    </main>
+      {authOpen && <LoginPage isOverlay onClose={() => setAuthOpen(false)} />}
+    </div>
   )
 }

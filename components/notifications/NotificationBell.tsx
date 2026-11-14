@@ -92,7 +92,12 @@ export default function NotificationBell() {
   const canSeeNotification = useCallback(
     (notification: NotificationRecord) => {
       // Parents and teachers are already scoped by the corresponding Supabase RPC/RLS policy.
-      if (contexte?.account_type === "parent" || contexte?.account_type === "teacher") return true
+      if (
+        contexte?.account_type === "parent" ||
+        contexte?.account_type === "teacher" ||
+        utilisateur?.role === "teacher" ||
+        utilisateur?.etablissementRole === "teacher"
+      ) return true
       return hasEffectiveSchoolPermission(permissionUser, notificationPermission(notification))
     },
     [contexte?.account_type, permissionUser],

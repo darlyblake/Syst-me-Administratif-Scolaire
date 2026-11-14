@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, Users, GraduationCap, CalendarDays, BookOpen, FileText, Bell, MessageSquare, UserRound, Menu, X, LogOut, ClipboardList } from "lucide-react"
+import { LayoutDashboard, Users, GraduationCap, CalendarDays, BookOpen, FileText, Bell, MessageSquare, UserRound, Menu, X, LogOut, ClipboardList, ChevronDown } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -25,7 +25,6 @@ const secondaire = [
   { href: "/parents/notifications", label: "Notifications", icon: Bell, badge: "notifs" as const },
   { href: "/parents/messages", label: "Messages", icon: MessageSquare, badge: "msgs" as const },
   { href: "/parents/evenements", label: "Événements", icon: CalendarDays },
-  { href: "/parents/profil", label: "Profil", icon: UserRound },
 ]
 
 export function ParentNav() {
@@ -37,6 +36,7 @@ export function ParentNav() {
   const [unreadNotifications, setUnreadNotifications] = useState(0)
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
 
   useEffect(() => { setQueryString(typeof window !== "undefined" ? window.location.search : "") }, [pathname])
 
@@ -139,12 +139,33 @@ export function ParentNav() {
 
   return (
     <>
+      <header className="sticky top-0 z-30 hidden h-14 items-center justify-end gap-3 border-b border-slate-200 bg-white/95 px-6 backdrop-blur lg:flex">
+        <Link href="/parents/notifications" aria-label="Ouvrir les notifications" className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 hover:text-blue-700">
+          <Bell className="h-[18px] w-[18px]" />
+          {unreadNotifications > 0 && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}
+        </Link>
+        <div className="relative">
+          <button type="button" onClick={() => setProfileMenuOpen((value) => !value)} aria-expanded={profileMenuOpen} aria-label="Ouvrir le menu du profil" className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-slate-100">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-700 text-[11px] font-bold text-white">{(utilisateur?.nomUtilisateur ?? "P").slice(0, 2).toUpperCase()}</span>
+            <span className="max-w-36 truncate text-sm font-medium text-slate-800">{utilisateur?.nomUtilisateur ?? "Mon compte"}</span>
+            <ChevronDown className="h-4 w-4 text-slate-400" />
+          </button>
+          {profileMenuOpen && <div className="absolute right-0 top-11 z-50 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+            <Link href="/parents/profil" onClick={() => setProfileMenuOpen(false)} className="flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><UserRound className="h-4 w-4 text-slate-400" />Mon profil et paramètres</Link>
+            <button type="button" onClick={() => void logout()} disabled={loggingOut} className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"><LogOut className="h-4 w-4 text-slate-400" />Déconnexion</button>
+          </div>}
+        </div>
+      </header>
+
       <div className="sticky top-0 z-30 flex h-16 w-full min-w-0 items-center justify-between border-b border-slate-200 bg-white/95 px-3 backdrop-blur sm:px-4 lg:hidden">
         <div className="flex min-w-0 items-center gap-2.5">
           <Image src="/nova-logo.webp" alt="NOVA" width={30} height={30} className="shrink-0 rounded-md object-contain" />
           <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">NOVA</p><p className="truncate text-sm font-bold text-slate-900">Portail familles</p></div>
         </div>
-        <Button variant="ghost" size="icon" className="shrink-0 rounded-lg" onClick={() => setOpen(true)} aria-label="Ouvrir la navigation"><Menu className="h-5 w-5" /></Button>
+        <div className="flex shrink-0 items-center gap-1">
+          <Link href="/parents/notifications" aria-label="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"><Bell className="h-5 w-5" />{unreadNotifications > 0 && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}</Link>
+          <Button variant="ghost" size="icon" className="shrink-0 rounded-lg" onClick={() => setOpen(true)} aria-label="Ouvrir la navigation"><Menu className="h-5 w-5" /></Button>
+        </div>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-40 w-full overflow-hidden border-t border-slate-200 bg-white/95 px-1 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-4px_18px_rgba(15,23,42,0.06)] backdrop-blur lg:hidden">

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Users, Plus, Edit, Search, Shield, UserCheck, UserX, UserPlus, MoreVertical, UserMinus } from "lucide-react"
+import { Users, Plus, Edit, Search, Shield, UserCheck, UserX, UserPlus, MoreVertical, UserMinus, KeyRound } from "lucide-react"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useStaff } from "@/hooks/useStaff"
 import { useRoles } from "@/hooks/useRoles"
@@ -273,10 +273,16 @@ export default function PersonnelPage() {
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     {person.accountStatus === "active" || person.accountStatus === "invited" ? (
-                                      <DropdownMenuItem onClick={() => setAccountPersonnel(person)}>
-                                        <Shield className="mr-2 h-4 w-4" />
-                                        Gérer le compte
-                                      </DropdownMenuItem>
+                                      <>
+                                        <DropdownMenuItem onClick={() => setAccountPersonnel(person)}>
+                                          <KeyRound className="mr-2 h-4 w-4" />
+                                          Réinitialiser le mot de passe
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setAccountPersonnel(person)}>
+                                          <Shield className="mr-2 h-4 w-4" />
+                                          Gérer le compte
+                                        </DropdownMenuItem>
+                                      </>
                                     ) : person.accountStatus === "inactive" ? (
                                       <DropdownMenuItem onClick={() => setAccountPersonnel(person)} className="text-green-600">
                                         <UserCheck className="mr-2 h-4 w-4" />
@@ -343,9 +349,15 @@ export default function PersonnelPage() {
                                 Réactiver
                               </Button>
                             ) : (
-                              <Button variant="outline" size="sm" className="flex-1 text-blue-600 border-blue-200" onClick={() => setAccountPersonnel(person)}>
-                                Gérer le compte
-                              </Button>
+                              <>
+                                <Button variant="outline" size="sm" className="flex-1 text-blue-600 border-blue-200" onClick={() => setAccountPersonnel(person)}>
+                                  <KeyRound className="mr-1.5 h-4 w-4" />
+                                  Réinitialiser le mot de passe
+                                </Button>
+                                <Button variant="outline" size="sm" className="px-3" onClick={() => setAccountPersonnel(person)} aria-label="Gérer le compte">
+                                  <Shield className="h-4 w-4" />
+                                </Button>
+                              </>
                             )}
                             <Button variant="outline" size="sm" className="px-3" onClick={() => setEditingPersonnel(person)}>
                               <Edit className="h-4 w-4" />

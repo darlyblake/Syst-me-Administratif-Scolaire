@@ -255,7 +255,7 @@ export default function SuiviPrisesEnChargePage() {
       )
       const yearPayments = selectedPayments.filter((payment) => payment.academic_year_id === year.id)
       const due = yearRows.reduce((sum, row) => sum + Number(row.amount_due || 0), 0)
-      const paid = yearPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+      const paid = yearRows.reduce((sum, row) => sum + Number(row.amount_paid || 0), 0)
       return { year, due, paid, remaining: Math.max(due - paid, 0), paymentCount: yearPayments.length }
     }).filter((item) => item.due > 0 || item.paid > 0)
       .sort((a, b) => String(b.year.start_date).localeCompare(String(a.year.start_date)))

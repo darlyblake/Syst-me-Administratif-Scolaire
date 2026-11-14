@@ -100,15 +100,20 @@ export default function PageTableauBord() {
   const evenements = dashboardSummary?.upcomingEvents ?? []
   const activitesRecentes = dashboardSummary?.recentActivity ?? []
   const activitesVisibles = activitesRecentes.filter((event: any) => {
-    const type = String(event.entity_type ?? "").toLowerCase()
-    if (/payment|finance|expense|salary/.test(type)) return can("finance.view")
-    if (/enroll|registration/.test(type)) return can("inscriptions.view")
-    if (/attendance|absence|presence/.test(type)) return can("attendance.view")
-    if (/grade|evaluation|note/.test(type)) return can("grades.view")
-    if (/event|calendar/.test(type)) return can("events.view")
-    if (/student|class|family/.test(type)) return can("students.view")
-    if (/staff|teacher|personnel/.test(type)) return can("staff.view")
-    if (/document|file/.test(type)) return can("documents.view")
+    const type = String(event.permission_type || event.entity_type || "").toLowerCase()
+    if (type === "admin") return can("users.manage")
+    if (type === "payments.view" || /payment|finance|expense|salary/.test(type)) return can("finance.view")
+    if (type === "inscriptions.read" || /enroll|registration/.test(type)) return can("inscriptions.view")
+    if (type === "attendance.read" || /attendance|absence|presence/.test(type)) return can("attendance.view")
+    if (type === "grades.view" || /grade|evaluation|note/.test(type)) return can("grades.view")
+    if (type === "documents.view" || /document|file/.test(type)) return can("documents.view")
+    if (type === "students.read" || /student|family/.test(type)) return can("students.view")
+    if (type === "classes.view" || /class|academic_year|grade_level|subject/.test(type)) {
+      return can("classes.view") || can("students.view") || can("attendance.view") || can("inscriptions.view")
+    }
+    if (type === "staff.view" || type === "teachers.view" || /staff|teacher|personnel/.test(type)) {
+      return can("staff.view") || can("teachers.view")
+    }
     return false
   })
 

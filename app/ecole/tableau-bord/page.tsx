@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import { financeService } from "@/lib/supabase/services/finance.service"
 import { useUserContext } from "@/hooks/useUserContext"
+import { hasEffectiveSchoolPermission } from "@/lib/organization/runtime-permissions"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { useEnrollments } from "@/hooks/useEnrollments"
 
@@ -16,11 +17,17 @@ const money = (value: number) =>
   new Intl.NumberFormat("fr-FR").format(Math.max(0, Math.round(value))) + " FCFA"
 
 export default function PageTableauBord() {
-  const { primaryEstablishment } = useUserContext()
+  const { utilisateur, contexte, etablissementActif, primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
+  const organizationRole = etablissementActif?.role ?? contexte?.establishments?.find((item) => item.id === utilisateur?.etablissementId)?.role
+  const permissionUser = useMemo(
+    () => utilisateur ? { ...utilisateur, role: contexte?.account_type === "school_member" ? organizationRole : utilisateur.role, etablissementRole: organizationRole } : null,
+    [utilisateur, contexte?.account_type, organizationRole],
+  )
+  const can = (permission: string) => hasEffectiveSchoolPermission(permissionUser, permission)
   const { activeYear, isLoading: academicYearLoading } = useAcademicYears(establishmentId)
   const { total: activeEnrollmentCount, isLoading: enrollmentCountLoading, error: enrollmentCountError } = useEnrollments({
-    establishmentId: activeYear?.id ? establishmentId : null,
+    establishmentId: activeYear?.id && can("students.view") ? establishmentId : null,
     page: 1,
     pageSize: 1,
     academicYearId: activeYear?.id ?? null,
@@ -34,7 +41,7 @@ export default function PageTableauBord() {
   const [overdueError, setOverdueError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!establishmentId || !activeYear?.id) {
+    if (!establishmentId || !activeYear?.id || !["students.view", "classes.view", "staff.view", "finance.view", "attendance.view", "inscriptions.view", "events.view"].some(can)) {
       setDashboardSummary(null)
       setDashboardLoading(false)
       return
@@ -57,10 +64,10 @@ export default function PageTableauBord() {
       .finally(() => { if (active) setDashboardLoading(false) })
 
     return () => { active = false }
-  }, [establishmentId, activeYear?.id])
+  }, [establishmentId, activeYear?.id, permissionUser])
 
   useEffect(() => {
-    if (!establishmentId || !activeYear?.id) {
+    if (!establishmentId || !activeYear?.id || !can("finance.view")) {
       setOverdueSchedules([])
       return
     }
@@ -81,7 +88,7 @@ export default function PageTableauBord() {
       .finally(() => { if (active) setOverdueLoading(false) })
 
     return () => { active = false }
-  }, [establishmentId, activeYear?.id])
+  }, [establishmentId, activeYear?.id, permissionUser])
 
   const overdueSummary = useMemo(() => ({
     schedules: overdueSchedules.length,
@@ -92,6 +99,18 @@ export default function PageTableauBord() {
   const indicatorsLoading = academicYearLoading || dashboardLoading
   const evenements = dashboardSummary?.upcomingEvents ?? []
   const activitesRecentes = dashboardSummary?.recentActivity ?? []
+  const activitesVisibles = activitesRecentes.filter((event: any) => {
+    const type = String(event.entity_type ?? "").toLowerCase()
+    if (/payment|finance|expense|salary/.test(type)) return can("finance.view")
+    if (/enroll|registration/.test(type)) return can("inscriptions.view")
+    if (/attendance|absence|presence/.test(type)) return can("attendance.view")
+    if (/grade|evaluation|note/.test(type)) return can("grades.view")
+    if (/event|calendar/.test(type)) return can("events.view")
+    if (/student|class|family/.test(type)) return can("students.view")
+    if (/staff|teacher|personnel/.test(type)) return can("staff.view")
+    if (/document|file/.test(type)) return can("documents.view")
+    return can("dashboard.view")
+  })
 
   const dateLabel = useMemo(
     () => new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Libreville" }),
@@ -99,16 +118,17 @@ export default function PageTableauBord() {
   )
 
   const actions = [
-    { href: "/ecole/inscriptions", label: "Nouvelle inscription", icon: UserPlus, primary: true },
-    { href: "/ecole/finance/paiements", label: "Enregistrer un paiement", icon: CreditCard },
-    { href: "/ecole/students", label: "Ajouter un élève", icon: Plus },
-    { href: "/ecole/registre-appel", label: "Registre d'appel du jour", icon: ClipboardCheck },
-    { href: "/ecole/evenements", label: "Ajouter un événement", icon: CalendarDays },
+    { href: "/ecole/inscriptions", label: "Nouvelle inscription", icon: UserPlus, primary: true, permission: "inscriptions.create" },
+    { href: "/ecole/finance/paiements", label: "Enregistrer un paiement", icon: CreditCard, permission: "payments.create" },
+    { href: "/ecole/students", label: "Ajouter un élève", icon: Plus, permission: "students.create" },
+    { href: "/ecole/registre-appel", label: "Registre d'appel du jour", icon: ClipboardCheck, permission: "attendance.manage" },
+    { href: "/ecole/evenements", label: "Ajouter un événement", icon: CalendarDays, permission: "events.view" },
   ]
 
   const situations = [
     {
       label: "Finance",
+      permission: "finance.view",
       tone: "finance",
       text: overdueLoading
         ? "Vérification des échéances de l’année scolaire en cours…"
@@ -122,6 +142,7 @@ export default function PageTableauBord() {
     },
     {
       label: "Vie scolaire",
+      permission: "attendance.view",
       tone: "school",
       text: dashboardLoading
         ? "Vérification des présences et retards du jour…"
@@ -135,6 +156,7 @@ export default function PageTableauBord() {
     },
     {
       label: "Inscriptions",
+      permission: "inscriptions.view",
       tone: "registration",
       text: dashboardLoading ? "Vérification des dossiers…" : dashboardError ? dashboardError : (dashboardSummary?.pendingEnrollments ?? 0) > 0 ? (dashboardSummary?.pendingEnrollments ?? 0) + " dossier(s) d'inscription en attente de validation." : "Aucun dossier d'inscription en attente pour l'année scolaire active.",
       href: "/ecole/inscriptions",
@@ -142,6 +164,7 @@ export default function PageTableauBord() {
     },
     {
       label: "Personnel",
+      permission: "staff.view",
       tone: "staff",
       text: dashboardLoading ? "Vérification du pointage du personnel…" : dashboardError ? dashboardError : (dashboardSummary?.staffAttendanceRecorded ?? 0) === 0 ? "Aucun pointage du personnel enregistré aujourd'hui." : (dashboardSummary?.staffPresent ?? 0) + " membre(s) du personnel présent(s) ou en retard sur " + (dashboardSummary?.activeStaff ?? 0) + " actif(s).",
       href: "/ecole/personnel",
@@ -150,14 +173,14 @@ export default function PageTableauBord() {
   ]
 
   const metrics = [
-    { label: "Élèves actifs", value: enrollmentCountLoading ? "…" : enrollmentCountError ? "—" : activeEnrollmentCount.toLocaleString("fr-FR"), note: enrollmentCountError ? "Données indisponibles" : "Inscriptions de l’année active", icon: School },
-    { label: "Classes ouvertes", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.activeClasses ?? 0).toLocaleString("fr-FR"), note: "Classes actives configurées", icon: GraduationCap },
-    { label: "Enseignants", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.activeTeachers ?? 0).toLocaleString("fr-FR"), note: "Enseignants actifs", icon: Users },
-    { label: "Présence personnel", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.staffAttendanceRecorded ?? 0) === 0 ? "Non pointé" : (dashboardSummary?.staffPresent ?? 0) + "/" + (dashboardSummary?.activeStaff ?? 0), note: indicatorsLoading ? "Chargement…" : dashboardError ? "Données indisponibles" : (dashboardSummary?.staffAttendanceRecorded ?? 0) === 0 ? "Aucun pointage aujourd’hui" : (dashboardSummary?.staffAttendanceRecorded ?? 0) + " pointage(s) saisi(s) aujourd’hui", icon: CheckCircle2 },
-    { label: "Recettes du mois", value: indicatorsLoading ? "…" : dashboardError ? "—" : money(dashboardSummary?.monthlyReceipts ?? 0), note: "Encaissements enregistrés ce mois", icon: CreditCard },
-    { label: "Échéances en retard", value: overdueLoading ? "…" : overdueError ? "—" : overdueSummary.schedules.toLocaleString("fr-FR"), note: overdueLoading ? "Vérification…" : overdueError ? "Données indisponibles" : overdueSummary.students + " élève(s) concernés", icon: AlertTriangle, danger: overdueSummary.schedules > 0 },
-    { label: "Absences du jour", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.absences ?? 0).toLocaleString("fr-FR"), note: indicatorsLoading ? "Chargement…" : dashboardError ? "Données indisponibles" : (dashboardSummary?.lateArrivals ?? 0) + " retard(s) · " + (dashboardSummary?.justifiedAbsences ?? 0) + " justifiée(s)", icon: CalendarDays },
-    { label: "Inscriptions en attente", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.pendingEnrollments ?? 0).toLocaleString("fr-FR"), note: "Dossiers à valider · année active", icon: ClipboardCheck },
+    { label: "Élèves actifs", permission: "students.view", value: enrollmentCountLoading ? "…" : enrollmentCountError ? "—" : activeEnrollmentCount.toLocaleString("fr-FR"), note: enrollmentCountError ? "Données indisponibles" : "Inscriptions de l’année active", icon: School },
+    { label: "Classes ouvertes", permission: "classes.view", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.activeClasses ?? 0).toLocaleString("fr-FR"), note: "Classes actives configurées", icon: GraduationCap },
+    { label: "Enseignants", permission: "staff.view", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.activeTeachers ?? 0).toLocaleString("fr-FR"), note: "Enseignants actifs", icon: Users },
+    { label: "Présence personnel", permission: "staff.view", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.staffAttendanceRecorded ?? 0) === 0 ? "Non pointé" : (dashboardSummary?.staffPresent ?? 0) + "/" + (dashboardSummary?.activeStaff ?? 0), note: indicatorsLoading ? "Chargement…" : dashboardError ? "Données indisponibles" : (dashboardSummary?.staffAttendanceRecorded ?? 0) === 0 ? "Aucun pointage aujourd’hui" : (dashboardSummary?.staffAttendanceRecorded ?? 0) + " pointage(s) saisi(s) aujourd’hui", icon: CheckCircle2 },
+    { label: "Recettes du mois", permission: "finance.view", value: indicatorsLoading ? "…" : dashboardError ? "—" : money(dashboardSummary?.monthlyReceipts ?? 0), note: "Encaissements enregistrés ce mois", icon: CreditCard },
+    { label: "Échéances en retard", permission: "finance.view", value: overdueLoading ? "…" : overdueError ? "—" : overdueSummary.schedules.toLocaleString("fr-FR"), note: overdueLoading ? "Vérification…" : overdueError ? "Données indisponibles" : overdueSummary.students + " élève(s) concernés", icon: AlertTriangle, danger: overdueSummary.schedules > 0 },
+    { label: "Absences du jour", permission: "attendance.view", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.absences ?? 0).toLocaleString("fr-FR"), note: indicatorsLoading ? "Chargement…" : dashboardError ? "Données indisponibles" : (dashboardSummary?.lateArrivals ?? 0) + " retard(s) · " + (dashboardSummary?.justifiedAbsences ?? 0) + " justifiée(s)", icon: CalendarDays },
+    { label: "Inscriptions en attente", permission: "inscriptions.view", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.pendingEnrollments ?? 0).toLocaleString("fr-FR"), note: "Dossiers à valider · année active", icon: ClipboardCheck },
   ]
 
   const urgentCount = (overdueSummary.schedules > 0 ? 1 : 0) + (((dashboardSummary?.absences ?? 0) + (dashboardSummary?.lateArrivals ?? 0)) > 0 ? 1 : 0) + ((dashboardSummary?.pendingEnrollments ?? 0) > 0 ? 1 : 0)
@@ -173,7 +196,7 @@ export default function PageTableauBord() {
         </div>
 
         <div className="flex max-w-3xl flex-wrap gap-1.5">
-          {actions.map((action) => (
+          {actions.filter((action) => can(action.permission)).map((action) => (
             <Link
               key={action.href}
               href={action.href}
@@ -192,7 +215,7 @@ export default function PageTableauBord() {
       </section>
 
       <section className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        {metrics.map((metric) => (
+        {metrics.filter((metric) => can(metric.permission)).map((metric) => (
           <div key={metric.label} className="min-h-[88px] rounded border border-[#c5c5d3]/55 bg-white p-2.5">
             <div className="flex items-start justify-between gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#515f74]">{metric.label}</span>
@@ -214,7 +237,7 @@ export default function PageTableauBord() {
         </div>
 
         <div className="divide-y divide-[#c5c5d3]/45">
-          {situations.map((item) => (
+          {situations.filter((item) => can(item.permission)).map((item) => (
             <div key={item.label} className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center">
               <span className={[
                 "w-fit rounded px-2 py-1 text-[10px] font-semibold",
@@ -232,7 +255,7 @@ export default function PageTableauBord() {
         </div>
       </section>
 
-      <section className="mt-3 overflow-hidden rounded border border-[#c5c5d3]/55 bg-white">
+      {can("finance.view") && <section className="mt-3 overflow-hidden rounded border border-[#c5c5d3]/55 bg-white">
         <div className="flex flex-col gap-1 border-b border-[#c5c5d3]/55 bg-[#fff1f0] px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="flex items-center gap-2 text-[14px] font-semibold text-[#93000a]">
@@ -274,7 +297,7 @@ export default function PageTableauBord() {
             {overdueSchedules.length > 8 && <p className="border-t border-[#c5c5d3]/45 px-3 py-2 text-[11px] text-[#515f74]">Et {overdueSchedules.length - 8} autre(s) échéance(s) en retard dans le suivi financier.</p>}
           </>
         )}
-      </section>
+      </section>}
       <section className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div className="overflow-hidden rounded border border-[#c5c5d3]/55 bg-white">
           <div className="flex items-center justify-between border-b border-[#c5c5d3]/55 bg-[#f2f3ff] px-3 py-2">
@@ -286,7 +309,7 @@ export default function PageTableauBord() {
           </div>
 
           <div className="divide-y divide-[#c5c5d3]/45">
-            {activitesRecentes.length ? activitesRecentes.map((event: any, index: number) => (
+            {activitesVisibles.length ? activitesVisibles.map((event: any, index: number) => (
               <div key={event.id ?? index} className="flex items-start gap-3 px-3 py-2.5">
                 <span className="mt-0.5 w-10 shrink-0 font-mono text-[11px] text-[#515f74]">{String(index + 1).padStart(2, "0")}</span>
                 <div className="min-w-0">
@@ -305,7 +328,7 @@ export default function PageTableauBord() {
           </Link>
         </div>
 
-        <div className="overflow-hidden rounded border border-[#c5c5d3]/55 bg-white">
+        {can("events.view") && <div className="overflow-hidden rounded border border-[#c5c5d3]/55 bg-white">
           <div className="flex items-center justify-between border-b border-[#c5c5d3]/55 bg-[#f2f3ff] px-3 py-2">
             <h2 className="flex items-center gap-2 text-[15px] font-semibold text-[#131b2e]">
               <CalendarDays className="h-[17px] w-[17px] text-[#515f74]" strokeWidth={1.8} />
@@ -336,7 +359,7 @@ export default function PageTableauBord() {
           <Link href="/ecole/evenements" className="flex items-center justify-center gap-1 border-t border-[#c5c5d3]/55 px-3 py-2 text-[11px] font-medium text-[#00236f] hover:bg-[#f2f3ff]">
             Ouvrir l'agenda académique complet <ArrowRight className="h-3.5 w-3.5" />
           </Link>
-        </div>
+        </div>}
       </section>
     </div>
   )

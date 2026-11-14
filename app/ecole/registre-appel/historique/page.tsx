@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
+import { listTeacherClassSubjects } from "@/lib/supabase/services/absence.service"
 import {
   listAttendanceHistoryPaginated,
   updateAbsence,
@@ -42,6 +43,8 @@ export default function HistoriqueAppelPage() {
   const establishmentId = primaryEstablishment?.id ?? null
   const permissions = primaryEstablishment?.permissions ?? []
   const role = primaryEstablishment?.role ?? ""
+  const isTeacher = utilisateur?.role === "enseignant"
+  const [teacherClassIds, setTeacherClassIds] = useState<string[]>([])
 
   const canCorrect =
     permissions.includes("attendance.correct") ||
@@ -49,14 +52,27 @@ export default function HistoriqueAppelPage() {
 
   const { data: academicStructure } = useAcademicStructure(establishmentId)
 
+  useEffect(() => {
+    if (!isTeacher || !establishmentId) return
+    let active = true
+    void listTeacherClassSubjects(establishmentId).then((items) => {
+      if (active) setTeacherClassIds([...new Set(items.map((item) => item.class_id))])
+    }).catch(() => {
+      if (active) setTeacherClassIds([])
+    })
+    return () => { active = false }
+  }, [establishmentId, isTeacher])
+
   const classOptions = useMemo(
     () =>
       academicStructure.flatMap((cycle) =>
         (cycle.grade_levels ?? []).flatMap((level) =>
-          (level.school_classes ?? []).map((schoolClass) => ({
-            id: schoolClass.id,
-            name: schoolClass.name,
-          }))
+          (level.school_classes ?? [])
+            .filter((schoolClass) => !isTeacher || teacherClassIds.includes(schoolClass.id))
+            .map((schoolClass) => ({
+              id: schoolClass.id,
+              name: schoolClass.name,
+            }))
         )
       ),
     [academicStructure]

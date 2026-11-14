@@ -189,15 +189,15 @@ export default function ParentAbsences() {
 
   return (
     <div className="space-y-7">
-      <header className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
+      <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:gap-4 sm:pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-blue-600">Vie scolaire</p>
-          <h1 className="mt-1.5 text-3xl font-bold tracking-tight text-slate-950">Présences</h1>
-          <p className="mt-1.5 text-sm leading-6 text-slate-500">
+          <h1 className="mt-1 text-[23px] font-bold leading-tight tracking-tight text-slate-950 sm:mt-1.5 sm:text-3xl">Présences</h1>
+          <p className="mt-1 text-[13px] leading-5 text-slate-500 sm:mt-1.5 sm:text-sm sm:leading-6">
             Consultez chaque cours de votre enfant, son horaire et son statut de présence.
           </p>
         </div>
-        <button type="button" onClick={() => void refresh()} disabled={loading} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50">
+        <button type="button" onClick={() => void refresh()} disabled={loading} className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50 sm:w-auto">
           {loading ? "Actualisation…" : "Actualiser"}
         </button>
       </header>
@@ -241,7 +241,25 @@ export default function ParentAbsences() {
           {new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="divide-y divide-slate-100 sm:hidden">
+          {rows.map((row) => {
+            const record = row.attendance
+            const request = record ? requests.get(record.id) : undefined
+            const pending = !record
+            const label = pending ? "En attente" : statusLabel(row.derivedStatus)
+            const canJustify = !!record && (row.derivedStatus === "absent" || row.derivedStatus === "late" || row.derivedStatus === "retard") && !request
+            return <article key={row.key} className="space-y-3 p-4">
+              <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">{row.subject}</p><p className="mt-0.5 text-xs text-slate-500">{row.childName}</p></div>
+                {pending ? <span className="shrink-0 text-xs text-slate-400">Appel en attente</span> : <span className={"shrink-0 border px-2 py-1 text-[11px] font-semibold " + statusClass(row.derivedStatus)}>{label}</span>}
+              </div>
+              <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-2 text-xs text-slate-500"><span>Horaire</span><strong className="font-semibold tabular-nums text-slate-700">{formatTime(row.startsAt)} – {formatTime(row.endsAt)}</strong></div>
+              <div className="flex items-center justify-between gap-3"><span className="text-xs text-slate-500">Justification</span>
+                {request?.status === "pending" ? <span className="text-xs font-medium text-amber-700">En attente</span> : request?.status === "approved" ? <span className="text-xs font-medium text-emerald-700">Acceptée</span> : request?.status === "rejected" ? <span className="text-xs font-medium text-red-700">Refusée</span> : canJustify ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFormError(null) }} className="min-h-9 rounded-md border border-slate-200 px-3 text-xs font-semibold text-slate-700">Justifier</button> : <span className="text-xs text-slate-400">—</span>}
+              </div>
+            </article>
+          })}
+        </div>
+        <div className="hidden overflow-x-auto sm:block">
           <table className="w-full min-w-[760px] text-sm">
             <thead className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>

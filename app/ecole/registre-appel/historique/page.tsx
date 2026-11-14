@@ -216,7 +216,31 @@ export default function HistoriqueAppelPage() {
             <p className="mt-1 text-sm text-slate-500">Modifiez la période ou la classe sélectionnée.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto border">
+          <div className="space-y-3 lg:hidden">
+            {filteredRows.map((row) => {
+              const status = (row.status in labels ? row.status : "present") as Status
+              return (
+                <article key={row.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs text-slate-500">{new Date(row.attendance_date + "T12:00:00").toLocaleDateString("fr-FR")}</p>
+                      <h3 className="mt-1 break-words font-semibold">{row.last_name ?? "—"} {row.first_name ?? ""}</h3>
+                      <p className="text-xs text-slate-500">{row.class_name ?? classOptions.find((item) => item.id === row.class_id)?.name ?? "Classe non renseignée"}</p>
+                    </div>
+                    <span className={`shrink-0 border px-2 py-1 text-xs font-medium ${classes[status]}`}>{labels[status]}</span>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t pt-3 text-sm">
+                    <div><dt className="text-xs text-slate-500">Matière</dt><dd className="break-words">{row.subject_name ?? "—"}</dd></div>
+                    <div><dt className="text-xs text-slate-500">Horaire</dt><dd>{row.starts_at && row.ends_at ? `${row.starts_at.slice(0,5)} – ${row.ends_at.slice(0,5)}` : "—"}</dd></div>
+                    <div className="col-span-2"><dt className="text-xs text-slate-500">Enseignant</dt><dd>{row.teacher_last_name || row.teacher_first_name ? `${row.teacher_last_name ?? ""} ${row.teacher_first_name ?? ""}`.trim() : "—"}</dd></div>
+                    <div className="col-span-2"><dt className="text-xs text-slate-500">Motif de l'absence / retard</dt><dd className="break-words">{row.reason || "Aucun motif renseigné"}</dd></div>
+                  </dl>
+                  {canCorrect && <div className="mt-3 border-t pt-3"><Button variant="outline" size="sm" className="w-full" onClick={() => openEdit(row)} disabled={savingId === row.id}><Pencil className="mr-2 h-4 w-4" />Corriger cette présence</Button></div>}
+                </article>
+              )
+            })}
+          </div>
+          <div className="hidden overflow-x-auto border lg:block">
             <table className="min-w-[1200px] w-full text-sm">
               <thead className="border-b bg-slate-50">
                 <tr>

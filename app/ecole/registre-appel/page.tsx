@@ -111,6 +111,7 @@ export default function RegistreAppelPage() {
   const [attendance, setAttendance] = useState<Record<string, AttendanceEntry>>({})
   const [lessonStates, setLessonStates] = useState<Record<string, LessonCallState>>({})
   const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"all" | AttendanceStatus>("all")
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false)
   const [currentTime, setCurrentTime] = useState(() => new Date())
   const [isLoading, setIsLoading] = useState(false)
@@ -378,11 +379,13 @@ export default function RegistreAppelPage() {
 
   const filteredStudents = useMemo(() => {
     const value = search.trim().toLowerCase()
-    if (!value) return students
-    return students.filter((student) =>
-      `${student.first_name} ${student.last_name} ${student.student_number ?? ""}`.toLowerCase().includes(value)
-    )
-  }, [search, students])
+    return students.filter((student) => {
+      const fullName = (student.first_name + " " + student.last_name + " " + (student.student_number ?? "")).toLowerCase()
+      const matchesSearch = !value || fullName.includes(value)
+      const matchesStatus = statusFilter === "all" || (attendance[student.id]?.status ?? "present") === statusFilter
+      return matchesSearch && matchesStatus
+    })
+  }, [attendance, search, statusFilter, students])
 
   const setStudentStatus = (studentId: string, status: AttendanceStatus) => {
     setShowSaveConfirmation(false)
@@ -651,6 +654,17 @@ export default function RegistreAppelPage() {
               </section>
             )}
 
+            <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="Filtrer les élèves par présence">
+              <span className="mr-1 text-xs font-medium text-slate-500">Afficher :</span>
+              {(["all", "present", "absent", "late", "justified"] as const).map((value) => (
+                <button key={value} type="button" onClick={() => setStatusFilter(value)} aria-pressed={statusFilter === value}
+                  className={statusFilter === value ? "rounded-full border border-blue-700 bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" : "rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"}>
+                  {value === "all" ? "Tous" : statusLabels[value]}
+                </button>
+              ))}
+              <span className="ml-auto text-xs text-slate-500">{filteredStudents.length} résultat(s)</span>
+            </div>
+
             {isLoading ? (
               <div className="border px-6 py-12 text-center text-sm text-slate-500">Chargement des élèves…</div>
             ) : students.length === 0 ? (
@@ -747,7 +761,7 @@ export default function RegistreAppelPage() {
                         </div>
                         <div className="mt-3">
                           <label className="mb-1 block text-xs font-medium text-slate-600">Motif</label>
-                          <Input value={entry.reason} onChange={(event) => setAttendance((current) => ({ ...current, [student.id]: { ...entry, reason: event.target.value } }))} placeholder={entry.status === "present" ? "Aucun motif nécessaire" : "Préciser le motif"} disabled={entry.status === "present"} className="h-10 min-w-0" />
+                          <Input value={entry.reason} onChange={(event) => { setShowSaveConfirmation(false); setAttendance((current) => ({ ...current, [student.id]: { ...entry, reason: event.target.value } })) }} placeholder={entry.status === "present" ? "Aucun motif nécessaire" : "Préciser le motif"} disabled={entry.status === "present"} className="h-10 min-w-0" />
                         </div>
                       </article>
                     )

@@ -183,7 +183,10 @@ export default function PageTableauBord() {
     { label: "Inscriptions en attente", permission: "inscriptions.view", value: indicatorsLoading ? "…" : dashboardError ? "—" : (dashboardSummary?.pendingEnrollments ?? 0).toLocaleString("fr-FR"), note: "Dossiers à valider · année active", icon: ClipboardCheck },
   ]
 
-  const urgentCount = (overdueSummary.schedules > 0 ? 1 : 0) + (((dashboardSummary?.absences ?? 0) + (dashboardSummary?.lateArrivals ?? 0)) > 0 ? 1 : 0) + ((dashboardSummary?.pendingEnrollments ?? 0) > 0 ? 1 : 0)
+  const urgentCount =
+    (can("finance.view") && overdueSummary.schedules > 0 ? 1 : 0) +
+    (can("attendance.view") && ((dashboardSummary?.absences ?? 0) + (dashboardSummary?.lateArrivals ?? 0)) > 0 ? 1 : 0) +
+    (can("inscriptions.view") && (dashboardSummary?.pendingEnrollments ?? 0) > 0 ? 1 : 0)
 
   return (
     <div className="w-full">
@@ -214,7 +217,7 @@ export default function PageTableauBord() {
         </div>
       </section>
 
-      <section className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      {metrics.some((metric) => can(metric.permission)) && <section className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {metrics.filter((metric) => can(metric.permission)).map((metric) => (
           <div key={metric.label} className="min-h-[88px] rounded border border-[#c5c5d3]/55 bg-white p-2.5">
             <div className="flex items-start justify-between gap-2">
@@ -225,9 +228,9 @@ export default function PageTableauBord() {
             <p className={`mt-0.5 text-[11px] ${metric.danger ? "text-[#ba1a1a]" : "text-[#515f74]"}`}>{metric.note}</p>
           </div>
         ))}
-      </section>
+      </section>}
 
-      <section className="mt-4 overflow-hidden rounded border border-[#c5c5d3]/55 bg-white">
+      {situations.some((item) => can(item.permission)) && <section className="mt-4 overflow-hidden rounded border border-[#c5c5d3]/55 bg-white">
         <div className="flex items-center justify-between border-b border-[#c5c5d3]/55 bg-[#f2f3ff] px-3 py-2">
           <h2 className="flex items-center gap-2 text-[15px] font-semibold text-[#131b2e]">
             <AlertTriangle className="h-[17px] w-[17px] text-[#ba1a1a]" strokeWidth={1.8} />
@@ -253,7 +256,7 @@ export default function PageTableauBord() {
             </div>
           ))}
         </div>
-      </section>
+      </section>}
 
       {can("finance.view") && <section className="mt-3 overflow-hidden rounded border border-[#c5c5d3]/55 bg-white">
         <div className="flex flex-col gap-1 border-b border-[#c5c5d3]/55 bg-[#fff1f0] px-3 py-2 sm:flex-row sm:items-center sm:justify-between">

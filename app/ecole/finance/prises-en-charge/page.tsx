@@ -108,6 +108,10 @@ export default function SuiviPrisesEnChargePage() {
   const [canManagePayments, setCanManagePayments] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [studentsPage, setStudentsPage] = useState(1)
+  const [paymentsPage, setPaymentsPage] = useState(1)
+  const studentsPerPage = 20
+  const paymentsPerPage = 10
 
   const load = useCallback(async () => {
     if (!establishmentId || !selectedYear?.id) {
@@ -247,6 +251,17 @@ export default function SuiviPrisesEnChargePage() {
     (payment) => payment.organization_id === organizationId
   ), [payments, organizationId])
 
+  const studentsPageCount = Math.max(1, Math.ceil(coveredStudents.length / studentsPerPage))
+  const paginatedStudents = useMemo(
+    () => coveredStudents.slice((studentsPage - 1) * studentsPerPage, studentsPage * studentsPerPage),
+    [coveredStudents, studentsPage]
+  )
+  const paymentsPageCount = Math.max(1, Math.ceil(selectedPayments.length / paymentsPerPage))
+  const paginatedPayments = useMemo(
+    () => selectedPayments.slice((paymentsPage - 1) * paymentsPerPage, paymentsPage * paymentsPerPage),
+    [selectedPayments, paymentsPage]
+  )
+
   const organizationYearHistory = useMemo(() => {
     if (!organizationId || organizationId === "all") return []
     return academicYears.map((year) => {
@@ -291,7 +306,7 @@ export default function SuiviPrisesEnChargePage() {
             {academicYears.map((year) => <option key={year.id} value={year.id}>{year.name}</option>)}
           </select>
           {organizationId !== "all" && (
-            <Button variant="outline" onClick={() => { setOrganizationId("all"); setSearch("") }} className="gap-2">
+            <Button variant="outline" onClick={() => { setOrganizationId("all"); setSearch(""); setStudentsPage(1); setPaymentsPage(1) }} className="gap-2">
               <ArrowLeft className="h-4 w-4" />Retour
             </Button>
           )}
@@ -371,7 +386,7 @@ export default function SuiviPrisesEnChargePage() {
                       <td className="px-4 py-3 text-right tabular-nums text-emerald-700">{formatAmount(item.paid)}</td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatAmount(item.remaining)}</td>
                       <td className="px-4 py-3 text-right">
-                        <Button size="sm" variant="outline" onClick={() => { setOrganizationId(item.organization.id); setSearch("") }}>
+                        <Button size="sm" variant="outline" onClick={() => { setOrganizationId(item.organization.id); setSearch(""); setStudentsPage(1); setPaymentsPage(1) }}>
                           Consulter
                         </Button>
                       </td>
@@ -422,8 +437,22 @@ export default function SuiviPrisesEnChargePage() {
             </div>
           </div>
 
-          <section className="overflow-hidden border border-slate-200 bg-white">
-            <div className="flex items-center justify-between border-b px-4 py-3">
+          <details open className="group overflow-hidden border border-slate-200 bg-white">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">Élèves couverts par l'organisation</h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  <Users className="mr-1 inline h-3.5 w-3.5" />{coveredStudents.length} élève(s) · détail justificatif du montant annuel
+                </p>
+              </div>
+              <span className="text-xs text-slate-500 group-open:hidden">Afficher</span>
+              <span className="hidden text-xs text-slate-500 group-open:inline">Réduire</span>
+            </summary>
+            <div className="border-t border-slate-200">
+              <div className="flex items-center justify-between gap-3 px-4 py-2 text-xs text-slate-500">
+                <span>Affichage de {coveredStudents.length ? (studentsPage - 1) * studentsPerPage + 1 : 0} à {Math.min(studentsPage * studentsPerPage, coveredStudents.length)} sur {coveredStudents.length} élèves</span>
+                <span>20 élèves par page</span>
+              </div>
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">Élèves couverts par l'organisation</h3>
                 <p className="mt-1 text-xs text-slate-500">
@@ -442,7 +471,7 @@ export default function SuiviPrisesEnChargePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {coveredStudents.map((student) => (
+                  {paginatedStudents.map((student) => (
                     <tr key={student.enrollment_id}>
                       <td className="px-4 py-3 font-medium text-slate-900">{student.first_name} {student.last_name}</td>
                       <td className="px-4 py-3 text-slate-600">{student.student_number || "—"}</td>
@@ -460,11 +489,26 @@ export default function SuiviPrisesEnChargePage() {
                 </tbody>
               </table>
             </div>
-          </section>
+            {studentsPageCount > 1 && (
+              <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
+                <Button size="sm" variant="outline" disabled={studentsPage === 1} onClick={() => setStudentsPage((page) => Math.max(1, page - 1))}>Précédent</Button>
+                <span className="text-xs text-slate-500">Page {studentsPage} sur {studentsPageCount}</span>
+                <Button size="sm" variant="outline" disabled={studentsPage === studentsPageCount} onClick={() => setStudentsPage((page) => Math.min(studentsPageCount, page + 1))}>Suivant</Button>
+              </div>
+            )}
+            </div>
+          </details>
 
-          <section className="overflow-hidden border border-slate-200 bg-white">
-            <div className="border-b px-4 py-3">
-              <h3 className="text-sm font-semibold text-slate-900">Historique annuel de la prise en charge</h3>
+          <details className="group overflow-hidden border border-slate-200 bg-white">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">Historique annuel de la prise en charge</h3>
+                <p className="mt-1 text-xs text-slate-500">Consulter les montants dus, versés et les soldes de chaque exercice ({organizationYearHistory.length} année(s))</p>
+              </div>
+              <span className="text-xs text-slate-500 group-open:hidden">Afficher</span>
+              <span className="hidden text-xs text-slate-500 group-open:inline">Réduire</span>
+            </summary>
+            <div className="border-t border-slate-200">
               <p className="mt-1 text-xs text-slate-500">Chaque année conserve son propre montant dû, ses versements et son solde. Les exercices précédents restent consultables.</p>
             </div>
             <div className="overflow-x-auto">
@@ -494,11 +538,19 @@ export default function SuiviPrisesEnChargePage() {
                 </tbody>
               </table>
             </div>
-          </section>
+            </div>
+          </details>
 
-          <section className="overflow-hidden border border-slate-200 bg-white">
-            <div className="border-b px-4 py-3">
-              <h3 className="text-sm font-semibold text-slate-900">Détail des versements globaux</h3>
+          <details className="group overflow-hidden border border-slate-200 bg-white">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">Détail des versements globaux</h3>
+                <p className="mt-1 text-xs text-slate-500">Consulter les paiements effectués par l'organisation ({selectedPayments.length} versement(s))</p>
+              </div>
+              <span className="text-xs text-slate-500 group-open:hidden">Afficher</span>
+              <span className="hidden text-xs text-slate-500 group-open:inline">Réduire</span>
+            </summary>
+            <div className="border-t border-slate-200">
               <p className="mt-1 text-xs text-slate-500">Chaque ligne correspond à un versement effectué par l'organisation.</p>
             </div>
             <div className="overflow-x-auto">
@@ -513,7 +565,7 @@ export default function SuiviPrisesEnChargePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {selectedPayments.map((payment) => (
+                  {paginatedPayments.map((payment) => (
                     <tr key={payment.id}>
                       <td className="px-4 py-3">{academicYears.find((year) => year.id === payment.academic_year_id)?.name || "Année inconnue"}</td>
                       <td className="px-4 py-3">{formatDate(payment.payment_date)}</td>
@@ -530,7 +582,15 @@ export default function SuiviPrisesEnChargePage() {
                 </tbody>
               </table>
             </div>
-          </section>
+            {paymentsPageCount > 1 && (
+              <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
+                <Button size="sm" variant="outline" disabled={paymentsPage === 1} onClick={() => setPaymentsPage((page) => Math.max(1, page - 1))}>Précédent</Button>
+                <span className="text-xs text-slate-500">Page {paymentsPage} sur {paymentsPageCount}</span>
+                <Button size="sm" variant="outline" disabled={paymentsPage === paymentsPageCount} onClick={() => setPaymentsPage((page) => Math.min(paymentsPageCount, page + 1))}>Suivant</Button>
+              </div>
+            )}
+            </div>
+          </details>
 
           <div className="hidden print:block border-t border-slate-300 pt-4 text-xs text-slate-500">
             Fiche générée le {new Date().toLocaleDateString("fr-FR")} · Document de suivi financier de l'établissement.

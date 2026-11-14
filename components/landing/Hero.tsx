@@ -1,13 +1,11 @@
 "use client"
 
-import { useRouter } from "next/navigation"
 import { ArrowRight, ShieldCheck, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Reveal } from "./Reveal"
 import { DashboardPreview } from "./DashboardPreview"
 
-export function Hero() {
-  const router = useRouter()
+export function Hero({ onOpenAuth }: { onOpenAuth: () => void }) {
 
   return (
     <section id="presentation" className="landing-hero relative isolate overflow-hidden">
@@ -44,7 +42,7 @@ export function Hero() {
             <Button
               size="lg"
               className="rounded-full bg-blue-800 px-6 text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-blue-900 hover:shadow-lg"
-              onClick={() => router.push("/login")}
+              onClick={onOpenAuth}
             >
               Accéder à mon espace
               <ArrowRight className="ml-2 h-4 w-4" />

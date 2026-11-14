@@ -4,9 +4,9 @@ import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Bell, Check, Loader2 } from "lucide-react"
 import { useUserContext } from "@/hooks/useUserContext"
+import { hasEffectiveSchoolPermission } from "@/lib/organization/runtime-permissions"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import {
-  getUnreadNotificationCount,
   listNotificationsPaginated,
   markNotificationRead,
   type NotificationRecord,
@@ -34,6 +34,34 @@ function notificationHref(notification: NotificationRecord) {
   }
 }
 
+function notificationPermission(notification: NotificationRecord): string {
+  switch (notification.entity_type) {
+    case "payment_schedule":
+    case "payment":
+    case "expense":
+    case "salary":
+      return "finance.view"
+    case "enrollment":
+      return "inscriptions.view"
+    case "school_document_request":
+    case "parent_document_request":
+    case "parent_document_publication":
+      return "documents.view"
+    case "attendance_record":
+    case "attendance_justification_request":
+      return "attendance.view"
+    case "school_event":
+      return "events.view"
+    case "support_request":
+      return "documents.view"
+    case "grade":
+    case "student_grade":
+      return "grades.view"
+    default:
+      return "dashboard.view"
+  }
+}
+
 function formatNotificationDate(value?: string | null) {
   if (!value) return ""
   const date = new Date(value)
@@ -49,9 +77,12 @@ function formatNotificationDate(value?: string | null) {
 
 export default function NotificationBell() {
   const router = useRouter()
-  const { utilisateur, primaryEstablishment } = useUserContext()
+  const { utilisateur, contexte, etablissementActif, primaryEstablishment } = useUserContext()
   const userId = utilisateur?.id ?? null
   const establishmentId = primaryEstablishment?.id ?? null
+  const organizationRole = etablissementActif?.role ?? contexte?.establishments?.find((item) => item.id === utilisateur?.etablissementId)?.role
+  const permissionUser = utilisateur ? { ...utilisateur, role: contexte?.account_type === "school_member" ? organizationRole : utilisateur.role, etablissementRole: organizationRole } : null
+  const canSeeNotification = useCallback((notification: NotificationRecord) => hasEffectiveSchoolPermission(permissionUser, notificationPermission(notification)), [permissionUser])
   const [open, setOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [items, setItems] = useState<NotificationRecord[]>([])
@@ -65,13 +96,14 @@ export default function NotificationBell() {
       return
     }
     try {
-      const count = await getUnreadNotificationCount(establishmentId)
-      setUnreadCount(count)
+      // Le compteur est calculé sur les notifications non lues visibles par ce compte.
+      const page = await listNotificationsPaginated(establishmentId, 1, 100, true)
+      setUnreadCount(page.items.filter(canSeeNotification).length)
     } catch (cause) {
       console.error("Chargement du compteur de notifications impossible", cause)
       setError("Le compteur de notifications est indisponible.")
     }
-  }, [establishmentId])
+  }, [establishmentId, canSeeNotification])
 
   const loadItems = useCallback(async () => {
     if (!establishmentId) {
@@ -83,14 +115,14 @@ export default function NotificationBell() {
     setError(null)
     try {
       const page = await listNotificationsPaginated(establishmentId, 1, 8, false)
-      setItems(page.items)
+      setItems(page.items.filter(canSeeNotification).slice(0, 8))
     } catch (cause) {
       console.error("Chargement des notifications impossible", cause)
       setError("Impossible de charger les notifications pour le moment.")
     } finally {
       setLoading(false)
     }
-  }, [establishmentId])
+  }, [establishmentId, canSeeNotification])
 
   useEffect(() => {
     if (!userId || !establishmentId) {

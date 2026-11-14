@@ -1,6 +1,6 @@
 export const SCHOOL_PERMISSIONS = [
   'dashboard.view','students.view','students.create','students.edit','students.delete',
-  'inscriptions.view','inscriptions.create','inscriptions.edit',
+  'inscriptions.view','inscriptions.create','inscriptions.edit','tuition.view',
   'attendance.view','attendance.manage','grades.view','grades.manage','classes.view',
   'payments.view','payments.create','payments.refund','finance.view',
   'documents.view','documents.create','documents.delete','exclusions.create',

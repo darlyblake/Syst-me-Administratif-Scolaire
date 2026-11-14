@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
+import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 
 export type ParentChild = { id:string; establishment_id:string; student_number:string|null; first_name:string; last_name:string; birth_date:string|null; sex:string|null; phone:string|null; email:string|null; active:boolean; can_view_academic:boolean; can_view_finance:boolean; relationship:string|null; class_name?:string; class_id?:string; level_name?:string; level_code?:string; cycle_name?:string; enrollment_id?:string; academic_year_id?:string; academic_year_name?:string; payment_mode?:string; installment_count?:number; funding_source?:"family"|"state"|"other" }
@@ -23,14 +23,16 @@ export type ClaimStudentInput = { studentId?:string; studentNumber?:string; birt
 
 function useParentPortalState() {
   const [loading,setLoading]=useState(true), [error,setError]=useState<string|null>(null)
+  const refreshTimer=useRef<ReturnType<typeof setTimeout>|null>(null)
   const [children,setChildren]=useState<ParentChild[]>([]), [grades,setGrades]=useState<ParentGrade[]>([]), [payments,setPayments]=useState<ParentPayment[]>([])
   const [attendance,setAttendance]=useState<ParentAttendance[]>([]), [justificationRequests,setJustificationRequests]=useState<ParentJustificationRequest[]>([])
   const [notifications,setNotifications]=useState<ParentNotification[]>([]), [events,setEvents]=useState<ParentEvent[]>([])
   const [paymentSchedules,setPaymentSchedules]=useState<ParentPaymentSchedule[]>([]), [paymentAllocations,setPaymentAllocations]=useState<ParentPaymentAllocation[]>([]), [enrollmentOptions,setEnrollmentOptions]=useState<ParentEnrollmentOption[]>([])
   const [timetable,setTimetable]=useState<ParentTimetableSlot[]>([]), [lessons,setLessons]=useState<ParentLesson[]>([]), [homework,setHomework]=useState<ParentHomework[]>([]), [documents,setDocuments]=useState<ParentDocument[]>([]), [schoolDocumentRequests,setSchoolDocumentRequests]=useState<ParentSchoolDocumentRequest[]>([])
 
-  const refresh=useCallback(async()=>{
-    setLoading(true); setError(null)
+  const refresh=useCallback(async(options:{silent?:boolean}={})=>{
+    if(!options.silent) setLoading(true)
+    setError(null)
     try{
       const {data:authData,error:authError}=await supabaseBrowser.auth.getUser()
       if(authError||!authData.user) throw new Error("Session parent introuvable.")
@@ -291,7 +293,7 @@ function useParentPortalState() {
         console.warn("Parent portal secondary data error:",secondaryCause)
       }
     }catch(cause){console.error("Parent portal error:",cause);setError(cause instanceof Error?cause.message:"Impossible de charger vos informations.")}
-    finally{setLoading(false)}
+    finally{if(!options.silent) setLoading(false)}
   },[])
 
   const claimChild=useCallback(async(input:ClaimStudentInput)=>{
@@ -317,15 +319,23 @@ function useParentPortalState() {
   useEffect(()=>{
     void refresh()
 
+    let disposed=false
     let notificationChannel: ReturnType<typeof supabaseBrowser.channel> | null = null
     void supabaseBrowser.auth.getUser().then(({data})=>{
       const user=data.user
-      if(!user) return
+      if(!user||disposed) return
       notificationChannel=supabaseBrowser
         .channel(`parent-notifications:${user.id}`)
         .on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications",filter:`recipient_user_id=eq.${user.id}`},payload=>{
           const notification=payload.new as ParentNotification
           setNotifications(current=>current.some(item=>item.id===notification.id)?current:[notification,...current].slice(0,50))
+          // La notification confirme qu'une action a eu lieu : recharger silencieusement
+          // toutes les données autorisées du parent (paiements, présences, notes, cahier…).
+          if(refreshTimer.current) clearTimeout(refreshTimer.current)
+          refreshTimer.current=setTimeout(()=>{
+            refreshTimer.current=null
+            void refresh({silent:true})
+          },180)
         })
         .on("postgres_changes",{event:"UPDATE",schema:"public",table:"notifications",filter:`recipient_user_id=eq.${user.id}`},payload=>{
           const notification=payload.new as ParentNotification
@@ -337,11 +347,13 @@ function useParentPortalState() {
     const {data:{subscription}}=supabaseBrowser.auth.onAuthStateChange((event,session)=>{
       if(!session) return
       if(event==="INITIAL_SESSION"||event==="SIGNED_IN"||event==="TOKEN_REFRESHED"||event==="USER_UPDATED"){
-        window.setTimeout(()=>void refresh(),0)
+        window.setTimeout(()=>void refresh({silent:true}),0)
       }
     })
     return ()=>{
+      disposed=true
       subscription.unsubscribe()
+      if(refreshTimer.current){clearTimeout(refreshTimer.current);refreshTimer.current=null}
       if(notificationChannel) void supabaseBrowser.removeChannel(notificationChannel)
     }
   },[refresh])

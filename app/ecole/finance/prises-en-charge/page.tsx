@@ -131,13 +131,11 @@ export default function SuiviPrisesEnChargePage() {
         supabaseBrowser
           .from("v_finance_organization_coverage_board")
           .select("*")
-          .eq("establishment_id", establishmentId)
-          .eq("academic_year_id", selectedYear.id),
+          .eq("establishment_id", establishmentId),
         supabaseBrowser
           .from("organization_payments")
           .select("id,organization_id,academic_year_id,amount,payment_date,method,reference,notes")
           .eq("establishment_id", establishmentId)
-          .eq("academic_year_id", selectedYear.id)
           .order("payment_date", { ascending: false }),
       ])
 
@@ -179,7 +177,7 @@ export default function SuiviPrisesEnChargePage() {
   const organizationSummaries = useMemo<OrganizationSummary[]>(() => {
     return organizations.map((organization) => {
       const organizationRows = rows.filter((row) =>
-        row.payer_type === "other" && row.organization_id === organization.id
+        row.academic_year_id === selectedYear?.id && row.payer_type === "other" && row.organization_id === organization.id
       )
       const enrollmentIds = new Set(organizationRows.map((row) => row.enrollment_id))
       return {
@@ -190,7 +188,7 @@ export default function SuiviPrisesEnChargePage() {
         remaining: organizationRows.reduce((sum, row) => sum + Number(row.remaining_amount || 0), 0),
       }
     })
-  }, [organizations, rows])
+  }, [organizations, rows, selectedYear?.id])
 
   const visibleOrganizations = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("fr")
@@ -248,6 +246,20 @@ export default function SuiviPrisesEnChargePage() {
   const selectedPayments = useMemo(() => payments.filter(
     (payment) => payment.organization_id === organizationId
   ), [payments, organizationId])
+
+  const organizationYearHistory = useMemo(() => {
+    if (!organizationId || organizationId === "all") return []
+    return academicYears.map((year) => {
+      const yearRows = rows.filter((row) =>
+        row.organization_id === organizationId && row.academic_year_id === year.id && row.payer_type === "other"
+      )
+      const yearPayments = selectedPayments.filter((payment) => payment.academic_year_id === year.id)
+      const due = yearRows.reduce((sum, row) => sum + Number(row.amount_due || 0), 0)
+      const paid = yearPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+      return { year, due, paid, remaining: Math.max(due - paid, 0), paymentCount: yearPayments.length }
+    }).filter((item) => item.due > 0 || item.paid > 0)
+      .sort((a, b) => String(b.year.start_date).localeCompare(String(a.year.start_date)))
+  }, [academicYears, rows, selectedPayments, organizationId])
 
   const totalSummary = useMemo(() => organizationSummaries.reduce((total, item) => ({
     due: total.due + item.due,
@@ -452,13 +464,48 @@ export default function SuiviPrisesEnChargePage() {
 
           <section className="overflow-hidden border border-slate-200 bg-white">
             <div className="border-b px-4 py-3">
-              <h3 className="text-sm font-semibold text-slate-900">Historique des versements globaux</h3>
+              <h3 className="text-sm font-semibold text-slate-900">Historique annuel de la prise en charge</h3>
+              <p className="mt-1 text-xs text-slate-500">Chaque année conserve son propre montant dû, ses versements et son solde. Les exercices précédents restent consultables.</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[680px] text-sm">
+                <thead className="bg-slate-50 text-left text-xs text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">Année académique</th>
+                    <th className="px-4 py-3 text-right">Montant dû</th>
+                    <th className="px-4 py-3 text-right">Total versé</th>
+                    <th className="px-4 py-3 text-right">Solde restant</th>
+                    <th className="px-4 py-3 text-right">Versements</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {organizationYearHistory.map((item) => (
+                    <tr key={item.year.id}>
+                      <td className="px-4 py-3 font-medium text-slate-900">{item.year.name}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{formatAmount(item.due)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-emerald-700">{formatAmount(item.paid)}</td>
+                      <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatAmount(item.remaining)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{item.paymentCount}</td>
+                    </tr>
+                  ))}
+                  {!organizationYearHistory.length && (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">Aucun historique annuel disponible pour cet organisme.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="overflow-hidden border border-slate-200 bg-white">
+            <div className="border-b px-4 py-3">
+              <h3 className="text-sm font-semibold text-slate-900">Détail des versements globaux</h3>
               <p className="mt-1 text-xs text-slate-500">Chaque ligne correspond à un versement effectué par l'organisation.</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] text-sm">
                 <thead className="bg-slate-50 text-left text-xs text-slate-500">
                   <tr>
+                    <th className="px-4 py-3">Année</th>
                     <th className="px-4 py-3">Date</th>
                     <th className="px-4 py-3">Moyen de paiement</th>
                     <th className="px-4 py-3">Référence</th>
@@ -468,6 +515,7 @@ export default function SuiviPrisesEnChargePage() {
                 <tbody className="divide-y divide-slate-100">
                   {selectedPayments.map((payment) => (
                     <tr key={payment.id}>
+                      <td className="px-4 py-3">{academicYears.find((year) => year.id === payment.academic_year_id)?.name || "Année inconnue"}</td>
                       <td className="px-4 py-3">{formatDate(payment.payment_date)}</td>
                       <td className="px-4 py-3">{paymentMethodName(payment.method)}</td>
                       <td className="px-4 py-3">{payment.reference || "—"}</td>
@@ -476,7 +524,7 @@ export default function SuiviPrisesEnChargePage() {
                   ))}
                   {!selectedPayments.length && (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-slate-500">Aucun versement global enregistré pour cette année.</td>
+                      <td colSpan={5} className="px-4 py-8 text-center text-slate-500">Aucun versement global enregistré pour cet organisme.</td>
                     </tr>
                   )}
                 </tbody>

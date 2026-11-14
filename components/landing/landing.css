@@ -1,0 +1,148 @@
+@keyframes landing-float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -9px, 0); }
+}
+
+@keyframes landing-orb-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(18px, -12px, 0) scale(1.04); }
+}
+
+.landing-page {
+  --landing-blue: #1e40af;
+  scroll-behavior: smooth;
+}
+
+.landing-header {
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.035);
+}
+
+.landing-nav-link {
+  position: relative;
+  color: #475569;
+  font-size: 0.875rem;
+  transition: color 180ms ease;
+}
+
+.landing-nav-link:hover {
+  color: #1e40af;
+}
+
+.landing-nav-link::after {
+  position: absolute;
+  right: 0;
+  bottom: -7px;
+  left: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: #1e40af;
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 180ms ease;
+}
+
+.landing-nav-link:hover::after {
+  transform: scaleX(1);
+}
+
+.landing-hero {
+  background:
+    radial-gradient(ellipse at 78% 38%, rgba(219, 234, 254, 0.78), transparent 38%),
+    linear-gradient(180deg, #f7faff 0%, #eff6ff 100%);
+}
+
+.landing-hero-orb {
+  position: absolute;
+  z-index: -1;
+  border: 1px solid rgba(147, 197, 253, 0.28);
+  border-radius: 999px;
+  pointer-events: none;
+  animation: landing-orb-drift 12s ease-in-out infinite;
+}
+
+.landing-hero-orb-one {
+  top: 9%;
+  right: -95px;
+  width: 300px;
+  height: 300px;
+}
+
+.landing-hero-orb-two {
+  right: 17%;
+  bottom: -205px;
+  width: 390px;
+  height: 390px;
+  animation-delay: -5s;
+}
+
+.landing-hero-preview {
+  animation: landing-float 7s ease-in-out infinite;
+}
+
+.landing-preview-glow {
+  animation: landing-orb-drift 10s ease-in-out infinite;
+}
+
+.landing-reveal {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+  transition: opacity 650ms ease, transform 650ms cubic-bezier(.2,.7,.2,1);
+}
+
+.landing-reveal-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.landing-screenshot-frame {
+  transition: border-color 250ms ease, box-shadow 250ms ease, transform 250ms ease;
+}
+
+.landing-screenshot-frame:hover {
+  border-color: #bfdbfe;
+  box-shadow: 0 20px 50px -35px rgba(30, 64, 175, 0.42);
+  transform: translateY(-3px);
+}
+
+.landing-cta {
+  background: linear-gradient(115deg, #172554 0%, #1e3a8a 62%, #1d4ed8 100%);
+}
+
+.landing-cta-orb {
+  position: absolute;
+  top: -130px;
+  right: 10%;
+  width: 320px;
+  height: 320px;
+  border: 1px solid rgba(191, 219, 254, 0.2);
+  border-radius: 50%;
+  box-shadow: 0 0 0 34px rgba(191, 219, 254, 0.035), 0 0 0 68px rgba(191, 219, 254, 0.025);
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .landing-hero-preview {
+    animation: none;
+  }
+
+  .landing-hero-orb-one {
+    right: -190px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page *,
+  .landing-page *::before,
+  .landing-page *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .landing-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

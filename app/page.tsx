@@ -10,10 +10,11 @@ import { PaymentWorkflow } from "@/components/landing/PaymentWorkflow"
 import { ScreenshotShowcase } from "@/components/landing/ScreenshotShowcase"
 import { CTASection } from "@/components/landing/CTASection"
 import { LandingFooter } from "@/components/landing/LandingFooter"
+import "./landing.css"
 
 export default function PageAccueil() {
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#f8f7f3] text-slate-950">
+    <main className="landing-page min-h-screen overflow-x-hidden bg-[#f7faff] text-slate-950">
       <LandingHeader />
       <Hero />
       <StatsSection />

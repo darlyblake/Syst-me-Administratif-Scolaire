@@ -12,37 +12,27 @@ export function LandingHeader() {
   const { estConnecte, estEnCoursDeChargement } = useAuthentification()
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-[#f8f7f3]/90 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8">
+    <header className="landing-header sticky top-0 z-50 border-b border-blue-100/80 bg-white/90 backdrop-blur-xl">
+      <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 sm:px-8">
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="flex items-center gap-3 text-left transition-opacity hover:opacity-70"
+          className="flex items-center gap-3 text-left transition-opacity hover:opacity-80"
+          aria-label="Retour en haut de page"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950 text-white">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-800 text-white shadow-sm">
             <GraduationCap className="h-5 w-5" />
           </span>
           <span>
-            <span className="block text-sm font-semibold">{APP_NAME}</span>
+            <span className="block text-sm font-bold tracking-tight text-slate-900">{APP_NAME}</span>
             <span className="hidden text-[11px] text-slate-500 sm:block">{APP_TAGLINE}</span>
           </span>
         </button>
 
-        <nav className="hidden items-center gap-8 md:flex">
-          <a href="#presentation" className="text-sm text-slate-600 transition-colors hover:text-slate-900">
-            Présentation
-          </a>
-          <a href="#features" className="text-sm text-slate-600 transition-colors hover:text-slate-900">
-            Fonctionnalités
-          </a>
-          <a href="#roles" className="text-sm text-slate-600 transition-colors hover:text-slate-900">
-            Pour les établissements
-          </a>
-          <a href="#roles" className="text-sm text-slate-600 transition-colors hover:text-slate-900">
-            Pour les enseignants
-          </a>
-          <a href="#roles" className="text-sm text-slate-600 transition-colors hover:text-slate-900">
-            Pour les parents
-          </a>
+        <nav aria-label="Navigation principale" className="hidden items-center gap-7 lg:flex">
+          <a href="#presentation" className="landing-nav-link">Présentation</a>
+          <a href="#roles" className="landing-nav-link">Les espaces</a>
+          <a href="#features" className="landing-nav-link">Fonctionnalités</a>
+          <a href="#captures" className="landing-nav-link">Aperçu</a>
         </nav>
 
         {!estEnCoursDeChargement && estConnecte ? (
@@ -50,13 +40,19 @@ export function LandingHeader() {
         ) : (
           <Button
             variant="outline"
-            className="rounded-full bg-white transition-all hover:-translate-y-0.5 hover:shadow-md"
+            className="rounded-full border-blue-200 bg-white px-5 text-blue-800 transition-all hover:border-blue-800 hover:bg-blue-50"
             onClick={() => router.push("/login")}
           >
             Se connecter
           </Button>
         )}
       </div>
+      <nav aria-label="Navigation mobile" className="flex gap-5 overflow-x-auto border-t border-blue-50 px-5 py-2.5 text-xs font-medium text-slate-600 lg:hidden">
+        <a href="#presentation" className="shrink-0">Présentation</a>
+        <a href="#roles" className="shrink-0">Les espaces</a>
+        <a href="#features" className="shrink-0">Fonctionnalités</a>
+        <a href="#captures" className="shrink-0">Aperçu</a>
+      </nav>
     </header>
   )
 }

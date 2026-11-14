@@ -16,16 +16,19 @@ export function Reveal({ children, className = "", delay = 0 }: RevealProps) {
     const node = ref.current
     if (!node) return
 
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setIsVisible(true)
+      return
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true)
-        } else {
-          // Rejouable : réinitialiser quand sort du viewport
-          setIsVisible(false)
+          observer.unobserve(node)
         }
       },
-      { threshold: 0.12 }
+      { threshold: 0.12, rootMargin: "0px 0px -32px 0px" }
     )
 
     observer.observe(node)
@@ -35,7 +38,7 @@ export function Reveal({ children, className = "", delay = 0 }: RevealProps) {
   return (
     <div
       ref={ref}
-      className={`reveal ${isVisible ? "reveal-visible" : ""} ${className}`}
+      className={`landing-reveal ${isVisible ? "landing-reveal-visible" : ""} ${className}`}
       style={{ transitionDelay: `${delay}ms` }}
     >
       {children}

@@ -8,25 +8,25 @@ import { RoleCard } from "./RoleCard"
 const roles = [
   {
     key: "ecole",
-    title: "Mon établissement",
-    description: "Gérez vos élèves, vos classes, vos enseignants, la scolarité et l'administration depuis un seul espace.",
-    points: ["Élèves", "Classes", "Enseignants", "Paiements", "Notes", "Présences"],
+    title: "Administration",
+    description: "Gérez les élèves, les classes, les inscriptions, les équipes et le suivi financier de l’établissement.",
+    points: ["Inscriptions et dossiers", "Classes et enseignants", "Scolarité et paiements", "Suivi des activités"],
     href: "/login?espace=ecole",
     icon: LayoutDashboard,
   },
   {
     key: "enseignant",
-    title: "Mon espace Enseignant",
-    description: "Retrouvez vos établissements, vos classes, vos élèves et votre emploi du temps depuis un seul espace.",
-    points: ["Plusieurs établissements", "Classes", "Élèves", "Notes", "Devoirs", "Présences", "Emploi du temps"],
+    title: "Enseignants",
+    description: "Retrouvez vos classes et vos outils pédagogiques dans un espace dédié à votre travail quotidien.",
+    points: ["Registre d’appel", "Notes et évaluations", "Cahier de textes", "Emploi du temps"],
     href: "/login?espace=enseignant",
     icon: GraduationCap,
   },
   {
     key: "parent",
-    title: "Mon espace Parent",
-    description: "Suivez simplement la scolarité de vos enfants.",
-    points: ["Résultats", "Présences", "Emploi du temps", "Informations", "Scolarité"],
+    title: "Parents",
+    description: "Consultez les informations scolaires de vos enfants et restez informés de leur suivi.",
+    points: ["Résultats scolaires", "Présences et absences", "Documents scolaires", "Paiements et notifications"],
     href: "/login?espace=parent",
     icon: Users,
   },
@@ -36,22 +36,22 @@ export function RolesSection() {
   const [active, setActive] = useState("ecole")
 
   return (
-    <section className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-28">
+    <section id="roles" className="mx-auto max-w-7xl scroll-mt-28 px-5 py-20 sm:px-8 lg:py-28">
       <Reveal>
-        <div className="max-w-2xl">
-          <p className="text-sm font-semibold text-slate-500">Un espace pour chacun</p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Une expérience adaptée à votre rôle.
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-800">Des accès adaptés</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+            Chaque utilisateur a son espace.
           </h2>
-          <p className="mt-4 text-slate-600">
-            Pas de menus inutiles. Chaque utilisateur retrouve directement les informations et actions dont il a besoin.
+          <p className="mt-4 leading-7 text-slate-600">
+            Une navigation adaptée à votre rôle, avec les informations et les outils utiles sans menus superflus.
           </p>
         </div>
       </Reveal>
 
       <div className="mt-10 grid gap-4 lg:grid-cols-3">
         {roles.map((role, i) => (
-          <Reveal key={role.key} delay={i * 100}>
+          <Reveal key={role.key} delay={i * 90}>
             <RoleCard
               icon={role.icon}
               title={role.title}

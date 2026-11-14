@@ -73,7 +73,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
     ]},
     { section: "Scolarité", items: [
       { href: "/ecole/students", label: "Élèves", icon: School, permission: "students.view" },
-      { href: "/ecole/inscriptions/transfert?mode=review", label: "Transferts d’élèves", icon: ArrowRightLeft, permission: "students.view" },
+      { href: "/ecole/inscriptions/transfert?mode=review", label: "Transferts d’élèves", icon: ArrowRightLeft, permission: "inscriptions.view" },
       { href: "/ecole/inscriptions", label: "Inscriptions", icon: ClipboardCheck, permission: "inscriptions.view" },
       { href: "/ecole/familles", label: "Familles", icon: Users, permission: "students.manage" },
       { href: "/ecole/classes", label: "Classes", icon: GraduationCap, permission: "classes.view" },
@@ -85,7 +85,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
     { section: "Personnel", items: [
       { href: "/ecole/enseignants", label: "Enseignants", icon: UserRound, permission: "staff.view" },
       { href: "/ecole/personnel", label: "Personnel", icon: UserCog, permission: "staff.view" },
-      { href: "/ecole/personnel/pointage", label: "Pointage / Présence", icon: Fingerprint, permission: "staff.view" },
+      { href: "/ecole/personnel/pointage", label: "Pointage / Présence", icon: Fingerprint, permission: "attendance.view" },
       { href: "/ecole/heures-vacataires", label: "Heures effectuées", icon: Timer, permission: "staff.view" },
     ]},
     { section: "Vie scolaire", items: [
@@ -112,7 +112,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
       { href: "/ecole/archivage", label: "Archivage", icon: Archive, permission: "documents.view" },
     ]},
     { section: "Communication", items: [
-      { href: "/ecole/communication", label: "Communication", icon: Inbox, permission: "documents.view" },
+      { href: "/ecole/communication", label: "Communication", icon: Inbox, permission: "communication.view" },
       { href: "/ecole/demandes", label: "Demandes", icon: Inbox, permission: "documents.view" },
     ]},
     { section: "Paramètres", items: [

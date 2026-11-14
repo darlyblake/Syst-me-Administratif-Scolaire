@@ -122,7 +122,7 @@ export default function PageTableauBord() {
     { href: "/ecole/finance/paiements", label: "Enregistrer un paiement", icon: CreditCard, permission: "finance.view", actionPermission: "payments.create" },
     { href: "/ecole/students", label: "Ajouter un élève", icon: Plus, permission: "students.view", actionPermission: "students.create" },
     { href: "/ecole/registre-appel", label: "Registre d'appel du jour", icon: ClipboardCheck, permission: "attendance.view", actionPermission: "attendance.manage" },
-    { href: "/ecole/evenements", label: "Ajouter un événement", icon: CalendarDays, permission: "events.view" },
+    { href: "/ecole/evenements", label: "Ajouter un événement", icon: CalendarDays, permission: "events.view", actionPermission: undefined },
   ]
 
   const situations = [

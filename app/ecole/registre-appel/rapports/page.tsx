@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useUserContext } from "@/hooks/useUserContext"
+import { listTeacherClassSubjects } from "@/lib/supabase/services/absence.service"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { supabaseBrowser } from "@/lib/supabase/client"
 
@@ -58,18 +59,33 @@ const localDate = () => {
 }
 
 export default function RapportsAssiduitePage() {
-  const { primaryEstablishment } = useUserContext()
+  const { primaryEstablishment, utilisateur } = useUserContext()
+  const isTeacher = utilisateur?.role === "enseignant"
+  const [teacherClassIds, setTeacherClassIds] = useState<string[]>([])
   const establishmentId = primaryEstablishment?.id ?? null
   const { data: academicStructure } = useAcademicStructure(establishmentId)
+
+  useEffect(() => {
+    if (!isTeacher || !establishmentId) return
+    let active = true
+    void listTeacherClassSubjects(establishmentId).then((items) => {
+      if (active) setTeacherClassIds([...new Set(items.map((item) => item.class_id))])
+    }).catch(() => {
+      if (active) setTeacherClassIds([])
+    })
+    return () => { active = false }
+  }, [establishmentId, isTeacher])
 
   const classOptions = useMemo(
     () =>
       academicStructure.flatMap((cycle) =>
         (cycle.grade_levels ?? []).flatMap((level) =>
-          (level.school_classes ?? []).map((schoolClass) => ({
-            id: schoolClass.id,
-            name: schoolClass.name,
-          }))
+          (level.school_classes ?? [])
+            .filter((schoolClass) => !isTeacher || teacherClassIds.includes(schoolClass.id))
+            .map((schoolClass) => ({
+              id: schoolClass.id,
+              name: schoolClass.name,
+            }))
         )
       ),
     [academicStructure]

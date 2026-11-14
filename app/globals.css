@@ -68,8 +68,8 @@
   justify-content: center;
   padding: 24px;
   background:
-    radial-gradient(circle at 20% 15%, rgba(176, 141, 87, 0.12), transparent 45%),
-    radial-gradient(circle at 85% 80%, rgba(47, 75, 60, 0.18), transparent 50%),
+    radial-gradient(circle at 20% 15%, rgba(37, 99, 235, 0.12), transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(30, 58, 138, 0.18), transparent 50%),
     linear-gradient(160deg, var(--ink-deep), var(--ink) 60%, #16233A);
   position: relative;
   overflow: hidden;
@@ -281,17 +281,17 @@
   border: none;
   border-radius: 12px;
   background: linear-gradient(180deg, #2C4667, #1E3350);
-  color: #f7f2e6;
+  color: #FFFFFF;
   font-size: 0.92rem;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 10px 22px rgba(61, 90, 76, 0.18);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .login-submit-button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 24px rgba(61, 90, 76, 0.22);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
 }
 
 .login-submit-button:disabled {
@@ -458,7 +458,7 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: #f7f2e6;
+  color: #FFFFFF;
   z-index: 5;
   transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
 }
@@ -551,7 +551,7 @@
   min-width: 180px;
   border-radius: 999px;
   background: linear-gradient(180deg, #2c4667, #1e3550);
-  color: #f7f2e6;
+  color: #FFFFFF;
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -588,14 +588,14 @@
   display: grid;
   place-items: center;
   position: relative;
-  box-shadow: 0 0 0 6px rgba(176, 141, 87, 0.08);
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.08);
 }
 
 .login-brand-mark::before {
   content: "";
   position: absolute;
   inset: 8px;
-  border: 1px solid rgba(176, 141, 87, 0.45);
+  border: 1px solid rgba(37, 99, 235, 0.45);
   border-radius: 50%;
 }
 
@@ -659,7 +659,7 @@
   width: 420px;
   height: 420px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(176, 141, 87, 0.25), rgba(176, 141, 87, 0.06) 45%, transparent 70%);
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.25), rgba(37, 99, 235, 0.06) 45%, transparent 70%);
   filter: blur(12px);
 }
 
@@ -686,7 +686,7 @@
   position: absolute;
   inset: 6px 3px;
   border-radius: 8px;
-  background: repeating-linear-gradient(180deg, rgba(214, 184, 124, 0.3) 0 2px, transparent 2px 14px);
+  background: repeating-linear-gradient(180deg, rgba(147, 197, 253, 0.3) 0 2px, transparent 2px 14px);
 }
 
 .login-book-ribbon {
@@ -719,7 +719,7 @@
   inset: 0;
   border-radius: 14px 4px 4px 2px;
   border: 1px solid var(--line);
-  background: #F7F2E6;
+  background: #FFFFFF;
   box-shadow: 0 2px 4px rgba(0,0,0,0.14), 0 20px 46px rgba(0,0,0,0.3);
   overflow: hidden;
 }
@@ -727,7 +727,7 @@
 .login-book-cover {
   background: linear-gradient(155deg, #22354F, var(--ink-deep) 70%);
   border-color: #0f1a2b;
-  color: #F7F2E6;
+  color: #FFFFFF;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -771,14 +771,14 @@
   place-items: center;
   margin-bottom: 22px;
   position: relative;
-  box-shadow: 0 0 0 5px rgba(176, 141, 87, 0.08);
+  box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.08);
 }
 
 .login-book-emblem::before {
   content: "";
   position: absolute;
   inset: 7px;
-  border: 1px solid rgba(176, 141, 87, 0.4);
+  border: 1px solid rgba(37, 99, 235, 0.4);
   border-radius: 50%;
 }
 
@@ -825,14 +825,14 @@
 
 .login-book-button-primary {
   background: linear-gradient(180deg, #2C4667, #1E3350);
-  color: #F7F2E6;
+  color: #FFFFFF;
   box-shadow: 0 6px 18px rgba(11,20,35,0.55), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
 .login-book-button-secondary {
   background: linear-gradient(180deg, var(--forest-light), var(--forest));
-  color: #F7F2E6;
-  box-shadow: 0 6px 18px rgba(20,40,30,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+  color: #FFFFFF;
+  box-shadow: 0 6px 18px rgba(37,99,235,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
 .login-book-header {

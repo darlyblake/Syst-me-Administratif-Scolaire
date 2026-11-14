@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { AlertCircle, Building2, MessageSquare, Send } from "lucide-react"
+import { AlertCircle, ArrowLeft, Building2, MessageSquare, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useMessages } from "@/hooks/useMessages"
@@ -15,6 +15,7 @@ export default function ParentsMessagesPage() {
   const userId = utilisateur?.id ?? null
   const { success: showSuccess, error: showError } = useNotifications()
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [showConversationList, setShowConversationList] = useState(false)
   const [draft, setDraft] = useState("")
   const [isSending, setIsSending] = useState(false)
 
@@ -78,7 +79,7 @@ export default function ParentsMessagesPage() {
         />
       ) : (
         <section className="grid min-h-[560px] border-y border-slate-200 bg-white lg:grid-cols-[320px_minmax(0,1fr)]">
-          <aside className="border-b border-slate-200 lg:border-b-0 lg:border-r">
+          <aside className={`${showConversationList ? "block" : "hidden"} border-b border-slate-200 lg:block lg:border-b-0 lg:border-r`}>
             <div className="border-b border-slate-200 px-5 py-4">
               <h2 className="text-sm font-semibold text-slate-900">Conversations</h2>
               <p className="mt-1 text-xs text-slate-500">{conversations.data.length} échange{conversations.data.length > 1 ? "s" : ""}</p>
@@ -114,15 +115,16 @@ export default function ParentsMessagesPage() {
             </div>
           </aside>
 
-          <div className="flex min-h-[500px] min-w-0 flex-col">
+          <div className={`${showConversationList ? "hidden" : "flex"} min-h-[500px] min-w-0 flex-col lg:flex`}>
+            {selectedConversation && <div className="border-b border-slate-200 px-3 py-2 lg:hidden"><Button type="button" variant="ghost" size="sm" onClick={() => setShowConversationList(true)}><ArrowLeft className="mr-2 h-4 w-4" />Toutes les conversations</Button></div>}
             {selectedConversation ? (
               <>
-                <div className="border-b border-slate-200 px-5 py-4">
+                <div className="border-b border-slate-200 px-3 py-3 sm:px-5 sm:py-4">
                   <h2 className="text-base font-semibold text-slate-900">{selectedConversation.title}</h2>
                   <p className="mt-1 text-xs text-slate-500">Conversation sécurisée de votre espace parent.</p>
                 </div>
 
-                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5">
                   {messages.isLoading ? (
                     <p className="text-sm text-slate-500">Chargement des messages…</p>
                   ) : messages.error ? (
@@ -157,7 +159,7 @@ export default function ParentsMessagesPage() {
                   )}
                 </div>
 
-                <div className="border-t border-slate-200 px-5 py-4">
+                <div className="border-t border-slate-200 px-3 py-3 sm:px-5 sm:py-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                     <div className="min-w-0 flex-1">
                       <Textarea

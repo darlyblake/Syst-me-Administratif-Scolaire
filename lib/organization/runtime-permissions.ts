@@ -97,7 +97,6 @@ export function hasEffectiveSchoolPermission(
   }
 
   return (
-    granted.has("*") ||
     granted.has(permission) ||
     (category !== null && granted.has(category)) ||
     (impliedManage !== null && granted.has(impliedManage))

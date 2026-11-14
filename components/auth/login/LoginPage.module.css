@@ -315,3 +315,31 @@
     padding-bottom: 8px;
   }
 }
+
+
+/* Présentation : le livre s'ouvre au-dessus de la page sans quitter l'accueil. */
+.overlayShell {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  width: 100%;
+  min-height: 100svh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: rgba(9, 25, 48, .42);
+  backdrop-filter: blur(9px);
+  animation: authOverlayIn .24s ease both;
+}
+.overlayShell .topBar { position: fixed; }
+.overlayShell .stage { min-height: 100svh; }
+@keyframes authOverlayIn {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(9px); }
+}
+@media (max-width: 760px) {
+  .overlayShell .stage { padding-top: 66px; padding-bottom: 56px; }
+  .overlayShell .bookClosed { width: min(84vw, 390px); height: min(62svh, 490px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .overlayShell { animation: none; }
+}

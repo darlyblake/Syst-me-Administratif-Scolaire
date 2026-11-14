@@ -59,7 +59,39 @@ export function usePermissions() {
 
   const hasPermission = useCallback(
     (resource: string, action: string) => {
-      const map: Record<string, Permission> = {
+      const key = `${resource}:${action}`
+      if (contexte?.account_type === "school_member") {
+        const schoolMap: Record<string, string> = {
+          "teachers:create": "teachers.manage",
+          "teachers:read": "teachers.view",
+          "teachers:update": "teachers.manage",
+          "teachers:delete": "teachers.manage",
+          "classes:read": "classes.view",
+          "classes:update": "classes.manage",
+          "schedule:read": "timetable.view",
+          "schedule:update": "academic.manage",
+          "documents:read": "documents.view",
+          "documents:upload": "documents.manage",
+          "salaries:read": "staff.view",
+          "salaries:update": "staff.manage",
+          "reports:read": "reports.view",
+          "students:read": "students.read",
+          "students:create": "students.manage",
+          "students:update": "students.manage",
+          "enrollments:read": "enrollments.read",
+          "enrollments:create": "enrollments.manage",
+          "payments:read": "payments.view",
+          "payments:create": "payments.manage",
+          "payments:update": "payments.manage",
+          "attendance:read": "attendance.read",
+          "attendance:update": "attendance.manage",
+          "communication:read": "communication.view",
+        }
+        const permission = schoolMap[key]
+        return permission ? hasEffectiveSchoolPermission(schoolUser, permission) : false
+      }
+
+      const legacyMap: Record<string, Permission> = {
         "teachers:create": "enseignants.create",
         "teachers:read": "enseignants.view",
         "teachers:update": "enseignants.edit",
@@ -75,10 +107,10 @@ export function usePermissions() {
         "reports:read": "rapports.view",
         "students:read": "classes.view",
       }
-      const permission = map[`${resource}:${action}`]
+      const permission = legacyMap[key]
       return permission ? can(permission) : false
     },
-    [can],
+    [can, contexte?.account_type, schoolUser],
   )
 
   const hasAllPermissions = useCallback(

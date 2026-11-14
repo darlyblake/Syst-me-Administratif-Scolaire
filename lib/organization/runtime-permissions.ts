@@ -27,6 +27,8 @@ export function hasEffectiveSchoolPermission(user: RuntimeSchoolUser | null | un
   // global `ecole`. Cela évite de présenter une navigation vide aux owners.
   const effectiveRole = user.etablissementRole ?? user.role ?? ""
   const granted = new Set([...(ROLE_DEFAULTS[effectiveRole] ?? []), ...(user.permissions ?? [])])
-  for (const revoked of user.revoked_permissions ?? []) granted.delete(revoked)
+  const revoked = new Set(user.revoked_permissions ?? [])
+  // Une révocation individuelle doit aussi primer sur les rôles qui disposent de "*".
+  if (revoked.has("*") || revoked.has(permission)) return false
   return granted.has("*") || granted.has(permission)
 }

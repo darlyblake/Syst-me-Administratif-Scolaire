@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Bell, Check, Loader2 } from "lucide-react"
 import { useUserContext } from "@/hooks/useUserContext"
@@ -81,7 +81,10 @@ export default function NotificationBell() {
   const userId = utilisateur?.id ?? null
   const establishmentId = primaryEstablishment?.id ?? null
   const organizationRole = etablissementActif?.role ?? contexte?.establishments?.find((item) => item.id === utilisateur?.etablissementId)?.role
-  const permissionUser = utilisateur ? { ...utilisateur, role: contexte?.account_type === "school_member" ? organizationRole : utilisateur.role, etablissementRole: organizationRole } : null
+  const permissionUser = useMemo(
+    () => utilisateur ? { ...utilisateur, role: contexte?.account_type === "school_member" ? organizationRole : utilisateur.role, etablissementRole: organizationRole } : null,
+    [utilisateur, contexte?.account_type, organizationRole],
+  )
   const canSeeNotification = useCallback((notification: NotificationRecord) => hasEffectiveSchoolPermission(permissionUser, notificationPermission(notification)), [permissionUser])
   const [open, setOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)

@@ -7,37 +7,85 @@ export interface RuntimeSchoolUser {
   etablissementRole?: string | null
 }
 
-const ROLE_DEFAULTS: Record<string, string[]> = {
-  owner: ["*"],
-  school_admin: ["*"],
-  admin: ["*"],
-  director: ["dashboard.view", "students.view", "students.edit", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "documents.view", "documents.create", "staff.view", "finance.view"],
-  directeur: ["dashboard.view", "students.view", "students.edit", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "documents.view", "documents.create", "staff.view", "finance.view"],
-  directeur_general: ["dashboard.view", "students.view", "students.edit", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "documents.view", "documents.create", "staff.view", "finance.view"],
-  directorgeneral: ["dashboard.view", "students.view", "students.edit", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "documents.view", "documents.create", "staff.view", "finance.view"],
-  accountant: ["dashboard.view", "students.view", "payments.view", "payments.create", "finance.view"],
-  comptable: ["dashboard.view", "students.view", "payments.view", "payments.create", "finance.view"],
-  secretary: ["dashboard.view", "students.view", "students.create", "students.edit", "inscriptions.view", "inscriptions.create", "documents.view", "documents.create"],
-  secretaire: ["dashboard.view", "students.view", "students.create", "students.edit", "inscriptions.view", "inscriptions.create", "documents.view", "documents.create"],
-  teacher: ["dashboard.view", "students.view", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "classes.view", "timetable.view"],
-  enseignant: ["dashboard.view", "students.view", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "classes.view", "timetable.view"],
-  supervisor: ["dashboard.view", "students.view", "attendance.view", "attendance.manage", "documents.view", "documents.create", "exclusions.create"],
-  surveillant: ["dashboard.view", "students.view", "attendance.view", "attendance.manage", "documents.view", "documents.create", "exclusions.create"],
-}
+const ADMIN_ROLES = new Set(["owner", "admin", "school_admin", "administrateur", "administrateur_ecole"])
 
-export function hasEffectiveSchoolPermission(user: RuntimeSchoolUser | null | undefined, permission: string): boolean {
-  if (!user || user.status === "inactive" || user.status === "suspended") return false
-  // Pour un compte d'établissement, le rôle métier doit primer sur le rôle
-  // global `ecole`. Cela évite de présenter une navigation vide aux owners.
-  const effectiveRole = (user.etablissementRole ?? user.role ?? "")
+function normalizeRole(value: string | null | undefined) {
+  return (value ?? "")
     .trim()
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\\u0300-\\u036f]/g, "")
     .replace(/[ -]+/g, "_")
-  const granted = new Set([...(ROLE_DEFAULTS[effectiveRole] ?? []), ...(user.permissions ?? [])])
+}
+
+function permissionCategory(permission: string): string | null {
+  if (/^(students\\.|students$)/.test(permission)) return "students"
+  if (/^(enrollments\\.|inscriptions\\.)/.test(permission)) return "inscriptions"
+  if (/^(payments\\.|finance\\.)/.test(permission)) return "finance"
+  if (/^(grades\\.|notes\\.)/.test(permission)) return "notes"
+  if (/^(attendance\\.|pointage\\.)/.test(permission)) return "attendance"
+  if (/^documents\\./.test(permission)) return "documents"
+  if (/^(staff\\.|personnel\\.|payroll\\.|salaires\\.)/.test(permission)) return "personnel"
+  if (/^(teachers\\.|enseignants\\.)/.test(permission)) return "teachers"
+  if (/^(classes\\.|academic\\.|planning\\.)/.test(permission) || permission === "subjects.manage") return "classes"
+  if (/^dashboard\\./.test(permission)) return "dashboard"
+  if (/^(messages\\.|communication\\.)/.test(permission)) return "communication"
+  if (/^(settings\\.|school\\.)/.test(permission)) return "settings"
+  if (/^users\\./.test(permission) || permission === "members.manage") return "users.manage"
+  if (permission === "roles.manage") return "roles.manage"
+  if (/^(reports\\.|rapports\\.)/.test(permission)) return "reports"
+  if (/^support\\./.test(permission)) return "support"
+  return null
+}
+
+function impliedManagePermission(permission: string): string | null {
+  const implied: Record<string, string> = {
+    "students.read": "students.manage", "students.view": "students.manage",
+    "enrollments.read": "enrollments.manage", "enrollments.view": "enrollments.manage", "inscriptions.view": "enrollments.manage",
+    "payments.read": "payments.manage", "payments.view": "payments.manage", "finance.view": "payments.manage",
+    "grades.view": "grades.manage", "notes.view": "grades.manage",
+    "attendance.read": "attendance.manage", "attendance.view": "attendance.manage", "pointage.view": "attendance.manage",
+    "documents.view": "documents.manage",
+    "staff.view": "staff.manage", "personnel.view": "staff.manage", "salaires.view": "staff.manage",
+    "teachers.view": "teachers.manage", "enseignants.view": "teachers.manage",
+    "classes.view": "classes.manage", "planning.view": "classes.manage",
+    "communication.view": "communication.manage", "users.view": "users.manage",
+  }
+  return implied[permission] ?? null
+}
+
+/** Audit logs are intentionally reserved for the establishment's top-level administrator. */
+export function isEstablishmentAdmin(user: RuntimeSchoolUser | null | undefined): boolean {
+  if (!user || user.status === "inactive" || user.status === "suspended") return false
+  return ADMIN_ROLES.has(normalizeRole(user.etablissementRole ?? user.role))
+}
+
+/**
+ * The UI mirrors database permissions; it never invents permissions from a job title.
+ * Role modules and individual grants arrive from get_my_auth_context().
+ */
+export function hasEffectiveSchoolPermission(
+  user: RuntimeSchoolUser | null | undefined,
+  permission: string,
+): boolean {
+  if (!user || user.status === "inactive" || user.status === "suspended") return false
+  if (isEstablishmentAdmin(user)) return true
+
+  const granted = new Set(user.permissions ?? [])
   const revoked = new Set(user.revoked_permissions ?? [])
-  // Une révocation individuelle doit aussi primer sur les rôles qui disposent de "*".
-  if (revoked.has("*") || revoked.has(permission)) return false
-  return granted.has("*") || granted.has(permission)
+  const category = permissionCategory(permission)
+  const impliedManage = impliedManagePermission(permission)
+
+  if (
+    revoked.has("*") ||
+    revoked.has(permission) ||
+    (category !== null && revoked.has(category))
+  ) return false
+
+  return (
+    granted.has("*") ||
+    granted.has(permission) ||
+    (category !== null && granted.has(category)) ||
+    (impliedManage !== null && granted.has(impliedManage))
+  )
 }

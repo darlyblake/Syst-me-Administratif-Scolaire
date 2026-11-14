@@ -79,6 +79,10 @@ export default function HistoriqueAppelPage() {
   )
 
   const [classId, setClassId] = useState("")
+  useEffect(() => {
+    if (isTeacher && !classId && classOptions.length) setClassId(classOptions[0].id)
+  }, [classId, classOptions, isTeacher])
+
   const [from, setFrom] = useState(today)
   const [to, setTo] = useState(today)
   const [search, setSearch] = useState("")

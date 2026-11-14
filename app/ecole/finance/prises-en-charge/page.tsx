@@ -36,6 +36,8 @@ type CoverageRow = {
   class_name?: string | null
 }
 
+type SponsoringOrganization = { id: string; name: string; is_state: boolean; active: boolean }
+
 type CoveredStudent = {
   key: string
   student_id: string
@@ -61,6 +63,7 @@ export default function SuiviPrisesEnChargePage() {
   const [search, setSearch] = useState("")
   const [organizationId, setOrganizationId] = useState("all")
   const [rows, setRows] = useState<CoverageRow[]>([])
+  const [organizations, setOrganizations] = useState<SponsoringOrganization[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [paymentRows, setPaymentRows] = useState<any[] | null>(null)
@@ -75,17 +78,28 @@ export default function SuiviPrisesEnChargePage() {
     try {
       // Cette vue ne retourne que les échéances prises en charge par un organisme
       // ou par l'État. Les échéances restant à la charge des familles sont exclues.
-      const { data, error: queryError } = await supabaseBrowser
-        .from("v_finance_organization_coverage_board")
-        .select("*")
-        .eq("establishment_id", establishmentId)
-        .eq("academic_year_id", activeYear.id)
-      if (queryError) throw queryError
-      setRows((data ?? []) as CoverageRow[])
+      const [organizationResult, coverageResult] = await Promise.all([
+        supabaseBrowser
+          .from("sponsoring_organizations")
+          .select("id,name,is_state,active")
+          .eq("establishment_id", establishmentId)
+          .eq("active", true)
+          .order("name"),
+        supabaseBrowser
+          .from("v_finance_organization_coverage_board")
+          .select("*")
+          .eq("establishment_id", establishmentId)
+          .eq("academic_year_id", activeYear.id),
+      ])
+      if (organizationResult.error) throw organizationResult.error
+      if (coverageResult.error) throw coverageResult.error
+      setOrganizations((organizationResult.data ?? []) as SponsoringOrganization[])
+      setRows((coverageResult.data ?? []) as CoverageRow[])
     } catch (err: any) {
       console.error("Chargement des prises en charge impossible", err)
       setError(err?.message || "Impossible de charger les prises en charge.")
       setRows([])
+      setOrganizations([])
     } finally {
       setLoading(false)
     }
@@ -93,14 +107,12 @@ export default function SuiviPrisesEnChargePage() {
 
   useEffect(() => { void load() }, [load])
 
-  const organizations = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const row of rows) {
-      const id = row.organization_id ?? "state"
-      map.set(id, row.organization_name || "État")
-    }
-    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1], "fr"))
-  }, [rows])
+  const organizationOptions = useMemo(() => {
+    const options = organizations.map((organization) => [organization.id, organization.name] as [string, string])
+    if (rows.some((row) => row.payer_type === "state" || row.organization_name === "État") &&
+      !options.some(([id]) => id === "state")) options.push(["state", "État"])
+    return options.sort((a, b) => a[1].localeCompare(b[1], "fr"))
+  }, [organizations, rows])
 
   const students = useMemo(() => {
     const map = new Map<string, CoveredStudent>()
@@ -192,7 +204,7 @@ export default function SuiviPrisesEnChargePage() {
           <label className="mb-1.5 block text-xs font-medium text-slate-600" htmlFor="coverage-organization">Filtrer par organisme</label>
           <select id="coverage-organization" value={organizationId} onChange={(e) => setOrganizationId(e.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm">
             <option value="all">Tous les organismes</option>
-            {organizations.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            {organizationOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
         </div>
         <Button variant="outline" onClick={() => void load()} disabled={loading} className="gap-2"><RefreshCw className={"h-4 w-4 " + (loading ? "animate-spin" : "")} />Actualiser</Button>
@@ -201,7 +213,7 @@ export default function SuiviPrisesEnChargePage() {
       <section className="overflow-hidden border border-slate-200 bg-white">
         <div className="border-b px-4 py-3">
           <h2 className="text-sm font-semibold text-slate-900">Élèves pris en charge</h2>
-          <p className="mt-1 text-xs text-slate-500">{activeYear?.name ?? "Année scolaire active"} · {students.length} élève(s)</p>
+          <p className="mt-1 text-xs text-slate-500">{activeYear?.name ?? "Année scolaire active"} · {students.length} élève(s) · {organizationOptions.length} organisme(s)</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[850px] text-sm">

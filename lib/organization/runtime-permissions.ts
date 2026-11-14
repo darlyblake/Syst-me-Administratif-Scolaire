@@ -3,7 +3,6 @@ export interface RuntimeSchoolUser {
   permissions?: string[] | null
   revoked_permissions?: string[] | null
   status?: string | null
-  /** Rôle métier réel dans l'établissement, distinct du rôle global school_member. */
   etablissementRole?: string | null
 }
 
@@ -14,56 +13,72 @@ function normalizeRole(value: string | null | undefined) {
     .trim()
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[ -]+/g, "_")
 }
 
+function startsWithAny(value: string, prefixes: string[]) {
+  return prefixes.some((prefix) => value.startsWith(prefix))
+}
+
 function permissionCategory(permission: string): string | null {
-  if (/^(students\\.|students$)/.test(permission)) return "students"
-  if (/^(enrollments\\.|inscriptions\\.)/.test(permission)) return "inscriptions"
-  if (/^(payments\\.|finance\\.|tuition\\.)/.test(permission)) return "finance"
-  if (/^(grades\\.|notes\\.)/.test(permission)) return "notes"
-  if (/^(attendance\\.|pointage\\.)/.test(permission)) return "attendance"
-  if (/^documents\\./.test(permission)) return "documents"
-  if (/^(staff\\.|personnel\\.|payroll\\.|salaires\\.)/.test(permission)) return "personnel"
-  if (/^(teachers\\.|enseignants\\.)/.test(permission)) return "teachers"
-  if (/^(classes\\.|academic\\.|planning\\.|subjects\\.|timetable\\.)/.test(permission)) return "classes"
-  if (/^dashboard\\./.test(permission) || permission === "events.view" || permission === "school.events.view") return "dashboard"
-  if (/^(messages\\.|communication\\.)/.test(permission)) return "communication"
-  if (/^(settings\\.|school\\.)/.test(permission) || permission === "events.manage" || permission === "school.events.manage") return "settings"
-  if (/^users\\./.test(permission) || permission === "members.manage") return "users.manage"
+  if (permission === "students" || startsWithAny(permission, ["students."])) return "students"
+  if (startsWithAny(permission, ["enrollments.", "inscriptions."])) return "inscriptions"
+  if (startsWithAny(permission, ["payments.", "finance.", "tuition."])) return "finance"
+  if (startsWithAny(permission, ["grades.", "notes."])) return "notes"
+  if (startsWithAny(permission, ["attendance.", "pointage."])) return "attendance"
+  if (startsWithAny(permission, ["documents."])) return "documents"
+  if (startsWithAny(permission, ["staff.", "personnel.", "payroll.", "salaires."])) return "personnel"
+  if (startsWithAny(permission, ["teachers.", "enseignants."])) return "teachers"
+  if (startsWithAny(permission, ["classes.", "academic.", "planning.", "subjects.", "timetable."])) return "classes"
+  if (startsWithAny(permission, ["dashboard."]) || ["events.view", "school.events.view"].includes(permission)) return "dashboard"
+  if (startsWithAny(permission, ["messages.", "communication."])) return "communication"
+  if (startsWithAny(permission, ["settings.", "school."]) || ["events.manage", "school.events.manage"].includes(permission)) return "settings"
+  if (startsWithAny(permission, ["users."]) || ["users.view", "users.manage", "members.manage"].includes(permission)) return "users.manage"
   if (permission === "roles.manage") return "roles.manage"
-  if (/^(reports\\.|rapports\\.)/.test(permission)) return "reports"
-  if (/^support\\./.test(permission)) return "support"
+  if (startsWithAny(permission, ["reports.", "rapports."])) return "reports"
+  if (startsWithAny(permission, ["support."])) return "support"
   return null
 }
 
 function impliedManagePermission(permission: string): string | null {
   const implied: Record<string, string> = {
-    "students.read": "students.manage", "students.view": "students.manage",
-    "enrollments.read": "enrollments.manage", "enrollments.view": "enrollments.manage", "inscriptions.view": "enrollments.manage",
-    "payments.read": "payments.manage", "payments.view": "payments.manage", "finance.view": "payments.manage",
-    "grades.view": "grades.manage", "notes.view": "grades.manage",
-    "attendance.read": "attendance.manage", "attendance.view": "attendance.manage", "pointage.view": "attendance.manage",
+    "students.read": "students.manage",
+    "students.view": "students.manage",
+    "enrollments.read": "enrollments.manage",
+    "enrollments.view": "enrollments.manage",
+    "inscriptions.view": "enrollments.manage",
+    "payments.read": "payments.manage",
+    "payments.view": "payments.manage",
+    "finance.view": "payments.manage",
+    "grades.view": "grades.manage",
+    "notes.view": "grades.manage",
+    "attendance.read": "attendance.manage",
+    "attendance.view": "attendance.manage",
+    "pointage.view": "attendance.manage",
     "documents.view": "documents.manage",
-    "staff.view": "staff.manage", "personnel.view": "staff.manage", "salaires.view": "staff.manage",
-    "teachers.view": "teachers.manage", "enseignants.view": "teachers.manage",
-    "classes.view": "classes.manage", "planning.view": "classes.manage", "subjects.view": "classes.manage", "timetable.view": "classes.manage",
-    "communication.view": "communication.manage", "users.view": "users.manage",
+    "staff.view": "staff.manage",
+    "personnel.view": "staff.manage",
+    "salaires.view": "staff.manage",
+    "teachers.view": "teachers.manage",
+    "enseignants.view": "teachers.manage",
+    "classes.view": "classes.manage",
+    "planning.view": "classes.manage",
+    "subjects.view": "classes.manage",
+    "timetable.view": "classes.manage",
+    "communication.view": "communication.manage",
+    "users.view": "users.manage",
   }
   return implied[permission] ?? null
 }
 
-/** Audit logs are intentionally reserved for the establishment's top-level administrator. */
+/** Le journal d’audit est réservé à l’administrateur principal de l’établissement. */
 export function isEstablishmentAdmin(user: RuntimeSchoolUser | null | undefined): boolean {
   if (!user || user.status === "inactive" || user.status === "suspended") return false
   return ADMIN_ROLES.has(normalizeRole(user.etablissementRole ?? user.role))
 }
 
-/**
- * The UI mirrors database permissions; it never invents permissions from a job title.
- * Role modules and individual grants arrive from get_my_auth_context().
- */
+/** Le frontend reflète les droits renvoyés par get_my_auth_context ; il ne déduit aucun droit du seul intitulé du poste. */
 export function hasEffectiveSchoolPermission(
   user: RuntimeSchoolUser | null | undefined,
   permission: string,
@@ -76,11 +91,9 @@ export function hasEffectiveSchoolPermission(
   const category = permissionCategory(permission)
   const impliedManage = impliedManagePermission(permission)
 
-  if (
-    revoked.has("*") ||
-    revoked.has(permission) ||
-    (category !== null && revoked.has(category))
-  ) return false
+  if (revoked.has("*") || revoked.has(permission) || (category !== null && revoked.has(category))) {
+    return false
+  }
 
   return (
     granted.has("*") ||

@@ -300,7 +300,7 @@ function makeColumns(rows: BoardRow[]) {
   })
 }
 
-export function FinanceScolarite() {
+export function FinanceScolarite({ mode = "school" }: { mode?: "school" | "options" }) {
   const { etablissementActif } = useUserContext()
   const establishmentId = etablissementActif?.id
   const {
@@ -421,11 +421,15 @@ export function FinanceScolarite() {
       const number = String(student.student?.student_number || "").toLowerCase()
       const matchesSearch = !q || name.includes(q) || number.includes(q)
       const matchesClass = selectedClassId === "all" || student.class?.id === selectedClassId
-      const matchesStatus = selectedStatus === "all" || getGlobalStatus(student.schedules) === selectedStatus
+      const relevantSchedules = student.schedules.filter((schedule) => mode === "options"
+        ? schedule.category?.toLowerCase() === "option"
+        : schedule.category?.toLowerCase() !== "option")
+      const hasRelevantSchedules = relevantSchedules.length > 0
+      const matchesStatus = selectedStatus === "all" || getGlobalStatus(relevantSchedules) === selectedStatus
 
-      return matchesSearch && matchesClass && matchesStatus
+      return matchesSearch && matchesClass && matchesStatus && hasRelevantSchedules
     })
-  }, [studentsMap, search, selectedClassId, selectedStatus])
+  }, [studentsMap, search, selectedClassId, selectedStatus, mode])
 
   const legacyDebtStudents = useMemo(() => {
     const map = new Map<string, { student: any; class: any; rows: BoardRow[]; amount: number }>()
@@ -448,12 +452,10 @@ export function FinanceScolarite() {
   }, [legacyDebts])
 
   const columns = useMemo(
-    () => makeColumns(boardRows.filter((row) => row.category?.toLowerCase() !== "option")),
-    [boardRows],
-  )
-  const optionColumns = useMemo(
-    () => makeColumns(boardRows.filter((row) => row.category?.toLowerCase() === "option")),
-    [boardRows],
+    () => makeColumns(boardRows.filter((row) => mode === "options"
+      ? row.category?.toLowerCase() === "option"
+      : row.category?.toLowerCase() !== "option")),
+    [boardRows, mode],
   )
 
   const renderLoadingOrEmpty = (className: string) => {
@@ -543,9 +545,9 @@ export function FinanceScolarite() {
   return (
     <div className="w-full space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">Scolarité</h1>
+        <h1 className="text-xl font-semibold text-gray-900">{mode === "options" ? "Options et services" : "Inscription et scolarité"}</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Suivi des échéances et des versements. Sur téléphone, touchez un élève pour afficher ses échéances et ses versements.
+          {mode === "options" ? "Suivi des frais liés aux services et options scolaires : cantine, assurance, activités et autres prestations." : "Suivi des frais d’inscription, de réinscription et des échéances de scolarité."} Sur téléphone, touchez un élève pour afficher ses échéances et ses versements.
         </p>
       </div>
 
@@ -624,7 +626,7 @@ export function FinanceScolarite() {
         </Button>
       </div>
 
-      {legacyDebtStudents.length > 0 && (
+      {mode === "school" && legacyDebtStudents.length > 0 && (
         <section className="rounded-lg border border-amber-200 bg-amber-50/60">
           <div className="flex flex-col gap-2 border-b border-amber-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -704,18 +706,13 @@ export function FinanceScolarite() {
       ) : (
         <div className="space-y-6">
           {renderTable(
-            "Inscription et scolarité",
-            "Frais d'inscription ou de réinscription et mensualités/tranches de l'année scolaire.",
+            mode === "options" ? "Suivi des options et services" : "Suivi des inscriptions et de la scolarité",
+            mode === "options"
+              ? "Assurance scolaire, cantine, activités et autres prestations facturées séparément."
+              : "Frais d'inscription ou de réinscription et mensualités/tranches de l'année scolaire.",
             columns,
             filteredStudents,
-            "school",
-          )}
-          {renderTable(
-            "Options et services",
-            "Assurance scolaire, football, cantine, coopérative et autres options facturées séparément.",
-            optionColumns,
-            filteredStudents,
-            "options",
+            mode === "options" ? "options" : "school",
           )}
         </div>
       )}

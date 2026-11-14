@@ -21,16 +21,16 @@ function normalizeRole(value: string | null | undefined) {
 function permissionCategory(permission: string): string | null {
   if (/^(students\\.|students$)/.test(permission)) return "students"
   if (/^(enrollments\\.|inscriptions\\.)/.test(permission)) return "inscriptions"
-  if (/^(payments\\.|finance\\.)/.test(permission)) return "finance"
+  if (/^(payments\\.|finance\\.|tuition\\.)/.test(permission)) return "finance"
   if (/^(grades\\.|notes\\.)/.test(permission)) return "notes"
   if (/^(attendance\\.|pointage\\.)/.test(permission)) return "attendance"
   if (/^documents\\./.test(permission)) return "documents"
   if (/^(staff\\.|personnel\\.|payroll\\.|salaires\\.)/.test(permission)) return "personnel"
   if (/^(teachers\\.|enseignants\\.)/.test(permission)) return "teachers"
-  if (/^(classes\\.|academic\\.|planning\\.)/.test(permission) || permission === "subjects.manage") return "classes"
-  if (/^dashboard\\./.test(permission)) return "dashboard"
+  if (/^(classes\\.|academic\\.|planning\\.|subjects\\.|timetable\\.)/.test(permission)) return "classes"
+  if (/^dashboard\\./.test(permission) || permission === "events.view" || permission === "school.events.view") return "dashboard"
   if (/^(messages\\.|communication\\.)/.test(permission)) return "communication"
-  if (/^(settings\\.|school\\.)/.test(permission)) return "settings"
+  if (/^(settings\\.|school\\.)/.test(permission) || permission === "events.manage" || permission === "school.events.manage") return "settings"
   if (/^users\\./.test(permission) || permission === "members.manage") return "users.manage"
   if (permission === "roles.manage") return "roles.manage"
   if (/^(reports\\.|rapports\\.)/.test(permission)) return "reports"
@@ -48,7 +48,7 @@ function impliedManagePermission(permission: string): string | null {
     "documents.view": "documents.manage",
     "staff.view": "staff.manage", "personnel.view": "staff.manage", "salaires.view": "staff.manage",
     "teachers.view": "teachers.manage", "enseignants.view": "teachers.manage",
-    "classes.view": "classes.manage", "planning.view": "classes.manage",
+    "classes.view": "classes.manage", "planning.view": "classes.manage", "subjects.view": "classes.manage", "timetable.view": "classes.manage",
     "communication.view": "communication.manage", "users.view": "users.manage",
   }
   return implied[permission] ?? null

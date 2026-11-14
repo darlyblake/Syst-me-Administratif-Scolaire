@@ -118,12 +118,12 @@ export default function SuiviPrisesEnChargePage() {
           .from("v_finance_organization_coverage_board")
           .select("*")
           .eq("establishment_id", establishmentId)
-          .eq("academic_year_id", activeYear.id),
+          .eq("academic_year_id", selectedYear.id),
         supabaseBrowser
           .from("organization_payments")
           .select("id,organization_id,academic_year_id,amount,payment_date,method,reference,notes")
           .eq("establishment_id", establishmentId)
-          .eq("academic_year_id", activeYear.id)
+          .eq("academic_year_id", selectedYear.id)
           .order("payment_date", { ascending: false }),
       ])
 

@@ -59,7 +59,7 @@ export default function ParentsDashboard() {
                 const average = childGrades.length ? childGrades.reduce((sum, grade) => sum + grade.score, 0) / childGrades.length : null
                 const issues = child.can_view_academic ? attendance.filter((item) => item.student_id === child.id && item.status !== "present").length : null
                 return (
-                  <div key={child.id} className="px-5 py-5 transition-colors hover:bg-slate-50/70">
+                  <div key={child.id} className="px-4 py-4 transition-colors hover:bg-slate-50/70 sm:px-5 sm:py-5">
                     <div className="grid gap-5 lg:grid-cols-[minmax(240px,1.5fr)_repeat(2,minmax(120px,.6fr))_auto] lg:items-center">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-700">{child.first_name?.[0] ?? ""}{child.last_name?.[0] ?? ""}</div>
@@ -106,5 +106,5 @@ function DataValue({ label, value }: { label: string; value: string }) {
 }
 
 function InfoSection({ title, description, href, items, empty }: { title: string; description: string; href: string; items: { id: string; title: string; detail: string; date: string }[]; empty: string }) {
-  return <section className="overflow-hidden border-y border-slate-200"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="text-base font-bold text-slate-950">{title}</h2><p className="text-sm text-slate-500">{description}</p></div><Link href={href} className="text-sm font-semibold text-blue-700 hover:text-blue-800">Voir tout</Link></div>{items.length ? <div className="divide-y divide-slate-100">{items.map((item) => <Link key={item.id} href={href} className="block px-5 py-4 transition-colors hover:bg-slate-50"><p className="truncate text-sm font-semibold text-slate-900">{item.title}</p><p className="mt-1 line-clamp-2 text-sm text-slate-500">{item.detail}</p><p className="mt-1 text-xs text-slate-400">{dateTime(item.date)}</p></Link>)}</div> : <p className="px-5 py-8 text-sm text-slate-500">{empty}</p>}</section>
+  return <section className="overflow-hidden border-y border-slate-200"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="text-base font-bold text-slate-950">{title}</h2><p className="text-sm text-slate-500">{description}</p></div><Link href={href} className="text-sm font-semibold text-blue-700 hover:text-blue-800">Voir tout</Link></div>{items.length ? <div className="divide-y divide-slate-100">{items.map((item) => <Link key={item.id} href={href} className="block px-5 py-4 transition-colors hover:bg-slate-50"><p className="truncate text-sm font-semibold text-slate-900">{item.title}</p><p className="mt-1 line-clamp-2 text-sm text-slate-500">{item.detail}</p><p className="mt-1 text-xs text-slate-400">{dateTime(item.date)}</p></Link>)}</div> : <p className="px-4 py-7 text-sm text-slate-500 sm:px-5 sm:py-8">{empty}</p>}</section>
 }

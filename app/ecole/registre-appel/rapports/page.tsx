@@ -182,8 +182,33 @@ export default function RapportsAssiduitePage() {
                 <h2 className="font-semibold">Assiduité par élève</h2>
                 <p className="text-sm text-slate-500">{report.students.length} élève(s) sur la période sélectionnée.</p>
               </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-[900px] w-full text-sm">
+              <div className="space-y-3 p-3 md:hidden">
+                {report.students.map((student) => {
+                  const absenceRate = student.total_records > 0 ? (student.absent / student.total_records) * 100 : 0
+                  return (
+                    <article key={student.student_id} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="break-words font-semibold">{student.last_name ?? ""} {student.first_name ?? ""}</h3>
+                          <p className="text-xs text-slate-500">{student.class_name} · {student.student_number ?? "Sans matricule"}</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-lg font-semibold tabular-nums">{absenceRate.toFixed(1)} %</p>
+                          <p className="text-xs text-slate-500">Absences</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 grid grid-cols-4 gap-2 border-t pt-3 text-center text-sm">
+                        <div><p className="font-semibold">{student.total_records}</p><p className="text-xs text-slate-500">Appels</p></div>
+                        <div><p className="font-semibold text-green-700">{student.present}</p><p className="text-xs text-slate-500">Prés.</p></div>
+                        <div><p className="font-semibold text-red-700">{student.absent}</p><p className="text-xs text-slate-500">Abs.</p></div>
+                        <div><p className="font-semibold text-amber-700">{student.late}</p><p className="text-xs text-slate-500">Ret.</p></div>
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
+                <table className="min-w-[1000px] w-full text-sm">
                   <thead className="border-b bg-slate-50">
                     <tr>
                       <th className="px-3 py-3 text-left font-medium">Élève</th>
@@ -193,7 +218,8 @@ export default function RapportsAssiduitePage() {
                       <th className="px-3 py-3 text-right font-medium">Abs.</th>
                       <th className="px-3 py-3 text-right font-medium">Ret.</th>
                       <th className="px-3 py-3 text-right font-medium">Just.</th>
-                      <th className="px-3 py-3 text-right font-medium">Taux</th>
+                      <th className="px-3 py-3 text-right font-medium">Taux présence</th>
+                      <th className="px-3 py-3 text-right font-medium">Taux absences</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -207,6 +233,7 @@ export default function RapportsAssiduitePage() {
                         <td className="px-3 py-3 text-right">{student.late}</td>
                         <td className="px-3 py-3 text-right">{student.justified}</td>
                         <td className="px-3 py-3 text-right font-semibold">{Number(student.attendance_rate).toFixed(2)} %</td>
+                        <td className="px-3 py-3 text-right font-semibold">{student.total_records ? ((student.absent / student.total_records) * 100).toFixed(2) : "0.00"} %</td>
                       </tr>
                     ))}
                   </tbody>

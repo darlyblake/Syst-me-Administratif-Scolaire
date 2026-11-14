@@ -100,8 +100,14 @@ export default function NotificationBell() {
     }
     try {
       // Le compteur est calculé sur les notifications non lues visibles par ce compte.
-      const page = await listNotificationsPaginated(establishmentId, 1, 100, true)
-      setUnreadCount(page.items.filter(canSeeNotification).length)
+      const firstPage = await listNotificationsPaginated(establishmentId, 1, 100, true)
+      const remainingPages = await Promise.all(
+        Array.from({ length: Math.max(0, firstPage.total_pages - 1) }, (_, index) =>
+          listNotificationsPaginated(establishmentId, index + 2, 100, true),
+        ),
+      )
+      const unreadItems = [...firstPage.items, ...remainingPages.flatMap((page) => page.items)]
+      setUnreadCount(unreadItems.filter(canSeeNotification).length)
     } catch (cause) {
       console.error("Chargement du compteur de notifications impossible", cause)
       setError("Le compteur de notifications est indisponible.")

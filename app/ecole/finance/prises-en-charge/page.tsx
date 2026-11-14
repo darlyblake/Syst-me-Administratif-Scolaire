@@ -214,7 +214,9 @@ export default function SuiviPrisesEnChargePage() {
   const coveredStudents = useMemo<OrganizationStudent[]>(() => {
     if (!organizationId || organizationId === "all") return []
     const selectedRows = rows.filter((row) =>
-      row.payer_type === "other" && row.organization_id === organizationId
+      row.academic_year_id === selectedYear?.id &&
+      row.payer_type === "other" &&
+      row.organization_id === organizationId
     )
     const map = new Map<string, OrganizationStudent>()
 
@@ -245,7 +247,7 @@ export default function SuiviPrisesEnChargePage() {
         a.last_name.localeCompare(b.last_name, "fr") ||
         a.first_name.localeCompare(b.first_name, "fr")
       )
-  }, [rows, organizationId, search])
+  }, [rows, organizationId, search, selectedYear?.id])
 
   const selectedPayments = useMemo(() => payments.filter(
     (payment) => payment.organization_id === organizationId

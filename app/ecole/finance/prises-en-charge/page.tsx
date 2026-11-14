@@ -5,6 +5,7 @@ import { ArrowLeft, Building2, Printer, RefreshCw, Search, Users, Wallet } from 
 import { useUserContext } from "@/hooks/useUserContext"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { supabaseBrowser } from "@/lib/supabase/client"
+import { hasEffectiveSchoolPermission } from "@/lib/organization/runtime-permissions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { OrganizationPaymentModal } from "@/components/finance/OrganizationPaymentModal"
@@ -104,6 +105,7 @@ export default function SuiviPrisesEnChargePage() {
   const [organizations, setOrganizations] = useState<SponsoringOrganization[]>([])
   const [payments, setPayments] = useState<OrganizationPayment[]>([])
   const [loading, setLoading] = useState(false)
+  const [canManagePayments, setCanManagePayments] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
 
@@ -118,7 +120,8 @@ export default function SuiviPrisesEnChargePage() {
     setLoading(true)
     setError(null)
     try {
-      const [organizationResult, coverageResult, paymentResult] = await Promise.all([
+      const [authContextResult, organizationResult, coverageResult, paymentResult] = await Promise.all([
+        supabaseBrowser.rpc("get_my_auth_context"),
         supabaseBrowser
           .from("sponsoring_organizations")
           .select("id,name,is_state,active")
@@ -138,6 +141,20 @@ export default function SuiviPrisesEnChargePage() {
           .order("payment_date", { ascending: false }),
       ])
 
+      if (authContextResult.error) throw authContextResult.error
+      const membership = (authContextResult.data?.establishments ?? []).find(
+        (item: any) => item.id === establishmentId
+      )
+      if (!membership) throw new Error("Vous n'êtes pas membre de cet établissement.")
+      const permissionUser = {
+        role: membership.role,
+        etablissementRole: membership.role,
+        permissions: membership.permissions ?? [],
+        revoked_permissions: membership.revoked_permissions ?? [],
+        account_type: authContextResult.data?.account_type,
+      }
+      setCanManagePayments(hasEffectiveSchoolPermission(permissionUser as any, "payments.manage"))
+
       if (organizationResult.error) throw organizationResult.error
       if (coverageResult.error) throw coverageResult.error
       if (paymentResult.error) throw paymentResult.error
@@ -151,6 +168,7 @@ export default function SuiviPrisesEnChargePage() {
       setRows([])
       setOrganizations([])
       setPayments([])
+      setCanManagePayments(false)
     } finally {
       setLoading(false)
     }
@@ -371,9 +389,9 @@ export default function SuiviPrisesEnChargePage() {
               <Button variant="outline" onClick={() => window.print()} className="gap-2">
                 <Printer className="h-4 w-4" />Imprimer la fiche
               </Button>
-              <Button onClick={() => setPaymentModalOpen(true)} disabled={selectedSummary.remaining <= 0} className="gap-2">
+              {canManagePayments && <Button onClick={() => setPaymentModalOpen(true)} disabled={selectedSummary.remaining <= 0} className="gap-2">
                 <Wallet className="h-4 w-4" />Enregistrer un versement
-              </Button>
+              </Button>}
             </div>
           </div>
 

@@ -84,7 +84,7 @@ const formatDate = (value: string) => {
 export default function SuiviPrisesEnChargePage() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
-  const { activeYear } = useAcademicYears(establishmentId)
+  const { data: academicYears, selectedYear, selectYear } = useAcademicYears(establishmentId)
 
   const [search, setSearch] = useState("")
   const [organizationId, setOrganizationId] = useState("all")
@@ -96,7 +96,7 @@ export default function SuiviPrisesEnChargePage() {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
 
   const load = useCallback(async () => {
-    if (!establishmentId || !activeYear?.id) {
+    if (!establishmentId || !selectedYear?.id) {
       setRows([])
       setOrganizations([])
       setPayments([])
@@ -143,7 +143,7 @@ export default function SuiviPrisesEnChargePage() {
     } finally {
       setLoading(false)
     }
-  }, [establishmentId, activeYear?.id])
+  }, [establishmentId, selectedYear?.id])
 
   useEffect(() => { void load() }, [load])
 
@@ -241,6 +241,14 @@ export default function SuiviPrisesEnChargePage() {
           </div>
         </div>
         <div className="no-print flex items-center gap-2">
+          <select
+            aria-label="Année scolaire"
+            value={selectedYear?.id ?? ""}
+            onChange={(event) => selectYear(event.target.value)}
+            className="h-10 max-w-[190px] rounded-md border border-slate-200 bg-white px-3 text-sm"
+          >
+            {academicYears.map((year) => <option key={year.id} value={year.id}>{year.name}</option>)}
+          </select>
           {organizationId !== "all" && (
             <Button variant="outline" onClick={() => { setOrganizationId("all"); setSearch("") }} className="gap-2">
               <ArrowLeft className="h-4 w-4" />Retour
@@ -291,7 +299,7 @@ export default function SuiviPrisesEnChargePage() {
                 />
               </div>
             </div>
-            <p className="pb-2 text-xs text-slate-500">{activeYear?.name ?? "Année scolaire active"} · {organizations.length} organisation(s)</p>
+            <p className="pb-2 text-xs text-slate-500">{selectedYear?.name ?? "Année scolaire active"} · {organizations.length} organisation(s)</p>
           </section>
 
           <section className="overflow-hidden border border-slate-200 bg-white">
@@ -346,7 +354,7 @@ export default function SuiviPrisesEnChargePage() {
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Fiche annuelle de l'organisation</p>
               <h2 className="mt-1 text-xl font-semibold text-slate-900">{selectedOrganization.name}</h2>
-              <p className="mt-1 text-sm text-slate-500">{activeYear?.name ?? "Année scolaire active"}</p>
+              <p className="mt-1 text-sm text-slate-500">{selectedYear?.name ?? "Année scolaire active"}</p>
             </div>
             <div className="no-print flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => window.print()} className="gap-2">
@@ -457,7 +465,7 @@ export default function SuiviPrisesEnChargePage() {
             establishmentId={establishmentId || ""}
             organizationId={selectedOrganization.id}
             organizationName={selectedOrganization.name}
-            academicYearId={activeYear?.id || ""}
+            academicYearId={selectedYear?.id || ""}
             remainingAmount={selectedSummary.remaining}
             onSuccess={() => { void load() }}
           />

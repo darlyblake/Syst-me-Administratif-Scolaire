@@ -88,7 +88,7 @@ export default function ParentProfile() {
   }
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-5 sm:space-y-7">
       <ParentPageHeader
         eyebrow="Mon compte"
         title="Profil et paramètres"
@@ -98,11 +98,11 @@ export default function ParentProfile() {
       {error && <p role="alert" className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
 
       <section className="overflow-hidden border border-slate-200 bg-white">
-        <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4">
+        <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3.5 sm:px-5 sm:py-4">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-700"><UserRound className="h-4 w-4" /></span>
           <div><h2 className="font-semibold text-slate-900">Informations personnelles</h2><p className="text-sm text-slate-500">Les informations utilisées pour votre compte parent.</p></div>
         </div>
-        <form onSubmit={saveProfile} className="space-y-4 p-5">
+        <form onSubmit={saveProfile} className="space-y-4 p-4 sm:p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block space-y-1.5"><span className="text-sm font-medium text-slate-700">Prénom</span><Input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" required /></label>
             <label className="block space-y-1.5"><span className="text-sm font-medium text-slate-700">Nom</span><Input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" required /></label>
@@ -117,16 +117,16 @@ export default function ParentProfile() {
       </section>
 
       <section className="overflow-hidden border border-slate-200 bg-white">
-        <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4">
+        <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3.5 sm:px-5 sm:py-4">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-700"><KeyRound className="h-4 w-4" /></span>
           <div><h2 className="font-semibold text-slate-900">Mot de passe</h2><p className="text-sm text-slate-500">Choisissez un mot de passe personnel et difficile à deviner.</p></div>
         </div>
-        <form onSubmit={changePassword} className="space-y-4 p-5">
+        <form onSubmit={changePassword} className="space-y-4 p-4 sm:p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block space-y-1.5"><span className="text-sm font-medium text-slate-700">Nouveau mot de passe</span><Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={8} required /></label>
             <label className="block space-y-1.5"><span className="text-sm font-medium text-slate-700">Confirmer le mot de passe</span><Input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} required /></label>
           </div>
-          <div className="flex justify-end border-t border-slate-100 pt-4"><Button type="submit" variant="outline" disabled={loadingPassword}><ShieldCheck className="mr-2 h-4 w-4" />{loadingPassword ? "Modification…" : "Modifier le mot de passe"}</Button></div>
+          <div className="flex border-t border-slate-100 pt-4 [&>button]:w-full sm:justify-end sm:[&>button]:w-auto"><Button type="submit" variant="outline" disabled={loadingPassword}><ShieldCheck className="mr-2 h-4 w-4" />{loadingPassword ? "Modification…" : "Modifier le mot de passe"}</Button></div>
           {passwordMessage && <p role="status" className="text-sm text-emerald-700">{passwordMessage}</p>}
         </form>
       </section>

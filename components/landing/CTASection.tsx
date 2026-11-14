@@ -2,11 +2,9 @@
 
 import { ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
 import { Reveal } from "./Reveal"
 
-export function CTASection() {
-  const router = useRouter()
+export function CTASection({ onOpenAuth }: { onOpenAuth: () => void }) {
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-28">
@@ -26,7 +24,7 @@ export function CTASection() {
             <Button
               size="lg"
               className="rounded-full bg-white px-7 text-blue-950 transition-all hover:-translate-y-0.5 hover:bg-blue-50"
-              onClick={() => router.push("/login")}
+              onClick={onOpenAuth}
             >
               Se connecter
               <ArrowRight className="ml-2 h-4 w-4" />

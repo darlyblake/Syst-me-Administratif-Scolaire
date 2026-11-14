@@ -13,6 +13,7 @@ import {
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { hasEffectiveSchoolPermission } from "@/lib/organization/runtime-permissions"
+import { getSchoolRoleLabel, getUserInitials } from "@/lib/organization/role-labels"
 
 interface SidebarProps {
   isOpen: boolean
@@ -24,6 +25,8 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
   const router = useRouter()
   const { utilisateur, contexte, etablissementActif } = useAuthentification()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const userName = utilisateur?.nomUtilisateur?.trim() || contexte?.email || "Utilisateur"
+  const userRole = getSchoolRoleLabel(etablissementActif?.role ?? contexte?.establishments?.find((item) => item.id === utilisateur?.etablissementId)?.role)
 
   const isActive = (path: string) => {
     const route = path.split("?")[0]
@@ -182,10 +185,10 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
 
         <div className="shrink-0 border-t border-[#c5c5d3]/35 p-2">
           <div className="flex items-center gap-2 px-2 py-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#d5e3fc] text-[11px] font-semibold text-[#00236f]">AD</div>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#d5e3fc] text-[11px] font-semibold text-[#00236f]">{getUserInitials(userName)}</div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[12px] font-medium text-[#131b2e]">Administration</p>
-              <p className="truncate text-[11px] text-[#515f74]">Espace établissement</p>
+              <p className="truncate text-[12px] font-medium text-[#131b2e]">{userName}</p>
+              <p className="truncate text-[11px] text-[#515f74]">{userRole}</p>
             </div>
             <button type="button" onClick={handleLogout} disabled={isLoggingOut} aria-label="Déconnexion" title="Déconnexion" className="rounded p-1.5 text-[#515f74] hover:bg-[#ffefed] hover:text-[#ba1a1a] disabled:opacity-50">
               {isLoggingOut ? <span className="text-[11px]">…</span> : <LogOut className="h-4 w-4" />}

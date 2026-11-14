@@ -95,7 +95,8 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
       { href: "/ecole/evenements", label: "Événements", icon: CalendarRange, permission: "events.view" },
     ]},
     { section: "Finance", items: [
-      { href: "/ecole/finance/paiements", label: "Scolarité", icon: CreditCard, permission: "finance.view" },
+      { href: "/ecole/finance/paiements", label: "Inscription et scolarité", icon: CreditCard, permission: "finance.view" },
+      { href: "/ecole/finance/options-services", label: "Options et services", icon: ReceiptText, permission: "finance.view" },
       { href: "/ecole/finance/prises-en-charge", label: "Suivi des prises en charge", icon: Users, permission: "finance.view" },
       { href: "/ecole/finance/caisse", label: "Mouvements de caisse", icon: Layers, permission: "finance.view" },
       { href: "/ecole/facturation", label: "Facturation", icon: FileText, permission: "finance.view" },

@@ -109,7 +109,7 @@ export default function PageTableauBord() {
     if (/student|class|family/.test(type)) return can("students.view")
     if (/staff|teacher|personnel/.test(type)) return can("staff.view")
     if (/document|file/.test(type)) return can("documents.view")
-    return can("dashboard.view")
+    return false
   })
 
   const dateLabel = useMemo(

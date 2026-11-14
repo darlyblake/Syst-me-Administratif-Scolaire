@@ -630,7 +630,7 @@ export default function RegistreAppelPage() {
             ) : (
               <>
                 {/* Vue ordinateur : chaque statut dispose de sa propre colonne, sans défilement horizontal. */}
-                <div className="hidden overflow-hidden border md:block">
+                <div className="hidden overflow-hidden border lg:block">
                   <table className="w-full table-fixed text-sm">
                     <colgroup>
                       <col className="w-14" />
@@ -685,7 +685,7 @@ export default function RegistreAppelPage() {
                 </div>
 
                 {/* Vue mobile : les quatre choix sont toujours visibles en grille 2 × 2. */}
-                <div className="grid grid-cols-1 gap-3 md:hidden">
+                <div className="grid grid-cols-1 gap-3 lg:hidden">
                   {filteredStudents.map((student, index) => {
                     const entry = attendance[student.id] ?? { status: "present" as AttendanceStatus, reason: "" }
                     return (

@@ -27,7 +27,7 @@ export default function ParentProfile() {
     void supabaseBrowser.auth.getUser().then(({ data }) => {
       if (!active || !data.user) return
       const metadata = data.user.user_metadata ?? {}
-      const displayParts = (utilisateur?.nomUtilisateur ?? "").trim().split(/\\s+/)
+      const displayParts = (utilisateur?.nomUtilisateur ?? "").trim().split(/\s+/)
       setFirstName(String(metadata.first_name ?? displayParts[0] ?? ""))
       setLastName(String(metadata.last_name ?? displayParts.slice(1).join(" ")))
       setEmail(data.user.email ?? "")

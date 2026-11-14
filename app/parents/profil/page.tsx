@@ -13,6 +13,7 @@ export default function ParentProfile() {
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
   const [email, setEmail] = useState("")
+  const [initialEmail, setInitialEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loadingProfile, setLoadingProfile] = useState(false)
@@ -26,12 +27,14 @@ export default function ParentProfile() {
     void supabaseBrowser.auth.getUser().then(({ data }) => {
       if (!active || !data.user) return
       const metadata = data.user.user_metadata ?? {}
-      setFirstName(String(metadata.first_name ?? ""))
-      setLastName(String(metadata.last_name ?? ""))
+      const displayParts = (utilisateur?.nomUtilisateur ?? "").trim().split(/\\s+/)
+      setFirstName(String(metadata.first_name ?? displayParts[0] ?? ""))
+      setLastName(String(metadata.last_name ?? displayParts.slice(1).join(" ")))
       setEmail(data.user.email ?? "")
+      setInitialEmail(data.user.email ?? "")
     })
     return () => { active = false }
-  }, [])
+  }, [utilisateur?.nomUtilisateur])
 
   const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -44,11 +47,12 @@ export default function ParentProfile() {
     setLoadingProfile(true)
     try {
       const { error: updateError } = await supabaseBrowser.auth.updateUser({
-        ...(email.trim() ? { email: email.trim().toLowerCase() } : {}),
+        ...(email.trim().toLowerCase() !== initialEmail.toLowerCase() && email.trim() ? { email: email.trim().toLowerCase() } : {}),
         data: { first_name: firstName.trim(), last_name: lastName.trim() },
       })
       if (updateError) throw updateError
       await actualiser()
+      setInitialEmail(email.trim().toLowerCase())
       setProfileMessage("Vos informations ont été enregistrées. Si vous avez changé d’adresse email, confirmez la nouvelle adresse depuis le message reçu.")
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Impossible d’enregistrer vos informations.")

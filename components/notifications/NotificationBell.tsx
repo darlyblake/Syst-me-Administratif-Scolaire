@@ -12,7 +12,11 @@ import {
   type NotificationRecord,
 } from "@/lib/supabase/services/notifications.service"
 
-function notificationHref(notification: NotificationRecord) {
+function notificationHref(notification: NotificationRecord, isParent: boolean) {
+  if (notification.type === "attendance_call_missing") return "/ecole/registre-appel"
+  if (notification.entity_type === "attendance_record") {
+    return isParent ? "/parents/absences" : "/ecole/registre-appel"
+  }
   switch (notification.entity_type) {
     case "payment_schedule":
       return "/ecole/finance/paiements"
@@ -24,7 +28,7 @@ function notificationHref(notification: NotificationRecord) {
       return "/ecole/documents"
     case "attendance_record":
     case "attendance_justification_request":
-      return "/ecole/absences"
+      return isParent ? "/parents/absences" : "/ecole/registre-appel"
     case "school_event":
       return "/ecole/evenements"
     case "support_request":
@@ -53,7 +57,9 @@ function notificationPermission(notification: NotificationRecord): string {
       return "classes.view"
     case "attendance_record":
     case "attendance_justification_request":
-      return "attendance.view"
+      return "attendance.read"
+    case "timetable_slot":
+      return "attendance.manage"
     case "school_event":
       return "events.view"
     case "support_request":
@@ -211,7 +217,7 @@ export default function NotificationBell() {
       }
       setUpdatingId(null)
     }
-    const href = notificationHref(notification)
+    const href = notificationHref(notification, contexte?.account_type === "parent")
     setOpen(false)
     if (href) router.push(href)
   }

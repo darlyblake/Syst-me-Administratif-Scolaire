@@ -118,3 +118,31 @@
   .stageReady .book { animation: none; }
   .backButton,.primaryAction,.primaryButton,.secondaryAction { transition: none; }
 }
+
+
+/* Livre fermé : une couverture verticale, puis ouverture en double-page. */
+.book {
+  transition: width .82s cubic-bezier(.22,.75,.18,1), height .82s cubic-bezier(.22,.75,.18,1);
+}
+.bookClosed {
+  width: min(42vw, 520px);
+  height: min(68vh, 650px);
+}
+.bookOpen {
+  width: var(--book-w);
+  height: var(--book-h);
+}
+@media (max-width: 760px) {
+  .bookClosed {
+    width: min(78vw, 400px);
+    height: min(64svh, 560px);
+    min-height: 420px;
+  }
+  .bookOpen {
+    width: min(94vw, 540px);
+    height: min(80svh, 740px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .book { transition: none; }
+}

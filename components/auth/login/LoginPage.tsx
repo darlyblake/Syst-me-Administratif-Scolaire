@@ -17,7 +17,7 @@ function safeRedirect(value: string | null) {
   return value
 }
 
-export function LoginPage() {
+export function LoginPage({ isOverlay = false, onClose }: { isOverlay?: boolean; onClose?: () => void } = {}) {
   const router = useRouter()
   const { connecter, estConnecte, estEnCoursDeChargement, obtenirCheminRedirection } = useAuthentification()
   const [espace, setEspace] = useState<Espace>("ecole")
@@ -38,6 +38,15 @@ export function LoginPage() {
   const [registerAsTeacher, setRegisterAsTeacher] = useState(espace === "enseignant")
 
   const bookOpen = view !== "closed"
+
+  useEffect(() => {
+    if (!isOverlay) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onClose?.() }
+    window.addEventListener("keydown", onKeyDown)
+    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener("keydown", onKeyDown) }
+  }, [isOverlay, onClose])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -174,8 +183,8 @@ export function LoginPage() {
   const guideNumber = view === "login" ? "1" : view === "register" ? "5" : "—"
 
   return (
-    <main className={styles.shell}>
-      <div className={styles.topBar}><button type="button" className={styles.backButton} onClick={() => (bookOpen ? closeBook() : router.push("/"))}><ArrowLeft size={16} /> {bookOpen ? "Fermer le livre" : "Retour"}</button></div>
+    <main className={`${styles.shell} ${isOverlay ? styles.overlayShell : ""}`} role={isOverlay ? "dialog" : undefined} aria-modal={isOverlay || undefined} aria-label={isOverlay ? "Connexion ou inscription" : undefined}>
+      <div className={styles.topBar}><button type="button" className={styles.backButton} onClick={() => (bookOpen ? closeBook() : isOverlay ? onClose?.() : router.push("/"))}><ArrowLeft size={16} /> {bookOpen ? "Fermer le livre" : isOverlay ? "Fermer" : "Retour"}</button></div>
       <div className={`${styles.stage} ${introFinished ? styles.stageReady : styles.stageApproaching} ${bookOpen ? styles.stageOpen : ""} ${turning ? styles.stageTurning : ""}`}>
         <div className={`${styles.book} ${bookOpen ? styles.bookOpen : styles.bookClosed}`}>
           <div className={styles.shadow} /><div className={styles.spine} /><div className={styles.ribbon} />

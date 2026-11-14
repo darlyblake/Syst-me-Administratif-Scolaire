@@ -179,6 +179,38 @@ export const financeService = {
 
     const sourceType = movement.source_type.toLowerCase()
 
+    if (sourceType === "organization_payment") {
+      const { data: organizationPayment, error: organizationPaymentError } = await supabaseBrowser
+        .from("organization_payments")
+        .select("id, organization_id, academic_year_id, amount, payment_date, method, reference, notes")
+        .eq("id", movement.source_id)
+        .maybeSingle()
+
+      if (organizationPaymentError) throw new Error("Impossible de charger le versement global de l'organisation.")
+      if (!organizationPayment) return base
+
+      const [organizationResult, yearResult] = await Promise.all([
+        supabaseBrowser
+          .from("sponsoring_organizations")
+          .select("id, name")
+          .eq("id", organizationPayment.organization_id)
+          .maybeSingle(),
+        supabaseBrowser
+          .from("academic_years")
+          .select("id, name")
+          .eq("id", organizationPayment.academic_year_id)
+          .maybeSingle(),
+      ])
+
+      return {
+        ...base,
+        kind: "organization_payment",
+        organizationPayment,
+        organization: organizationResult.data ?? null,
+        academicYear: yearResult.data ?? null,
+      }
+    }
+
     if (sourceType === "student_payment" || sourceType.includes("payment")) {
       const { data, error } = await supabaseBrowser.rpc("get_finance_payment_details", {
         p_payment_id: movement.source_id,

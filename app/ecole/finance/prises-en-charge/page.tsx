@@ -76,6 +76,18 @@ const categoryName = (category: string) => {
   return "Scolarité"
 }
 
+const paymentMethodName = (method: string | null) => {
+  const labels: Record<string, string> = {
+    cash: "Espèces",
+    bank_transfer: "Virement bancaire",
+    transfer: "Virement bancaire",
+    mobile_money: "Mobile Money",
+    cheque: "Chèque",
+    check: "Chèque",
+  }
+  return method ? labels[method.toLowerCase()] || method : "—"
+}
+
 const formatDate = (value: string) => {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("fr-FR")
@@ -439,7 +451,7 @@ export default function SuiviPrisesEnChargePage() {
                   {selectedPayments.map((payment) => (
                     <tr key={payment.id}>
                       <td className="px-4 py-3">{formatDate(payment.payment_date)}</td>
-                      <td className="px-4 py-3">{payment.method || "—"}</td>
+                      <td className="px-4 py-3">{paymentMethodName(payment.method)}</td>
                       <td className="px-4 py-3">{payment.reference || "—"}</td>
                       <td className="px-4 py-3 text-right font-medium tabular-nums">{formatAmount(Number(payment.amount))}</td>
                     </tr>

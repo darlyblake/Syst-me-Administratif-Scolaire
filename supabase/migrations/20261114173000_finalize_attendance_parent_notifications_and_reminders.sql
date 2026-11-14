@@ -1,5 +1,5 @@
 -- Attendance workflow completion: parent notifications, teacher grace window,
--- administrative backfill, and recurring missing-call reminders.
+-- administrative backfill, and recurring missing-call reminders.;
 
 CREATE OR REPLACE FUNCTION private.can_view_notification(p_establishment_id uuid, p_type text, p_entity_type text, p_entity_id uuid, p_user_id uuid DEFAULT auth.uid())
  RETURNS boolean
@@ -206,7 +206,7 @@ begin
   return private.has_permission(p_establishment_id, v_permission, p_user_id);
 end;
 $function$
-
+;
 
 CREATE OR REPLACE FUNCTION private.notify_missing_attendance_calls()
  RETURNS integer
@@ -277,7 +277,7 @@ begin
   return v_count;
 end;
 $function$
-
+;
 
 CREATE OR REPLACE FUNCTION public.notify_parent_attendance_change()
  RETURNS trigger
@@ -355,7 +355,7 @@ begin
   return new;
 end;
 $function$
-
+;
 
 CREATE OR REPLACE FUNCTION public.record_lesson_attendance(p_establishment_id uuid, p_student_id uuid, p_class_id uuid, p_subject_id uuid, p_date date, p_lesson_key text, p_status text, p_reason text)
  RETURNS uuid
@@ -458,7 +458,7 @@ begin
 end;
 $function$
 
-
+;
 
 revoke all on function private.notify_missing_attendance_calls() from public, anon, authenticated;
 grant execute on function private.notify_missing_attendance_calls() to service_role;

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, ClipboardCheck,
   Clock3, CreditCard, FileWarning, GraduationCap, History, Plus,
@@ -24,7 +24,7 @@ export default function PageTableauBord() {
     () => utilisateur ? { ...utilisateur, role: contexte?.account_type === "school_member" ? organizationRole : utilisateur.role, etablissementRole: organizationRole } : null,
     [utilisateur, contexte?.account_type, organizationRole],
   )
-  const can = (permission: string) => hasEffectiveSchoolPermission(permissionUser, permission)
+  const can = useCallback((permission: string) => hasEffectiveSchoolPermission(permissionUser, permission), [permissionUser])
   const { activeYear, isLoading: academicYearLoading } = useAcademicYears(establishmentId)
   const { total: activeEnrollmentCount, isLoading: enrollmentCountLoading, error: enrollmentCountError } = useEnrollments({
     establishmentId: activeYear?.id && can("students.view") ? establishmentId : null,
@@ -64,7 +64,7 @@ export default function PageTableauBord() {
       .finally(() => { if (active) setDashboardLoading(false) })
 
     return () => { active = false }
-  }, [establishmentId, activeYear?.id, permissionUser])
+  }, [establishmentId, activeYear?.id, can])
 
   useEffect(() => {
     if (!establishmentId || !activeYear?.id || !can("finance.view")) {

@@ -12,7 +12,8 @@ import { useAuthentification } from "@/providers/authentification.provider"
 
 const AVAILABLE_MODULES = [
   { id: 'dashboard', label: 'Tableau de bord' },
-  { id: 'students', label: 'Élèves' },
+  { id: 'students', label: 'Consulter les élèves' },
+  { id: 'students.manage', label: 'Gérer les dossiers élèves' },
   { id: 'inscriptions', label: 'Inscriptions' },
   { id: 'tuition.view', label: 'Voir les tarifs de scolarité' },
   { id: 'classes', label: 'Classes' },

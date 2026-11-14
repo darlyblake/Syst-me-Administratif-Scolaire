@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronDown, LogOut, Menu, Settings, UserCircle } from "lucide-react"
+import { ChevronDown, LogOut, Menu, Settings } from "lucide-react"
 import NotificationBell from "@/components/notifications/NotificationBell"
 import type React from "react"
 import Sidebar from "@/components/Sidebar"

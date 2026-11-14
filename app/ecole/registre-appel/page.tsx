@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Check, Clock, Save, UserCheck, X } from "lucide-react"
+import { Check, Clock, Save, UserCheck, X, History, ChartNoAxesCombined } from "lucide-react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -487,6 +488,27 @@ export default function RegistreAppelPage() {
             {academicYear?.name ?? "Année scolaire"} · {currentTime.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}
           </div>
         </div>
+
+        <nav aria-label="Suivi des appels" className="mb-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <Button variant="outline" className="h-auto min-h-12 justify-start px-4 py-3" asChild>
+            <Link href="/ecole/registre-appel/historique">
+              <History className="mr-2 h-4 w-4 shrink-0" />
+              <span className="text-left">
+                <span className="block font-semibold">Historique des appels</span>
+                <span className="block text-xs font-normal text-slate-500">Consulter les présences, absences et motifs</span>
+              </span>
+            </Link>
+          </Button>
+          <Button variant="outline" className="h-auto min-h-12 justify-start px-4 py-3" asChild>
+            <Link href="/ecole/registre-appel/rapports">
+              <ChartNoAxesCombined className="mr-2 h-4 w-4 shrink-0" />
+              <span className="text-left">
+                <span className="block font-semibold">Statistiques d’assiduité</span>
+                <span className="block text-xs font-normal text-slate-500">Taux de présence par élève et par matière</span>
+              </span>
+            </Link>
+          </Button>
+        </nav>
 
         <section className="mb-5 border-b pb-5">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">

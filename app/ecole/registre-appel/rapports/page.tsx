@@ -92,6 +92,10 @@ export default function RapportsAssiduitePage() {
   )
 
   const [classId, setClassId] = useState("")
+  useEffect(() => {
+    if (isTeacher && !classId && classOptions.length) setClassId(classOptions[0].id)
+  }, [classId, classOptions, isTeacher])
+
   const [from, setFrom] = useState(() => {
     const d = new Date()
     d.setDate(1)

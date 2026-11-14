@@ -229,27 +229,25 @@ export function AccountDialog({
           {/* Gestion compte existant */}
           {hasAccount && step === "main" && (
             <div className="space-y-3">
+              <Button
+                variant="outline"
+                className="w-full justify-start font-normal"
+                disabled={isSubmitting}
+                onClick={() => setStep("confirm_reset")}
+              >
+                <Key className="mr-2 h-4 w-4 text-blue-500" />
+                Réinitialiser le mot de passe
+              </Button>
               {isActive ? (
-                <>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start font-normal"
-                    disabled={isSubmitting}
-                    onClick={() => setStep("confirm_reset")}
-                  >
-                    <Key className="mr-2 h-4 w-4 text-blue-500" />
-                    Réinitialiser le mot de passe
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start font-normal text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                    disabled={isSubmitting}
-                    onClick={() => setStep("confirm_disable")}
-                  >
-                    <UserX className="mr-2 h-4 w-4" />
-                    Désactiver le compte
-                  </Button>
-                </>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start font-normal text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                  disabled={isSubmitting}
+                  onClick={() => setStep("confirm_disable")}
+                >
+                  <UserX className="mr-2 h-4 w-4" />
+                  Désactiver le compte
+                </Button>
               ) : (
                 <Button
                   variant="outline"

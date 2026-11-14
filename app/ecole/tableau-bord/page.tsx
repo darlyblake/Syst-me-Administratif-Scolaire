@@ -118,10 +118,10 @@ export default function PageTableauBord() {
   )
 
   const actions = [
-    { href: "/ecole/inscriptions", label: "Nouvelle inscription", icon: UserPlus, primary: true, permission: "inscriptions.create" },
-    { href: "/ecole/finance/paiements", label: "Enregistrer un paiement", icon: CreditCard, permission: "payments.create" },
-    { href: "/ecole/students", label: "Ajouter un élève", icon: Plus, permission: "students.create" },
-    { href: "/ecole/registre-appel", label: "Registre d'appel du jour", icon: ClipboardCheck, permission: "attendance.manage" },
+    { href: "/ecole/inscriptions", label: "Nouvelle inscription", icon: UserPlus, primary: true, permission: "inscriptions.view", actionPermission: "inscriptions.create" },
+    { href: "/ecole/finance/paiements", label: "Enregistrer un paiement", icon: CreditCard, permission: "finance.view", actionPermission: "payments.create" },
+    { href: "/ecole/students", label: "Ajouter un élève", icon: Plus, permission: "students.view", actionPermission: "students.create" },
+    { href: "/ecole/registre-appel", label: "Registre d'appel du jour", icon: ClipboardCheck, permission: "attendance.view", actionPermission: "attendance.manage" },
     { href: "/ecole/evenements", label: "Ajouter un événement", icon: CalendarDays, permission: "events.view" },
   ]
 
@@ -199,7 +199,7 @@ export default function PageTableauBord() {
         </div>
 
         <div className="flex max-w-3xl flex-wrap gap-1.5">
-          {actions.filter((action) => can(action.permission)).map((action) => (
+          {actions.filter((action) => can(action.permission) && (!action.actionPermission || can(action.actionPermission))).map((action) => (
             <Link
               key={action.href}
               href={action.href}

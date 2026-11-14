@@ -8,6 +8,7 @@ export interface AuthEstablishment {
   role?: string
   role_id?: string | null
   permissions?: string[]
+  revoked_permissions?: string[]
 }
 export interface AuthContext {
   authenticated: boolean

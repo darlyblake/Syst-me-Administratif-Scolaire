@@ -31,7 +31,7 @@ export default function ParentNotifications() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <ParentPageHeader
         eyebrow="Communication"
         title="Notifications"
@@ -49,7 +49,7 @@ export default function ParentNotifications() {
       />
 
       {error && (
-        <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700 sm:px-4">
           {error}
         </div>
       )}
@@ -61,7 +61,7 @@ export default function ParentNotifications() {
         />
       ) : (
         <section className="border-y border-slate-200 bg-white">
-          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
             <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
               {notifications.length} notification{notifications.length > 1 ? "s" : ""}
             </p>
@@ -79,9 +79,9 @@ export default function ParentNotifications() {
               return (
                 <article
                   key={notification.id}
-                  className={unreadItem ? "border-l-2 border-blue-700 bg-blue-50 px-5 py-5" : "px-5 py-5"}
+                  className={unreadItem ? "border-l-2 border-blue-700 bg-blue-50 px-4 py-4 sm:px-5 sm:py-5" : "px-4 py-4 sm:px-5 sm:py-5"}
                 >
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-3 sm:gap-4">
                     <Bell className="mt-0.5 h-4 w-4 shrink-0 text-slate-900" />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">

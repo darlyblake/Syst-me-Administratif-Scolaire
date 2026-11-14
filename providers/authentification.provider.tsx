@@ -93,8 +93,8 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
       }
       const contextWithMetadata = {
         ...nextContext,
-        first_name: nextContext.first_name ?? (typeof session.user.user_metadata?.first_name === "string" ? session.user.user_metadata.first_name : null),
-        last_name: nextContext.last_name ?? (typeof session.user.user_metadata?.last_name === "string" ? session.user.user_metadata.last_name : null),
+        first_name: typeof session.user.user_metadata?.first_name === "string" ? session.user.user_metadata.first_name : nextContext.first_name ?? null,
+        last_name: typeof session.user.user_metadata?.last_name === "string" ? session.user.user_metadata.last_name : nextContext.last_name ?? null,
       }
       appliquerContexte(contextWithMetadata, {
         id: session.user.id,

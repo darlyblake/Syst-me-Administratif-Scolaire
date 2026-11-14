@@ -29,3 +29,91 @@
   .landing-page *, .landing-page *::before, .landing-page *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .landing-reveal { opacity: 1; transform: none; }
 }
+
+/* Sceau animé de la page d'accueil : une signature visuelle distincte du livre de connexion. */
+.landing-school-seal {
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  left: max(2.5%, calc((100vw - 1280px) / 2 + 390px));
+  width: 210px;
+  aspect-ratio: 1;
+  transform: translateY(-50%);
+  pointer-events: none;
+  opacity: .78;
+  animation: landing-seal-arrive 1.15s cubic-bezier(.18,.78,.18,1) both;
+}
+.landing-seal-ring {
+  position: absolute;
+  inset: 8%;
+  border: 1px solid rgba(30, 64, 175, .16);
+  border-radius: 50%;
+}
+.landing-seal-ring-one { animation: landing-seal-pulse 5s ease-in-out infinite; }
+.landing-seal-ring-two {
+  inset: 0;
+  border-color: rgba(180, 145, 88, .25);
+  border-style: dashed;
+  animation: landing-seal-rotate 34s linear infinite;
+}
+.landing-seal-core {
+  position: absolute;
+  inset: 32%;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(215, 190, 145, .85);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #294866, #172f49);
+  box-shadow: 0 12px 34px rgba(23, 47, 73, .2), inset 0 0 0 5px rgba(255,255,255,.07);
+  color: #f8eedc;
+  font: 500 25px Georgia, serif;
+  letter-spacing: .08em;
+  animation: landing-seal-core-in 1s .25s cubic-bezier(.2,.8,.2,1) both;
+}
+.landing-seal-orbit {
+  position: absolute;
+  inset: 17%;
+  border-radius: 50%;
+  animation: landing-seal-rotate 18s linear infinite;
+}
+.landing-seal-orbit i {
+  position: absolute;
+  top: -4px;
+  left: calc(50% - 5px);
+  width: 10px;
+  height: 10px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #315f9d;
+  box-shadow: 0 0 0 4px rgba(49,95,157,.12);
+}
+.landing-seal-orbit-two { inset: 8%; animation-duration: 26s; animation-direction: reverse; }
+.landing-seal-orbit-two i { background: #b18b53; width: 8px; height: 8px; }
+.landing-seal-orbit-three { inset: 25%; animation-duration: 13s; }
+.landing-seal-orbit-three i { background: #7fa6d8; width: 7px; height: 7px; }
+@keyframes landing-seal-arrive {
+  from { opacity: 0; filter: blur(8px); transform: translate3d(0, calc(-50% + 28px), 0) scale(.72); }
+  to { opacity: .78; filter: blur(0); transform: translate3d(0, -50%, 0) scale(1); }
+}
+@keyframes landing-seal-core-in {
+  0% { opacity: 0; transform: scale(.45) rotate(-24deg); }
+  70% { opacity: 1; transform: scale(1.08) rotate(4deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+@keyframes landing-seal-rotate { to { transform: rotate(360deg); } }
+@keyframes landing-seal-pulse {
+  0%, 100% { transform: scale(.96); opacity: .65; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+@media (max-width: 1023px) {
+  .landing-school-seal { left: auto; right: 4%; top: 21%; width: 145px; opacity: .45; }
+}
+@media (max-width: 640px) {
+  .landing-school-seal { top: 15%; right: -22px; width: 118px; opacity: .28; }
+  .landing-seal-core { font-size: 19px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-school-seal, .landing-seal-ring, .landing-seal-core, .landing-seal-orbit {
+    animation: none !important;
+  }
+}

@@ -96,7 +96,9 @@ export default function NotificationBell() {
         contexte?.account_type === "parent" ||
         contexte?.account_type === "teacher" ||
         utilisateur?.role === "teacher" ||
-        utilisateur?.etablissementRole === "teacher"
+        utilisateur?.role === "enseignant" ||
+        utilisateur?.etablissementRole === "teacher" ||
+        utilisateur?.etablissementRole === "enseignant"
       ) return true
       return hasEffectiveSchoolPermission(permissionUser, notificationPermission(notification))
     },

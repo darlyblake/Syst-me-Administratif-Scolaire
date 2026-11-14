@@ -83,7 +83,11 @@ export default function HistoriqueAppelPage() {
     if (isTeacher && !classId && classOptions.length) setClassId(classOptions[0].id)
   }, [classId, classOptions, isTeacher])
 
-  const [from, setFrom] = useState(today)
+  const [from, setFrom] = useState(() => {
+    const date = new Date()
+    date.setDate(date.getDate() - 30)
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+  })
   const [to, setTo] = useState(today)
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
@@ -107,7 +111,7 @@ export default function HistoriqueAppelPage() {
       const result = await listAttendanceHistoryPaginated({
         establishmentId,
         page,
-        pageSize: 25,
+        pageSize: 100,
         classId: classId || null,
         from: from || undefined,
         to: to || undefined,
@@ -134,6 +138,36 @@ export default function HistoriqueAppelPage() {
       `${row.first_name ?? ""} ${row.last_name ?? ""} ${row.student_id}`.toLowerCase().includes(value)
     )
   }, [rows, search])
+
+  const groupedCalls = useMemo(() => {
+    const groups = new Map<string, {
+      key: string
+      date: string
+      className: string
+      subjectName: string
+      teacherName: string
+      startsAt: string | null
+      endsAt: string | null
+      students: AttendanceHistory[]
+    }>()
+    for (const row of rows) {
+      const slot = row.timetable_slot_id ?? row.subject_id ?? "sans-cours"
+      const key = [row.attendance_date, row.class_id, slot].join("|")
+      const group = groups.get(key) ?? {
+        key,
+        date: row.attendance_date,
+        className: row.class_name ?? classOptions.find((item) => item.id === row.class_id)?.name ?? "Classe non renseignée",
+        subjectName: row.subject_name ?? "Matière non renseignée",
+        teacherName: [row.teacher_first_name, row.teacher_last_name].filter(Boolean).join(" ") || "Enseignant non renseigné",
+        startsAt: row.starts_at ?? null,
+        endsAt: row.ends_at ?? null,
+        students: [],
+      }
+      group.students.push(row)
+      groups.set(key, group)
+    }
+    return [...groups.values()].sort((a, b) => b.date.localeCompare(a.date) || a.className.localeCompare(b.className))
+  }, [classOptions, rows])
 
   const openEdit = (row: AttendanceHistory) => {
     setEditing(row)
@@ -221,6 +255,62 @@ export default function HistoriqueAppelPage() {
         </section>
 
         {message && <div className="mb-4 border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{message}</div>}
+
+        <section className="mb-6">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-semibold">Appels effectués</h2>
+              <p className="text-sm text-slate-500">Un récapitulatif par date, classe et cours.</p>
+            </div>
+            <span className="text-sm text-slate-500">{groupedCalls.length} appel(s) dans les résultats chargés</span>
+          </div>
+          {loading ? (
+            <div className="border px-4 py-6 text-center text-sm text-slate-500">Chargement des appels…</div>
+          ) : groupedCalls.length === 0 ? (
+            <div className="border px-4 py-6 text-sm text-slate-500">Aucun appel effectué pour cette classe et cette période.</div>
+          ) : (
+            <div className="space-y-2">
+              {groupedCalls.map((call) => {
+                const counts = call.students.reduce((acc, student) => {
+                  const status = student.status in labels ? student.status as Status : "present"
+                  acc[status] += 1
+                  return acc
+                }, { present: 0, absent: 0, late: 0, justified: 0, excused: 0 })
+                return (
+                  <details key={call.key} className="group border bg-white">
+                    <summary className="flex cursor-pointer list-none flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between [&::-webkit-details-marker]:hidden">
+                      <div className="min-w-0">
+                        <p className="font-semibold">{new Date(call.date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</p>
+                        <p className="text-sm text-slate-600">{call.className} · {call.subjectName}</p>
+                        <p className="text-xs text-slate-500">{call.startsAt && call.endsAt ? `${call.startsAt.slice(0,5)} – ${call.endsAt.slice(0,5)} · ` : ""}{call.teacherName}</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="border px-2 py-1">{call.students.length} élèves</span>
+                        <span className="bg-green-50 px-2 py-1 text-green-800">{counts.present} présents</span>
+                        <span className="bg-red-50 px-2 py-1 text-red-800">{counts.absent} absents</span>
+                        <span className="bg-amber-50 px-2 py-1 text-amber-800">{counts.late} retards</span>
+                        <span className="text-blue-700">Voir le détail⌄</span>
+                      </div>
+                    </summary>
+                    <div className="border-t bg-slate-50 p-3">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {call.students.map((student) => {
+                          const status = (student.status in labels ? student.status : "present") as Status
+                          return (
+                            <div key={student.id} className="flex min-w-0 items-center justify-between gap-2 border bg-white p-2 text-sm">
+                              <span className="min-w-0 truncate">{student.last_name ?? ""} {student.first_name ?? ""}</span>
+                              <span className={`shrink-0 border px-2 py-0.5 text-xs ${classes[status]}`}>{labels[status]}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </details>
+                )
+              })}
+            </div>
+          )}
+        </section>
         {error && <div className="mb-4 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>}
 
         <div className="mb-3 flex items-center justify-between text-sm text-slate-500">

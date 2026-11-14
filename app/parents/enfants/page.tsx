@@ -78,23 +78,23 @@ export default function ParentChildren() {
             >
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1.7fr)_1fr_1fr_auto] sm:items-center sm:gap-4">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-terre text-xs font-bold text-white">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-700 text-xs font-bold text-white">
                     {child.first_name?.[0] ?? ""}{child.last_name?.[0] ?? ""}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate font-semibold text-terre">{child.first_name} {child.last_name}</p>
-                    <p className="mt-0.5 text-xs text-pierre">{child.student_number ?? "Matricule non renseigné"}</p>
+                    <p className="truncate font-semibold text-slate-900">{child.first_name} {child.last_name}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{child.student_number ?? "Matricule non renseigné"}</p>
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-xs text-pierre sm:hidden">Classe</p>
+                  <p className="text-xs text-slate-500 sm:hidden">Classe</p>
                   <p className="text-sm text-slate-700">{child.class_name ?? "Classe non attribuée"}</p>
                   {child.funding_source && <p className="mt-1 text-xs text-slate-500">{child.funding_source === "state" ? "Prise en charge État" : child.funding_source === "other" ? "Exonération / organisme" : "À la charge de la famille"}</p>}
                 </div>
 
                 <div>
-                  <p className="text-xs text-pierre sm:hidden">Statut</p>
+                  <p className="text-xs text-slate-500 sm:hidden">Statut</p>
                   <Badge variant="outline">{child.active ? "Actif" : "Inactif"}</Badge>
                 </div>
 

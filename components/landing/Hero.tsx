@@ -13,6 +13,17 @@ export function Hero() {
     <section id="presentation" className="landing-hero relative isolate overflow-hidden">
       <div className="landing-hero-orb landing-hero-orb-one" aria-hidden="true" />
       <div className="landing-hero-orb landing-hero-orb-two" aria-hidden="true" />
+
+      {/* Animation signature de l'accueil : le sceau scolaire se révèle puis ses trois espaces gravitent autour. */}
+      <div className="landing-school-seal" aria-hidden="true">
+        <span className="landing-seal-ring landing-seal-ring-one" />
+        <span className="landing-seal-ring landing-seal-ring-two" />
+        <span className="landing-seal-orbit landing-seal-orbit-one"><i /></span>
+        <span className="landing-seal-orbit landing-seal-orbit-two"><i /></span>
+        <span className="landing-seal-orbit landing-seal-orbit-three"><i /></span>
+        <span className="landing-seal-core">GS</span>
+      </div>
+
       <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 pb-16 pt-14 sm:px-8 sm:pt-20 lg:grid-cols-[0.88fr_1.12fr] lg:gap-10 lg:pb-24 lg:pt-24">
         <Reveal className="max-w-2xl">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/90 px-3 py-1.5 text-xs font-semibold text-blue-800 shadow-sm">

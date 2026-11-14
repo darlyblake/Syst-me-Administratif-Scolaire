@@ -326,6 +326,7 @@ export default function HistoriqueAppelPage() {
             <p className="mt-1 text-sm text-slate-500">Modifiez la période ou la classe sélectionnée.</p>
           </div>
         ) : (
+          <>
           <div className="space-y-3 lg:hidden">
             {filteredRows.map((row) => {
               const status = (row.status in labels ? row.status : "present") as Status
@@ -391,6 +392,7 @@ export default function HistoriqueAppelPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         <div className="mt-4 flex items-center justify-between">

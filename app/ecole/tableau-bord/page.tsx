@@ -88,7 +88,7 @@ export default function PageTableauBord() {
       .finally(() => { if (active) setOverdueLoading(false) })
 
     return () => { active = false }
-  }, [establishmentId, activeYear?.id, permissionUser])
+  }, [establishmentId, activeYear?.id, can])
 
   const overdueSummary = useMemo(() => ({
     schedules: overdueSchedules.length,

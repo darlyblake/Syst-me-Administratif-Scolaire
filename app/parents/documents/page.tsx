@@ -71,7 +71,7 @@ export default function ParentDocuments() {
   }
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-5 sm:space-y-7">
       <ParentPageHeader eyebrow="Documents" title="Documents & bulletins" description="Bulletins, pièces réclamées et documents officiels." onRefresh={() => void refresh()} refreshing={loading} />
       {error && <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       
@@ -81,7 +81,7 @@ export default function ParentDocuments() {
         <>
           <div className="flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
             <ParentChildSelect children={allowed} value={childId} onChange={setChildId} />
-            <div className="relative w-full max-w-sm">
+            <div className="relative w-full sm:max-w-sm">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
               <Input value={query} onChange={e => setQuery(e.target.value)} className="pl-9" placeholder="Rechercher un document…" />
             </div>
@@ -90,12 +90,12 @@ export default function ParentDocuments() {
           {requests.length > 0 && (
             <div className="space-y-3">
               <h2 className="text-lg font-medium text-slate-900">Demandes de l'établissement</h2>
-              <div className="overflow-hidden border border-slate-200 bg-white divide-y divide-slate-200 rounded-lg shadow-sm">
+              <div className="overflow-hidden border-y border-slate-200 bg-white divide-y divide-slate-200 sm:border sm:rounded-lg">
                 {requests.map(r => {
                   const child = children.find(c => c.id === r.student_id)
                   return (
-                    <div key={r.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between bg-slate-50/50">
-                      <div className="flex items-start gap-3">
+                    <div key={r.id} className="flex flex-col gap-3 px-3 py-4 sm:px-5 sm:flex-row sm:items-start sm:justify-between bg-slate-50/50">
+                      <div className="flex min-w-0 items-start gap-3">
                         <FileUp className="h-5 w-5 text-indigo-500 mt-1" />
                         <div>
                           <div className="flex items-center gap-2">
@@ -137,7 +137,7 @@ export default function ParentDocuments() {
               {list.map(d => {
                 const child = children.find(c => c.id === d.student_id)
                 return (
-                  <div key={d.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center">
+                  <div key={d.id} className="flex flex-col gap-3 px-3 py-4 sm:flex-row sm:items-center sm:px-5">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-slate-900">{d.title}</p>
                       <p className="text-sm text-slate-500">{child?.first_name} {child?.last_name} · {d.document_type} · publié le {new Date(d.published_at).toLocaleDateString("fr-FR")}</p>

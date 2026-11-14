@@ -111,6 +111,7 @@ export default function RegistreAppelPage() {
   const [attendance, setAttendance] = useState<Record<string, AttendanceEntry>>({})
   const [lessonStates, setLessonStates] = useState<Record<string, LessonCallState>>({})
   const [search, setSearch] = useState("")
+  const [showSaveConfirmation, setShowSaveConfirmation] = useState(false)
   const [currentTime, setCurrentTime] = useState(() => new Date())
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -384,6 +385,7 @@ export default function RegistreAppelPage() {
   }, [search, students])
 
   const setStudentStatus = (studentId: string, status: AttendanceStatus) => {
+    setShowSaveConfirmation(false)
     setAttendance((current) => ({
       ...current,
       [studentId]: { status, reason: current[studentId]?.reason ?? "" },
@@ -391,11 +393,18 @@ export default function RegistreAppelPage() {
   }
 
   const markAllPresent = () => {
+    setShowSaveConfirmation(false)
     setAttendance((current) => {
       const next = { ...current }
       students.forEach((student) => { next[student.id] = { status: "present", reason: "" } })
       return next
     })
+  }
+
+  const requestSaveCall = () => {
+    setShowSaveConfirmation(true)
+    setMessage(null)
+    setError(null)
   }
 
   const saveCall = async () => {
@@ -439,6 +448,8 @@ export default function RegistreAppelPage() {
       )
 
       setMessage(`Appel enregistré pour ${selectedClass?.name} · ${selectedLesson.matiere} · ${selectedLesson.heureDebut}–${selectedLesson.heureFin}.`)
+      setShowSaveConfirmation(false)
+      setLessonStates((current) => ({ ...current, [selectedLesson.id]: { recordCount: students.length, status: "fait" } }))
       await loadCall()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'enregistrer l'appel.")
@@ -576,7 +587,7 @@ export default function RegistreAppelPage() {
               </div>
             </section>
 
-            <div className="mb-4 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-center md:justify-between">
+            <div className="sticky bottom-2 z-20 mb-4 flex flex-col gap-3 border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Saisie des présences</div>
                 <h2 className="mt-1 font-semibold">Appel · {selectedLesson?.matiere}</h2>
@@ -613,12 +624,32 @@ export default function RegistreAppelPage() {
                 <span className="border px-2.5 py-1 text-amber-700">Retards {counts.late}</span>
                 <span className="border px-2.5 py-1 text-blue-700">Justifiés {counts.justified}</span>
                 <Button variant="outline" size="sm" onClick={markAllPresent} disabled={!students.length || isSaving}>Tous présents</Button>
-                <Button size="sm" onClick={saveCall} disabled={!students.length || isSaving || !selectedSubject || !canRecordSelectedLesson}>
+                <Button size="sm" onClick={requestSaveCall} disabled={!students.length || isSaving || !selectedSubject || !canRecordSelectedLesson}>
                   <Save className="mr-2 h-4 w-4" />
                   {isSaving ? "Enregistrement…" : canManageAll && !selectedLessonIsCurrent ? "Rattraper l'appel" : "Enregistrer l'appel"}
                 </Button>
               </div>
             </div>
+
+            {showSaveConfirmation && (
+              <section className="mb-4 border border-blue-200 bg-blue-50 p-4" aria-live="polite">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="font-semibold text-slate-900">Vérification avant enregistrement</h3>
+                    <p className="mt-1 text-sm text-slate-700">
+                      {counts.total} élève(s) · {counts.present} présent(s) · {counts.absent} absent(s) · {counts.late} retard(s) · {counts.justified} justifié(s).
+                      Vérifiez les statuts : les parents concernés seront informés automatiquement.
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setShowSaveConfirmation(false)} disabled={isSaving}>Reprendre la saisie</Button>
+                    <Button size="sm" onClick={saveCall} disabled={isSaving || !canRecordSelectedLesson}>
+                      <Save className="mr-2 h-4 w-4" />{isSaving ? "Enregistrement…" : "Confirmer et enregistrer"}
+                    </Button>
+                  </div>
+                </div>
+              </section>
+            )}
 
             {isLoading ? (
               <div className="border px-6 py-12 text-center text-sm text-slate-500">Chargement des élèves…</div>
@@ -675,7 +706,7 @@ export default function RegistreAppelPage() {
                               </td>
                             ))}
                             <td className="px-3 py-3">
-                              <Input value={entry.reason} onChange={(event) => setAttendance((current) => ({ ...current, [student.id]: { ...entry, reason: event.target.value } }))} placeholder={entry.status === "present" ? "—" : "Motif"} disabled={entry.status === "present"} className="h-9 min-w-0" />
+                              <Input value={entry.reason} onChange={(event) => { setShowSaveConfirmation(false); setAttendance((current) => ({ ...current, [student.id]: { ...entry, reason: event.target.value } })) }} placeholder={entry.status === "present" ? "—" : "Motif"} disabled={entry.status === "present"} className="h-9 min-w-0" />
                             </td>
                           </tr>
                         )

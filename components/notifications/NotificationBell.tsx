@@ -40,6 +40,7 @@ function notificationPermission(notification: NotificationRecord): string {
     case "payment":
     case "expense":
     case "salary":
+    case "enrollment_option":
       return "finance.view"
     case "enrollment":
       return "inscriptions.view"
@@ -47,13 +48,16 @@ function notificationPermission(notification: NotificationRecord): string {
     case "parent_document_request":
     case "parent_document_publication":
       return "documents.view"
+    case "lesson":
+    case "homework":
+      return "classes.view"
     case "attendance_record":
     case "attendance_justification_request":
       return "attendance.view"
     case "school_event":
       return "events.view"
     case "support_request":
-      return "documents.view"
+      return "support.manage"
     case "grade":
     case "student_grade":
       return "grades.view"
@@ -85,7 +89,14 @@ export default function NotificationBell() {
     () => utilisateur ? { ...utilisateur, role: contexte?.account_type === "school_member" ? organizationRole : utilisateur.role, etablissementRole: organizationRole } : null,
     [utilisateur, contexte?.account_type, organizationRole],
   )
-  const canSeeNotification = useCallback((notification: NotificationRecord) => hasEffectiveSchoolPermission(permissionUser, notificationPermission(notification)), [permissionUser])
+  const canSeeNotification = useCallback(
+    (notification: NotificationRecord) => {
+      // Parents and teachers are already scoped by the corresponding Supabase RPC/RLS policy.
+      if (contexte?.account_type === "parent" || contexte?.account_type === "teacher") return true
+      return hasEffectiveSchoolPermission(permissionUser, notificationPermission(notification))
+    },
+    [contexte?.account_type, permissionUser],
+  )
   const [open, setOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [items, setItems] = useState<NotificationRecord[]>([])

@@ -139,7 +139,7 @@ export function ParentNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 hidden h-14 items-center justify-end gap-3 border-b border-slate-200 bg-white/95 px-6 backdrop-blur lg:flex">
+      <header className="sticky top-0 z-30 hidden h-14 items-center justify-end gap-3 border-b border-slate-200 bg-white/95 px-6 backdrop-blur lg:ml-64 lg:flex">
         <Link href="/parents/notifications" aria-label="Ouvrir les notifications" className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 hover:text-blue-700">
           <Bell className="h-[18px] w-[18px]" />
           {unreadNotifications > 0 && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}

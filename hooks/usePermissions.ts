@@ -81,6 +81,7 @@ export function usePermissions() {
           "enrollments:read": "enrollments.read",
           "enrollments:create": "enrollments.manage",
           "payments:read": "payments.view",
+          "tuition:read": "tuition.view",
           "payments:create": "payments.manage",
           "payments:update": "payments.manage",
           "attendance:read": "attendance.read",

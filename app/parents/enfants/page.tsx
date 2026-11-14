@@ -33,7 +33,7 @@ export default function ParentChildren() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <ParentPageHeader
         eyebrow="Famille"
         title="Mes enfants"
@@ -74,7 +74,7 @@ export default function ParentChildren() {
                   setSelectedChild(child)
                 }
               }}
-              className="group cursor-pointer border-b border-slate-100 px-5 py-4 outline-none transition-colors last:border-0 hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600"
+              className="group cursor-pointer border-b border-slate-100 px-3 py-4 sm:px-5 outline-none transition-colors last:border-0 hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600"
             >
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1.7fr)_1fr_1fr_auto] sm:items-center sm:gap-4">
                 <div className="flex min-w-0 items-center gap-3">
@@ -98,7 +98,7 @@ export default function ParentChildren() {
                   <Badge variant="outline">{child.active ? "Actif" : "Inactif"}</Badge>
                 </div>
 
-                <div className="flex flex-wrap gap-2 sm:justify-end" onClick={(event) => event.stopPropagation()}>
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end" onClick={(event) => event.stopPropagation()}>
                   <Button size="sm" variant="outline" asChild>
                     <Link href={`/parents/notes?eleve=${child.id}`}><GraduationCap className="mr-1.5 h-4 w-4" />Résultats</Link>
                   </Button>
@@ -144,12 +144,12 @@ export default function ParentChildren() {
                 <DetailRow label="Scolarité et paiements" value={selectedChild.can_view_finance ? "Autorisé" : "Limité"} />
               </div>
 
-              <div className="flex flex-wrap justify-end gap-2 pt-1">
-                <Button variant="outline" asChild>
+              <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+                <Button className="w-full sm:w-auto" variant="outline" asChild>
                   <Link href={`/parents/notes?eleve=${selectedChild.id}`}>Voir les résultats</Link>
                 </Button>
                 {selectedChild.can_view_finance && (
-                  <Button asChild>
+                  <Button className="w-full sm:w-auto" asChild>
                     <Link href={`/parents/paiements?eleve=${selectedChild.id}`}>Voir les paiements</Link>
                   </Button>
                 )}

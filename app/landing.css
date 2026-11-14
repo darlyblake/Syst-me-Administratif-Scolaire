@@ -117,3 +117,20 @@
     animation: none !important;
   }
 }
+
+
+/* Découverte interactive des espaces */
+#role-panel {
+  animation: landing-role-enter 260ms ease both;
+}
+@keyframes landing-role-enter {
+  from { opacity: .72; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+#roles [role="tab"]:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  #role-panel { animation: none; }
+}

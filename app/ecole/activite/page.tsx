@@ -112,48 +112,13 @@ export default function JournalActivitePage() {
     else setLoading(true)
     setError(null)
     try {
-      const { data, error: queryError } = await supabaseBrowser
-        .from("audit_logs")
-        .select("id, actor_id, action, entity_type, entity_id, metadata, created_at")
-        .eq("establishment_id", establishmentId)
-        .order("created_at", { ascending: false })
-        .limit(100)
-      if (queryError) throw queryError
-
-      const logs = (data ?? []) as ActivityRow[]
-      const targetIds = logs.flatMap((row) => {
-        const metadata = row.metadata ?? {}
-        return [metadata.target_user_id, metadata.user_id, metadata.target_id]
-          .filter((id): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id))
+      const { data, error: queryError } = await supabaseBrowser.rpc("list_audit_logs", {
+        p_establishment_id: establishmentId,
+        p_limit: 100,
+        p_from: null,
       })
-      const actorIds = Array.from(new Set([
-        ...logs.map((row) => row.actor_id),
-        ...targetIds,
-      ].filter((id): id is string => Boolean(id))))
-      let names = new Map<string, string>()
-      if (actorIds.length) {
-        const { data: profiles, error: profileError } = await supabaseBrowser
-          .from("profiles")
-          .select("id, first_name, last_name")
-          .in("id", actorIds)
-        if (profileError) throw profileError
-        names = new Map((profiles ?? []).map((profile: any) => [
-          profile.id,
-          [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim(),
-        ]))
-      }
-      setRows(logs.map((row) => {
-        const metadata = row.metadata ?? {}
-        const targetId = [metadata.target_user_id, metadata.user_id, metadata.target_id]
-          .find((id) => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id)) as string | undefined
-        return {
-          ...row,
-          actor_name: row.actor_id
-            ? (names.get(row.actor_id) || "Compte utilisateur")
-            : "Compte non identifié",
-          target_name: targetId ? names.get(targetId) || undefined : undefined,
-        }
-      }))
+      if (queryError) throw queryError
+      setRows((data ?? []) as ActivityRow[])
     } catch (e: any) {
       setError(e?.message || "Impossible de charger le journal d'activité.")
       setRows([])

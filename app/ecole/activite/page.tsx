@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ArrowLeft, History, RefreshCw, Search, UserRound } from "lucide-react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useUserContext } from "@/hooks/useUserContext"
+import { isEstablishmentAdmin } from "@/lib/organization/runtime-permissions"
 
 type ActivityRow = {
   id: string
@@ -93,6 +94,7 @@ const translateValue = (value: unknown) => {
 export default function JournalActivitePage() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
+  const canViewAudit = isEstablishmentAdmin({ etablissementRole: primaryEstablishment?.role })
   const [rows, setRows] = useState<ActivityRow[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -100,9 +102,10 @@ export default function JournalActivitePage() {
   const [search, setSearch] = useState("")
 
   const load = useCallback(async (manual = false) => {
-    if (!establishmentId) {
+    if (!establishmentId || !canViewAudit) {
       setRows([])
       setLoading(false)
+      setError(null)
       return
     }
     if (manual) setRefreshing(true)
@@ -158,9 +161,23 @@ export default function JournalActivitePage() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [establishmentId])
+  }, [establishmentId, canViewAudit])
 
   useEffect(() => { void load() }, [load])
+
+  if (!canViewAudit) {
+    return (
+      <div className="mx-auto max-w-3xl rounded border border-[#c5c5d3]/60 bg-white p-6">
+        <h1 className="text-lg font-semibold text-[#00236f]">Accès réservé à l’administrateur</h1>
+        <p className="mt-2 text-sm text-[#515f74]">
+          Le journal d’audit contient des informations sensibles sur les actions réalisées dans l’établissement.
+        </p>
+        <Link href="/ecole/tableau-bord" className="mt-4 inline-flex text-sm font-medium text-[#00236f] hover:underline">
+          Retour au tableau de bord
+        </Link>
+      </div>
+    )
+  }
 
   const filteredRows = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("fr")

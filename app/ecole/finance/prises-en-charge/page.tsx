@@ -111,7 +111,6 @@ export default function SuiviPrisesEnChargePage() {
           .from("sponsoring_organizations")
           .select("id,name,is_state,active")
           .eq("establishment_id", establishmentId)
-          .eq("active", true)
           .eq("is_state", false)
           .order("name"),
         supabaseBrowser
@@ -324,7 +323,7 @@ export default function SuiviPrisesEnChargePage() {
                 <tbody className="divide-y divide-slate-100">
                   {visibleOrganizations.map((item) => (
                     <tr key={item.organization.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium text-slate-900">{item.organization.name}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{item.organization.name}{!item.organization.active && <span className="ml-2 text-xs font-normal text-slate-500">(inactive)</span>}</td>
                       <td className="px-4 py-3 text-center tabular-nums">{item.students}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{formatAmount(item.due)}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-emerald-700">{formatAmount(item.paid)}</td>
@@ -353,7 +352,7 @@ export default function SuiviPrisesEnChargePage() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Fiche annuelle de l'organisation</p>
-              <h2 className="mt-1 text-xl font-semibold text-slate-900">{selectedOrganization.name}</h2>
+              <h2 className="mt-1 text-xl font-semibold text-slate-900">{selectedOrganization.name}{!selectedOrganization.active && <span className="ml-2 text-xs font-normal text-slate-500">(inactive)</span>}</h2>
               <p className="mt-1 text-sm text-slate-500">{selectedYear?.name ?? "Année scolaire active"}</p>
             </div>
             <div className="no-print flex flex-wrap gap-2">

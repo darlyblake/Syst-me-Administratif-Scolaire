@@ -23,13 +23,21 @@ export default function PageAccueil() {
       <PaymentWorkflow />
       <ScreenshotShowcase
         index={0}
-        title="Pilotez votre établissement"
-        description="Un tableau de bord intuitif pour gérer l'ensemble de votre établissement. Visualisez vos élèves, vos classes, vos enseignants et vos financements en un coup d'œil."
+        title="Une vue claire sur votre établissement"
+        description="Depuis le tableau de bord, l’administration retrouve rapidement les informations essentielles : effectifs, classes, activités et suivi de l’établissement."
+        imagePath="/captures/dashboard-admin.png"
       />
       <ScreenshotShowcase
         index={1}
-        title="Suivez les résultats en temps réel"
-        description="Les enseignants et les parents peuvent voir les notes, les présences et les devoirs instantanément. Plus de confusion, uniquement les informations pertinentes."
+        title="Un espace parent simple à consulter"
+        description="Les familles suivent la scolarité de leurs enfants au même endroit : informations scolaires, résultats, présences, documents et paiements."
+        imagePath="/captures/espace-parent.png"
+      />
+      <ScreenshotShowcase
+        index={2}
+        title="Les enseignants ont leurs propres outils"
+        description="L’espace enseignant facilite le suivi des classes, la saisie des notes, le registre d’appel et le cahier de textes."
+        imagePath="/captures/espace-enseignant.png"
       />
       <CTASection />
       <LandingFooter />

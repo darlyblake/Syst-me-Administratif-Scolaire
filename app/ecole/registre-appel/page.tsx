@@ -460,7 +460,7 @@ export default function RegistreAppelPage() {
 
   return (
     <main translate="no" className="min-h-screen bg-white text-slate-900">
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
+      <div className="w-full px-3 py-4 sm:px-5 lg:px-8">
         <div className="mb-6 flex flex-col gap-3 border-b pb-5 md:flex-row md:items-end md:justify-between">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Vie scolaire</div>
@@ -628,52 +628,101 @@ export default function RegistreAppelPage() {
                 <p className="mt-1 text-sm text-slate-500">Vérifiez l'année scolaire et les inscriptions.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto border">
-                <table className="min-w-[900px] w-full text-sm">
-                  <thead className="border-b bg-slate-50">
-                    <tr>
-                      <th className="w-12 px-3 py-3 text-left font-medium text-slate-500">N°</th>
-                      <th className="px-3 py-3 text-left font-medium text-slate-700">Élève</th>
-                      <th className="w-40 px-3 py-3 text-left font-medium text-slate-700">Matricule</th>
-                      <th className="px-3 py-3 text-left font-medium text-slate-700">Présence</th>
-                      <th className="w-64 px-3 py-3 text-left font-medium text-slate-700">Motif</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredStudents.map((student, index) => {
-                      const entry = attendance[student.id] ?? { status: "present" as AttendanceStatus, reason: "" }
-                      return (
-                        <tr key={student.id} className="border-b last:border-0 hover:bg-slate-50">
-                          <td className="px-3 py-3 text-slate-500">{index + 1}</td>
-                          <td className="px-3 py-3 font-medium">{student.last_name} {student.first_name}</td>
-                          <td className="px-3 py-3 text-slate-500">{student.student_number || "—"}</td>
-                          <td className="px-3 py-3">
-                            <div className="flex flex-wrap gap-1.5">
-                              {(Object.keys(statusLabels) as AttendanceStatus[]).map((status) => (
+              <>
+                {/* Vue ordinateur : chaque statut dispose de sa propre colonne, sans défilement horizontal. */}
+                <div className="hidden overflow-hidden border md:block">
+                  <table className="w-full table-fixed text-sm">
+                    <colgroup>
+                      <col className="w-14" />
+                      <col className="w-[20%]" />
+                      <col className="w-[18%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[9%]" />
+                      <col />
+                    </colgroup>
+                    <thead className="border-b bg-slate-50">
+                      <tr>
+                        <th className="px-3 py-3 text-left font-medium text-slate-500">N°</th>
+                        <th className="px-3 py-3 text-left font-medium text-slate-700">Élève</th>
+                        <th className="px-3 py-3 text-left font-medium text-slate-700">Matricule</th>
+                        <th className="px-2 py-3 text-center font-medium text-slate-700">Présent</th>
+                        <th className="px-2 py-3 text-center font-medium text-slate-700">Absent</th>
+                        <th className="px-2 py-3 text-center font-medium text-slate-700">Retard</th>
+                        <th className="px-2 py-3 text-center font-medium text-slate-700">Justifié</th>
+                        <th className="px-3 py-3 text-left font-medium text-slate-700">Motif</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredStudents.map((student, index) => {
+                        const entry = attendance[student.id] ?? { status: "present" as AttendanceStatus, reason: "" }
+                        return (
+                          <tr key={student.id} className="border-b last:border-0 hover:bg-slate-50">
+                            <td className="px-3 py-3 text-slate-500">{index + 1}</td>
+                            <td className="break-words px-3 py-3 font-medium">{student.last_name} {student.first_name}</td>
+                            <td className="break-all px-3 py-3 text-slate-500">{student.student_number || "—"}</td>
+                            {(Object.keys(statusLabels) as AttendanceStatus[]).map((status) => (
+                              <td key={status} className="px-1.5 py-3 text-center">
                                 <button
-                                  key={status}
                                   type="button"
+                                  aria-pressed={entry.status === status}
                                   onClick={() => setStudentStatus(student.id, status)}
-                                  className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs font-medium ${entry.status === status ? statusClasses[status] : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                                  className={`w-full rounded-md border px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${entry.status === status ? statusClasses[status] : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
                                 >
-                                  {status === "present" && <Check className="h-3.5 w-3.5" />}
-                                  {status === "absent" && <X className="h-3.5 w-3.5" />}
-                                  {status === "late" && <Clock className="h-3.5 w-3.5" />}
-                                  {status === "justified" && <UserCheck className="h-3.5 w-3.5" />}
                                   {statusLabels[status]}
                                 </button>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-3 py-3">
-                            <Input value={entry.reason} onChange={(event) => setAttendance((current) => ({ ...current, [student.id]: { ...entry, reason: event.target.value } }))} placeholder={entry.status === "present" ? "—" : "Motif"} disabled={entry.status === "present"} className="h-8" />
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                              </td>
+                            ))}
+                            <td className="px-3 py-3">
+                              <Input value={entry.reason} onChange={(event) => setAttendance((current) => ({ ...current, [student.id]: { ...entry, reason: event.target.value } }))} placeholder={entry.status === "present" ? "—" : "Motif"} disabled={entry.status === "present"} className="h-9 min-w-0" />
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Vue mobile : les quatre choix sont toujours visibles en grille 2 × 2. */}
+                <div className="grid grid-cols-1 gap-3 md:hidden">
+                  {filteredStudents.map((student, index) => {
+                    const entry = attendance[student.id] ?? { status: "present" as AttendanceStatus, reason: "" }
+                    return (
+                      <article key={student.id} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                        <div className="mb-3 flex min-w-0 items-start gap-3">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-600">{index + 1}</span>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="break-words text-sm font-semibold text-slate-900">{student.last_name} {student.first_name}</h3>
+                            <p className="mt-0.5 break-all text-xs text-slate-500">{student.student_number || "Matricule non renseigné"}</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(Object.keys(statusLabels) as AttendanceStatus[]).map((status) => (
+                            <button
+                              key={status}
+                              type="button"
+                              aria-pressed={entry.status === status}
+                              onClick={() => setStudentStatus(student.id, status)}
+                              className={`flex min-h-11 items-center justify-center gap-1.5 rounded-md border px-2 py-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${entry.status === status ? statusClasses[status] : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                            >
+                              {status === "present" && <Check className="h-4 w-4 shrink-0" />}
+                              {status === "absent" && <X className="h-4 w-4 shrink-0" />}
+                              {status === "late" && <Clock className="h-4 w-4 shrink-0" />}
+                              {status === "justified" && <UserCheck className="h-4 w-4 shrink-0" />}
+                              {statusLabels[status]}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="mt-3">
+                          <label className="mb-1 block text-xs font-medium text-slate-600">Motif</label>
+                          <Input value={entry.reason} onChange={(event) => setAttendance((current) => ({ ...current, [student.id]: { ...entry, reason: event.target.value } }))} placeholder={entry.status === "present" ? "Aucun motif nécessaire" : "Préciser le motif"} disabled={entry.status === "present"} className="h-10 min-w-0" />
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
+              </>
             )}
           </>
         )}

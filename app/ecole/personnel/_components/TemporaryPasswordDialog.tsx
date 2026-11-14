@@ -28,7 +28,7 @@ export function TemporaryPasswordDialog({ password, onClose }: TemporaryPassword
 
         <div className="py-4 space-y-4">
           <p className="text-sm text-gray-600">
-            Le compte a été configuré. Communiquez ce mot de passe temporaire à l'utilisateur — il devra le changer à sa première connexion.
+            Le mot de passe temporaire permet à l'utilisateur de retrouver l'accès à son compte. Transmettez-le par un canal sûr et invitez-le à le remplacer après sa connexion.
           </p>
 
           <div className="flex items-center justify-between gap-3 p-3 bg-gray-50 border border-gray-200 rounded-md">
@@ -50,7 +50,7 @@ export function TemporaryPasswordDialog({ password, onClose }: TemporaryPassword
           </div>
 
           <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-3 py-2">
-            ⚠️ Ce mot de passe ne sera affiché qu'une seule fois. Notez-le ou copiez-le maintenant.
+            Ce mot de passe ne sera affiché qu'une seule fois. Copiez-le et transmettez-le directement à l'utilisateur.
           </p>
         </div>
 

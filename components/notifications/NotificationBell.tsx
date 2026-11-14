@@ -58,7 +58,7 @@ function notificationPermission(notification: NotificationRecord): string {
     case "student_grade":
       return "grades.view"
     default:
-      return "dashboard.view"
+      return "notifications.unmapped"
   }
 }
 

@@ -91,7 +91,12 @@ function ProviderAuthentification({ children }: { children: React.ReactNode }) {
       if (!nextContext?.authenticated || !nextContext.account_type) {
         setUtilisateur(null); setContexte(null); setEtablissementActif(null); return
       }
-      appliquerContexte(nextContext, {
+      const contextWithMetadata = {
+        ...nextContext,
+        first_name: nextContext.first_name ?? (typeof session.user.user_metadata?.first_name === "string" ? session.user.user_metadata.first_name : null),
+        last_name: nextContext.last_name ?? (typeof session.user.user_metadata?.last_name === "string" ? session.user.user_metadata.last_name : null),
+      }
+      appliquerContexte(contextWithMetadata, {
         id: session.user.id,
         nomUtilisateur: nextContext.email ?? session.user.email ?? "",
         role: "enseignant",

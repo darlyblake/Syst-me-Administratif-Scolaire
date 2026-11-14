@@ -75,7 +75,7 @@ export default function HistoriqueAppelPage() {
             }))
         )
       ),
-    [academicStructure]
+    [academicStructure, isTeacher, teacherClassIds]
   )
 
   const [classId, setClassId] = useState("")

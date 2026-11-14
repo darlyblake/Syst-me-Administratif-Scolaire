@@ -5,64 +5,60 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --ink: #1B2A41;
-  --ink-deep: #111C2D;
-  --paper: #F7F2E6;
-  --paper-dim: #EFE7D4;
-  --gold: #B08D57;
-  --gold-light: #D6B87C;
-  --forest: #2F4B3C;
-  --forest-light: #3E6350;
-  --error: #B23B2E;
-  --line: #E1D6BC;
+  /* Palette NOVA — bleu institutionnel, blanc et gris clair */
+  --ink: #102B55;
+  --ink-deep: #0B1F3A;
+  --paper: #FFFFFF;
+  --paper-dim: #F4F7FC;
+  --gold: #1D4ED8;
+  --gold-light: #93C5FD;
+  --forest: #1E3A8A;
+  --forest-light: #2563EB;
+  --error: #B42318;
+  --line: #D9E2F0;
 
-  /* Palette École Vivante - valeurs concrètes, jamais transparentes */
-  --terre: #2F4B3C;
-  --terre-soft: #E6EEE9;
-  --terre-dark: #1B2A41;
-  --soleil: #B08D57;
-  --soleil-soft: #F1E4CC;
-  --jardin: #3E6350;
-  --ambre: #C9953B;
-  --rouge-terre: #B23B2E;
-  --creme: #EFE7D4;
-  --papier: #F7F2E6;
-  --encre: #1B2A41;
+  /* Alias historiques conservés pour éviter de casser les pages existantes. */
+  --terre: #1E3A8A;
+  --terre-soft: #EAF1FF;
+  --terre-dark: #102B55;
+  --soleil: #2563EB;
+  --soleil-soft: #DBEAFE;
+  --jardin: #2563EB;
+  --ambre: #B7791F;
+  --rouge-terre: #B42318;
+  --creme: #F4F7FC;
+  --papier: #FFFFFF;
+  --encre: #102B55;
   --pierre: #64748B;
 
-  /*
-   * Tokens sémantiques globaux.
-   * Ces variables alimentent bg-background, bg-card et bg-popover dans Tailwind v4.
-   * Elles doivent être définies dans le thème clair afin que les surfaces, notamment
-   * les modales, restent opaques.
-   */
-  --background: #F7F2E6;
-  --foreground: #1B2A41;
+  /* Tokens sémantiques partagés par Tailwind et les composants UI. */
+  --background: #FFFFFF;
+  --foreground: #172B4D;
   --card: #FFFFFF;
-  --card-foreground: #1B2A41;
+  --card-foreground: #172B4D;
   --popover: #FFFFFF;
-  --popover-foreground: #1B2A41;
-  --primary: #2F4B3C;
+  --popover-foreground: #172B4D;
+  --primary: #1E3A8A;
   --primary-foreground: #FFFFFF;
-  --secondary: #EFE7D4;
-  --secondary-foreground: #1B2A41;
-  --muted: #EFE7D4;
+  --secondary: #EEF3FB;
+  --secondary-foreground: #17345F;
+  --muted: #F4F7FC;
   --muted-foreground: #64748B;
-  --accent: #F1E4CC;
-  --accent-foreground: #1B2A41;
-  --destructive: #B23B2E;
+  --accent: #EAF1FF;
+  --accent-foreground: #17345F;
+  --destructive: #B42318;
   --destructive-foreground: #FFFFFF;
-  --border: #E1D6BC;
-  --input: #E1D6BC;
-  --ring: #B08D57;
-  --sidebar: #1B2A41;
-  --sidebar-foreground: #F7F2E6;
-  --sidebar-primary: #B08D57;
-  --sidebar-primary-foreground: #1B2A41;
-  --sidebar-accent: #2F4B3C;
-  --sidebar-accent-foreground: #F7F2E6;
-  --sidebar-border: #33455C;
-  --sidebar-ring: #B08D57;
+  --border: #D9E2F0;
+  --input: #CBD5E1;
+  --ring: #2563EB;
+  --sidebar: #102B55;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: #60A5FA;
+  --sidebar-primary-foreground: #102B55;
+  --sidebar-accent: #1E3A8A;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #29466F;
+  --sidebar-ring: #60A5FA;
 }
 
 .login-shell {
@@ -1033,34 +1029,34 @@
     animation-duration: 0.01ms !important;
   }
 }
- .dark {
-  --background: var(--terre-dark);
-  --foreground: var(--papier);
-  --card: var(--terre-dark);
-  --card-foreground: var(--papier);
-  --popover: var(--terre-dark);
-  --popover-foreground: var(--papier);
-  --primary: var(--soleil);
-  --primary-foreground: var(--terre-dark);
-  --secondary: var(--terre);
-  --secondary-foreground: var(--papier);
-  --muted: var(--terre);
-  --muted-foreground: var(--pierre);
-  --accent: var(--soleil);
-  --accent-foreground: var(--terre-dark);
-  --destructive: var(--rouge-terre);
-  --destructive-foreground: var(--papier);
-  --border: #52645B;
-  --input: #52645B;
-  --ring: var(--soleil);
-  --sidebar: var(--terre-dark);
-  --sidebar-foreground: var(--papier);
-  --sidebar-primary: var(--soleil);
-  --sidebar-primary-foreground: var(--terre-dark);
-  --sidebar-accent: var(--terre);
-  --sidebar-accent-foreground: var(--papier);
-  --sidebar-border: var(--terre);
-  --sidebar-ring: var(--soleil);
+.dark {
+  --background: #0B1F3A;
+  --foreground: #F8FAFC;
+  --card: #102B55;
+  --card-foreground: #F8FAFC;
+  --popover: #102B55;
+  --popover-foreground: #F8FAFC;
+  --primary: #60A5FA;
+  --primary-foreground: #0B1F3A;
+  --secondary: #17345F;
+  --secondary-foreground: #F8FAFC;
+  --muted: #17345F;
+  --muted-foreground: #B6C5D9;
+  --accent: #1E3A8A;
+  --accent-foreground: #FFFFFF;
+  --destructive: #F87171;
+  --destructive-foreground: #0B1F3A;
+  --border: #29466F;
+  --input: #355579;
+  --ring: #60A5FA;
+  --sidebar: #081A33;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #60A5FA;
+  --sidebar-primary-foreground: #0B1F3A;
+  --sidebar-accent: #17345F;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #29466F;
+  --sidebar-ring: #60A5FA;
 }
 
 @theme inline {
@@ -1185,7 +1181,7 @@
 .ecole-shell .text-terre { color: #00236f !important; }
 .ecole-shell .text-encre { color: #131b2e !important; }
 .ecole-shell .text-pierre { color: #515f74 !important; }
-.ecole-shell .text-jardin { color: #005049 !important; }
+.ecole-shell .text-jardin { color: #2563eb !important; }
 .ecole-shell .text-ambre { color: #7a5600 !important; }
 .ecole-shell .text-rouge-terre { color: #ba1a1a !important; }
 .ecole-shell .bg-terre { background-color: #00236f !important; }

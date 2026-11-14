@@ -16,16 +16,25 @@ const ROLE_DEFAULTS: Record<string, string[]> = {
   directeur_general: ["dashboard.view", "students.view", "students.edit", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "documents.view", "documents.create", "staff.view", "finance.view"],
   directorgeneral: ["dashboard.view", "students.view", "students.edit", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "documents.view", "documents.create", "staff.view", "finance.view"],
   accountant: ["dashboard.view", "students.view", "payments.view", "payments.create", "finance.view"],
+  comptable: ["dashboard.view", "students.view", "payments.view", "payments.create", "finance.view"],
   secretary: ["dashboard.view", "students.view", "students.create", "students.edit", "inscriptions.view", "inscriptions.create", "documents.view", "documents.create"],
+  secretaire: ["dashboard.view", "students.view", "students.create", "students.edit", "inscriptions.view", "inscriptions.create", "documents.view", "documents.create"],
   teacher: ["dashboard.view", "students.view", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "classes.view", "timetable.view"],
+  enseignant: ["dashboard.view", "students.view", "attendance.view", "attendance.manage", "grades.view", "grades.manage", "classes.view", "timetable.view"],
   supervisor: ["dashboard.view", "students.view", "attendance.view", "attendance.manage", "documents.view", "documents.create", "exclusions.create"],
+  surveillant: ["dashboard.view", "students.view", "attendance.view", "attendance.manage", "documents.view", "documents.create", "exclusions.create"],
 }
 
 export function hasEffectiveSchoolPermission(user: RuntimeSchoolUser | null | undefined, permission: string): boolean {
   if (!user || user.status === "inactive" || user.status === "suspended") return false
   // Pour un compte d'établissement, le rôle métier doit primer sur le rôle
   // global `ecole`. Cela évite de présenter une navigation vide aux owners.
-  const effectiveRole = user.etablissementRole ?? user.role ?? ""
+  const effectiveRole = (user.etablissementRole ?? user.role ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[ -]+/g, "_")
   const granted = new Set([...(ROLE_DEFAULTS[effectiveRole] ?? []), ...(user.permissions ?? [])])
   const revoked = new Set(user.revoked_permissions ?? [])
   // Une révocation individuelle doit aussi primer sur les rôles qui disposent de "*".

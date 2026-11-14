@@ -32,6 +32,7 @@ export function FinanceMovements() {
     if (raw.startsWith("INSCRIPTION-")) return `INS-${shortId}`
     if (raw.startsWith("SCOLARITE-")) return `SCO-${shortId}`
     if (movement.source_type === "student_payment") return `SCO-${shortId}`
+    if (movement.source_type === "organization_payment") return `ORG-${shortId}`
     if (movement.source_type?.toLowerCase().includes("expense") || movement.source_type?.toLowerCase().includes("depense")) return `DEP-${shortId}`
     if (movement.source_type?.toLowerCase().includes("payroll") || movement.source_type?.toLowerCase().includes("paie")) return `SAL-${shortId}`
     if (raw) return raw.length > 16 ? `${raw.slice(0, 13)}...` : raw
@@ -43,6 +44,7 @@ export function FinanceMovements() {
     if (raw.startsWith("INSCRIPTION-")) return "Inscription"
     if (raw.startsWith("SCOLARITE-")) return "Scolarité"
     if (movement.source_type === "student_payment") return "Versement scolarité"
+    if (movement.source_type === "organization_payment") return "Versement global organisation"
     if (movement.source_type?.toLowerCase().includes("expense") || movement.source_type?.toLowerCase().includes("depense")) return "Dépense"
     if (movement.source_type?.toLowerCase().includes("payroll") || movement.source_type?.toLowerCase().includes("paie")) return "Paie"
     return movement.description || "Mouvement de caisse"
@@ -183,8 +185,18 @@ export function FinanceMovements() {
                   <div><p className="text-xs text-gray-500">Type</p><p className="mt-1 font-medium">{isEntry(selectedMovement) ? "Entrée" : "Sortie"}</p></div>
                   <div><p className="text-xs text-gray-500">Montant</p><p className={isEntry(selectedMovement) ? "mt-1 font-semibold text-green-600" : "mt-1 font-semibold text-red-600"}>{isEntry(selectedMovement) ? "+" : "-"} {Math.abs(Number(selectedMovement.amount || 0)).toLocaleString("fr-FR")} FCFA</p></div>
                   <div><p className="text-xs text-gray-500">Référence</p><p className="mt-1 font-medium">{getReference(selectedMovement)}</p></div>
-                  <div><p className="text-xs text-gray-500">Mode</p><p className="mt-1 font-medium">{movementDetails?.payment?.method || "-"}</p></div>
+                  <div><p className="text-xs text-gray-500">Mode</p><p className="mt-1 font-medium">{movementDetails?.payment?.method || movementDetails?.organizationPayment?.method || "-"}</p></div>
                 </div>
+                {movementDetails?.kind === "organization_payment" && movementDetails.organizationPayment && <div className="rounded-lg border p-4">
+                  <h3 className="mb-3 text-sm font-semibold text-gray-900">Versement global de l'organisation</h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div><p className="text-xs text-gray-500">Organisation</p><p className="mt-1 font-medium">{movementDetails.organization?.name || "Organisation"}</p></div>
+                    <div><p className="text-xs text-gray-500">Année scolaire</p><p className="mt-1 font-medium">{movementDetails.academicYear?.name || "-"}</p></div>
+                    <div><p className="text-xs text-gray-500">Date du versement</p><p className="mt-1 font-medium">{movementDetails.organizationPayment.payment_date ? new Date(movementDetails.organizationPayment.payment_date).toLocaleDateString("fr-FR") : "-"}</p></div>
+                    <div><p className="text-xs text-gray-500">Référence</p><p className="mt-1 font-medium">{movementDetails.organizationPayment.reference || "-"}</p></div>
+                    {movementDetails.organizationPayment.notes && <div className="sm:col-span-2"><p className="text-xs text-gray-500">Observation</p><p className="mt-1 font-medium">{movementDetails.organizationPayment.notes}</p></div>}
+                  </div>
+                </div>}
                 {movementDetails?.kind === "student_payment" && <>
                   <div><h3 className="mb-3 text-sm font-semibold text-gray-900">Élève concerné</h3><div className="grid grid-cols-1 gap-3 rounded-lg border p-4 sm:grid-cols-3">
                     <div><p className="text-xs text-gray-500">Élève</p><p className="mt-1 font-medium">{movementDetails.student ? `${movementDetails.student.first_name} ${movementDetails.student.last_name}` : "-"}</p></div>

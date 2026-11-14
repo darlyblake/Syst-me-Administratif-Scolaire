@@ -8,23 +8,55 @@ import {
   type Permission,
   type PermissionScope,
 } from "@/types/authorization"
+import { hasEffectiveSchoolPermission, isEstablishmentAdmin } from "@/lib/organization/runtime-permissions"
 
-/**
- * Façade unique des autorisations côté interface.
- * Les composants demandent une permission sans connaître la matrice des rôles.
- */
+const SCHOOL_PERMISSION_MAP: Record<Permission, string> = {
+  "personnel.view": "staff.view",
+  "personnel.create": "staff.manage",
+  "personnel.edit": "staff.manage",
+  "personnel.delete": "staff.manage",
+  "enseignants.view": "teachers.view",
+  "enseignants.create": "teachers.manage",
+  "enseignants.edit": "teachers.manage",
+  "enseignants.assign": "teachers.manage",
+  "enseignants.delete": "teachers.manage",
+  "planning.view": "classes.view",
+  "planning.manage": "classes.manage",
+  "pointage.view": "attendance.view",
+  "pointage.manage": "attendance.manage",
+  "documents.view": "documents.view",
+  "documents.manage": "documents.manage",
+  "salaires.view": "staff.view",
+  "salaires.manage": "staff.manage",
+  "rapports.view": "reports.view",
+  "classes.view": "classes.view",
+  "classes.manage": "classes.manage",
+  "profile.view": "profile.view",
+  "profile.edit": "profile.edit",
+}
+
+/** Façade d'autorisation : pour le personnel, les droits viennent du rôle configuré et des droits individuels. */
 export function usePermissions() {
-  const { utilisateur } = useAuthentification()
-
+  const { utilisateur, contexte } = useAuthentification()
   const role = useMemo(() => normalizeRole(utilisateur?.role), [utilisateur?.role])
+  const schoolUser = useMemo(() => utilisateur ? {
+    ...utilisateur,
+    etablissementRole: (utilisateur as { etablissementRole?: string }).etablissementRole,
+    permissions: (utilisateur as { permissions?: string[] }).permissions ?? [],
+    revoked_permissions: (utilisateur as { revoked_permissions?: string[] }).revoked_permissions ?? [],
+  } : null, [utilisateur])
 
   const can = useCallback(
-    (permission: Permission, scope?: PermissionScope) =>
-      checkPermission(utilisateur?.role, permission, scope),
-    [utilisateur?.role],
+    (permission: Permission, scope?: PermissionScope) => {
+      if (contexte?.account_type === "school_member") {
+        if (permission.startsWith("profile.")) return true
+        return hasEffectiveSchoolPermission(schoolUser, SCHOOL_PERMISSION_MAP[permission])
+      }
+      return checkPermission(utilisateur?.role, permission, scope)
+    },
+    [contexte?.account_type, schoolUser, utilisateur?.role],
   )
 
-  // Compatibilité avec l'ancienne API utilisée par certains écrans.
   const hasPermission = useCallback(
     (resource: string, action: string) => {
       const map: Record<string, Permission> = {
@@ -43,7 +75,6 @@ export function usePermissions() {
         "reports:read": "rapports.view",
         "students:read": "classes.view",
       }
-
       const permission = map[`${resource}:${action}`]
       return permission ? can(permission) : false
     },
@@ -55,20 +86,22 @@ export function usePermissions() {
       permissions.every(({ resource, action }) => hasPermission(resource, action)),
     [hasPermission],
   )
-
   const hasAnyPermission = useCallback(
     (permissions: Array<{ resource: string; action: string }>) =>
       permissions.some(({ resource, action }) => hasPermission(resource, action)),
     [hasPermission],
   )
+  const admin = contexte?.account_type === "school_member"
+    ? isEstablishmentAdmin(schoolUser)
+    : role === "admin"
 
   return {
     role,
     can,
     hasPermission,
     hasAllPermissions,
-    hasAnyPermission,
-    isAdmin: role === "admin",
+    hasAnyPermissions: hasAnyPermissions,
+    isAdmin: admin,
     isTeacher: role === "enseignant",
     isStudent: role === "eleve",
     canAccessResource: (resource: string) => hasPermission(resource, "read"),

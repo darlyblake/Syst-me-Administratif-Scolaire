@@ -512,7 +512,7 @@ export function FinanceScolarite({ mode = "school" }: { mode?: "school" | "optio
               <tr key={student.enrollment_id} className="hover:bg-gray-50">
                 <td className="sticky left-0 z-10 border-r border-gray-100 bg-white px-3 py-3">
                   <button type="button" className="w-full text-left hover:text-[#00236f]"
-                    onClick={() => setSelectedStudentForDetails({ student: student.student, class: student.class, schedules: student.schedules })}>
+                    onClick={() => setSelectedStudentForDetails({ student: student.student, class: student.class, schedules: student.schedules.filter((schedule) => mode === "options" ? schedule.category?.toLowerCase() === "option" : schedule.category?.toLowerCase() !== "option") })}>
                     <div className="max-w-[200px] truncate font-medium text-gray-900">
                       {student.student ? `${student.student.first_name} ${student.student.last_name}` : "Élève inconnu"}
                     </div>

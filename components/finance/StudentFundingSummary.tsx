@@ -29,7 +29,6 @@ export function StudentFundingSummary({ schedules, currency = "FCFA" }: Props) {
   const familyPaid = totalFor(schedules, "family", "paid")
   const stateExpected = totalFor(schedules, "state", "due")
   const statePaid = totalFor(schedules, "state", "paid")
-  const otherExpected = totalFor(schedules, "other", "due")
   const caution = schedules.filter(x => x.category === "caution")
   const cautionPaid = caution.reduce((s, x) => s + Number(x.amount_paid || 0), 0)
 
@@ -46,7 +45,7 @@ export function StudentFundingSummary({ schedules, currency = "FCFA" }: Props) {
         </CardContent>
       </Card>
 
-      <Card className="border-emerald-200">
+      {stateExpected > 0 && <Card className="border-emerald-200">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base"><Building2 className="h-5 w-5 text-emerald-600" /> Prise en charge par l'État</CardTitle>
         </CardHeader>
@@ -55,17 +54,7 @@ export function StudentFundingSummary({ schedules, currency = "FCFA" }: Props) {
           <p className="mt-1 text-sm text-muted-foreground">Financement restant à recevoir</p>
           {stateExpected > 0 && <Badge variant="outline" className="mt-3"><ShieldCheck className="mr-1 h-3 w-3" /> Ne constitue pas une dette parentale</Badge>}
         </CardContent>
-      </Card>
-
-      {otherExpected > 0 && (
-        <div className="border border-amber-200 bg-white px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-sm font-medium text-slate-800">Exonération / autre organisme</span>
-            <span className="font-semibold text-slate-900">{money(otherExpected, currency)}</span>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">Montant exclu de la dette de la famille.</p>
-        </div>
-      )}
+      </Card>}
 
       {caution.length > 0 && (
         <Card className="md:col-span-2 border-amber-200">

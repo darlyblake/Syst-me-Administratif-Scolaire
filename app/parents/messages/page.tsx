@@ -89,7 +89,7 @@ export default function ParentsMessagesPage() {
                 <button
                   key={conversation.id}
                   type="button"
-                  onClick={() => setSelectedId(conversation.id)}
+                  onClick={() => { setSelectedId(conversation.id); setShowConversationList(false) }}
                   className={`w-full border-l-2 px-5 py-4 text-left transition-colors ${
                     selectedId === conversation.id
                       ? "border-blue-700 bg-blue-50"

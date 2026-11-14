@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, Building2, Printer, RefreshCw, Search, Users, Wallet } from "lucide-react"
+import { ArrowLeft, Building2, Printer, RefreshCw, Search, Wallet } from "lucide-react"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { supabaseBrowser } from "@/lib/supabase/client"
@@ -425,60 +425,54 @@ export default function SuiviPrisesEnChargePage() {
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="border border-slate-200 bg-white p-4">
-              <p className="text-xs text-slate-500">Montant annuel dû</p>
-              <p className="mt-1 text-lg font-semibold tabular-nums">{formatAmount(selectedSummary.due)}</p>
+          <div className="grid grid-cols-1 divide-y divide-slate-200 border-y border-slate-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            <div className="flex items-center justify-between gap-3 py-3 sm:px-4">
+              <span className="text-sm text-slate-600">Montant annuel dû</span>
+              <span className="text-sm font-medium tabular-nums text-slate-900">{formatAmount(selectedSummary.due)}</span>
             </div>
-            <div className="border border-slate-200 bg-white p-4">
-              <p className="text-xs text-slate-500">Total versé</p>
-              <p className="mt-1 text-lg font-semibold tabular-nums text-emerald-700">{formatAmount(selectedSummary.paid)}</p>
+            <div className="flex items-center justify-between gap-3 py-3 sm:px-4">
+              <span className="text-sm text-slate-600">Total versé</span>
+              <span className="text-sm font-medium tabular-nums text-slate-900">{formatAmount(selectedSummary.paid)}</span>
             </div>
-            <div className="border border-slate-200 bg-white p-4">
-              <p className="text-xs text-slate-500">Reste à payer par l'organisation</p>
-              <p className="mt-1 text-lg font-semibold tabular-nums text-amber-700">{formatAmount(selectedSummary.remaining)}</p>
+            <div className="flex items-center justify-between gap-3 py-3 sm:px-4">
+              <span className="text-sm text-slate-600">Reste à payer</span>
+              <span className="text-sm font-medium tabular-nums text-slate-900">{formatAmount(selectedSummary.remaining)}</span>
             </div>
           </div>
 
-          <nav aria-label="Sections de la fiche organisation" className="grid grid-cols-1 gap-2 border-b border-slate-200 pb-3 sm:grid-cols-3">
+          <nav aria-label="Sections de la fiche organisation" className="flex gap-6 overflow-x-auto border-b border-slate-200">
             <button
-              key="students"
               id="organization-tab-students"
               type="button"
               role="tab"
               aria-selected={activeTab === "students"}
               aria-controls="organization-tabpanel-students"
               onClick={() => setActiveTab("students")}
-              className={`flex min-h-12 items-center justify-between gap-2 border px-3 py-2 text-left text-sm transition-colors ${activeTab === "students" ? "border-blue-700 bg-blue-50 font-semibold text-blue-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+              className={`shrink-0 border-b-2 px-1 py-3 text-sm transition-colors ${activeTab === "students" ? "border-blue-700 font-medium text-blue-800" : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900"}`}
             >
-              <span className="flex items-center gap-2"><Users className="h-4 w-4" /><span>Élèves couverts par l'organisation</span></span>
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${activeTab === "students" ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>{coveredStudents.length}</span>
+              Élèves couverts <span className="ml-1 text-xs text-slate-500">({coveredStudents.length})</span>
             </button>
             <button
-              key="history"
               id="organization-tab-history"
               type="button"
               role="tab"
               aria-selected={activeTab === "history"}
               aria-controls="organization-tabpanel-history"
               onClick={() => setActiveTab("history")}
-              className={`flex min-h-12 items-center justify-between gap-2 border px-3 py-2 text-left text-sm transition-colors ${activeTab === "history" ? "border-blue-700 bg-blue-50 font-semibold text-blue-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+              className={`shrink-0 border-b-2 px-1 py-3 text-sm transition-colors ${activeTab === "history" ? "border-blue-700 font-medium text-blue-800" : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900"}`}
             >
-              <span className="flex items-center gap-2"><RefreshCw className="h-4 w-4" /><span>Historique annuel de la prise en charge</span></span>
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${activeTab === "history" ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>{organizationYearHistory.length}</span>
+              Historique annuel <span className="ml-1 text-xs text-slate-500">({organizationYearHistory.length})</span>
             </button>
             <button
-              key="payments"
               id="organization-tab-payments"
               type="button"
               role="tab"
               aria-selected={activeTab === "payments"}
               aria-controls="organization-tabpanel-payments"
               onClick={() => setActiveTab("payments")}
-              className={`flex min-h-12 items-center justify-between gap-2 border px-3 py-2 text-left text-sm transition-colors ${activeTab === "payments" ? "border-blue-700 bg-blue-50 font-semibold text-blue-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+              className={`shrink-0 border-b-2 px-1 py-3 text-sm transition-colors ${activeTab === "payments" ? "border-blue-700 font-medium text-blue-800" : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900"}`}
             >
-              <span className="flex items-center gap-2"><Wallet className="h-4 w-4" /><span>Détail des versements globaux</span></span>
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${activeTab === "payments" ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>{selectedPayments.length}</span>
+              Versements globaux <span className="ml-1 text-xs text-slate-500">({selectedPayments.length})</span>
             </button>
           </nav>
           <div className="min-w-0">

@@ -14,6 +14,7 @@ const AVAILABLE_MODULES = [
   { id: 'dashboard', label: 'Tableau de bord' },
   { id: 'students', label: 'Élèves' },
   { id: 'inscriptions', label: 'Inscriptions' },
+  { id: 'tuition.view', label: 'Voir les tarifs de scolarité' },
   { id: 'classes', label: 'Classes' },
   { id: 'teachers', label: 'Enseignants' },
   { id: 'notes', label: 'Notes' },
@@ -168,7 +169,7 @@ export default function RolesTab() {
           <h2 className="mt-2 text-lg font-semibold text-gray-900">
             {editingRole ? `Modifier « ${editingRole.role.name} »` : 'Nouveau rôle'}
           </h2>
-          <p className="text-sm text-gray-500">Définissez les modules accessibles pour ce rôle.</p>
+          <p className="text-sm text-gray-500">Définissez les modules accessibles pour ce rôle. La consultation des tarifs peut être autorisée sans donner accès aux paiements.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

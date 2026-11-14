@@ -33,7 +33,7 @@ export function hasEffectiveSchoolPermission(user: RuntimeSchoolUser | null | un
     .trim()
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[ -]+/g, "_")
   const granted = new Set([...(ROLE_DEFAULTS[effectiveRole] ?? []), ...(user.permissions ?? [])])
   const revoked = new Set(user.revoked_permissions ?? [])

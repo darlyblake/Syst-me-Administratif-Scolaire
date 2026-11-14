@@ -176,7 +176,7 @@ export function ParentNav() {
 
       {open && <div className="fixed inset-0 z-50 bg-slate-950/35 lg:hidden" onClick={() => setOpen(false)}>
         <aside className="flex h-full w-[min(320px,88vw)] max-w-full flex-col overflow-hidden bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-          <div className="mb-5 flex min-w-0 items-center justify-between gap-3"><User compact /><Button variant="ghost" size="icon" className="shrink-0 rounded-lg" onClick={() => setOpen(false)} aria-label="Fermer"><X className="h-5 w-5" /></Button></div>
+          <div className="mb-5 flex min-w-0 items-center justify-between gap-3"><Link href="/parents/profil" onClick={() => setOpen(false)} className="min-w-0 rounded-lg hover:bg-slate-50"><User compact /></Link><Button variant="ghost" size="icon" className="shrink-0 rounded-lg" onClick={() => setOpen(false)} aria-label="Fermer"><X className="h-5 w-5" /></Button></div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain"><Nav close /></div>
           <Button variant="outline" className="mt-4 w-full shrink-0 rounded-lg" onClick={() => void logout()} disabled={loggingOut}><LogOut className="mr-2 h-4 w-4" />{loggingOut ? "Déconnexion…" : "Déconnexion"}</Button>
         </aside>

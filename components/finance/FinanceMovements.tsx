@@ -23,6 +23,18 @@ export function FinanceMovements() {
   const [detailsLoading, setDetailsLoading] = useState(false)
   const [detailsError, setDetailsError] = useState<string | null>(null)
 
+  const paymentMethodName = (method?: string | null) => {
+    const labels: Record<string, string> = {
+      cash: "Espèces",
+      bank_transfer: "Virement bancaire",
+      transfer: "Virement bancaire",
+      mobile_money: "Mobile Money",
+      cheque: "Chèque",
+      check: "Chèque",
+    }
+    return method ? labels[method.toLowerCase()] || method : "-"
+  }
+
   const isEntry = (movement: FinanceMovementRow) => movement.direction === "credit"
 
   const getReference = (movement: FinanceMovementRow) => {
@@ -185,7 +197,7 @@ export function FinanceMovements() {
                   <div><p className="text-xs text-gray-500">Type</p><p className="mt-1 font-medium">{isEntry(selectedMovement) ? "Entrée" : "Sortie"}</p></div>
                   <div><p className="text-xs text-gray-500">Montant</p><p className={isEntry(selectedMovement) ? "mt-1 font-semibold text-green-600" : "mt-1 font-semibold text-red-600"}>{isEntry(selectedMovement) ? "+" : "-"} {Math.abs(Number(selectedMovement.amount || 0)).toLocaleString("fr-FR")} FCFA</p></div>
                   <div><p className="text-xs text-gray-500">Référence</p><p className="mt-1 font-medium">{getReference(selectedMovement)}</p></div>
-                  <div><p className="text-xs text-gray-500">Mode</p><p className="mt-1 font-medium">{movementDetails?.payment?.method || movementDetails?.organizationPayment?.method || "-"}</p></div>
+                  <div><p className="text-xs text-gray-500">Mode</p><p className="mt-1 font-medium">{paymentMethodName(movementDetails?.payment?.method || movementDetails?.organizationPayment?.method)}</p></div>
                 </div>
                 {movementDetails?.kind === "organization_payment" && movementDetails.organizationPayment && <div className="rounded-lg border p-4">
                   <h3 className="mb-3 text-sm font-semibold text-gray-900">Versement global de l'organisation</h3>

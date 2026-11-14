@@ -6,7 +6,7 @@
 
 .login-shell.login-shell--book::before {
   background-image:
-    radial-gradient(circle at 50% 48%, rgba(214, 184, 124, .12), transparent 34%),
+    radial-gradient(circle at 50% 48%, rgba(147, 197, 253, .12), transparent 34%),
     radial-gradient(rgba(255, 255, 255, .035) 1px, transparent 1px);
   background-size: auto, 26px 26px;
 }
@@ -101,7 +101,7 @@
   position: absolute;
   inset: 8px 4px;
   border-radius: 8px;
-  background: repeating-linear-gradient(180deg, rgba(214,184,124,.35) 0 2px, transparent 2px 15px);
+  background: repeating-linear-gradient(180deg, rgba(147,197,253,.35) 0 2px, transparent 2px 15px);
 }
 
 .login-book-page {
@@ -109,9 +109,9 @@
   bottom: 22px;
   width: calc(50% - 12px);
   padding: 36px 38px;
-  border: 1px solid #e1d6bc;
+  border: 1px solid #D9E2F0;
   border-radius: 3px 15px 15px 3px;
-  background: #f7f2e6;
+  background: #FFFFFF;
   box-shadow: 0 3px 7px rgba(0,0,0,.14), 0 22px 48px rgba(0,0,0,.28);
   overflow: hidden;
   opacity: 0;
@@ -175,9 +175,9 @@
   border: 1px solid #0c1727;
   border-radius: 7px 17px 17px 7px;
   background:
-    radial-gradient(circle at 30% 20%, rgba(214,184,124,.13), transparent 48%),
+    radial-gradient(circle at 30% 20%, rgba(147,197,253,.13), transparent 48%),
     linear-gradient(155deg, #29415e 0%, #1b2d45 48%, #101b2b 100%);
-  color: #f7f2e6;
+  color: #FFFFFF;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -196,7 +196,7 @@
   content: "";
   position: absolute;
   inset: 13px;
-  border: 1px solid rgba(214,184,124,.55);
+  border: 1px solid rgba(147,197,253,.55);
   border-radius: 4px 13px 13px 4px;
   pointer-events: none;
 }
@@ -204,21 +204,21 @@
 .login-book-cover-border {
   position: absolute;
   inset: 20px;
-  border: 1px solid rgba(214,184,124,.24);
+  border: 1px solid rgba(147,197,253,.24);
   border-radius: 4px 12px 12px 4px;
 }
 
 .login-book-cover-emblem {
   width: 68px;
   height: 68px;
-  border: 1px solid #d6b87c;
+  border: 1px solid #93C5FD;
   border-radius: 50%;
   display: grid;
   place-items: center;
   font-family: Georgia, serif;
   font-size: 22px;
   letter-spacing: .08em;
-  color: #d6b87c;
+  color: #93C5FD;
   margin-bottom: 22px;
 }
 
@@ -227,7 +227,7 @@
   font-size: .68rem;
   letter-spacing: .18em;
   text-transform: uppercase;
-  color: #d6b87c;
+  color: #93C5FD;
 }
 
 .login-book-cover-title {
@@ -240,7 +240,7 @@
 .login-book-cover-rule {
   width: 70px;
   height: 1px;
-  background: #d6b87c;
+  background: #93C5FD;
   margin: 20px 0 12px;
   opacity: .7;
 }
@@ -259,7 +259,7 @@
 
 .login-book-page-kicker {
   margin: 0 0 10px;
-  color: #b08d57;
+  color: #2563EB;
   font-size: .68rem;
   font-weight: 700;
   letter-spacing: .16em;
@@ -304,9 +304,9 @@
   min-width: 168px;
   min-height: 46px;
   padding: 12px 24px;
-  border: 1px solid rgba(214,184,124,.5);
+  border: 1px solid rgba(147,197,253,.5);
   border-radius: 999px;
-  background: #b08d57;
+  background: #2563EB;
   color: #111c2d;
   font-weight: 700;
   font-size: .9rem;
@@ -325,7 +325,7 @@
 .login-book-cta:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 13px 28px rgba(0,0,0,.27);
-  background: #d6b87c;
+  background: #93C5FD;
 }
 
 .login-book-cta:disabled {

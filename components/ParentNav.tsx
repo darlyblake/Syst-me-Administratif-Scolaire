@@ -163,14 +163,15 @@ export function ParentNav() {
           <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">NOVA</p><p className="truncate text-sm font-bold text-slate-900">Portail familles</p></div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <Link href="/parents/notifications" aria-label="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"><Bell className="h-5 w-5" />{unreadNotifications > 0 && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}</Link>
-          <Button variant="ghost" size="icon" className="shrink-0 rounded-lg" onClick={() => setOpen(true)} aria-label="Ouvrir la navigation"><Menu className="h-5 w-5" /></Button>
+          <Link href="/parents/notifications" aria-label={unreadNotifications > 0 ? `Notifications, ${unreadNotifications} non lues` : "Notifications"} className="relative flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"><Bell className="h-5 w-5" />{unreadNotifications > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}</Link>
+          <Link href="/parents/profil" aria-label="Mon profil" className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-700 text-[11px] font-bold text-white">{(utilisateur?.nomUtilisateur ?? "P").slice(0, 2).toUpperCase()}</Link>
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 w-full overflow-hidden border-t border-slate-200 bg-white/95 px-1 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-4px_18px_rgba(15,23,42,0.06)] backdrop-blur lg:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
-          {mobilePrimary.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={cn("flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[10px] font-medium", isActive(href) ? "bg-[#1e3a8a] text-white" : "text-slate-500")}><Icon className="h-4 w-4 shrink-0" /><span className="max-w-full truncate">{label === "Accueil" ? "Accueil" : label === "Mes enfants" ? "Enfants" : label}</span></Link>)}
+      <div className="fixed inset-x-0 bottom-0 z-40 w-full border-t border-slate-200 bg-white px-1 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))] lg:hidden">
+        <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
+          {mobilePrimary.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={cn("relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-0.5 text-[10px] font-medium transition-colors", isActive(href) ? "text-blue-800" : "text-slate-500")}><Icon className="h-5 w-5 shrink-0" /><span className="max-w-full truncate">{label === "Accueil" ? "Accueil" : label === "Mes enfants" ? "Enfants" : label}</span>{isActive(href) && <span className="absolute inset-x-3 top-0 h-0.5 rounded-full bg-blue-700" />}</Link>)}
+          <button type="button" onClick={() => setOpen(true)} aria-label="Ouvrir les autres rubriques" aria-expanded={open} className={cn("flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-0.5 text-[10px] font-medium", open ? "text-blue-800" : "text-slate-500")}><Menu className="h-5 w-5" /><span>Plus</span></button>
         </div>
       </div>
 

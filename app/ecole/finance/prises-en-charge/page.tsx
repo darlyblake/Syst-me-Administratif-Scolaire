@@ -104,13 +104,17 @@ export default function SuiviPrisesEnChargePage() {
 
   const students = useMemo(() => {
     const map = new Map<string, CoveredStudent>()
-    for (const row of rows) {
-      // Une ligne affichée par élève et organisme, pas une ligne par échéance.
-      const orgId = row.organization_id ?? "state"
-      const key = row.student_id + ":" + orgId
+    const selectedRows = rows.filter((row) => organizationId === "all" ||
+      (row.organization_id ?? "state") === organizationId)
+    for (const row of selectedRows) {
+      // Une seule ligne par élève, même si plusieurs échéances ou organismes le financent.
+      const key = row.student_id
       const current = map.get(key)
       if (current) {
         current.schedules.push(row)
+        const names = new Set(current.organization_name.split(" · "))
+        names.add(row.organization_name || "État")
+        current.organization_name = Array.from(names).join(" · ")
         current.due += Number(row.amount_due || 0)
         current.paid += Number(row.amount_paid || 0)
         current.remaining += Number(row.remaining_amount || 0)
@@ -135,8 +139,6 @@ export default function SuiviPrisesEnChargePage() {
 
     const q = search.trim().toLocaleLowerCase("fr")
     return Array.from(map.values())
-      .filter((student) => organizationId === "all" ||
-        (student.organization_id ?? "state") === organizationId)
       .filter((student) => !q || [
         student.first_name, student.last_name, student.student_number || "",
         student.class_name || "", student.organization_name,

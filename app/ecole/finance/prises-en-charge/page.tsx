@@ -449,53 +449,46 @@ export default function SuiviPrisesEnChargePage() {
               <span className="hidden text-xs text-slate-500 group-open:inline">Réduire</span>
             </summary>
             <div className="border-t border-slate-200">
-              <div className="flex items-center justify-between gap-3 px-4 py-2 text-xs text-slate-500">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs text-slate-500">
                 <span>Affichage de {coveredStudents.length ? (studentsPage - 1) * studentsPerPage + 1 : 0} à {Math.min(studentsPage * studentsPerPage, coveredStudents.length)} sur {coveredStudents.length} élèves</span>
                 <span>20 élèves par page</span>
               </div>
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">Élèves couverts par l'organisation</h3>
-                <p className="mt-1 text-xs text-slate-500">
-                  <Users className="mr-1 inline h-3.5 w-3.5" />{coveredStudents.length} élève(s) · détail justificatif du montant annuel
-                </p>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[620px] text-sm">
-                <thead className="bg-slate-50 text-left text-xs text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Élève</th>
-                    <th className="px-4 py-3">Matricule</th>
-                    <th className="px-4 py-3">Classe</th>
-                    <th className="px-4 py-3">Frais pris en charge</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {paginatedStudents.map((student) => (
-                    <tr key={student.enrollment_id}>
-                      <td className="px-4 py-3 font-medium text-slate-900">{student.first_name} {student.last_name}</td>
-                      <td className="px-4 py-3 text-slate-600">{student.student_number || "—"}</td>
-                      <td className="px-4 py-3">{student.class_name || "—"}</td>
-                      <td className="px-4 py-3 text-slate-600">{student.categories.join(", ")}</td>
-                    </tr>
-                  ))}
-                  {!coveredStudents.length && (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[620px] text-sm">
+                  <thead className="bg-slate-50 text-left text-xs text-slate-500">
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-                        Aucun élève n'est actuellement rattaché à cette organisation pour cette année.
-                      </td>
+                      <th className="px-4 py-3">Élève</th>
+                      <th className="px-4 py-3">Matricule</th>
+                      <th className="px-4 py-3">Classe</th>
+                      <th className="px-4 py-3">Frais pris en charge</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {studentsPageCount > 1 && (
-              <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
-                <Button size="sm" variant="outline" disabled={studentsPage === 1} onClick={() => setStudentsPage((page) => Math.max(1, page - 1))}>Précédent</Button>
-                <span className="text-xs text-slate-500">Page {studentsPage} sur {studentsPageCount}</span>
-                <Button size="sm" variant="outline" disabled={studentsPage === studentsPageCount} onClick={() => setStudentsPage((page) => Math.min(studentsPageCount, page + 1))}>Suivant</Button>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedStudents.map((student) => (
+                      <tr key={student.enrollment_id}>
+                        <td className="px-4 py-3 font-medium text-slate-900">{student.first_name} {student.last_name}</td>
+                        <td className="px-4 py-3 text-slate-600">{student.student_number || "—"}</td>
+                        <td className="px-4 py-3">{student.class_name || "—"}</td>
+                        <td className="px-4 py-3 text-slate-600">{student.categories.join(", ")}</td>
+                      </tr>
+                    ))}
+                    {!coveredStudents.length && (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                          Aucun élève n'est actuellement rattaché à cette organisation pour cette année.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            )}
+              {studentsPageCount > 1 && (
+                <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
+                  <Button size="sm" variant="outline" disabled={studentsPage === 1} onClick={() => setStudentsPage((page) => Math.max(1, page - 1))}>Précédent</Button>
+                  <span className="text-xs text-slate-500">Page {studentsPage} sur {studentsPageCount}</span>
+                  <Button size="sm" variant="outline" disabled={studentsPage === studentsPageCount} onClick={() => setStudentsPage((page) => Math.min(studentsPageCount, page + 1))}>Suivant</Button>
+                </div>
+              )}
             </div>
           </details>
 
@@ -509,35 +502,34 @@ export default function SuiviPrisesEnChargePage() {
               <span className="hidden text-xs text-slate-500 group-open:inline">Réduire</span>
             </summary>
             <div className="border-t border-slate-200">
-              <p className="mt-1 text-xs text-slate-500">Chaque année conserve son propre montant dû, ses versements et son solde. Les exercices précédents restent consultables.</p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[680px] text-sm">
-                <thead className="bg-slate-50 text-left text-xs text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Année académique</th>
-                    <th className="px-4 py-3 text-right">Montant dû</th>
-                    <th className="px-4 py-3 text-right">Total versé</th>
-                    <th className="px-4 py-3 text-right">Solde restant</th>
-                    <th className="px-4 py-3 text-right">Versements</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {organizationYearHistory.map((item) => (
-                    <tr key={item.year.id}>
-                      <td className="px-4 py-3 font-medium text-slate-900">{item.year.name}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{formatAmount(item.due)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-emerald-700">{formatAmount(item.paid)}</td>
-                      <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatAmount(item.remaining)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{item.paymentCount}</td>
+              <p className="px-4 py-2 text-xs text-slate-500">Chaque année conserve son propre montant dû, ses versements et son solde. Les exercices précédents restent consultables.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[680px] text-sm">
+                  <thead className="bg-slate-50 text-left text-xs text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3">Année académique</th>
+                      <th className="px-4 py-3 text-right">Montant dû</th>
+                      <th className="px-4 py-3 text-right">Total versé</th>
+                      <th className="px-4 py-3 text-right">Solde restant</th>
+                      <th className="px-4 py-3 text-right">Versements</th>
                     </tr>
-                  ))}
-                  {!organizationYearHistory.length && (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">Aucun historique annuel disponible pour cet organisme.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {organizationYearHistory.map((item) => (
+                      <tr key={item.year.id}>
+                        <td className="px-4 py-3 font-medium text-slate-900">{item.year.name}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{formatAmount(item.due)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-emerald-700">{formatAmount(item.paid)}</td>
+                        <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatAmount(item.remaining)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{item.paymentCount}</td>
+                      </tr>
+                    ))}
+                    {!organizationYearHistory.length && (
+                      <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">Aucun historique annuel disponible pour cet organisme.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </details>
 
@@ -551,44 +543,43 @@ export default function SuiviPrisesEnChargePage() {
               <span className="hidden text-xs text-slate-500 group-open:inline">Réduire</span>
             </summary>
             <div className="border-t border-slate-200">
-              <p className="mt-1 text-xs text-slate-500">Chaque ligne correspond à un versement effectué par l'organisation.</p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-sm">
-                <thead className="bg-slate-50 text-left text-xs text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Année</th>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Moyen de paiement</th>
-                    <th className="px-4 py-3">Référence</th>
-                    <th className="px-4 py-3 text-right">Montant versé</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {paginatedPayments.map((payment) => (
-                    <tr key={payment.id}>
-                      <td className="px-4 py-3">{academicYears.find((year) => year.id === payment.academic_year_id)?.name || "Année inconnue"}</td>
-                      <td className="px-4 py-3">{formatDate(payment.payment_date)}</td>
-                      <td className="px-4 py-3">{paymentMethodName(payment.method)}</td>
-                      <td className="px-4 py-3">{payment.reference || "—"}</td>
-                      <td className="px-4 py-3 text-right font-medium tabular-nums">{formatAmount(Number(payment.amount))}</td>
-                    </tr>
-                  ))}
-                  {!selectedPayments.length && (
+              <p className="px-4 py-2 text-xs text-slate-500">Chaque ligne correspond à un versement effectué par l'organisation.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] text-sm">
+                  <thead className="bg-slate-50 text-left text-xs text-slate-500">
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-slate-500">Aucun versement global enregistré pour cet organisme.</td>
+                      <th className="px-4 py-3">Année</th>
+                      <th className="px-4 py-3">Date</th>
+                      <th className="px-4 py-3">Moyen de paiement</th>
+                      <th className="px-4 py-3">Référence</th>
+                      <th className="px-4 py-3 text-right">Montant versé</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {paymentsPageCount > 1 && (
-              <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
-                <Button size="sm" variant="outline" disabled={paymentsPage === 1} onClick={() => setPaymentsPage((page) => Math.max(1, page - 1))}>Précédent</Button>
-                <span className="text-xs text-slate-500">Page {paymentsPage} sur {paymentsPageCount}</span>
-                <Button size="sm" variant="outline" disabled={paymentsPage === paymentsPageCount} onClick={() => setPaymentsPage((page) => Math.min(paymentsPageCount, page + 1))}>Suivant</Button>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedPayments.map((payment) => (
+                      <tr key={payment.id}>
+                        <td className="px-4 py-3">{academicYears.find((year) => year.id === payment.academic_year_id)?.name || "Année inconnue"}</td>
+                        <td className="px-4 py-3">{formatDate(payment.payment_date)}</td>
+                        <td className="px-4 py-3">{paymentMethodName(payment.method)}</td>
+                        <td className="px-4 py-3">{payment.reference || "—"}</td>
+                        <td className="px-4 py-3 text-right font-medium tabular-nums">{formatAmount(Number(payment.amount))}</td>
+                      </tr>
+                    ))}
+                    {!selectedPayments.length && (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-slate-500">Aucun versement global enregistré pour cet organisme.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            )}
+              {paymentsPageCount > 1 && (
+                <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
+                  <Button size="sm" variant="outline" disabled={paymentsPage === 1} onClick={() => setPaymentsPage((page) => Math.max(1, page - 1))}>Précédent</Button>
+                  <span className="text-xs text-slate-500">Page {paymentsPage} sur {paymentsPageCount}</span>
+                  <Button size="sm" variant="outline" disabled={paymentsPage === paymentsPageCount} onClick={() => setPaymentsPage((page) => Math.min(paymentsPageCount, page + 1))}>Suivant</Button>
+                </div>
+              )}
             </div>
           </details>
 

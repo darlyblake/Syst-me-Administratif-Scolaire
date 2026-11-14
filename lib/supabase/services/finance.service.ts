@@ -11,20 +11,17 @@ import type {
 
 export const financeService = {
   // 1. Vue Scolarité (Échéances)
-    async getStudentPaymentBoard(establishmentId: string, academicYearId: string, classId?: string | null): Promise<(FinanceStudentPaymentBoardRow & { student?: any, class?: any })[]> {
-    let query = supabaseBrowser
-      .from("v_finance_student_payment_board")
-      .select("*")
-      .eq("establishment_id", establishmentId)
-      .eq("academic_year_id", academicYearId);
+  async getStudentPaymentBoard(establishmentId: string, academicYearId: string, classId?: string | null): Promise<(FinanceStudentPaymentBoardRow & { student?: any, class?: any })[]> {
+    const { data, error } = await supabaseBrowser.rpc("get_finance_student_payment_board", {
+      p_establishment_id: establishmentId,
+      p_academic_year_id: academicYearId,
+      p_class_id: classId ?? null,
+      p_overdue_only: false,
+      p_today: new Date().toISOString().slice(0, 10),
+    })
+    if (error) throw new Error("Impossible de charger la grille des scolarités.")
 
-    if (classId) query = query.eq("class_id", classId);
-
-    const { data, error } = await query.order("student_id").order("installment_number");
-    if (error) throw new Error("Impossible de charger la grille des scolarités.");
-
-    // The protected view exposes only the identity fields needed by the finance screen.
-    return (data ?? []).map((row: any) => ({
+    return ((data ?? []) as any[]).map((row: any) => ({
       ...row,
       student: {
         id: row.student_id,
@@ -33,7 +30,7 @@ export const financeService = {
         student_number: row.student_number,
       },
       class: { id: row.class_id, name: row.class_name },
-    })) as any[];
+    }))
   },
 
   // Indicateurs opérationnels du tableau de bord scolaire.
@@ -147,17 +144,16 @@ export const financeService = {
 
   // Échéances de la famille réellement dépassées pour le tableau de bord.
   async getOverdueSchedules(establishmentId: string, academicYearId: string, today: string) {
-    const { data, error } = await supabaseBrowser
-      .from("v_finance_student_payment_board")
-      .select("schedule_id, enrollment_id, student_id, class_id, label, due_date, amount_due, amount_paid, remaining_amount, days_overdue, payment_state, category, first_name, last_name, student_number, class_name")
-      .eq("establishment_id", establishmentId)
-      .eq("academic_year_id", academicYearId)
-      .gt("remaining_amount", 0)
-      .lt("due_date", today)
-      .order("due_date", { ascending: true });
+    const { data, error } = await supabaseBrowser.rpc("get_finance_student_payment_board", {
+      p_establishment_id: establishmentId,
+      p_academic_year_id: academicYearId,
+      p_class_id: null,
+      p_overdue_only: true,
+      p_today: today,
+    })
 
-    if (error) throw new Error("Impossible de charger les échéances en retard.");
-    return data ?? [];
+    if (error) throw new Error("Impossible de charger les échéances en retard.")
+    return (data ?? []) as any[]
   },
 
   // 2. Vue Mouvements

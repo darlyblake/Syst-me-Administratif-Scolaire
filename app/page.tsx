@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { LoginPage } from "@/components/auth/login/LoginPage"
 import { LandingHeader } from "@/components/landing/LandingHeader"
 import { Hero } from "@/components/landing/Hero"
@@ -16,7 +16,8 @@ import "./landing.css"
 
 export default function PageAccueil() {
   const [authOpen, setAuthOpen] = useState(false)
-  const openAuth = () => setAuthOpen(true)
+  const openAuth = useCallback(() => setAuthOpen(true), [])
+  const closeAuth = useCallback(() => setAuthOpen(false), [])
 
   return (
     <div className="landing-page min-h-screen overflow-x-hidden bg-[#f7faff] text-slate-950">
@@ -47,7 +48,7 @@ export default function PageAccueil() {
       />
       <CTASection onOpenAuth={openAuth} />
       <LandingFooter />
-      {authOpen && <LoginPage isOverlay onClose={() => setAuthOpen(false)} />}
+      {authOpen && <LoginPage isOverlay onClose={closeAuth} />}
     </div>
   )
 }

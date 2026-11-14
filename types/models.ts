@@ -9,6 +9,10 @@ export interface Utilisateur {
   nomUtilisateur: string
   role: Role
   etablissementId?: string
+  /** Permissions explicites attribuées au membre dans l'établissement actif. */
+  permissions?: string[]
+  /** Permissions explicitement retirées, prioritaires sur les permissions héritées. */
+  revoked_permissions?: string[]
   dernierConnexion?: string
   donneesEleve?: DonneesEleve
   donneesEnseignant?: DonneesEnseignant

@@ -339,7 +339,7 @@ export function ParentNav() {
             </div>
 
             {/* Navigation complète */}
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4">
+            <div className="pb-4">
               <FullNav />
             </div>
 

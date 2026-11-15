@@ -96,6 +96,7 @@ export default function ParentPaiements() {
   // Le portail reçoit les paiements en temps réel. On repère uniquement les
   // nouvelles lignes après le premier chargement pour animer le versement entrant.
   useEffect(() => {
+    if (loading) return
     const currentIds = new Set(payments.map((payment) => payment.id))
     if (knownPaymentIds.current === null) {
       knownPaymentIds.current = currentIds
@@ -108,7 +109,7 @@ export default function ParentPaiements() {
     setNewPaymentId(incoming.id)
     const timeout = window.setTimeout(() => setNewPaymentId(null), 5200)
     return () => window.clearTimeout(timeout)
-  }, [payments])
+  }, [loading, payments])
 
   const tuitionSchedules = useMemo(() => {
     const rows = schedules.filter((schedule) => schedule.category !== "option")

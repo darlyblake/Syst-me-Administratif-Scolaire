@@ -337,7 +337,7 @@ function useParentPortalState() {
     if(error)throw error
     if(!data?.linked||!data?.student?.id)throw new Error("Le rattachement de l'élève n'a pas été confirmé.")
     const linkedStudent=data.student as {id:string;establishment_id:string;student_number:string|null;first_name:string;last_name:string}
-    await refresh()
+    await refresh({silent:true})
     setChildren(current=>{
       const existing=current.find(child=>child.id===linkedStudent.id)
       const next=existing ? current : [...current,{id:linkedStudent.id,establishment_id:linkedStudent.establishment_id,student_number:linkedStudent.student_number??null,first_name:linkedStudent.first_name,last_name:linkedStudent.last_name,birth_date:birthDate,sex:null,phone:null,email:null,active:true,can_view_academic:true,can_view_finance:true,relationship:"Parent"}]

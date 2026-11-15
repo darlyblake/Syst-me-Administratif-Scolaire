@@ -18,7 +18,7 @@ export default function ParentTimetable() {
     window.print()
     window.setTimeout(cleanup, 1500)
   }
-  const { loading, error, refresh, children, timetable } = useParentPortal()
+  const { loading, error, children, timetable } = useParentPortal()
   const allowed = useMemo(() => children.filter(child => child.can_view_academic), [children])
   const [childId, setChildId] = useState("tous")
   const [selectedDay, setSelectedDay] = useState(() => { const today = new Date().getDay(); return today >= 1 && today <= 6 ? today : 1 })
@@ -42,7 +42,7 @@ export default function ParentTimetable() {
         }
       }
     `}</style>
-    <ParentPageHeader eyebrow="Organisation" title="Emploi du temps" description="Le programme hebdomadaire de vos enfants pour l’année scolaire en cours." onRefresh={() => void refresh()} refreshing={loading} />
+    <ParentPageHeader eyebrow="Organisation" title="Emploi du temps" description="Le programme hebdomadaire de vos enfants pour l’année scolaire en cours." />
     {error && <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
     {!loading && allowed.length === 0 ? <ParentEmptyState title="Emploi du temps non disponible" description="Votre compte n’a pas actuellement l’autorisation de consulter les cours." /> : <>
       <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between print:hidden">

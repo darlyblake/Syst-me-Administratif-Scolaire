@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useAuthentification } from "@/providers/authentification.provider"
+import { AppBrandMark } from "@/components/brand/AppBrandMark"
 import { hasEffectiveSchoolPermission, isEstablishmentAdmin } from "@/lib/organization/runtime-permissions"
 import { getSchoolRoleLabel, getUserInitials } from "@/lib/organization/role-labels"
 
@@ -148,7 +149,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
             <School className="h-4 w-4" strokeWidth={1.8} />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-[16px] font-semibold leading-5 tracking-tight text-[#00236f]">SAS École</p>
+            <p className="truncate text-[16px] font-semibold leading-5 tracking-tight text-[#00236f]">NOVA</p>
             <p className="truncate text-[11px] leading-4 text-[#515f74]">Administration Centrale</p>
           </div>
         </div>

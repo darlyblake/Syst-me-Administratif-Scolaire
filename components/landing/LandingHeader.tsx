@@ -1,6 +1,6 @@
 "use client"
 
-import { GraduationCap } from "lucide-react"
+import { AppBrandMark } from "@/components/brand/AppBrandMark"
 import { Button } from "@/components/ui/button"
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -17,9 +17,7 @@ export function LandingHeader({ onOpenAuth }: { onOpenAuth: () => void }) {
           className="flex items-center gap-3 text-left transition-opacity hover:opacity-80"
           aria-label="Retour en haut de page"
         >
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-800 text-white shadow-sm">
-            <GraduationCap className="h-5 w-5" />
-          </span>
+          <AppBrandMark size={40} className="shadow-sm" />
           <span>
             <span className="block text-sm font-bold tracking-tight text-slate-900">{APP_NAME}</span>
             <span className="hidden text-[11px] text-slate-500 sm:block">{APP_TAGLINE}</span>

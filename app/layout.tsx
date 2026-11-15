@@ -28,13 +28,13 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: [{ url: "/nova-logo.webp", type: "image/webp" }],
-    apple: [{ url: "/nova-logo.webp", type: "image/webp" }],
+    icon: [{ url: "/nova-icon-192.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/nova-icon-192.svg", type: "image/svg+xml" }],
   },
 }
 
 export const viewport: Viewport = {
-  themeColor: "#102b55",
+  themeColor: "#1e40af",
   colorScheme: "light",
   width: "device-width",
   initialScale: 1,

@@ -6,20 +6,20 @@
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#102b55",
+  "theme_color": "#1e40af",
   "lang": "fr",
   "dir": "ltr",
   "icons": [
     {
-      "src": "/nova-logo.webp",
+      "src": "/nova-icon-192.svg",
       "sizes": "192x192",
-      "type": "image/webp",
+      "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/nova-logo.webp",
+      "src": "/nova-icon-512.svg",
       "sizes": "512x512",
-      "type": "image/webp",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ]

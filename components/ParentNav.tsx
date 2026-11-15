@@ -1,6 +1,6 @@
 "use client"
 
-import Image from "next/image"
+import { AppBrandMark } from "@/components/brand/AppBrandMark"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -176,7 +176,7 @@ export function ParentNav() {
 
       <header className="sticky top-0 z-30 flex h-16 w-full min-w-0 items-center justify-between border-b border-slate-200 bg-white px-3 sm:px-4 lg:hidden">
         <div className="flex min-w-0 items-center gap-2.5">
-          <Image src="/nova-logo.webp" alt="NOVA" width={30} height={30} className="shrink-0 rounded-md object-contain" />
+          <AppBrandMark size={30} className="rounded-md" />
           <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">NOVA</p><p className="truncate text-sm font-semibold text-slate-900">Espace parent</p></div>
         </div>
         <div className="flex shrink-0 items-center gap-1">

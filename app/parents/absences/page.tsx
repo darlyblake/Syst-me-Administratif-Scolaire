@@ -63,6 +63,9 @@ export default function ParentAbsences() {
   const [childId, setChildId] = useState("")
   const activeChildId = allowed.some(child => child.id === childId) ? childId : (allowed[0]?.id ?? "")
   const selectedChild = allowed.find(child => child.id === activeChildId) ?? null
+  const selectedChildBreaks = useMemo(() => timetableBreaks
+    .filter(item => item.class_id === selectedChild?.class_id && item.academic_year_id === selectedChild?.academic_year_id)
+    .sort((a,b) => a.starts_at.localeCompare(b.starts_at)), [timetableBreaks, selectedChild?.class_id, selectedChild?.academic_year_id])
   const [dateFilter, setDateFilter] = useState("")
   const [subjectFilter, setSubjectFilter] = useState("all")
   const [clock, setClock] = useState(() => Date.now())
@@ -332,6 +335,18 @@ export default function ParentAbsences() {
             <div className="px-2 py-3"><p className="text-xl font-semibold tabular-nums text-red-700">{liveStatus.absent}</p><p className="text-xs text-slate-500">Absences</p></div>
           </div>
           <div className="border-t border-slate-100 px-4 py-3 text-xs leading-5 text-slate-600">{liveStatus.recorded} appel(s) enregistré(s) aujourd'hui · {liveStatus.completed} cours terminés · {liveStatus.missing} appel(s) manquant(s)</div>
+        </section>}
+        {selectedChild && selectedChildBreaks.length > 0 && <section className="border border-slate-200 bg-white">
+          <div className="border-b border-slate-200 px-4 py-3">
+            <h2 className="text-sm font-semibold text-slate-950">Récréations programmées</h2>
+            <p className="mt-1 text-xs text-slate-500">Horaires prévus pour la classe les jours de cours (du lundi au samedi).</p>
+          </div>
+          <ul className="divide-y divide-slate-100">
+            {selectedChildBreaks.map(item => <li key={item.id} className="flex items-center justify-between gap-4 px-4 py-3">
+              <span className="text-sm font-medium text-slate-800">{item.label}</span>
+              <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">{formatTime(item.starts_at)} – {formatTime(item.ends_at)}</span>
+            </li>)}
+          </ul>
         </section>}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
           <div><h2 className="text-base font-semibold text-slate-950">Historique et absences</h2><p className="mt-1 text-xs text-slate-500">Consultez les cours passés et envoyez une justification.</p></div>

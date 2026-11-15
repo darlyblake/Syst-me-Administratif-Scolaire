@@ -1,12 +1,13 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { Activity, ArrowRight, BookOpen, FileText, MessageSquare, RefreshCw, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useParentPortal } from "@/hooks/use-parent-portal"
 import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
+import { ParentChildSelect } from "@/components/parent/ParentChildSelect"
 
 const dateLabel = (value: string) => {
   const date = new Date(value)
@@ -20,10 +21,12 @@ const statusLabel = (status: string) => status === "present" ? "Présent" : stat
 
 export default function ParentsDashboard() {
   const { utilisateur } = useAuthentification()
-  const { loading, error, refresh, children, attendance, events, paymentSchedules } = useParentPortal()
+  const { loading, error, refresh, children, attendance, events, paymentSchedules, grades, homework } = useParentPortal()
+  const [selectedChildId, setSelectedChildId] = useState("tous")
   const today = todayInGabon()
-  const academicChildren = useMemo(() => children.filter(child => child.can_view_academic), [children])
-  const financeChildren = useMemo(() => children.filter(child => child.can_view_finance), [children])
+  const selectedChildren = useMemo(() => children.filter(child => selectedChildId === "tous" || child.id === selectedChildId), [children, selectedChildId])
+  const academicChildren = useMemo(() => selectedChildren.filter(child => child.can_view_academic), [selectedChildren])
+  const financeChildren = useMemo(() => selectedChildren.filter(child => child.can_view_finance), [selectedChildren])
   const financeEnrollmentIds = useMemo(() => new Set(financeChildren.map(child => child.enrollment_id).filter(Boolean)), [financeChildren])
   const todayAttendance = useMemo(() => attendance.filter(item =>
     item.attendance_date.slice(0, 10) === today && academicChildren.some(child => child.id === item.student_id),
@@ -31,6 +34,9 @@ export default function ParentsDashboard() {
   const issues = useMemo(() => attendance
     .filter(item => item.status !== "present" && academicChildren.some(child => child.id === item.student_id))
     .sort((a, b) => Date.parse(b.attendance_date) - Date.parse(a.attendance_date)).slice(0, 4), [attendance, academicChildren])
+  const classIds = useMemo(() => new Set(academicChildren.map(child => child.class_id).filter(Boolean)), [academicChildren])
+  const recentGrades = useMemo(() => grades.filter(grade => academicChildren.some(child => child.id === grade.student_id)).sort((a, b) => Date.parse(b.assessment_date ?? "") - Date.parse(a.assessment_date ?? "")).slice(0, 3), [grades, academicChildren])
+  const classHomework = useMemo(() => homework.filter(item => classIds.has(item.class_id)).slice(0, 3), [homework, classIds])
   const upcoming = useMemo(() => events
     .filter(event => Date.parse(event.starts_at) >= Date.now())
     .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at)).slice(0, 3), [events])
@@ -60,6 +66,8 @@ export default function ParentsDashboard() {
           <RefreshCw className="mr-2 h-4 w-4" />Actualiser
         </Button>
       </header>
+
+      {children.length > 1 && <div className="flex justify-start"><ParentChildSelect children={children} value={selectedChildId} onChange={setSelectedChildId} /></div>}
 
       {error && <div role="alert" className="flex flex-col gap-3 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between"><span>{error}</span><Button variant="outline" size="sm" className="bg-white" onClick={() => void refresh()}>Réessayer</Button></div>}
 
@@ -121,7 +129,7 @@ export default function ParentsDashboard() {
 
               <section>
                 <div className="parent-surface-title"><h2>Vos enfants</h2><Link href="/parents/enfants" className="text-sm font-medium text-blue-700">Gérer</Link></div>
-                {children.map(child => {
+                {selectedChildren.map(child => {
                   const latestToday = todayAttendance.find(item => item.student_id === child.id)
                   return <div key={child.id} className="parent-list-row">
                     <div className="min-w-0 flex-1"><p className="text-sm font-medium text-slate-900">{child.first_name} {child.last_name}</p><p className="text-xs text-slate-500">{child.class_name ?? "Classe non attribuée"}</p></div>
@@ -129,6 +137,17 @@ export default function ParentsDashboard() {
                   </div>
                 })}
               </section>
+
+              {academicChildren.length > 0 && <section>
+                <div className="parent-surface-title"><h2>Dernières évaluations</h2><Link href="/parents/notes" className="text-sm font-medium text-blue-700">Tous les résultats</Link></div>
+                {recentGrades.length ? recentGrades.map(grade => {
+                  const child = selectedChildren.find(entry => entry.id === grade.student_id)
+                  return <div key={grade.id} className="parent-list-row">
+                    <div className="min-w-0 flex-1"><p className="text-sm font-medium text-slate-900">{grade.subject ?? "Évaluation"}{child ? ` · ${child.first_name}` : ""}</p><p className="text-xs text-slate-500">{grade.title ?? "Résultat"} · {grade.assessment_date ? dateLabel(grade.assessment_date) : "Date non précisée"}</p></div>
+                    <span className="shrink-0 rounded-lg bg-sky-50 px-3 py-2 text-sm font-bold text-sky-800">{grade.score}{grade.max_score ? `/${grade.max_score}` : "/20"}</span>
+                  </div>
+                }) : <p className="px-4 py-5 text-sm text-slate-500">Aucune note publiée pour cette sélection.</p>}
+              </section>}
             </div>
 
             <div className="space-y-4">
@@ -141,6 +160,13 @@ export default function ParentsDashboard() {
                     <div className="flex justify-between gap-3 text-xs text-slate-500"><span>Réglé <b className="font-medium text-slate-800">{money(totalPaid)}</b></span><span>Total <b className="font-medium text-slate-800">{money(totalAnnual)}</b></span></div>
                   </> : <p className="mt-2 text-xs text-slate-500">Aucune échéance financière disponible.</p>}
                 </div>
+              </section>}
+
+              {academicChildren.length > 0 && <section>
+                <div className="parent-surface-title"><h2>Travail à venir</h2><Link href="/parents/cahier-de-textes?tab=homework" className="text-sm font-medium text-blue-700">Tous les devoirs</Link></div>
+                {classHomework.length ? classHomework.map(item => <div key={item.id} className="parent-list-row">
+                  <div className="min-w-0 flex-1"><p className="text-sm font-medium text-slate-900">{item.subject} · {item.title}</p><p className="text-xs text-slate-500">{item.due_date ? `À rendre le ${dateLabel(item.due_date)}` : "Date de remise non précisée"}</p></div>
+                </div>) : <p className="px-4 py-5 text-sm text-slate-500">Aucun devoir publié pour cette sélection.</p>}
               </section>}
 
               <section>

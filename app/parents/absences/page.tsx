@@ -5,7 +5,7 @@ import { useParentPortal, type ParentAttendance } from "@/hooks/use-parent-porta
 import { supabaseBrowser } from "@/lib/supabase/client"
 
 type StatusFilter = "all" | "present" | "absent" | "late" | "justified" | "pending"
-type PeriodFilter = "week" | "month" | "custom"
+type PeriodFilter = "week" | "month" | "trimester" | "custom"
 
 function dayOfWeekFromDate(value: string) { return new Date(value + "T12:00:00").getDay() }
 function dateKey(date: Date) { return [date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-") }
@@ -16,10 +16,20 @@ function todayInGabon() {
 }
 function timeInGabon() { return new Intl.DateTimeFormat("fr-FR",{timeZone:"Africa/Libreville",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date()) }
 function addDays(value:string,days:number) { const d=new Date(value+"T12:00:00");d.setDate(d.getDate()+days);return dateKey(d) }
-function getBounds(period:PeriodFilter,anchor:string,from:string,to:string) {
+function getBounds(period:PeriodFilter,anchor:string,from:string,to:string,academicStart?:string,academicEnd?:string) {
  if(period==="custom") return {start:from||anchor,end:to||from||anchor}
  const d=new Date(anchor+"T12:00:00")
  if(period==="month") return {start:dateKey(new Date(d.getFullYear(),d.getMonth(),1,12)),end:dateKey(new Date(d.getFullYear(),d.getMonth()+1,0,12))}
+ if(period==="trimester" && academicStart && academicEnd) {
+  const startMs=new Date(academicStart+"T12:00:00").getTime(),endMs=new Date(academicEnd+"T12:00:00").getTime()
+  const totalDays=Math.max(1,Math.floor((endMs-startMs)/86400000)+1)
+  const elapsed=Math.max(0,Math.min(totalDays-1,Math.floor((d.getTime()-startMs)/86400000)))
+  const index=Math.min(2,Math.floor(elapsed/totalDays*3))
+  const fromOffset=Math.floor(totalDays*index/3),toOffset=Math.max(fromOffset,Math.floor(totalDays*(index+1)/3)-1)
+  const start=new Date(startMs);start.setDate(start.getDate()+fromOffset)
+  const end=new Date(startMs);end.setDate(end.getDate()+toOffset)
+  return {start:dateKey(start),end:dateKey(end)}
+ }
  const start=addDays(anchor,-((d.getDay()+6)%7));return {start,end:addDays(start,6)}
 }
 function formatRange(start:string,end:string) {
@@ -102,7 +112,7 @@ export default function ParentAbsences() {
     return latest
   }, [justificationRequests])
 
-  const bounds = useMemo(() => getBounds(period,anchorDate,customStart,customEnd),[period,anchorDate,customStart,customEnd])
+  const bounds = useMemo(() => getBounds(period,anchorDate,customStart,customEnd,selectedChild?.academic_year_start,selectedChild?.academic_year_end),[period,anchorDate,customStart,customEnd,selectedChild?.academic_year_start,selectedChild?.academic_year_end])
   const allRows = useMemo(() => {
     const selectedChildren=allowed.filter(child=>child.id===activeChildId)
     const recordMap=new Map<string,ParentAttendance>(attendance.map(item=>[item.student_id+":"+item.attendance_date+":"+(item.lesson_key??""),item] as const))
@@ -204,7 +214,10 @@ export default function ParentAbsences() {
     const late=recorded.filter(row=>row.derivedStatus==="late"||row.derivedStatus==="retard").length
     const absent=recorded.filter(row=>row.derivedStatus==="absent").length
     const justified=recorded.filter(row=>row.derivedStatus==="justified"||row.derivedStatus==="excused").length
-    return {present,late,absent,justified,pending:allRows.length-recorded.length,recorded:recorded.length,rate:recorded.length?Math.round((present+late)/recorded.length*100):null}
+    const planned=allRows.length,absenceTotal=absent+justified,pending=planned-recorded.length
+    const statusSample=present+late+absenceTotal
+    const status=statusSample<3?"En cours d’observation":present>=late&&present>=absenceTotal?"Régulier":late>absenceTotal?"Retardataire":"Absentéisme à surveiller"
+    return {planned,present,late,absent,justified,absenceTotal,pending,recorded:recorded.length,rate:planned?Math.round(present/planned*100):null,lateRate:planned?Math.round(late/planned*100):null,absenceRate:planned?Math.round(absenceTotal/planned*100):null,status}
   },[allRows])
   async function submitJustification() {
     if (!selected?.attendance) return
@@ -358,27 +371,47 @@ export default function ParentAbsences() {
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-base font-bold text-slate-950">Taux de présence</h2>
-            <div className="flex rounded-xl bg-slate-100 p-1" role="group" aria-label="Période du taux de présence">
-              <button type="button" onClick={() => { setPeriod("week"); setAnchorDate(todayInGabon()); setDateFilter(""); setSubjectFilter("all"); setStatusFilter("all") }} className={"rounded-lg px-3 py-1.5 text-xs font-bold " + (period === "week" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500")}>Semaine</button>
-              <button type="button" onClick={() => { setPeriod("month"); setAnchorDate(todayInGabon()); setDateFilter(""); setSubjectFilter("all"); setStatusFilter("all") }} className={"rounded-lg px-3 py-1.5 text-xs font-bold " + (period === "month" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500")}>Mois</button>
+            <div className="flex flex-wrap gap-1 bg-slate-100 p-1" role="group" aria-label="Période du taux de présence">
+              {([{value:"week",label:"Semaine"},{value:"month",label:"Mois"},{value:"trimester",label:"Trimestre"}] as const).map(option=><button key={option.value} type="button" onClick={() => { setPeriod(option.value); setAnchorDate(todayInGabon()); setDateFilter(""); setSubjectFilter("all"); setStatusFilter("all") }} className={"px-3 py-1.5 text-xs font-bold " + (period === option.value ? "bg-white text-blue-700 shadow-sm" : "text-slate-500")}>{option.label}</button>)}
             </div>
           </div>
-          <div className="mt-5 flex items-center gap-5">
-            <div className="relative h-28 w-28 shrink-0">
-              <svg viewBox="0 0 104 104" className="h-full w-full -rotate-90" role="img" aria-label={"Taux de présence " + (counts.rate === null ? "indisponible" : counts.rate + " pour cent")}>
-                <circle cx="52" cy="52" r="44" fill="none" stroke="#E2E8F0" strokeWidth="9" />
-                <circle cx="52" cy="52" r="44" fill="none" stroke="#1F5EFF" strokeWidth="9" strokeLinecap="round" strokeDasharray="276.5" strokeDashoffset={276.5 * (1 - (counts.rate ?? 0) / 100)} />
+          <div className="mt-5 grid gap-5 sm:grid-cols-[132px_1fr] sm:items-center">
+            <div className="relative mx-auto h-32 w-32">
+              <svg viewBox="0 0 104 104" className="h-full w-full -rotate-90" role="img" aria-label="Répartition des cours prévus sur la période">
+                <circle cx="52" cy="52" r="44" fill="none" stroke="#E2E8F0" strokeWidth="10" />
+                {counts.planned > 0 && [
+                  {value:counts.present,color:"#2563EB"},
+                  {value:counts.late,color:"#F59E0B"},
+                  {value:counts.absenceTotal,color:"#DC2626"},
+                  {value:counts.pending,color:"#CBD5E1"}
+                ].map((segment,index,segments)=>{
+                  const circumference=276.46
+                  const before=segments.slice(0,index).reduce((sum,item)=>sum+item.value,0)
+                  const length=circumference*segment.value/counts.planned
+                  return <circle key={index} cx="52" cy="52" r="44" fill="none" stroke={segment.color} strokeWidth="10" strokeDasharray={length+" "+(circumference-length)} strokeDashoffset={-circumference*before/counts.planned} />
+                })}
               </svg>
-              <div className="absolute inset-0 grid place-items-center text-2xl font-extrabold tabular-nums text-slate-950">{counts.rate === null ? "—" : counts.rate + "%"}</div>
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-950">
+                <span className="text-2xl font-extrabold tabular-nums">{counts.rate===null?"—":counts.rate+"%"}</span>
+                <span className="text-[10px] text-slate-500">présence</span>
+              </div>
             </div>
-            <div className="min-w-0 text-sm leading-6 text-slate-600">
-              <p className="font-bold text-slate-900">Présence {period === "week" ? "cette semaine" : "ce mois-ci"}</p>
-              <p>{counts.recorded} appel(s) enregistré(s)</p>
-              {counts.absent > 0 ? <p className="font-semibold text-red-600">{counts.absent} absence(s) signalée(s)</p> : <p className="font-medium text-blue-700">Aucune absence enregistrée</p>}
-              <p className="text-xs text-slate-500">{counts.late} retard(s) · {counts.pending} appel(s) en attente</p>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-slate-900">{period==="week"?"Cette semaine":period==="month"?"Ce mois-ci":"Ce trimestre"}</p>
+              <p className="mt-1 text-xs text-slate-500">{counts.planned} cours terminés prévus · {counts.recorded} appels enregistrés · {counts.pending} appel(s) non effectué(s)</p>
+              <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                <div className="flex items-center justify-between gap-2"><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 bg-blue-600" />Présences</span><strong className="tabular-nums">{counts.present} · {counts.rate??0}%</strong></div>
+                <div className="flex items-center justify-between gap-2"><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 bg-amber-500" />Retards</span><strong className="tabular-nums">{counts.late} · {counts.lateRate??0}%</strong></div>
+                <div className="flex items-center justify-between gap-2"><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 bg-red-600" />Absences</span><strong className="tabular-nums">{counts.absenceTotal} · {counts.absenceRate??0}%</strong></div>
+                <div className="flex items-center justify-between gap-2"><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 bg-slate-300" />Appels manquants</span><strong className="tabular-nums">{counts.pending}</strong></div>
+              </div>
             </div>
           </div>
-          <p className="mt-4 text-[11px] leading-4 text-slate-500">Le taux est calculé à partir des appels réellement enregistrés. Un cours sans appel validé n'est pas automatiquement considéré comme une absence.</p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+            <div className="text-xs text-slate-500">Profil d’assiduité : <strong className={counts.status==="Régulier"?"text-blue-700":counts.status==="Retardataire"?"text-amber-700":counts.status.startsWith("Absentéisme")?"text-red-700":"text-slate-700"}>{counts.status}</strong></div>
+            {counts.status==="Absentéisme à surveiller" && <span className="border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700">Signal de vigilance</span>}
+          </div>
+          <p className="mt-3 text-[11px] leading-4 text-slate-500">Les pourcentages sont calculés sur les cours terminés prévus dans l’emploi du temps. Un appel non effectué reste distinct d’une absence. Les absences justifiées sont incluses dans le total des absences.</p>
           <button type="button" onClick={() => { setDateFilter(""); setSubjectFilter("all"); setStatusFilter("all"); setShowHistory(true) }} className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 text-sm font-bold text-white transition-colors hover:bg-blue-800">
             Voir l'historique des cours <span aria-hidden="true">→</span>
           </button>
@@ -397,13 +430,13 @@ export default function ParentAbsences() {
           <label className="space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Période</span>
             <select value={period} onChange={(event) => setPeriod(event.target.value as PeriodFilter)} className="h-10 w-full  border border-slate-200 bg-white px-3 text-sm text-slate-800">
-              <option value="week">Semaine</option><option value="month">Mois</option><option value="custom">Période personnalisée</option>
+              <option value="week">Semaine</option><option value="month">Mois</option><option value="trimester">Trimestre</option><option value="custom">Période personnalisée</option>
             </select>
           </label>
           {period==="custom" ? <>
             <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Du</span><input type="date" value={customStart} max={customEnd} onChange={event=>setCustomStart(event.target.value)} className="h-10 w-full  border border-slate-200 bg-white px-3 text-sm text-slate-800" /></label>
             <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Au</span><input type="date" value={customEnd} min={customStart} onChange={event=>setCustomEnd(event.target.value)} className="h-10 w-full  border border-slate-200 bg-white px-3 text-sm text-slate-800" /></label>
-          </> : <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{period==="week"?"Semaine contenant":"Mois contenant"}</span><input type="date" value={anchorDate} onChange={event=>setAnchorDate(event.target.value)} className="h-10 w-full  border border-slate-200 bg-white px-3 text-sm text-slate-800" /></label>}
+          </> : <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{period==="week"?"Semaine contenant":period==="month"?"Mois contenant":"Date du trimestre"}</span><input type="date" value={anchorDate} onChange={event=>setAnchorDate(event.target.value)} className="h-10 w-full  border border-slate-200 bg-white px-3 text-sm text-slate-800" /></label>}
           <label className="space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date précise</span>
             <input type="date" value={dateFilter} onChange={event=>{const value=event.target.value;setDateFilter(value);if(value){setPeriod("custom");setCustomStart(value);setCustomEnd(value)}}} className="h-10 w-full border border-slate-200 bg-white px-3 text-sm text-slate-800" />
@@ -434,12 +467,12 @@ export default function ParentAbsences() {
 
       {showHistory && <section className="border border-slate-200 bg-white px-4 py-4">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-          <div><h2 className="text-sm font-semibold text-slate-900">Taux de présence</h2><p className="mt-1 text-xs text-slate-500">Calculé sur les appels effectués des cours terminés.</p></div>
+          <div><h2 className="text-sm font-semibold text-slate-900">Taux de présence</h2><p className="mt-1 text-xs text-slate-500">Présences rapportées aux cours terminés prévus.</p></div>
           <p className="text-2xl font-bold tabular-nums text-blue-800">{counts.rate===null?"—":counts.rate+"%"}</p>
         </div>
         <div className="h-2.5 overflow-hidden  bg-slate-100"><div className="h-full  bg-blue-700 transition-all" style={{width:(counts.rate??0)+"%"}} /></div>
 
-        <p className="mt-3 text-[11px] text-slate-500">Un cours sans appel validé n'est pas compté comme une absence. Les retards sont comptés comme une présence.</p>
+        <p className="mt-3 text-[11px] text-slate-500">Un cours sans appel validé n'est pas compté comme une absence. Les retards sont présentés séparément des présences.</p>
       </section>}
 
       {showHistory && <section className="overflow-hidden border border-slate-200 bg-white">

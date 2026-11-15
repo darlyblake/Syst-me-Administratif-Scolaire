@@ -18,7 +18,7 @@ export function ParentChildSelect({
   const selected = visible.find((child) => child.id === value)
 
   return (
-    <label className="inline-flex min-w-0 max-w-full items-center gap-3 rounded-lg border border-[#d8e5f1] bg-white px-3 py-2.5 shadow-none">
+    <label className="parent-child-select inline-flex min-h-12 w-full min-w-0 max-w-full items-center gap-3 rounded-xl border border-[#d8e5f1] bg-white px-3 py-2.5 shadow-none sm:w-auto">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#eaf4ff] text-[#1767a5]">
         <Users className="h-4 w-4" aria-hidden="true" />
       </span>

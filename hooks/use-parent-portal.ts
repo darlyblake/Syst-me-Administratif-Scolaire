@@ -14,6 +14,7 @@ export type ParentPaymentSchedule = { id:string; enrollment_id:string; installme
 export type ParentPaymentAllocation = { id:string; payment_id:string; payment_schedule_id:string; amount:number; created_at:string; payment_date?:string }
 export type ParentEnrollmentOption = { id:string; enrollment_id:string; option_id:string; amount:number; name:string; description:string|null; option_type:string|null; required:boolean }
 export type ParentTimetableSlot = { id:string; class_subject_id:string; day_of_week:number; starts_at:string; ends_at:string; room:string|null; class_id:string; subject:string; teacher_id:string|null; teacher_name:string }
+export type ParentTimetableBreak = { id:string; establishment_id:string; academic_year_id:string; class_id:string; label:string; starts_at:string; ends_at:string }
 export type ParentLesson = { id:string; timetable_slot_id:string; lesson_date:string; topic:string; content:string; activities:string|null; subject:string; class_id:string }
 export type ParentHomework = { id:string; timetable_slot_id:string; class_id:string; subject_id:string; title:string; instructions:string; due_date:string|null; created_at:string; subject:string }
 export type ParentSchoolDocumentRequest = { id: string; establishment_id: string; student_id: string; document_type: string; message: string | null; status: string; rejection_reason: string | null; created_at: string; updated_at: string }
@@ -27,7 +28,7 @@ function useParentPortalState() {
   const [attendance,setAttendance]=useState<ParentAttendance[]>([]), [justificationRequests,setJustificationRequests]=useState<ParentJustificationRequest[]>([])
   const [notifications,setNotifications]=useState<ParentNotification[]>([]), [events,setEvents]=useState<ParentEvent[]>([])
   const [paymentSchedules,setPaymentSchedules]=useState<ParentPaymentSchedule[]>([]), [paymentAllocations,setPaymentAllocations]=useState<ParentPaymentAllocation[]>([]), [enrollmentOptions,setEnrollmentOptions]=useState<ParentEnrollmentOption[]>([])
-  const [timetable,setTimetable]=useState<ParentTimetableSlot[]>([]), [lessons,setLessons]=useState<ParentLesson[]>([]), [homework,setHomework]=useState<ParentHomework[]>([]), [documents,setDocuments]=useState<ParentDocument[]>([]), [schoolDocumentRequests,setSchoolDocumentRequests]=useState<ParentSchoolDocumentRequest[]>([])
+  const [timetable,setTimetable]=useState<ParentTimetableSlot[]>([]), [timetableBreaks,setTimetableBreaks]=useState<ParentTimetableBreak[]>([]), [lessons,setLessons]=useState<ParentLesson[]>([]), [homework,setHomework]=useState<ParentHomework[]>([]), [documents,setDocuments]=useState<ParentDocument[]>([]), [schoolDocumentRequests,setSchoolDocumentRequests]=useState<ParentSchoolDocumentRequest[]>([])
 
   const refresh=useCallback(async(options:{silent?:boolean}={})=>{
     if(!options.silent) setLoading(true)
@@ -74,6 +75,7 @@ function useParentPortalState() {
         setPaymentAllocations([])
         setEnrollmentOptions([])
         setTimetable([])
+        setTimetableBreaks([])
         setLessons([])
         setHomework([])
         setDocuments([])
@@ -204,7 +206,7 @@ function useParentPortalState() {
       const paymentsR=financeEnrollmentIds.length?await supabaseBrowser.from("payments").select("id,enrollment_id,amount,payment_date,reference,method,notes,category,payer_type").in("enrollment_id",financeEnrollmentIds).order("payment_date",{ascending:false}).limit(500):{data:[],error:null}
       if(paymentsR.error) console.warn("Parent payments query:", paymentsR.error)
       const paymentIds=(paymentsR.data??[]).map(x=>x.id)
-      const [psr,par,eor,tsr,tlr,thr,pdr,sdr]=await Promise.all([
+      const [psr,par,eor,tsr,tbr,tlr,thr,pdr,sdr]=await Promise.all([
         financeEnrollmentIds.length?supabaseBrowser.from("payment_schedules").select("id,enrollment_id,installment_number,label,due_date,amount_due,amount_paid,status,category,payer_type,organization_id,organization:sponsoring_organizations(name)").in("enrollment_id",financeEnrollmentIds).order("due_date"):Promise.resolve({data:[],error:null}),
         paymentIds.length?supabaseBrowser.from("payment_allocations").select("id,payment_id,payment_schedule_id,amount,created_at").in("payment_id",paymentIds):Promise.resolve({data:[],error:null}),
         financeEnrollmentIds.length?supabaseBrowser.from("enrollment_options").select("id,enrollment_id,option_id,amount").in("enrollment_id",financeEnrollmentIds):Promise.resolve({data:[],error:null}),
@@ -220,12 +222,19 @@ function useParentPortalState() {
               .order("day_of_week")
               .order("starts_at")
           : Promise.resolve({data:[],error:null}),
+        academicClassIds.length && academicYearIds.length
+          ? supabaseBrowser.from("class_breaks")
+              .select("id,establishment_id,academic_year_id,class_id,label,starts_at,ends_at")
+              .in("class_id", academicClassIds)
+              .in("academic_year_id", academicYearIds)
+              .order("starts_at")
+          : Promise.resolve({data:[],error:null}),
         academicClassIds.length?supabaseBrowser.from("teacher_lesson_entries").select("id,timetable_slot_id,lesson_date,topic,content,activities").in("establishment_id",establishmentIds).order("lesson_date",{ascending:false}).limit(300):Promise.resolve({data:[],error:null}),
         academicClassIds.length?supabaseBrowser.from("teacher_homework").select("id,timetable_slot_id,class_id,subject_id,title,instructions,due_date,created_at").in("class_id",academicClassIds).eq("active",true).order("due_date").limit(300):Promise.resolve({data:[],error:null}),
         (supabaseBrowser as any).rpc("get_parent_published_documents"),
         supabaseBrowser.from("school_document_requests").select("id,establishment_id,student_id,document_type,message,status,rejection_reason,created_at,updated_at").in("student_id",studentIds).order("created_at",{ascending:false}).limit(200)
       ])
-      for(const [name,r] of [["payment_schedules",psr],["payment_allocations",par],["enrollment_options",eor],["timetable",tsr],["lessons",tlr],["homework",thr],["documents",pdr],["school_document_requests",sdr]] as const) if(r.error) console.warn("Parent "+name+" query:",r.error)
+      for(const [name,r] of [["payment_schedules",psr],["payment_allocations",par],["enrollment_options",eor],["timetable",tsr],["class_breaks",tbr],["lessons",tlr],["homework",thr],["documents",pdr],["school_document_requests",sdr]] as const) if(r.error) console.warn("Parent "+name+" query:",r.error)
       const optionIds=[...new Set((eor.data??[]).map(x=>x.option_id).filter(Boolean))]
       const optionRows=optionIds.length?await supabaseBrowser.from("student_options").select("id,name,description,option_type,required").in("id",optionIds):{data:[],error:null}
       if(optionRows.error) console.warn("Parent student options query:", optionRows.error)
@@ -260,6 +269,7 @@ function useParentPortalState() {
       const names=new Map((tsubr.data??[]).map(x=>[x.id,x.name]))
       const visibleSlots=slotRows.filter(s=>academicClassIds.includes((csMap.get(s.class_subject_id) as any)?.class_id??"")), visibleSlotIds=new Set(visibleSlots.map((s:any)=>s.id))
       setTimetable(visibleSlots.map((s:any)=>{const cs=csMap.get(s.class_subject_id) as any;return {...s,class_id:cs?.class_id??"",subject:cs?.subjects?.name??(cs?.subject_id?names.get(cs.subject_id):null)??"Matière",teacher_id:cs?.teacher_id??null,teacher_name:[cs?.teachers?.first_name,cs?.teachers?.last_name].filter(Boolean).join(" ")||"Enseignant"}}))
+      setTimetableBreaks((tbr.data??[]).filter((item:any)=>academicClassIds.includes(item.class_id)).map((item:any)=>({...item,starts_at:String(item.starts_at).slice(0,5),ends_at:String(item.ends_at).slice(0,5)})))
       setLessons((tlr.data??[]).filter(x=>visibleSlotIds.has(x.timetable_slot_id)).map(x=>{const slot=slotRows.find(s=>s.id===x.timetable_slot_id),cs=slot?csMap.get(slot.class_subject_id):undefined;return {...x,subject:cs?.subjects?.name??(cs?.subject_id?names.get(cs.subject_id):null)??"Matière",class_id:cs?.class_id??""}}))
       setHomework((thr.data??[]).filter(x=>academicClassIds.includes(x.class_id)).map(x=>({...x,subject:names.get(x.subject_id)??"Matière"})))
       setPayments((paymentsR.data??[]).filter(p=>enrollmentStudentMap.has(p.enrollment_id)).map(p=>({...p,amount:Number(p.amount)})))
@@ -388,7 +398,7 @@ function useParentPortalState() {
       if(notificationChannel) void supabaseBrowser.removeChannel(notificationChannel)
     }
   },[refresh])
-  return {loading,error,refresh,children,grades,payments,attendance,justificationRequests,notifications,events,paymentSchedules,paymentAllocations,enrollmentOptions,timetable,lessons,homework,documents,schoolDocumentRequests,claimChild,unclaimChild,requestAttendanceJustification,cancelAttendanceJustification,markNotificationRead,markAllNotificationsRead}
+  return {loading,error,refresh,children,grades,payments,attendance,justificationRequests,notifications,events,paymentSchedules,paymentAllocations,enrollmentOptions,timetable,timetableBreaks,lessons,homework,documents,schoolDocumentRequests,claimChild,unclaimChild,requestAttendanceJustification,cancelAttendanceJustification,markNotificationRead,markAllNotificationsRead}
 }
 
 

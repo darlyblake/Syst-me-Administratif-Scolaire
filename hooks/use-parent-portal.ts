@@ -8,7 +8,7 @@ export type ParentGrade = { id:string; student_id:string; score:number; comment:
 export type ParentPayment = { id:string; enrollment_id:string; amount:number; payment_date:string; reference:string|null; method:string|null; notes:string|null; category?:string|null; payer_type?:string|null }
 export type ParentAttendance = { id:string; student_id:string; attendance_date:string; status:string; reason:string|null; lesson_key:string|null; subject_id:string|null }
 export type ParentJustificationRequest = { id:string; attendance_id:string; student_id:string; reason:string; status:"pending"|"approved"|"rejected"|"cancelled"; reviewer_note:string|null; created_at:string }
-export type ParentNotification = { id:string; title:string; body:string; type:string; read_at:string|null; created_at:string }
+export type ParentNotification = { id:string; title:string; body:string; type:string; entity_type?:string|null; read_at:string|null; created_at:string }
 export type ParentEvent = { id:string; establishment_id:string; title:string; description:string|null; event_type:string; starts_at:string; ends_at:string|null; location:string|null }
 export type ParentPaymentSchedule = { id:string; enrollment_id:string; installment_number:number; label:string; due_date:string; amount_due:number; amount_paid:number; status:string; category:string|null; payer_type?:string|null; organization_id?:string|null; organization?:{name:string}|null }
 export type ParentPaymentAllocation = { id:string; payment_id:string; payment_schedule_id:string; amount:number; created_at:string; payment_date?:string }
@@ -41,7 +41,7 @@ function useParentPortalState() {
       // d'enfants : elles doivent rester accessibles même sans enfant rattaché.
       const {data:notificationRows,error:notificationError}=await supabaseBrowser
         .from("notifications")
-        .select("id,title,body,type,read_at,created_at")
+        .select("id,title,body,type,entity_type,read_at,created_at")
         .eq("recipient_user_id",userId)
         .order("created_at",{ascending:false})
         .limit(50)
@@ -181,7 +181,21 @@ function useParentPortalState() {
 
       const [gr,ar,jr,ev]=await Promise.all([
         Promise.resolve({data:gradeRows,error:null}),
-        supabaseBrowser.from("attendance_records").select("id,student_id,attendance_date,status,reason,lesson_key,subject_id").in("student_id",studentIds).order("attendance_date",{ascending:false}).limit(500),
+        (async()=>{
+          const pageSize=1000
+          const all:any[]=[]
+          for(let offset=0;offset<10000;offset+=pageSize){
+            const page=await supabaseBrowser.from("attendance_records")
+              .select("id,student_id,attendance_date,status,reason,lesson_key,subject_id")
+              .in("student_id",studentIds)
+              .order("attendance_date",{ascending:false})
+              .range(offset,offset+pageSize-1)
+            if(page.error) return {data:null,error:page.error}
+            all.push(...(page.data??[]))
+            if((page.data??[]).length<pageSize) break
+          }
+          return {data:all,error:null}
+        })(),
         supabaseBrowser.from("attendance_justification_requests").select("id,attendance_id,student_id,reason,status,reviewer_note,created_at").order("created_at",{ascending:false}).limit(200),
         establishmentIds.length?supabaseBrowser.from("school_events").select("id,establishment_id,title,description,event_type,starts_at,ends_at,location").in("establishment_id",establishmentIds).order("starts_at").limit(100):Promise.resolve({data:[],error:null})
       ])
@@ -341,7 +355,7 @@ function useParentPortalState() {
           })
           // Le nouvel emploi du temps doit être visible dès réception de l'alerte,
           // sans demander au parent de recharger la page.
-          if(notification.type==="timetable_updated") void refresh({silent:true})
+          if(notification.type==="timetable_updated" || notification.type.startsWith("attendance_")) void refresh({silent:true})
         })
         .on("postgres_changes",{event:"UPDATE",schema:"public",table:"notifications",filter:`recipient_user_id=eq.${user.id}`},payload=>{
           const notification=payload.new as ParentNotification

@@ -237,7 +237,7 @@ export default function NotificationBell() {
       try {
         await markNotificationRead(notification.id)
         const readAt = new Date().toISOString()
-        setItems((current) => current.map((item) => item.id === notification.id ? { ...item, read_at: readAt } : item))
+        setItems((current) => current.filter((item) => item.id !== notification.id))
         setUnreadCount((current) => Math.max(0, current - 1))
       } catch (cause) {
         console.error("Impossible de marquer la notification comme lue", cause)

@@ -30,7 +30,7 @@ const statusLabel:Record<RequestRow["status"],string> = {
 }
 
 export default function AttendanceJustificationsPage() {
-  const { primaryEstablishment, utilisateur } = useUserContext()
+  const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
   const role = primaryEstablishment?.role ?? ""
   const permissions = primaryEstablishment?.permissions ?? []
@@ -71,7 +71,7 @@ export default function AttendanceJustificationsPage() {
       const subjectMap=new Map((subjectsResult.data??[]).map(s=>[s.id,s.name]))
       setRows(requestRows.map(r=>{
         const attendance=attendanceMap.get(r.attendance_id)
-        return {...r,student_name:studentMap.get(r.student_id)??"Élève",attendance_date:attendance?.attendance_date??"",subject_name:attendance?.subject_id?subjectMap.get(attendance.subject_id)??"Matière non renseignée":"Matière non renseignée"}
+        return {...r,status:r.status as RequestRow["status"],student_name:studentMap.get(r.student_id)??"Élève",attendance_date:attendance?.attendance_date??"",subject_name:attendance?.subject_id?subjectMap.get(attendance.subject_id)??"Matière non renseignée":"Matière non renseignée"}
       }))
     } catch(cause) {
       setError(cause instanceof Error?cause.message:"Impossible de charger les demandes de justification.")

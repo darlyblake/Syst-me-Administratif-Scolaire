@@ -153,11 +153,11 @@ export default function NotificationBell() {
     setLoading(true)
     setError(null)
     try {
-      const firstPage = await listNotificationsPaginated(establishmentId, 1, 50, false)
+      const firstPage = await listNotificationsPaginated(establishmentId, 1, 50, true)
       let visibleItems = firstPage.items.filter(canSeeNotification)
       let pageNumber = 2
       while (visibleItems.length < 8 && pageNumber <= firstPage.total_pages) {
-        const nextPage = await listNotificationsPaginated(establishmentId, pageNumber, 50, false)
+        const nextPage = await listNotificationsPaginated(establishmentId, pageNumber, 50, true)
         visibleItems = visibleItems.concat(nextPage.items.filter(canSeeNotification))
         pageNumber += 1
       }
@@ -204,6 +204,30 @@ export default function NotificationBell() {
     if (next) {
       void loadItems()
       void refreshCount()
+    }
+  }
+
+  const handleClearNotifications = async () => {
+    if (!establishmentId || unreadCount === 0) return
+    setUpdatingId("all")
+    setError(null)
+    try {
+      const firstPage = await listNotificationsPaginated(establishmentId, 1, 100, true)
+      const pages = await Promise.all(
+        Array.from({ length: Math.max(0, firstPage.total_pages - 1) }, (_, index) =>
+          listNotificationsPaginated(establishmentId, index + 2, 100, true),
+        ),
+      )
+      const unreadItems = [...firstPage.items, ...pages.flatMap((page) => page.items)].filter(canSeeNotification)
+      for (const notification of unreadItems) await markNotificationRead(notification.id)
+      setItems([])
+      setUnreadCount(0)
+    } catch (cause) {
+      console.error("Impossible de vider les notifications", cause)
+      setError("Impossible de vider les notifications pour le moment.")
+      void refreshCount()
+    } finally {
+      setUpdatingId(null)
     }
   }
 
@@ -255,9 +279,11 @@ export default function NotificationBell() {
                 <h2 className="text-sm font-semibold text-[#131b2e]">Notifications</h2>
                 <p className="mt-0.5 text-[11px] text-[#515f74]">{unreadCount} non lue(s)</p>
               </div>
-              <button type="button" onClick={() => { void loadItems(); void refreshCount() }} className="rounded px-2 py-1 text-[11px] font-medium text-[#1e3a8a] hover:bg-[#f2f3ff]">
-                Actualiser
-              </button>
+              {unreadCount > 0 && (
+                <button type="button" onClick={() => void handleClearNotifications()} disabled={updatingId === "all"} className="rounded-lg px-2.5 py-2 text-[11px] font-semibold text-[#1e3a8a] hover:bg-[#f2f3ff] disabled:opacity-50">
+                  {updatingId === "all" ? "Vidage…" : "Tout vider"}
+                </button>
+              )}
             </div>
 
             {error && <p role="alert" className="border-b border-[#f3c7c4] bg-[#fff4f2] px-4 py-2 text-xs text-[#9b1c1c]">{error}</p>}
@@ -267,7 +293,7 @@ export default function NotificationBell() {
                 <Loader2 className="h-4 w-4 animate-spin" /> Chargement…
               </div>
             ) : items.length === 0 ? (
-              <p className="px-4 py-8 text-center text-xs text-[#515f74]">Aucune notification pour le moment.</p>
+              <p className="px-4 py-8 text-center text-xs text-[#515f74]">Aucune nouvelle notification.</p>
             ) : (
               <ul className="max-h-[min(65vh,440px)] divide-y divide-[#edf0f5] overflow-y-auto">
                 {items.map((item) => (

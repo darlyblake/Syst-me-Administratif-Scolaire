@@ -32,7 +32,7 @@
 .parent-portal-content .parent-page-head{padding-bottom:18px;border-bottom:1px solid #e2e8f0}
 @media(max-width:1024px){.parent-portal-content .parent-two-columns{grid-template-columns:1fr}}
 @media(max-width:768px){
- .parent-portal-content{padding:20px 16px 32px!important}
+ .parent-portal-content{padding:20px 16px calc(6.75rem + env(safe-area-inset-bottom))!important}
  .parent-portal-content h1{font-size:22px!important}
  .parent-portal-content .parent-list-row{padding:13px 16px;flex-wrap:wrap}
  .parent-portal-content .parent-surface-title{padding:14px 16px}
@@ -43,3 +43,11 @@
  .parent-portal-content td{display:flex;justify-content:space-between;gap:12px;padding:2px 0;border:0}
  .parent-portal-content td:before{content:attr(data-label);color:#64748b;font-size:12px}
 }
+@media(min-width:769px){
+ .parent-portal-content{padding-bottom:56px!important}
+}
+.parent-child-row{scroll-margin-bottom:7rem}
+@supports(overflow:clip){
+ .parent-portal-content{overflow:visible}
+}
+html:has(.parent-portal-content),body:has(.parent-portal-content){min-height:100%;height:auto;overflow-y:auto}

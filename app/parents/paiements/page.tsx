@@ -59,7 +59,6 @@ export default function ParentPaiements() {
   const {
     loading,
     error,
-    refresh,
     children,
     payments,
     paymentSchedules,

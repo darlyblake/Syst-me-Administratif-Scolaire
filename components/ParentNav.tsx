@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, Users, GraduationCap, CalendarDays, BookOpen, FileText, Bell, MessageSquare, UserRound, Menu, X, LogOut, ClipboardList, ChevronDown } from "lucide-react"
+import { LayoutDashboard, Users, GraduationCap, CalendarDays, BookOpen, FileText, Bell, MessageSquare, UserRound, Menu, X, LogOut, ClipboardList } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -143,18 +143,8 @@ export function ParentNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 hidden h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 lg:ml-64 lg:flex"><p className="text-sm text-slate-500">Espace parent <span className="px-1 text-slate-300">/</span><span className="font-semibold text-slate-800">Portail des familles</span></p>
-        <div className="relative">
-          <button type="button" onClick={() => setProfileMenuOpen((value) => !value)} aria-expanded={profileMenuOpen} aria-label="Ouvrir le menu du profil" className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-slate-50">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-800 text-[11px] font-bold text-white">{(utilisateur?.nomUtilisateur ?? "P").slice(0, 2).toUpperCase()}</span>
-            <span className="max-w-36 truncate text-sm font-medium text-slate-800">{utilisateur?.nomUtilisateur ?? "Mon compte"}</span>
-            <ChevronDown className="h-4 w-4 text-slate-400" />
-          </button>
-          {profileMenuOpen && <div className="absolute right-0 top-11 z-50 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-            <Link href="/parents/profil" onClick={() => setProfileMenuOpen(false)} className="flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><UserRound className="h-4 w-4 text-slate-400" />Mon profil et paramètres</Link>
-            <button type="button" onClick={() => void logout()} disabled={loggingOut} className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"><LogOut className="h-4 w-4 text-slate-400" />Déconnexion</button>
-          </div>}
-        </div>
+      <header className="sticky top-0 z-30 hidden h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white px-8 lg:ml-[248px] lg:flex"><p className="text-sm text-slate-500">Espace parent <span className="px-1 text-slate-300">/</span><span className="font-semibold text-slate-800">Portail des familles</span></p>
+        <Link href="/parents/notifications" aria-label={unreadNotifications ? `Notifications, ${unreadNotifications} non lues` : "Notifications"} className="relative flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"><Bell className="h-[18px] w-[18px]" />{unreadNotifications > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}</Link>
       </header>
 
       <div className="sticky top-0 z-30 flex h-16 w-full min-w-0 items-center justify-between border-b border-slate-200 bg-white/95 px-3 backdrop-blur sm:px-4 lg:hidden">
@@ -183,9 +173,10 @@ export function ParentNav() {
         </aside>
       </div>}
 
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-blue-950 bg-[#102B55] text-white lg:flex lg:flex-col">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[248px] border-r border-[#0B2143] bg-[#102B55] text-white lg:flex lg:flex-col">
         <div className="border-b border-white/10 px-5 py-5"><div className="mb-5 flex items-center gap-3"><Image src="/nova-logo.webp" alt="NOVA" width={36} height={36} className="rounded-md bg-white p-1 object-contain" /><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-blue-200/65">GESTION SCOLAIRE</p><p className="text-[15px] font-bold text-white">Portail familles</p></div></div><User /></div>
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-5"><Nav /></div>
+        <div className="border-t border-white/10 px-3 py-3"><Link href="/parents/profil" className={cn("flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] font-medium transition-colors", pathname === "/parents/profil" ? "bg-white/10 text-white" : "text-blue-100/85 hover:bg-white/10 hover:text-white")}><UserRound className="h-[17px] w-[17px] text-blue-200" />Mon profil</Link></div>
         <div className="border-t border-white/10 p-3"><Button variant="ghost" className="w-full justify-start rounded-md text-blue-100/75 hover:bg-white/10 hover:text-white" onClick={() => void logout()} disabled={loggingOut}><LogOut className="mr-2 h-4 w-4" />{loggingOut ? "Déconnexion…" : "Déconnexion"}</Button></div>
       </aside>
     </>

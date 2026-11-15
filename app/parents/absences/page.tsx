@@ -283,7 +283,7 @@ export default function ParentAbsences() {
               </div>
               <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-2 text-xs text-slate-500"><span>Horaire</span><strong className="font-semibold tabular-nums text-slate-700">{formatTime(row.startsAt)} – {formatTime(row.endsAt)}</strong></div>
               <div className="flex items-center justify-between gap-3"><span className="text-xs text-slate-500">Justification</span>
-                {request?.status === "pending" ? <span className="text-xs font-medium text-amber-700">En attente</span> : request?.status === "approved" ? <span className="text-xs font-medium text-emerald-700">Acceptée</span> : request?.status === "rejected" ? <span className="text-xs font-medium text-red-700">Refusée</span> : canJustify ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFormError(null) }} className="min-h-9 rounded-md border border-slate-200 px-3 text-xs font-semibold text-slate-700">Justifier</button> : <span className="text-xs text-slate-400">—</span>}
+                {request?.status === "pending" ? <span className="text-xs font-medium text-amber-700">En attente</span> : request?.status === "approved" ? <span className="text-xs font-medium text-emerald-700">Acceptée</span> : request?.status === "rejected" ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFile(null); setFormError(null) }} className="min-h-9 rounded-md border border-red-200 px-3 text-xs font-semibold text-red-700">Refusée · Renvoyer</button> : canJustify ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFile(null); setFormError(null) }} className="min-h-9 rounded-md border border-slate-200 px-3 text-xs font-semibold text-slate-700">Justifier</button> : <span className="text-xs text-slate-400">—</span>}
               </div>
             </article>
           })}
@@ -324,9 +324,9 @@ export default function ParentAbsences() {
                         : request?.status === "approved"
                           ? <span className="text-xs font-medium text-emerald-700">Acceptée</span>
                           : request?.status === "rejected"
-                            ? <span className="text-xs font-medium text-red-700">Refusée</span>
+                            ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFile(null); setFormError(null) }} className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">Refusée · Renvoyer</button>
                             : canJustify
-                              ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFormError(null) }} className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Justifier</button>
+                              ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFile(null); setFormError(null) }} className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Justifier</button>
                               : <span className="text-xs text-slate-400">—</span>}
                     </td>
                   </tr>
@@ -349,10 +349,13 @@ export default function ParentAbsences() {
                 <h2 className="font-semibold text-slate-900">Justifier le {selected.status === "late" || selected.status === "retard" ? "retard" : "cours"}</h2>
                 <p className="mt-1 text-sm text-slate-500">La demande sera transmise à l'administration de l'établissement.</p>
               </div>
-              <button type="button" className="text-sm font-semibold text-slate-500" onClick={() => setSelected(null)}>Fermer</button>
+              <button type="button" className="text-sm font-semibold text-slate-500" onClick={() => { setSelected(null); setFile(null); setFormError(null) }}>Fermer</button>
             </div>
 
-            <textarea className="mt-5 min-h-28 w-full rounded-md border border-slate-200 p-3 text-sm text-slate-800 outline-none focus:border-blue-500" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Expliquez brièvement le motif…" maxLength={2000} />
+            {selected && requests.get(selected.id)?.status === "rejected" && requests.get(selected.id)?.reviewer_note && <p className="mt-4 border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700"><strong>Retour de l'établissement :</strong> {requests.get(selected.id)?.reviewer_note}</p>}
+            <label className="mt-5 block text-sm font-semibold text-slate-700">Motif de la justification
+              <textarea className="mt-2 min-h-28 w-full rounded-md border border-slate-200 p-3 text-sm font-normal text-slate-800 outline-none focus:border-blue-500" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Expliquez brièvement le motif…" maxLength={2000} />
+            </label>
 
             <label className="mt-4 block">
               <span className="text-sm font-semibold text-slate-700">Document justificatif</span>
@@ -363,13 +366,14 @@ export default function ParentAbsences() {
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                 className="mt-2 block w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
               />
-              <span className="mt-1 block text-xs text-slate-500">Photo du document ou PDF — 10 Mo maximum.</span>
+              <span className="mt-1 block text-xs text-slate-500">Facultatif : photo JPG, PNG, WebP ou PDF — 10 Mo maximum.</span>
+              {file && <span className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-600"><span className="truncate">{file.name} · {(file.size/1024/1024).toFixed(2)} Mo</span><button type="button" onClick={() => setFile(null)} className="font-semibold text-red-700">Retirer</button></span>}
             </label>
 
             {formError && <p className="mt-4 border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>}
 
             <div className="mt-5 flex justify-end gap-2">
-              <button type="button" className="rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700" onClick={() => setSelected(null)}>Annuler</button>
+              <button type="button" className="rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700" onClick={() => { setSelected(null); setFile(null); setFormError(null) }}>Annuler</button>
               <button type="button" disabled={busy || reason.trim().length < 3} className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" onClick={() => void submitJustification()}>
                 {busy ? "Envoi…" : "Envoyer la justification"}
               </button>

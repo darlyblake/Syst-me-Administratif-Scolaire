@@ -158,66 +158,6 @@ export default function ParentAbsences() {
     const justified=recorded.filter(row=>row.derivedStatus==="justified"||row.derivedStatus==="excused").length
     return {present,late,absent,justified,pending:allRows.length-recorded.length,recorded:recorded.length,rate:recorded.length?Math.round((present+late)/recorded.length*100):null}
   },[allRows])
-  const childSummaries=useMemo(()=>allowed.filter(child=>childId==="tous"||child.id===childId).map(child=>{
-    const sessions=allRows.filter(row=>row.childId===child.id&&row.attendance!==null)
-    const attended=sessions.filter(row=>["present","late","retard"].includes(row.derivedStatus)).length
-    return {id:child.id,name:(child.first_name+" "+child.last_name).trim(),attended,recorded:sessions.length,rate:sessions.length?Math.round(attended/sessions.length*100):null}
-  }),[allowed,allRows,childId])
-
-  const weeklySummaries=useMemo(()=>{
-    const week=getBounds("week",todayInGabon(),todayInGabon(),todayInGabon())
-    const today=todayInGabon()
-    return allowed.map(child=>{
-      const slots=timetable.filter(slot=>slot.class_id===child.class_id)
-      const sessions:Array<{status:string;recorded:boolean}>=[]
-      for(let date=week.start;date<=week.end;date=addDays(date,1)){
-        if(date>today)continue
-        const day=dayOfWeekFromDate(date)
-        for(const slot of slots){
-          if(slot.day_of_week!==day)continue
-          if(date===today&&slot.ends_at.slice(0,5)>timeInGabon())continue
-          const record=attendance.find(item=>item.student_id===child.id&&item.attendance_date===date&&item.lesson_key===slot.id)
-          if(record)sessions.push({status:record.status,recorded:true})
-        }
-      }
-      const present=sessions.filter(x=>["present","late","retard"].includes(x.status)).length
-      const absent=sessions.filter(x=>x.status==="absent").length
-      const late=sessions.filter(x=>["late","retard"].includes(x.status)).length
-      return {id:child.id,present,absent,late,total:sessions.length,rate:sessions.length?Math.round(present/sessions.length*100):null}
-    })
-  },[allowed,attendance,timetable])
-
-  const trimesterSummaries=useMemo(()=>{
-    const now=new Date(todayInGabon()+"T12:00:00")
-    const year=now.getFullYear()
-    const schoolStartYear=now.getMonth()>=9?year:year-1
-    const schoolStart=new Date(schoolStartYear,9,1,12)
-    const monthOffset=(now.getFullYear()-schoolStart.getFullYear())*12+(now.getMonth()-schoolStart.getMonth())
-    const trimesterIndex=Math.min(2,Math.max(0,Math.floor(monthOffset/3)))
-    const start=new Date(schoolStartYear,9+trimesterIndex*3,1,12)
-    const end=new Date(schoolStartYear,12+trimesterIndex*3,0,12)
-    const startKey=dateKey(start),endKey=dateKey(end)
-    return allowed.map(child=>{
-      const records=attendance.filter(item=>item.student_id===child.id&&item.attendance_date>=startKey&&item.attendance_date<=endKey&&["absent","justified","excused"].includes(item.status))
-      const hours=records.reduce((sum,item)=>{
-        const slot=timetable.find(s=>s.class_id===child.class_id&&s.id===item.lesson_key)
-        if(!slot)return sum
-        const [sh,sm]=slot.starts_at.split(":").map(Number),[eh,em]=slot.ends_at.split(":").map(Number)
-        return sum+Math.max(0,(eh*60+em)-(sh*60+sm))/60
-      },0)
-      return {id:child.id,hours:Number(hours.toFixed(1)),count:records.length,label:"Trimestre "+(trimesterIndex+1),start:startKey,end:endKey}
-    })
-  },[allowed,attendance,timetable])
-
-  function ageFromBirthDate(value?:string|null) {
-    if(!value)return null
-    const birth=new Date(value+"T12:00:00"),today=new Date(todayInGabon()+"T12:00:00")
-    if(Number.isNaN(birth.getTime())||birth>today)return null
-    let age=today.getFullYear()-birth.getFullYear()
-    if(today.getMonth()<birth.getMonth()||(today.getMonth()===birth.getMonth()&&today.getDate()<birth.getDate()))age--
-    return age
-  }
-
   async function submitJustification() {
     if (!selected?.attendance) return
     const trimmed = reason.trim()
@@ -321,6 +261,7 @@ export default function ParentAbsences() {
             {allowed.map(child=><option key={child.id} value={child.id}>{child.first_name} {child.last_name} · {child.class_name??child.level_name??"Classe non renseignée"}</option>)}
           </select>
         </div>
+        {!selectedChild && !loading && <p className="border-y border-slate-200 py-5 text-sm text-slate-500">Aucun enfant n'est rattaché à votre compte avec accès au suivi scolaire.</p>}
         {selectedChild && <div className="border-y border-slate-200 bg-white py-4">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Élève suivi</p>
           <h2 className="mt-1 text-xl font-semibold text-slate-950">{selectedChild.first_name} {selectedChild.last_name}</h2>
@@ -349,7 +290,7 @@ export default function ParentAbsences() {
             <div className="border-x border-slate-200 px-2 py-3"><p className="text-xl font-semibold tabular-nums text-amber-700">{liveStatus.late}</p><p className="text-xs text-slate-500">Retards</p></div>
             <div className="px-2 py-3"><p className="text-xl font-semibold tabular-nums text-red-700">{liveStatus.absent}</p><p className="text-xs text-slate-500">Absences</p></div>
           </div>
-          <div className="border-t border-slate-100 px-4 py-3 text-xs leading-5 text-slate-600">{liveStatus.recorded} appel(s) enregistré(s) sur {liveStatus.completed} cours terminés · {liveStatus.missing} appel(s) non effectué(s)</div>
+          <div className="border-t border-slate-100 px-4 py-3 text-xs leading-5 text-slate-600">{liveStatus.recorded} appel(s) enregistré(s) aujourd'hui · {liveStatus.completed} cours terminés · {liveStatus.missing} appel(s) manquant(s)</div>
         </section>}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
           <div><h2 className="text-base font-semibold text-slate-950">Historique et absences</h2><p className="mt-1 text-xs text-slate-500">Consultez les cours passés et envoyez une justification.</p></div>
@@ -383,7 +324,7 @@ export default function ParentAbsences() {
           </> : <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{period==="week"?"Semaine contenant":"Mois contenant"}</span><input type="date" value={anchorDate} onChange={event=>setAnchorDate(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800" /></label>}
           <label className="space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date précise</span>
-            <input type="date" value={dateFilter} onChange={event=>setDateFilter(event.target.value)} className="h-10 w-full border border-slate-200 bg-white px-3 text-sm text-slate-800" />
+            <input type="date" value={dateFilter} onChange={event=>{const value=event.target.value;setDateFilter(value);if(value){setPeriod("custom");setCustomStart(value);setCustomEnd(value)}}} className="h-10 w-full border border-slate-200 bg-white px-3 text-sm text-slate-800" />
           </label>
           <label className="space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Matière</span>
@@ -415,7 +356,7 @@ export default function ParentAbsences() {
           <p className="text-2xl font-bold tabular-nums text-blue-800">{counts.rate===null?"—":counts.rate+"%"}</p>
         </div>
         <div className="h-2.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-700 transition-all" style={{width:(counts.rate??0)+"%"}} /></div>
-        {childSummaries.length>1&&<div className="mt-4 space-y-3 border-t border-slate-100 pt-3">{childSummaries.map(summary=><div key={summary.id}><div className="mb-1 flex items-center justify-between gap-3 text-xs"><span className="font-medium text-slate-700">{summary.name}</span><span className="tabular-nums text-slate-500">{summary.rate===null?"Aucun appel":summary.rate+"% · "+summary.attended+"/"+summary.recorded+" cours suivis"}</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600" style={{width:(summary.rate??0)+"%"}} /></div></div>)}</div>}
+
         <p className="mt-3 text-[11px] text-slate-500">Un cours sans appel validé n'est pas compté comme une absence. Les retards sont comptés comme une présence.</p>
       </section>}
 

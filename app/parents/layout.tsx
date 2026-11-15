@@ -6,7 +6,7 @@ import "./parent-portal.css"
 export default function ParentsLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <ParentPortalProvider>
-      <div className="min-h-screen w-full min-w-0 overflow-x-clip bg-[#F8FAFF] text-slate-900">
+      <div className="min-h-dvh w-full min-w-0 overflow-x-clip bg-[#F4F7FC] text-slate-900">
         <ParentNav />
         <div className="min-w-0 lg:pl-[248px]">
           <main className="parent-portal-content w-full min-w-0 pb-0">

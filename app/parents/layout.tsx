@@ -4,13 +4,15 @@ import { ParentPortalProvider } from "@/hooks/use-parent-portal"
 
 export default function ParentsLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="min-h-screen w-full min-w-0 overflow-x-hidden bg-white text-slate-900">
-      <ParentNav />
-      <div className="min-w-0 lg:pl-64">
-        <main className="mx-auto w-full max-w-[1440px] min-w-0 px-3 pt-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-5 lg:px-8 lg:py-8 lg:pb-10">
-          <ParentPortalProvider>{children}</ParentPortalProvider>
-        </main>
+    <ParentPortalProvider>
+      <div className="min-h-screen w-full min-w-0 overflow-x-hidden bg-white text-slate-900">
+        <ParentNav />
+        <div className="min-w-0 lg:pl-64">
+          <main className="mx-auto w-full max-w-[1440px] min-w-0 px-3 pt-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-5 lg:px-8 lg:py-8 lg:pb-10">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </ParentPortalProvider>
   )
 }

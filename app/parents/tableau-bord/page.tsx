@@ -18,11 +18,10 @@ const dateTime = (value: string | null | undefined) => {
 
 export default function ParentsDashboard() {
   const { utilisateur } = useAuthentification()
-  const { loading, error, refresh, children, grades, attendance, notifications, events } = useParentPortal()
+  const { loading, error, refresh, children, grades, attendance, events } = useParentPortal()
   const academicIds = useMemo(() => new Set(children.filter((child) => child.can_view_academic).map((child) => child.id)), [children])
   const visibleGrades = grades.filter((grade) => academicIds.has(grade.student_id))
   const visibleAttendance = attendance.filter((item) => academicIds.has(item.student_id) && item.status !== "present")
-  const unread = notifications.filter((item) => !item.read_at).length
   const upcoming = events.filter((event) => Date.parse(event.starts_at) >= Date.now()).sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at)).slice(0, 3)
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center text-sm text-slate-500"><RefreshCw className="mr-2 h-4 w-4 animate-spin text-blue-600" />Chargement de votre espace parent…</div>
@@ -86,15 +85,22 @@ export default function ParentsDashboard() {
               <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
                 <Link href="/parents/notes" className="font-medium text-blue-700 hover:text-blue-800">Résultats <span className="ml-1 text-slate-500">({visibleGrades.length})</span></Link>
                 <Link href="/parents/absences" className="font-medium text-blue-700 hover:text-blue-800">Présences <span className="ml-1 text-slate-500">({visibleAttendance.length})</span></Link>
-                <Link href="/parents/notifications" className="font-medium text-blue-700 hover:text-blue-800">Notifications <span className="ml-1 text-slate-500">({unread})</span></Link>
               </div>
             </div>
           </section>
 
-          <div className="grid gap-7 lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,.65fr)]">
-            <InfoSection title="Notifications" description="Les dernières informations de l’établissement." href="/parents/notifications" items={notifications.slice(0, 4).map((item) => ({ id: item.id, title: item.title, detail: item.body, date: item.created_at }))} empty="Aucune notification pour le moment." />
-            <InfoSection title="À venir" description="Prochains événements scolaires." href="/parents/evenements" items={upcoming.map((item) => ({ id: item.id, title: item.title, detail: item.location ?? "Établissement", date: item.starts_at }))} empty="Aucun événement à venir." />
-          </div>
+          <InfoSection
+            title="À venir"
+            description="Les prochains rendez-vous de la vie scolaire."
+            href="/parents/evenements"
+            items={upcoming.map((item) => ({
+              id: item.id,
+              title: item.title,
+              detail: item.location ?? "Établissement",
+              date: item.starts_at,
+            }))}
+            empty="Aucun événement à venir."
+          />
         </>
       )}
     </div>

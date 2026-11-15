@@ -82,7 +82,7 @@ function QuickLink({
 export default function ParentsDashboard() {
   const { utilisateur } = useAuthentification()
   const {
-    loading, error, refresh,
+    loading, error,
     children, attendance, events, paymentSchedules, grades, homework,
   } = useParentPortal()
 

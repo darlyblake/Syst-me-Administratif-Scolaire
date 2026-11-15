@@ -7,7 +7,7 @@ import { ParentPageHeader } from "@/components/parent/ParentPageHeader"
 import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
 
 export default function ParentEvents() {
-  const { loading, error, refresh, events } = useParentPortal()
+  const { loading, error, events } = useParentPortal()
   const upcoming = useMemo(
     () => events.filter(e => Date.parse(e.starts_at) >= Date.now()).sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at)),
     [events],
@@ -46,7 +46,7 @@ export default function ParentEvents() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <ParentPageHeader eyebrow="Vie scolaire" title="Événements" description="Réunions, examens et événements liés aux établissements de vos enfants." onRefresh={() => void refresh()} refreshing={loading} />
+      <ParentPageHeader eyebrow="Vie scolaire" title="Événements" description="Réunions, examens et événements liés aux établissements de vos enfants." />
       {error && <div className="border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700 sm:px-4">{error}</div>}
       {!loading && !events.length ? (
         <ParentEmptyState title="Aucun événement" description="Aucun événement n’est actuellement publié pour vos établissements." />

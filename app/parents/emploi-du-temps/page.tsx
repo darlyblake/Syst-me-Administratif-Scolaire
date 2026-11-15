@@ -52,10 +52,6 @@ export default function ParentTimetable() {
         </Button>
       </div>
       <div id="parent-timetable-print-zone" className="min-w-0">
-        <h1 className="text-xl font-bold text-slate-900">Emploi du temps</h1>
-        <p className="mt-1 text-sm text-slate-600">{childId === "tous" ? "Tous les enfants" : allowed.find(child => child.id === childId)?.first_name + " " + allowed.find(child => child.id === childId)?.last_name}</p>
-        <p className="text-xs text-slate-500">Programme hebdomadaire — année scolaire en cours</p>
-      </div>
       <div className="hidden print:block print:mb-4">
         <h1 className="text-xl font-bold text-slate-900">Emploi du temps</h1>
         <p className="mt-1 text-sm text-slate-600">{childId === "tous" ? "Tous les enfants" : allowed.find(child => child.id === childId)?.first_name + " " + allowed.find(child => child.id === childId)?.last_name}</p>
@@ -68,6 +64,7 @@ export default function ParentTimetable() {
         </div>
         <div className="hidden overflow-x-auto sm:block print:block print:overflow-visible"><div className="grid min-w-[900px] grid-cols-6 divide-x divide-slate-200 print:min-w-0">{days.map((day,index) => { const items = slots.filter(slot => slot.day_of_week === index + 1); return <div key={day} className="min-h-[420px] print:min-h-0"><div className="border-b border-slate-200 bg-slate-50 px-3 py-3 text-center text-sm font-semibold text-slate-700">{day}</div><div className="divide-y divide-slate-100">{items.map(slot => <div key={slot.id} className="px-3 py-4"><p className="font-semibold text-slate-900">{slot.subject}</p><p className="mt-1 text-xs text-slate-500">{slot.starts_at.slice(0,5)} – {slot.ends_at.slice(0,5)}{slot.room ? ` · ${slot.room}` : ""}</p><p className="mt-1 text-[11px] text-slate-500">{slot.teacher_name}</p></div>)}{items.length === 0 && <p className="px-3 py-4 text-xs text-slate-400">Aucun cours.</p>}</div></div> })}</div></div>
       </section>
+      </div>
       <p className="text-xs text-slate-500 print:hidden">Ce programme se répète chaque semaine. Il reste valable jusqu’à ce que l’établissement le modifie. Vous serez averti uniquement lorsqu’un changement sera effectué.</p>
     </>}
   </div>

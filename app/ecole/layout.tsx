@@ -17,7 +17,9 @@ export default function EcoleLayout({ children }: Readonly<{ children: React.Rea
   const { utilisateur, contexte, etablissementActif, deconnecter } = useAuthentification()
   const userName = utilisateur?.nomUtilisateur?.trim() || contexte?.email || "Utilisateur"
   const userEmail = contexte?.email || ""
-  const userRole = getSchoolRoleLabel(etablissementActif?.role ?? contexte?.establishments?.find((item) => item.id === utilisateur?.etablissementId)?.role)
+  const rawSchoolRole = etablissementActif?.role ?? contexte?.establishments?.find((item) => item.id === utilisateur?.etablissementId)?.role
+  const userRole = getSchoolRoleLabel(rawSchoolRole)
+  const portalTitle = ["teacher", "enseignant"].includes((rawSchoolRole ?? "").toLowerCase()) ? "NOVA Portail enseignant" : "NOVA Portail administration"
 
   const handleAccountLogout = async () => {
     try {
@@ -30,7 +32,7 @@ export default function EcoleLayout({ children }: Readonly<{ children: React.Rea
 
   return (
     <PermissionRoute>
-      <div className="ecole-shell min-h-screen bg-[#faf8ff] text-[#131b2e]">
+      <div className="ecole-shell min-h-screen bg-slate-50 text-slate-900">
         <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
         <div className="min-h-screen lg:pl-64">
@@ -46,9 +48,9 @@ export default function EcoleLayout({ children }: Readonly<{ children: React.Rea
                   <Menu className="h-4 w-4" strokeWidth={1.8} />
                 </button>
                 <div className="flex min-w-0 items-center gap-2 text-[12px]">
-                  <span className="font-semibold text-[#00236f]">Espace Établissement</span>
-                  <span className="text-[#c5c5d3]">/</span>
-                  <span className="truncate text-[#515f74]">Gestion Scolaire Globale</span>
+                  <span className="font-semibold text-blue-800">{portalTitle}</span>
+                  <span className="text-slate-300">/</span>
+                  <span className="truncate text-slate-600">Gestion scolaire</span>
                 </div>
               </div>
 
@@ -102,7 +104,7 @@ export default function EcoleLayout({ children }: Readonly<{ children: React.Rea
             </div>
           </header>
 
-          <main className="min-w-0 bg-[#faf8ff] px-3 pb-8 pt-[70px] sm:px-5 lg:px-6">
+          <main className="min-w-0 bg-slate-50 px-3 pb-8 pt-[70px] sm:px-5 lg:px-6">
             {children}
           </main>
         </div>

@@ -82,16 +82,6 @@ export default function ParentAbsences() {
     return () => window.clearInterval(interval)
   }, [])
 
-  useEffect(() => {
-    if (!activeChildId) return
-    const channel = supabaseBrowser
-      .channel("parent-attendance-" + activeChildId)
-      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_records", filter: "student_id=eq." + activeChildId }, () => { void refresh({ silent: true }) })
-      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_justification_requests", filter: "student_id=eq." + activeChildId }, () => { void refresh({ silent: true }) })
-      .on("postgres_changes", { event: "*", schema: "public", table: "class_breaks", filter: "establishment_id=eq." + (selectedChild?.establishment_id ?? "") }, () => { void refresh({ silent: true }) })
-      .subscribe()
-    return () => { void supabaseBrowser.removeChannel(channel) }
-  }, [activeChildId, selectedChild?.establishment_id, refresh])
   const [period, setPeriod] = useState<PeriodFilter>("week")
   const [anchorDate, setAnchorDate] = useState(todayInGabon)
   const [customStart, setCustomStart] = useState(todayInGabon)

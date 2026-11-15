@@ -352,3 +352,153 @@ body:has(.parent-portal-content) {
   .parent-portal-content { padding-inline: 12px !important; }
   .parent-portal-content .parent-page-head h1 { font-size: 20px !important; }
 }
+
+
+/* NOVA Parent — expérience mobile native (Android / iOS) */
+@media (max-width: 768px) {
+  html:has(.parent-portal-content) {
+    background: #f4f7fc;
+    overscroll-behavior-y: none;
+  }
+  body:has(.parent-portal-content) {
+    background: #f4f7fc;
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+  }
+  .parent-portal-content {
+    max-width: none !important;
+    min-height: calc(100dvh - 4rem);
+    padding: 18px 16px calc(6.25rem + env(safe-area-inset-bottom)) !important;
+    background: #f4f7fc;
+  }
+  .parent-portal-content .parent-page-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0 0 18px;
+    padding: 0 0 14px;
+    border-bottom: 0;
+  }
+  .parent-portal-content .parent-page-head > div:first-child { width: 100%; }
+  .parent-portal-content .parent-page-head > div:first-child > p:first-child {
+    margin-bottom: 5px;
+    color: #2563a6;
+    font-size: 10px;
+    letter-spacing: .08em;
+  }
+  .parent-portal-content .parent-page-head h1 {
+    font-size: 25px !important;
+    line-height: 1.18 !important;
+    letter-spacing: -.04em !important;
+  }
+  .parent-portal-content .parent-page-head p:not(:first-child) {
+    max-width: 34rem;
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .parent-portal-content .parent-page-head > div:last-child {
+    width: auto;
+    flex: 0 0 auto;
+    justify-content: flex-end;
+  }
+  .parent-portal-content .parent-page-head button {
+    min-height: 40px;
+    width: 40px;
+    padding: 0;
+    overflow: hidden;
+    font-size: 0;
+    border: 1px solid #dbe5f1;
+    border-radius: 13px !important;
+    background: #fff;
+  }
+  .parent-portal-content .parent-page-head button svg { margin: 0; }
+  .parent-portal-content h2 { font-size: 15px !important; letter-spacing: -.01em; }
+  .parent-portal-content h3 { font-size: 14px; }
+  .parent-portal-content .parent-two-columns { gap: 12px; }
+  .parent-portal-content .parent-surface,
+  .parent-portal-content section[class*="border"] {
+    border: 1px solid #e2eaf3 !important;
+    border-radius: 17px !important;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(20, 48, 83, .035) !important;
+  }
+  .parent-portal-content .parent-surface-title {
+    padding: 15px 15px 12px;
+    border-bottom: 1px solid #edf1f6;
+  }
+  .parent-portal-content .parent-list-row {
+    min-height: 58px;
+    align-items: center;
+    flex-wrap: nowrap;
+    padding: 12px 15px;
+    border-color: #edf1f6;
+  }
+  .parent-portal-content table { display: block; max-width: 100%; overflow-x: auto; }
+  .parent-portal-content input:not([type=checkbox]):not([type=radio]),
+  .parent-portal-content select,
+  .parent-portal-content textarea {
+    min-height: 48px;
+    border-radius: 13px !important;
+    font-size: 16px;
+  }
+  .parent-portal-content textarea { min-height: 112px; }
+  .parent-portal-content button,
+  .parent-portal-content [role="button"],
+  .parent-portal-content a { touch-action: manipulation; }
+  .parent-portal-content button:not([aria-label]),
+  .parent-portal-content [role="button"] { min-height: 44px; }
+  .parent-portal-content [role="tablist"] {
+    display: flex;
+    width: 100%;
+    overflow-x: auto;
+    gap: 6px;
+    padding: 4px;
+    border: 1px solid #e1e9f2 !important;
+    border-radius: 14px;
+    background: #edf3fa;
+    scrollbar-width: none;
+  }
+  .parent-portal-content [role="tablist"]::-webkit-scrollbar { display: none; }
+  .parent-portal-content [role="tab"] {
+    flex: 1 0 auto;
+    min-height: 40px;
+    padding: 0 13px;
+    border: 0 !important;
+    border-radius: 10px !important;
+    background: transparent;
+    font-size: 12px;
+  }
+  .parent-portal-content [role="tab"][aria-selected="true"] {
+    background: #fff !important;
+    color: #174b83 !important;
+    box-shadow: 0 1px 3px rgba(25, 55, 90, .09);
+  }
+  .parent-portal-content .parent-empty-state {
+    padding: 26px 18px;
+    border: 1px dashed #c8d6e6;
+    border-radius: 16px;
+    background: #fff;
+  }
+  .parent-portal-content [class*="overflow-hidden"][class*="border"] {
+    min-width: 0;
+  }
+  .parent-portal-content .grid { min-width: 0; }
+  .parent-portal-content a,
+  .parent-portal-content button { -webkit-tap-highlight-color: transparent; }
+  .parent-portal-content :focus-visible {
+    outline: 3px solid rgba(37, 99, 166, .25);
+    outline-offset: 2px;
+  }
+  /* Les panneaux latéraux et dialogues deviennent des surfaces plein écran sur téléphone. */
+  .parent-portal-content [role="dialog"] {
+    max-width: 100vw;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+}
+@media (max-width: 768px) {
+  .parent-portal-content table thead th { position: sticky; top: 0; }
+  .parent-portal-content .overflow-x-auto { -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  .parent-portal-content .divide-y > :first-child { border-top: 0; }
+}

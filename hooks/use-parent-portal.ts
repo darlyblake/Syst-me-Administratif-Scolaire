@@ -338,6 +338,9 @@ function useParentPortalState() {
             const next=[notification,...current.filter(item=>item.id!==notification.id)]
             return next.sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)).slice(0,50)
           })
+          // Le nouvel emploi du temps doit être visible dès réception de l'alerte,
+          // sans demander au parent de recharger la page.
+          if(notification.type==="timetable_updated") void refresh({silent:true})
         })
         .on("postgres_changes",{event:"UPDATE",schema:"public",table:"notifications",filter:`recipient_user_id=eq.${user.id}`},payload=>{
           const notification=payload.new as ParentNotification

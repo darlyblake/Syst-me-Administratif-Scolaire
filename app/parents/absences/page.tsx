@@ -55,6 +55,7 @@ export default function ParentAbsences() {
     children,
     attendance,
     timetable,
+    timetableBreaks,
     justificationRequests,
   } = useParentPortal()
 
@@ -77,9 +78,10 @@ export default function ParentAbsences() {
       .channel("parent-attendance-" + activeChildId)
       .on("postgres_changes", { event: "*", schema: "public", table: "attendance_records", filter: "student_id=eq." + activeChildId }, () => { void refresh({ silent: true }) })
       .on("postgres_changes", { event: "*", schema: "public", table: "attendance_justification_requests", filter: "student_id=eq." + activeChildId }, () => { void refresh({ silent: true }) })
+      .on("postgres_changes", { event: "*", schema: "public", table: "class_breaks", filter: "establishment_id=eq." + (selectedChild?.establishment_id ?? "") }, () => { void refresh({ silent: true }) })
       .subscribe()
     return () => { void supabaseBrowser.removeChannel(channel) }
-  }, [activeChildId, refresh])
+  }, [activeChildId, selectedChild?.establishment_id, refresh])
   const [period, setPeriod] = useState<PeriodFilter>("week")
   const [anchorDate, setAnchorDate] = useState(todayInGabon)
   const [customStart, setCustomStart] = useState(todayInGabon)
@@ -142,7 +144,12 @@ export default function ParentAbsences() {
     const currentMinutes = hour * 60 + minute
     const day = dayOfWeekFromDate(today)
     const slots = timetable.filter(slot => slot.class_id === selectedChild.class_id && slot.day_of_week === day).sort((a,b) => a.starts_at.localeCompare(b.starts_at))
+    const breaks = timetableBreaks.filter(item =>
+      item.class_id === selectedChild.class_id &&
+      (!selectedChild.academic_year_id || item.academic_year_id === selectedChild.academic_year_id)
+    )
     const minutes = (value:string) => { const [h,m] = value.split(":").map(Number); return h * 60 + m }
+    const currentBreak = breaks.find(item => minutes(item.starts_at) <= currentMinutes && currentMinutes < minutes(item.ends_at))
     const completed = slots.filter(slot => minutes(slot.ends_at) <= currentMinutes)
     const current = slots.find(slot => minutes(slot.starts_at) <= currentMinutes && currentMinutes < minutes(slot.ends_at))
     const next = slots.find(slot => minutes(slot.starts_at) > currentMinutes)
@@ -154,6 +161,18 @@ export default function ParentAbsences() {
     const recorded = records.length
     const missing = completed.filter(slot => !recordFor(slot.id)).length
     const summary = { completed:completed.length, total:slots.length, present, late, absent, recorded, missing }
+    if (currentBreak) {
+      return {
+        ...summary,
+        kind:"break",
+        title:currentBreak.label,
+        detail:"La pause est en cours jusqu'à " + formatTime(currentBreak.ends_at) + ".",
+        subject:null,
+        teacher:null,
+        room:null,
+        next:next ? next.subject + " à " + formatTime(next.starts_at) : null,
+      }
+    }
     if (current) {
       const record = recordFor(current.id)
       return { ...summary, kind:"lesson", title:"Cours en cours", detail:record ? "Appel enregistré : " + statusLabel(record.status) + "." : "Appel non effectué : l'enseignant n'a pas encore enregistré la présence.", subject:current.subject, teacher:current.teacher_name, room:current.room, next:null }
@@ -162,7 +181,7 @@ export default function ParentAbsences() {
       const last = completed[completed.length - 1]
       const lastRecord = recordFor(last.id)
       const lastStatus = lastRecord ? statusLabel(lastRecord.status) : "Appel non effectué"
-      return { ...summary, kind:"break", title:"Pause", detail:"Dernier cours : " + last.subject + " · " + lastStatus + ".", subject:null, teacher:null, room:null, next:next.subject + " à " + formatTime(next.starts_at) }
+      return { ...summary, kind:"break", title:"Temps libre", detail:"Aucun cours n'est en cours. Dernier cours : " + last.subject + " · " + lastStatus + ".", subject:null, teacher:null, room:null, next:next.subject + " à " + formatTime(next.starts_at) }
     }
     if (next) {
       return { ...summary, kind:"before", title:"Les cours n'ont pas encore commencé", detail:"Le prochain cours est prévu à " + formatTime(next.starts_at) + ".", subject:next.subject, teacher:next.teacher_name, room:next.room, next:null }
@@ -171,7 +190,7 @@ export default function ParentAbsences() {
     const lastRecord = last ? recordFor(last.id) : null
     const lastStatus = lastRecord ? statusLabel(lastRecord.status) : "Appel non effectué"
     return { ...summary, kind:slots.length ? "finished" : "empty", title:slots.length ? "Cours terminés pour aujourd'hui" : "Aucun cours prévu aujourd'hui", detail:slots.length ? (last ? "Dernier cours : " + last.subject + " · " + lastStatus + ". Le programme de la journée est terminé." : "Le programme de la journée est terminé.") : "Aucun cours n'est inscrit à l'emploi du temps aujourd'hui.", subject:null, teacher:null, room:null, next:null }
-  }, [selectedChild, timetable, attendance, clock])
+  }, [selectedChild, timetable, timetableBreaks, attendance, clock])
 
   const counts=useMemo(()=>{
     const recorded=allRows.filter(row=>row.attendance!==null)

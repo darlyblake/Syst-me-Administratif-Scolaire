@@ -5,8 +5,8 @@ import { Inbox } from "lucide-react"
 
 export function ParentEmptyState({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
   return (
-    <div className="flex min-w-0 flex-col items-center justify-center border border-dashed border-slate-300 bg-white px-5 py-10 text-center sm:py-12">
-      <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+    <div className="parent-empty-state flex min-w-0 flex-col items-center justify-center px-5 py-10 text-center sm:py-12">
+      <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-sky-50 text-sky-700">
         <Inbox className="h-5 w-5" aria-hidden="true" />
       </span>
       <p className="font-semibold text-slate-900">{title}</p>

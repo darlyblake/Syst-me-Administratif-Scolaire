@@ -301,6 +301,19 @@ export async function creerPauseClasse(params: {
     throw new Error("Cette pause chevauche au moins un cours de la classe. Choisissez une plage libre sur tous les jours.")
   }
 
+  const { data: existingBreaks, error: breaksError } = await supabaseBrowser
+    .from("class_breaks")
+    .select("starts_at,ends_at")
+    .eq("establishment_id", params.etablissementId)
+    .eq("academic_year_id", params.academicYearId)
+    .eq("class_id", params.classId)
+
+  if (breaksError) throw new Error(`Impossible de vérifier les pauses existantes: ${breaksError.message}`)
+  const overlapsBreak = (existingBreaks ?? []).some((item: any) =>
+    params.startsAt < toTime(item.ends_at) && params.endsAt > toTime(item.starts_at)
+  )
+  if (overlapsBreak) throw new Error("Cette pause chevauche une autre pause déjà enregistrée.")
+
   const { error } = await supabaseBrowser.from("class_breaks").insert({
     establishment_id: params.etablissementId,
     academic_year_id: params.academicYearId,

@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react"
+import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 
 export type ParentChild = { id:string; establishment_id:string; student_number:string|null; first_name:string; last_name:string; birth_date:string|null; sex:string|null; phone:string|null; email:string|null; active:boolean; can_view_academic:boolean; can_view_finance:boolean; relationship:string|null; class_name?:string; class_id?:string; level_name?:string; level_code?:string; cycle_name?:string; enrollment_id?:string; academic_year_id?:string; academic_year_name?:string; payment_mode?:string; installment_count?:number; funding_source?:"family"|"state"|"other" }
@@ -23,7 +23,6 @@ export type ClaimStudentInput = { studentId?:string; studentNumber?:string; birt
 
 function useParentPortalState() {
   const [loading,setLoading]=useState(true), [error,setError]=useState<string|null>(null)
-  const refreshTimer=useRef<ReturnType<typeof setTimeout>|null>(null)
   const [children,setChildren]=useState<ParentChild[]>([]), [grades,setGrades]=useState<ParentGrade[]>([]), [payments,setPayments]=useState<ParentPayment[]>([])
   const [attendance,setAttendance]=useState<ParentAttendance[]>([]), [justificationRequests,setJustificationRequests]=useState<ParentJustificationRequest[]>([])
   const [notifications,setNotifications]=useState<ParentNotification[]>([]), [events,setEvents]=useState<ParentEvent[]>([])
@@ -37,6 +36,17 @@ function useParentPortalState() {
       const {data:authData,error:authError}=await supabaseBrowser.auth.getUser()
       if(authError||!authData.user) throw new Error("Session parent introuvable.")
       const userId=authData.user.id
+
+      // Les notifications appartiennent au compte parent, pas aux associations
+      // d'enfants : elles doivent rester accessibles même sans enfant rattaché.
+      const {data:notificationRows,error:notificationError}=await supabaseBrowser
+        .from("notifications")
+        .select("id,title,body,type,read_at,created_at")
+        .eq("recipient_user_id",userId)
+        .order("created_at",{ascending:false})
+        .limit(50)
+      if(notificationError) console.warn("Parent notifications query:",notificationError)
+      else setNotifications(notificationRows??[])
 
       // Source de vérité des enfants : Edge Function authentifiée.
       // Le serveur vérifie le compte parent et lit uniquement ses associations.
@@ -59,7 +69,6 @@ function useParentPortalState() {
         setPayments([])
         setAttendance([])
         setJustificationRequests([])
-        setNotifications([])
         setEvents([])
         setPaymentSchedules([])
         setPaymentAllocations([])
@@ -169,9 +178,6 @@ function useParentPortalState() {
       const subr=subjectIds.length?await supabaseBrowser.from("subjects").select("id,name").in("id",subjectIds):{data:[],error:null}
       if(subr.error) console.warn("Parent subjects query:", subr.error)
       const assessmentMap=new Map((asr.data??[]).map(x=>[x.id,x])), subjectMap=new Map((subr.data??[]).map(x=>[x.id,x.name]))
-
-      const n=await supabaseBrowser.from("notifications").select("id,title,body,type,read_at,created_at").eq("recipient_user_id",userId).order("created_at",{ascending:false}).limit(50)
-      if(!n.error) setNotifications(n.data??[])
 
       const [gr,ar,jr,ev]=await Promise.all([
         Promise.resolve({data:gradeRows,error:null}),
@@ -328,18 +334,20 @@ function useParentPortalState() {
         .channel(`parent-notifications:${user.id}`)
         .on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications",filter:`recipient_user_id=eq.${user.id}`},payload=>{
           const notification=payload.new as ParentNotification
-          setNotifications(current=>current.some(item=>item.id===notification.id)?current:[notification,...current].slice(0,50))
-          // La notification confirme qu'une action a eu lieu : recharger silencieusement
-          // toutes les données autorisées du parent (paiements, présences, notes, cahier…).
-          if(refreshTimer.current) clearTimeout(refreshTimer.current)
-          refreshTimer.current=setTimeout(()=>{
-            refreshTimer.current=null
-            void refresh({silent:true})
-          },180)
+          setNotifications(current=>{
+            const next=[notification,...current.filter(item=>item.id!==notification.id)]
+            return next.sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)).slice(0,50)
+          })
         })
         .on("postgres_changes",{event:"UPDATE",schema:"public",table:"notifications",filter:`recipient_user_id=eq.${user.id}`},payload=>{
           const notification=payload.new as ParentNotification
-          setNotifications(current=>current.map(item=>item.id===notification.id?notification:item))
+          setNotifications(current=>{
+            const exists=current.some(item=>item.id===notification.id)
+            const next=exists
+              ?current.map(item=>item.id===notification.id?notification:item)
+              :[notification,...current]
+            return next.sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)).slice(0,50)
+          })
         })
         .subscribe()
     })
@@ -353,7 +361,6 @@ function useParentPortalState() {
     return ()=>{
       disposed=true
       subscription.unsubscribe()
-      if(refreshTimer.current){clearTimeout(refreshTimer.current);refreshTimer.current=null}
       if(notificationChannel) void supabaseBrowser.removeChannel(notificationChannel)
     }
   },[refresh])

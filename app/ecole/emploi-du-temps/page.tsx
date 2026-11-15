@@ -13,10 +13,13 @@ import { obtenirClassesSupabase } from "@/services/classes.supabase.service"
 import { getAcademicYears } from "@/lib/supabase/services/academic-year.service"
 import {
   creerCreneauEmploiDuTemps,
+  creerPauseClasse,
   modifierCreneauEmploiDuTemps,
   obtenirAffectationsClasse,
   obtenirCreneauxClasse,
+  obtenirPausesClasse,
   supprimerCreneauEmploiDuTemps,
+  supprimerPauseClasse,
   type EmploiDuTempsAffectation,
   type TimetableSlot,
 } from "@/services/emploi-du-temps.supabase.service"
@@ -30,7 +33,7 @@ const JOURS = [
   { value: 6, label: "Samedi" },
 ]
 
-interface TimeRow { startsAt: string; endsAt: string; isBreak?: boolean; breakLabel?: string }
+interface TimeRow { startsAt: string; endsAt: string; isBreak?: boolean; breakLabel?: string; breakId?: string }
 
 const formatTime = (value: string) => value.slice(0, 5)
 const rowKey = (row: TimeRow) => `${row.startsAt}-${row.endsAt}`
@@ -137,21 +140,20 @@ export default function EmploiDuTempsPage() {
       try {
         setLoadingGrid(true)
         setError(null)
-        const [nextSlots, nextAssignments] = await Promise.all([
+        const [nextSlots, nextAssignments, nextBreaks] = await Promise.all([
           obtenirCreneauxClasse(establishmentId, selectedClassId, selectedYearId),
           obtenirAffectationsClasse(establishmentId, selectedClassId),
+          obtenirPausesClasse(establishmentId, selectedClassId, selectedYearId),
         ])
         if (!active) return
         const normalizedSlots = Array.isArray(nextSlots) ? nextSlots : []
         const normalizedAssignments = Array.isArray(nextAssignments) ? nextAssignments : []
         setSlots(normalizedSlots)
         setAssignments(normalizedAssignments)
-        setTimeRows(current => {
-          const currentRows = Array.isArray(current) ? current : []
-          const merged = [...currentRows, ...normalizedSlots.map(slot => ({ startsAt: slot.starts_at, endsAt: slot.ends_at }))]
-          const unique = new Map(merged.map(row => [rowKey(row), row]))
-          return Array.from(unique.values()).sort((a, b) => a.startsAt.localeCompare(b.startsAt))
-        })
+        setTimeRows([
+          ...normalizedSlots.map(slot => ({ startsAt: slot.starts_at, endsAt: slot.ends_at })),
+          ...nextBreaks.map(item => ({ startsAt: item.starts_at, endsAt: item.ends_at, isBreak: true, breakLabel: item.label, breakId: item.id })),
+        ].sort((a, b) => a.startsAt.localeCompare(b.startsAt)))
         setTeacherId("")
         setClassSubjectId("")
       } catch (err) {
@@ -281,8 +283,22 @@ export default function EmploiDuTempsPage() {
     setError(null)
   }
 
-  const handleRemoveTimeRow = (row: TimeRow) => {
-    const hasCourses = timeRows.length > 0 && safeSlots.some(slot => slot.starts_at === row.startsAt && slot.ends_at === row.endsAt)
+  const handleRemoveTimeRow = async (row: TimeRow) => {
+    if (row.isBreak && row.breakId && establishmentId) {
+      try {
+        setSaving(true)
+        await supprimerPauseClasse(row.breakId, establishmentId)
+        setTimeRows(current => current.filter(item => rowKey(item) !== rowKey(row)))
+        setSuccess("Pause supprimée.")
+        setError(null)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Impossible de supprimer la pause.")
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+    const hasCourses = safeSlots.some(slot => slot.starts_at === row.startsAt && slot.ends_at === row.endsAt)
     if (hasCourses) {
       setError("Cette plage contient déjà un cours. Supprimez ou déplacez d'abord les cours concernés.")
       return
@@ -290,20 +306,38 @@ export default function EmploiDuTempsPage() {
     setTimeRows(current => current.filter(item => rowKey(item) !== rowKey(row)))
   }
 
-  const handleAddBreak = () => {
+  const handleAddBreak = async () => {
+    if (!establishmentId || !selectedClassId || !selectedYearId) return
     if (!newBreakStart || !newBreakEnd) return setError("Renseignez l'heure de début et l'heure de fin de la pause.")
     if (newBreakStart >= newBreakEnd) return setError("L'heure de fin doit être après l'heure de début.")
-    const next: TimeRow = { startsAt: newBreakStart, endsAt: newBreakEnd, isBreak: true, breakLabel: newBreakLabel.trim() || "Récréation" }
-    if (timeRows.some(row => rowKey(row) === rowKey(next))) {
-      setError("Cette plage horaire existe déjà.")
-      return
+    const overlaps = timeRows.some(row => row.isBreak && newBreakStart < row.endsAt && newBreakEnd > row.startsAt)
+    if (overlaps) return setError("Cette pause chevauche une autre pause déjà définie.")
+    try {
+      setSaving(true)
+      setError(null)
+      await creerPauseClasse({
+        etablissementId: establishmentId,
+        academicYearId: selectedYearId,
+        classId: selectedClassId,
+        startsAt: newBreakStart,
+        endsAt: newBreakEnd,
+        label: newBreakLabel.trim() || "Récréation",
+      })
+      const savedBreaks = await obtenirPausesClasse(establishmentId, selectedClassId, selectedYearId)
+      setTimeRows(current => [
+        ...current.filter(row => !row.isBreak),
+        ...savedBreaks.map(item => ({ startsAt: item.starts_at, endsAt: item.ends_at, isBreak: true, breakLabel: item.label, breakId: item.id })),
+      ].sort((a, b) => a.startsAt.localeCompare(b.startsAt)))
+      setNewBreakStart("")
+      setNewBreakEnd("")
+      setNewBreakLabel("Récréation")
+      setNewBreakOpen(false)
+      setSuccess("Pause enregistrée pour cette classe et cette année scolaire.")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible d'enregistrer la pause.")
+    } finally {
+      setSaving(false)
     }
-    setTimeRows(current => [...current, next].sort((a, b) => a.startsAt.localeCompare(b.startsAt)))
-    setNewBreakStart("")
-    setNewBreakEnd("")
-    setNewBreakLabel("Récréation")
-    setNewBreakOpen(false)
-    setError(null)
   }
 
   if (loading) {
@@ -511,7 +545,7 @@ export default function EmploiDuTempsPage() {
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <h3 className="font-semibold">Pause / Récréation</h3>
-                <p className="text-sm text-[#515f74]">Cette plage sera affichée comme une pause dans l'emploi du temps.</p>
+                <p className="text-sm text-[#515f74]">Cette pause sera enregistrée pour toute la classe, sur les jours de la grille.</p>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setNewBreakOpen(false)}><X className="h-4 w-4" /></Button>
             </div>
@@ -530,7 +564,7 @@ export default function EmploiDuTempsPage() {
               </div>
             </div>
             <div className="mt-6 flex gap-2">
-              <Button className="flex-1 bg-amber-600 hover:bg-amber-700 text-white" onClick={handleAddBreak}>Ajouter la pause</Button>
+              <Button className="flex-1 bg-amber-600 hover:bg-amber-700 text-white" onClick={handleAddBreak} disabled={saving}>{saving ? "Enregistrement…" : "Enregistrer la pause"}</Button>
               <Button variant="outline" className="flex-1" onClick={() => setNewBreakOpen(false)}>Annuler</Button>
             </div>
           </div>

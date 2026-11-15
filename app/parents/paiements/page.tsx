@@ -132,16 +132,16 @@ export default function ParentPaiements() {
   const overdueSchedules = familyTuitionSchedules.filter((schedule) => {
     const dueDate = new Date(schedule.due_date)
     dueDate.setHours(0, 0, 0, 0)
-    return schedule.amount_due > schedule.amount_paid && dueDate < today
+    return schedule.status !== "paid" && schedule.amount_due > schedule.amount_paid && dueDate < today
   })
   const partialSchedules = familyTuitionSchedules.filter(
-    (schedule) => schedule.amount_paid > 0 && schedule.amount_due > schedule.amount_paid &&
+    (schedule) => schedule.status !== "paid" && schedule.amount_paid > 0 && schedule.amount_due > schedule.amount_paid &&
       !overdueSchedules.some((item) => item.id === schedule.id),
   )
   const upcomingSchedules = familyTuitionSchedules.filter((schedule) => {
     const dueDate = new Date(schedule.due_date)
     dueDate.setHours(0, 0, 0, 0)
-    return schedule.amount_due > schedule.amount_paid && dueDate >= today
+    return schedule.status !== "paid" && schedule.amount_due > schedule.amount_paid && dueDate >= today
   })
   const settledSchedules = familyTuitionSchedules.filter(
     (schedule) => schedule.amount_due <= schedule.amount_paid || schedule.status === "paid",

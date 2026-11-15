@@ -286,7 +286,7 @@ export default function ParentAbsences() {
       setSelected(null)
       setReason("")
       setFile(null)
-      await refresh()
+      await refresh({ silent: true })
     } catch (cause) {
       if (uploadedPath) await supabaseBrowser.storage.from("attendance-justifications").remove([uploadedPath])
       if (createdRequestId) {

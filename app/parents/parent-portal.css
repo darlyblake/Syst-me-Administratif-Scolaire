@@ -1,57 +1,50 @@
-/* Espace parent — structure harmonisée avec la maquette HTML */
-.parent-portal-content{max-width:1040px!important;margin:0 auto!important;padding:32px 32px 56px!important}
-.parent-portal-content h1{font-size:26px!important;line-height:1.25!important;font-weight:700!important;letter-spacing:-.02em!important;color:#172033!important}
-.parent-portal-content h2{font-size:16px!important;font-weight:600!important;color:#172033!important}
-.parent-portal-content section{background:#fff!important;border:1px solid #dfe5ee!important;border-radius:8px!important;overflow:hidden}
-.parent-portal-content .parent-page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+/* Portail parent — style administratif sobre, sans effets décoratifs */
+.parent-portal-content{box-sizing:border-box;width:100%;max-width:1104px!important;margin:0 auto!important;padding:28px 32px 56px!important;min-width:0;overflow:visible}
+.parent-portal-content h1{margin:0;color:#172b45!important;font-size:25px!important;line-height:1.3!important;font-weight:600!important;letter-spacing:0!important}
+.parent-portal-content h2{color:#1f2937!important;font-size:15px!important;line-height:1.4!important;font-weight:600!important}
+.parent-portal-content h3{color:#1f2937!important}
+.parent-portal-content section{min-width:0;background:#fff!important;border:1px solid #d9e0e8!important;border-radius:6px!important;box-shadow:none!important;overflow:hidden}
+.parent-portal-content .parent-page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;margin:0 0 22px;padding:0 0 16px;border-bottom:1px solid #d9e0e8}
 .parent-portal-content .parent-page-head p{color:#64748b}
-.parent-portal-content .parent-surface{background:#fff;border:1px solid #dfe5ee;border-radius:8px;overflow:hidden}
-.parent-portal-content .parent-surface-title{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px 20px;border-bottom:1px solid #e5eaf1}
-.parent-portal-content .parent-list-row{display:flex;align-items:center;gap:14px;padding:14px 20px;border-top:1px solid #e5eaf1}
-.parent-portal-content .parent-two-columns{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:20px}
+.parent-portal-content .parent-surface{background:#fff;border:1px solid #d9e0e8;border-radius:6px;box-shadow:none;overflow:hidden}
+.parent-portal-content .parent-surface-title{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 17px;border-bottom:1px solid #e3e8ee}
+.parent-portal-content .parent-list-row{display:flex;align-items:center;gap:12px;padding:12px 17px;border-top:1px solid #e8edf2}
+.parent-portal-content .parent-list-row:first-child{border-top:0}
+.parent-portal-content .parent-two-columns{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(270px,1fr);gap:18px}
 .parent-portal-content table{width:100%;border-collapse:collapse}
-.parent-portal-content thead{background:#f8fafc}
-.parent-portal-content th{font-size:13px;font-weight:600;color:#64748b;text-align:left;padding:10px 20px;border-bottom:1px solid #e5eaf1}
-.parent-portal-content td{padding:13px 20px;border-top:1px solid #e5eaf1;font-size:14px}
-.parent-portal-content button,.parent-portal-content a{transition:background-color .15s ease,color .15s ease}
-.parent-portal-content :focus-visible{outline:2px solid #2563eb;outline-offset:2px}
-/* Harmonisation des anciennes classes de couleur encore utilisées par certaines pages. */
-.parent-portal-content [class*="text-terre"]{color:#172033!important}
+.parent-portal-content thead{background:#f5f7fa}
+.parent-portal-content th{font-size:12px;font-weight:600;color:#596779;text-align:left;padding:10px 16px;border-bottom:1px solid #dfe5ec}
+.parent-portal-content td{padding:11px 16px;border-top:1px solid #e8edf2;font-size:13.5px;color:#263548}
+.parent-portal-content button,.parent-portal-content a{transition:background-color .12s ease,color .12s ease}
+.parent-portal-content :focus-visible{outline:2px solid #315f91;outline-offset:2px}
+.parent-portal-content input:not([type=checkbox]):not([type=radio]),.parent-portal-content select,.parent-portal-content textarea{max-width:100%;border-radius:5px!important;box-shadow:none!important}
+.parent-portal-content [class*="rounded-2xl"],.parent-portal-content [class*="rounded-xl"]{border-radius:6px!important}
+.parent-portal-content [class*="shadow"]{box-shadow:none!important}
+.parent-portal-content [class*="text-terre"]{color:#263548!important}
 .parent-portal-content [class*="text-pierre"]{color:#64748b!important}
-.parent-portal-content [class*="text-vert"]{color:#1d4ed8!important}
-.parent-portal-content [class*="bg-papier"],
-.parent-portal-content [class*="bg-creme"]{background:#fff!important}
-.parent-portal-content [class*="bg-terre-soft"],
-.parent-portal-content [class*="bg-vert"]{background:#eff6ff!important}
-.parent-portal-content [class*="border-terre"],
-.parent-portal-content [class*="border-vert"]{border-color:#dfe5ee!important}
-.parent-portal-content input:not([type="checkbox"]):not([type="radio"]),
-.parent-portal-content select,
-.parent-portal-content textarea{max-width:100%;border-radius:6px}
-.parent-portal-content img,.parent-portal-content svg{flex-shrink:0}
-.parent-portal-content .parent-page-head{padding-bottom:18px;border-bottom:1px solid #e2e8f0}
+.parent-portal-content [class*="text-vert"]{color:#315f91!important}
+.parent-portal-content [class*="bg-papier"],.parent-portal-content [class*="bg-creme"]{background:#fff!important}
+.parent-portal-content [class*="bg-terre-soft"],.parent-portal-content [class*="bg-vert"]{background:#f1f5f9!important}
+.parent-portal-content [class*="border-terre"],.parent-portal-content [class*="border-vert"]{border-color:#d9e0e8!important}
+.parent-portal-content .parent-list-row>span.flex.h-9.w-9{display:none}
+.parent-portal-content .parent-page-head button{border-radius:5px!important}
 @media(max-width:1024px){.parent-portal-content .parent-two-columns{grid-template-columns:1fr}}
 @media(max-width:768px){
- .parent-portal-content{min-height:calc(100dvh - 4rem);padding:20px 16px calc(8rem + env(safe-area-inset-bottom))!important;overscroll-behavior-y:auto;touch-action:pan-y}
+ .parent-portal-content{min-height:calc(100dvh - 4rem);padding:20px 16px calc(8.5rem + env(safe-area-inset-bottom))!important;overscroll-behavior-y:auto;touch-action:pan-y}
  .parent-portal-content h1{font-size:22px!important}
- .parent-portal-content .parent-list-row{padding:13px 16px;flex-wrap:wrap}
- .parent-portal-content .parent-surface-title{padding:14px 16px}
- .parent-portal-content .parent-two-columns{grid-template-columns:1fr}
+ .parent-portal-content .parent-page-head{align-items:flex-start;margin-bottom:18px;padding-bottom:14px}
+ .parent-portal-content .parent-list-row{padding:12px 13px;flex-wrap:wrap}
+ .parent-portal-content .parent-surface-title{padding:12px 14px}
+ .parent-portal-content .parent-two-columns{grid-template-columns:1fr;gap:14px}
+ .parent-portal-content section{border-radius:5px!important}
  .parent-portal-content table{display:block;width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
- .parent-portal-content thead{display:table-header-group}
- .parent-portal-content tbody{display:table-row-group}
+ .parent-portal-content thead{display:table-header-group}.parent-portal-content tbody{display:table-row-group}
  .parent-portal-content tr{display:table-row;padding:0;border:0}
- .parent-portal-content th,.parent-portal-content td{display:table-cell;white-space:nowrap;padding:11px 14px}
+ .parent-portal-content th,.parent-portal-content td{display:table-cell;white-space:nowrap;padding:10px 12px}
  .parent-portal-content td:before{content:none}
 }
-@media(min-width:769px){
- .parent-portal-content{padding-bottom:56px!important}
-}
+@media(min-width:769px){.parent-portal-content{padding-bottom:56px!important}}
 .parent-child-row{scroll-margin-bottom:7rem}
-@supports(overflow:clip){
- .parent-portal-content{overflow:visible}
-}
 html:has(.parent-portal-content),body:has(.parent-portal-content){min-height:100%;height:auto;overflow-x:clip;overflow-y:auto}
 body:has(.parent-portal-content){-webkit-overflow-scrolling:touch;overscroll-behavior-y:auto}
-.parent-portal-content{box-sizing:border-box;min-width:0;overflow:visible}
 .parent-portal-content>*{min-width:0;max-width:100%}

@@ -1,0 +1,30 @@
+/* Espace parent — structure harmonisée avec la maquette HTML */
+.parent-portal-content{max-width:1040px!important;margin:0 auto!important;padding:32px 32px 56px!important}
+.parent-portal-content h1{font-size:26px!important;line-height:1.25!important;font-weight:700!important;letter-spacing:-.02em!important;color:#172033!important}
+.parent-portal-content h2{font-size:16px!important;font-weight:600!important;color:#172033!important}
+.parent-portal-content section{background:#fff!important;border:1px solid #dfe5ee!important;border-radius:8px!important;overflow:hidden}
+.parent-portal-content .parent-page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+.parent-portal-content .parent-page-head p{color:#64748b}
+.parent-portal-content .parent-surface{background:#fff;border:1px solid #dfe5ee;border-radius:8px;overflow:hidden}
+.parent-portal-content .parent-surface-title{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px 20px;border-bottom:1px solid #e5eaf1}
+.parent-portal-content .parent-list-row{display:flex;align-items:center;gap:14px;padding:14px 20px;border-top:1px solid #e5eaf1}
+.parent-portal-content .parent-two-columns{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:20px}
+.parent-portal-content table{width:100%;border-collapse:collapse}
+.parent-portal-content thead{background:#f8fafc}
+.parent-portal-content th{font-size:13px;font-weight:600;color:#64748b;text-align:left;padding:10px 20px;border-bottom:1px solid #e5eaf1}
+.parent-portal-content td{padding:13px 20px;border-top:1px solid #e5eaf1;font-size:14px}
+.parent-portal-content button,.parent-portal-content a{transition:background-color .15s ease,color .15s ease}
+.parent-portal-content :focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+@media(max-width:1024px){.parent-portal-content .parent-two-columns{grid-template-columns:1fr}}
+@media(max-width:768px){
+ .parent-portal-content{padding:20px 16px 32px!important}
+ .parent-portal-content h1{font-size:22px!important}
+ .parent-portal-content .parent-list-row{padding:13px 16px;flex-wrap:wrap}
+ .parent-portal-content .parent-surface-title{padding:14px 16px}
+ .parent-portal-content .parent-two-columns{grid-template-columns:1fr}
+ .parent-portal-content table,.parent-portal-content tbody,.parent-portal-content tr,.parent-portal-content td{display:block}
+ .parent-portal-content thead{display:none}
+ .parent-portal-content tr{padding:10px 16px;border-top:1px solid #e5eaf1}
+ .parent-portal-content td{display:flex;justify-content:space-between;gap:12px;padding:2px 0;border:0}
+ .parent-portal-content td:before{content:attr(data-label);color:#64748b;font-size:12px}
+}

@@ -560,8 +560,6 @@ body:has(.parent-portal-content) {
    ============================================================ */
 .sp-sheet {
   position: fixed;
-  display: flex;
-  flex-direction: column;
   inset: auto 0 0;
   z-index: 50;
   width: 100%;
@@ -577,12 +575,6 @@ body:has(.parent-portal-content) {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   touch-action: pan-y;
-}
-.sp-sheet > div:nth-of-type(2) {
-  min-height: auto;
-  flex: 0 0 auto;
-  overflow: visible;
-  touch-action: auto;
 }
 .sp-sheet::before {
   content: "";

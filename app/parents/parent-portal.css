@@ -159,7 +159,7 @@
 
   .parent-portal-content .parent-surface-title { padding: 12px 14px; }
   .parent-portal-content .parent-two-columns { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-  .parent-portal-content section { min-width: 0; border-radius: 7px !important; }
+  .parent-portal-content section { min-width: 0; border-radius: 7px !important; }\n  .parent-portal-content button,\n  .parent-portal-content [role="button"],\n  .parent-portal-content select { min-height: 44px; }
 
   .parent-portal-content table {
     display: block;

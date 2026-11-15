@@ -354,7 +354,7 @@ function useParentPortalState() {
 
     const {data:{subscription}}=supabaseBrowser.auth.onAuthStateChange((event,session)=>{
       if(!session) return
-      if(event==="INITIAL_SESSION"||event==="SIGNED_IN"||event==="TOKEN_REFRESHED"||event==="USER_UPDATED"){
+      if(event==="SIGNED_IN"||event==="TOKEN_REFRESHED"||event==="USER_UPDATED"){
         window.setTimeout(()=>void refresh({silent:true}),0)
       }
     })

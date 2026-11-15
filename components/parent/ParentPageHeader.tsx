@@ -7,6 +7,8 @@ type Props = {
   title: string
   description?: string
   action?: ReactNode
+  onRefresh?: () => void
+  refreshing?: boolean
 }
 
 export function ParentPageHeader({ eyebrow, title, description, action }: Props) {

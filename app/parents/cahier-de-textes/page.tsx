@@ -9,7 +9,7 @@ import { ParentChildSelect } from "@/components/parent/ParentChildSelect"
 import { Input } from "@/components/ui/input"
 
 export default function ParentCahier() {
-  const { loading, error, refresh, children, lessons, homework } = useParentPortal()
+  const { loading, error, children, lessons, homework } = useParentPortal()
   const allowed = useMemo(() => children.filter(child => child.can_view_academic), [children])
   const [childId, setChildId] = useState("tous")
   const [tab, setTab] = useState<"lessons" | "homework">("lessons")
@@ -20,7 +20,7 @@ export default function ParentCahier() {
 
   return (
     <div className="space-y-5 sm:space-y-7">
-      <ParentPageHeader eyebrow="Travail scolaire" title="Cahier de textes & devoirs" description="Leçons, consignes et devoirs publiés par les enseignants." onRefresh={() => void refresh()} refreshing={loading} />
+      <ParentPageHeader eyebrow="Travail scolaire" title="Cahier de textes & devoirs" description="Leçons, consignes et devoirs publiés par les enseignants." />
       {error && <div className="border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700 sm:px-4">{error}</div>}
       {!loading && allowed.length === 0 ? (
         <ParentEmptyState title="Contenus scolaires non disponibles" description="Votre compte n’a pas actuellement l’autorisation de consulter le travail scolaire." />

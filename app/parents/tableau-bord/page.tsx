@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useMemo } from "react"
-import { Activity, ArrowRight, BookOpen, CalendarDays, ClipboardList, FileText, MessageSquare, RefreshCw } from "lucide-react"
+import { Activity, ArrowRight, BookOpen, FileText, MessageSquare, RefreshCw, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useParentPortal } from "@/hooks/use-parent-portal"
@@ -87,7 +87,7 @@ export default function ParentsDashboard() {
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Link href="/parents/enfants" className="flex min-h-[88px] flex-col justify-between border border-slate-200 bg-white p-3 transition-colors hover:border-blue-300">
-              <UsersIcon /><span className="text-sm font-medium text-slate-800">Mes enfants</span>
+              <Users className="h-5 w-5 text-blue-700" /><span className="text-sm font-medium text-slate-800">Mes enfants</span>
             </Link>
             <Link href="/parents/notes" className="flex min-h-[88px] flex-col justify-between border border-slate-200 bg-white p-3 transition-colors hover:border-blue-300">
               <Activity className="h-5 w-5 text-blue-700" /><span className="text-sm font-medium text-slate-800">Résultats scolaires</span>

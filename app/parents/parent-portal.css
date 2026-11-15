@@ -15,6 +15,21 @@
 .parent-portal-content td{padding:13px 20px;border-top:1px solid #e5eaf1;font-size:14px}
 .parent-portal-content button,.parent-portal-content a{transition:background-color .15s ease,color .15s ease}
 .parent-portal-content :focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+/* Harmonisation des anciennes classes de couleur encore utilisées par certaines pages. */
+.parent-portal-content [class*="text-terre"]{color:#172033!important}
+.parent-portal-content [class*="text-pierre"]{color:#64748b!important}
+.parent-portal-content [class*="text-vert"]{color:#1d4ed8!important}
+.parent-portal-content [class*="bg-papier"],
+.parent-portal-content [class*="bg-creme"]{background:#fff!important}
+.parent-portal-content [class*="bg-terre-soft"],
+.parent-portal-content [class*="bg-vert"]{background:#eff6ff!important}
+.parent-portal-content [class*="border-terre"],
+.parent-portal-content [class*="border-vert"]{border-color:#dfe5ee!important}
+.parent-portal-content input:not([type="checkbox"]):not([type="radio"]),
+.parent-portal-content select,
+.parent-portal-content textarea{max-width:100%;border-radius:6px}
+.parent-portal-content img,.parent-portal-content svg{flex-shrink:0}
+.parent-portal-content .parent-page-head{padding-bottom:18px;border-bottom:1px solid #e2e8f0}
 @media(max-width:1024px){.parent-portal-content .parent-two-columns{grid-template-columns:1fr}}
 @media(max-width:768px){
  .parent-portal-content{padding:20px 16px 32px!important}

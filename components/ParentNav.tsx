@@ -124,7 +124,7 @@ export function ParentNav() {
   const Nav = ({ close = false }: { close?: boolean }) => (
     <nav className="space-y-6">
       <div><p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em]", close ? "text-slate-400" : "text-blue-200/65")}>Scolarité</p><div className="space-y-1">{principal.map((item) => <NavItem key={item.href} {...item} close={close} />)}</div></div>
-      <div><p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em]", close ? "text-slate-400" : "text-blue-200/65")}>Échanges et gestion</p><div className="space-y-1">{secondaire.filter((item) => !(close && item.badge === "notifs")).map((item) => <NavItem key={item.href} {...item} count={badge(item.badge)} close={close} />)}</div></div>
+      <div><p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em]", close ? "text-slate-400" : "text-blue-200/65")}>Échanges et gestion</p><div className="space-y-1">{secondaire.map((item) => <NavItem key={item.href} {...item} count={badge(item.badge)} close={close} />)}</div></div>
     </nav>
   )
 

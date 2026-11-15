@@ -286,73 +286,100 @@ export default function ParentAbsences() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-5 pb-8 sm:space-y-6">
-      <header className="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold text-blue-700">Espace famille</p>
-          <h1 className="mt-1 text-2xl font-semibold leading-tight tracking-tight text-slate-950 sm:text-3xl">Présences</h1>
-          <p className="mt-1.5 max-w-xl text-sm leading-5 text-slate-500 sm:leading-6">
-            Consultez les présences et les absences de l’élève sélectionné. Les informations se mettent à jour automatiquement.
-          </p>
-        </div>
+    <div className="mx-auto w-full max-w-2xl space-y-4 pb-8 sm:space-y-5">
+      <header className="pb-1">
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Espace famille</p>
+        <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-950">Suivi des présences</h1>
+        <p className="mt-1 text-sm text-slate-500">Suivez la journée scolaire et les présences de votre enfant.</p>
       </header>
 
       {error && <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      <section className="space-y-4">
-        <div className="space-y-2">
-          <label htmlFor="parent-attendance-child" className="text-sm font-semibold text-slate-800">Élève</label>
-          <select id="parent-attendance-child" value={activeChildId} onChange={event=>{setChildId(event.target.value);setDateFilter("");setSubjectFilter("all")}} disabled={!allowed.length} className="h-14 w-full appearance-none border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 outline-none focus:border-blue-700 focus:ring-1 focus:ring-blue-700 disabled:bg-slate-50">
-            {allowed.map(child=><option key={child.id} value={child.id}>{child.first_name} {child.last_name} · {child.class_name??child.level_name??"Classe non renseignée"}</option>)}
-          </select>
-        </div>
-        {!selectedChild && !loading && <p className="border-y border-slate-200 py-5 text-sm text-slate-500">Aucun enfant n'est rattaché à votre compte avec accès au suivi scolaire.</p>}
-        {selectedChild && <div className="border-y border-slate-200 bg-white py-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Élève suivi</p>
-          <h2 className="mt-1 text-xl font-semibold text-slate-950">{selectedChild.first_name} {selectedChild.last_name}</h2>
-          <p className="mt-1 text-sm text-slate-600">{selectedChild.class_name??selectedChild.level_name??"Classe non renseignée"}{selectedChild.academic_year_name?" · "+selectedChild.academic_year_name:""}</p>
-        </div>}
-        {liveStatus && <section className="border border-slate-200 bg-white">
-          <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-            <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Situation aujourd'hui</p><p className="mt-1 text-xs text-slate-500">Mis à jour automatiquement</p></div>
+      {allowed.length > 0 && <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="Choisir un enfant">
+        {allowed.map(child => {
+          const active = child.id === activeChildId
+          const initials = (child.first_name?.[0] ?? "") + (child.last_name?.[0] ?? "")
+          return <button key={child.id} type="button" onClick={() => { setChildId(child.id); setDateFilter(""); setSubjectFilter("all") }} aria-pressed={active}
+            className={"flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition-colors " + (active ? "border-blue-700 bg-blue-700 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-blue-300")}>
+            <span className={"grid h-8 w-8 place-items-center rounded-full text-xs font-extrabold " + (active ? "bg-white text-blue-700" : "bg-blue-50 text-blue-700")}>{initials.toUpperCase()}</span>
+            {child.first_name}
+          </button>
+        })}
+      </nav>}
+
+      {!selectedChild && !loading && <div className="border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">Aucun enfant n'est rattaché à votre compte avec accès au suivi scolaire.</div>}
+
+      {selectedChild && <>
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold text-slate-950">{selectedChild.first_name} {selectedChild.last_name}</h2>
+              <p className="mt-1 text-sm text-slate-500">{selectedChild.class_name ?? selectedChild.level_name ?? "Classe non renseignée"}{selectedChild.academic_year_name ? " · " + selectedChild.academic_year_name : ""}</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">{selectedChild.class_name ?? selectedChild.level_name ?? "Élève"}</span>
           </div>
-          <div className="px-4 py-4">
-            <div className="flex items-start gap-3">
-              <span className={"mt-1 h-2.5 w-2.5 shrink-0 "+(liveStatus.kind==="lesson"?"bg-blue-700":liveStatus.kind==="break"?"bg-amber-500":liveStatus.kind==="finished"?"bg-emerald-600":"bg-slate-400")}></span>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-lg font-semibold text-slate-950">{liveStatus.title}</h3>
-                <p className="mt-1 text-sm leading-5 text-slate-600">{liveStatus.detail}</p>
-                {liveStatus.subject&&<p className="mt-3 text-sm font-semibold text-slate-900">{liveStatus.subject}</p>}
-                {liveStatus.teacher&&<p className="mt-1 text-sm text-slate-600">Enseignant : {liveStatus.teacher}</p>}
-                {liveStatus.room&&<p className="mt-1 text-sm text-slate-500">Salle : {liveStatus.room}</p>}
-                {liveStatus.next&&<p className="mt-2 text-sm text-slate-600">Prochain cours : {liveStatus.next}</p>}
-              </div>
+
+          {liveStatus && <div className={"mt-4 rounded-2xl px-4 py-5 text-center " + (liveStatus.kind === "lesson" ? "bg-blue-50" : liveStatus.kind === "break" ? "bg-amber-50" : liveStatus.kind === "finished" ? "bg-slate-100" : "bg-slate-50")}>
+            <div className="text-5xl leading-none" aria-hidden="true">{liveStatus.kind === "lesson" ? "✍️" : liveStatus.kind === "break" ? "⚽" : liveStatus.kind === "before" ? "🌅" : liveStatus.kind === "finished" ? "🎒" : "📅"}</div>
+            <h3 className={"mt-3 text-xl font-extrabold " + (liveStatus.kind === "lesson" ? "text-blue-800" : liveStatus.kind === "break" ? "text-amber-800" : "text-slate-900")}>{liveStatus.title}</h3>
+            <p className="mx-auto mt-1 max-w-md text-sm leading-5 text-slate-600">{liveStatus.detail}</p>
+            {liveStatus.subject && <div className="mx-auto mt-4 grid max-w-sm grid-cols-2 gap-2 text-left">
+              <div className="rounded-xl bg-white px-3 py-2"><p className="text-[11px] text-slate-500">Matière</p><p className="text-sm font-bold text-slate-900">{liveStatus.subject}</p></div>
+              <div className="rounded-xl bg-white px-3 py-2"><p className="text-[11px] text-slate-500">Enseignant</p><p className="text-sm font-bold text-slate-900">{liveStatus.teacher ?? "Non renseigné"}</p></div>
+              {liveStatus.room && <div className="col-span-2 rounded-xl bg-white px-3 py-2"><p className="text-[11px] text-slate-500">Salle</p><p className="text-sm font-bold text-slate-900">{liveStatus.room}</p></div>}
+            </div>}
+            {liveStatus.next && <p className="mt-3 inline-flex rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">Prochain cours : {liveStatus.next}</p>}
+            <p className="mt-3 text-[11px] font-medium text-slate-500">Actualisation automatique · Heure du Gabon</p>
+          </div>}
+
+          <div className="mt-4 grid grid-cols-3 divide-x divide-slate-200 border-y border-slate-100 py-3 text-center">
+            <div><p className="text-2xl font-extrabold tabular-nums text-blue-700">{liveStatus?.present ?? 0}</p><p className="text-xs text-slate-500">Présences</p></div>
+            <div><p className="text-2xl font-extrabold tabular-nums text-amber-600">{liveStatus?.late ?? 0}</p><p className="text-xs text-slate-500">Retards</p></div>
+            <div><p className="text-2xl font-extrabold tabular-nums text-red-600">{liveStatus?.absent ?? 0}</p><p className="text-xs text-slate-500">Absences</p></div>
+          </div>
+          <p className="pt-3 text-center text-xs text-slate-500">{liveStatus?.recorded ?? 0} appel(s) enregistré(s) aujourd'hui · {liveStatus?.completed ?? 0} cours terminés</p>
+        </section>
+
+        {selectedChildBreaks.length > 0 && <section className="rounded-2xl border border-blue-100 bg-white px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div><h3 className="text-sm font-bold text-slate-900">Récréations programmées</h3><p className="mt-0.5 text-xs text-slate-500">Horaires prévus pour sa classe</p></div>
+            <span className="text-xl" aria-hidden="true">⚽</span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {selectedChildBreaks.map(item => <span key={item.id} className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800">{item.label} · {formatTime(item.starts_at)}–{formatTime(item.ends_at)}</span>)}
+          </div>
+        </section>}
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-bold text-slate-950">Taux de présence</h2>
+            <div className="flex rounded-xl bg-slate-100 p-1" role="group" aria-label="Période du taux de présence">
+              <button type="button" onClick={() => { setPeriod("week"); setAnchorDate(todayInGabon()); setDateFilter(""); setSubjectFilter("all"); setStatusFilter("all") }} className={"rounded-lg px-3 py-1.5 text-xs font-bold " + (period === "week" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500")}>Semaine</button>
+              <button type="button" onClick={() => { setPeriod("month"); setAnchorDate(todayInGabon()); setDateFilter(""); setSubjectFilter("all"); setStatusFilter("all") }} className={"rounded-lg px-3 py-1.5 text-xs font-bold " + (period === "month" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500")}>Mois</button>
             </div>
           </div>
-          <div className="grid grid-cols-3 border-t border-slate-200 text-center">
-            <div className="px-2 py-3"><p className="text-xl font-semibold tabular-nums text-emerald-700">{liveStatus.present}</p><p className="text-xs text-slate-500">Présences</p></div>
-            <div className="border-x border-slate-200 px-2 py-3"><p className="text-xl font-semibold tabular-nums text-amber-700">{liveStatus.late}</p><p className="text-xs text-slate-500">Retards</p></div>
-            <div className="px-2 py-3"><p className="text-xl font-semibold tabular-nums text-red-700">{liveStatus.absent}</p><p className="text-xs text-slate-500">Absences</p></div>
+          <div className="mt-5 flex items-center gap-5">
+            <div className="relative h-28 w-28 shrink-0">
+              <svg viewBox="0 0 104 104" className="h-full w-full -rotate-90" role="img" aria-label={"Taux de présence " + (counts.rate === null ? "indisponible" : counts.rate + " pour cent")}>
+                <circle cx="52" cy="52" r="44" fill="none" stroke="#E2E8F0" strokeWidth="9" />
+                <circle cx="52" cy="52" r="44" fill="none" stroke="#1F5EFF" strokeWidth="9" strokeLinecap="round" strokeDasharray="276.5" strokeDashoffset={276.5 * (1 - (counts.rate ?? 0) / 100)} />
+              </svg>
+              <div className="absolute inset-0 grid place-items-center text-2xl font-extrabold tabular-nums text-slate-950">{counts.rate === null ? "—" : counts.rate + "%"}</div>
+            </div>
+            <div className="min-w-0 text-sm leading-6 text-slate-600">
+              <p className="font-bold text-slate-900">Présence {period === "week" ? "cette semaine" : "ce mois-ci"}</p>
+              <p>{counts.recorded} appel(s) enregistré(s)</p>
+              {counts.absent > 0 ? <p className="font-semibold text-red-600">{counts.absent} absence(s) signalée(s)</p> : <p className="font-medium text-blue-700">Aucune absence enregistrée</p>}
+              <p className="text-xs text-slate-500">{counts.late} retard(s) · {counts.pending} appel(s) en attente</p>
+            </div>
           </div>
-          <div className="border-t border-slate-100 px-4 py-3 text-xs leading-5 text-slate-600">{liveStatus.recorded} appel(s) enregistré(s) aujourd'hui · {liveStatus.completed} cours terminés · {liveStatus.missing} appel(s) manquant(s)</div>
-        </section>}
-        {selectedChild && selectedChildBreaks.length > 0 && <section className="border border-slate-200 bg-white">
-          <div className="border-b border-slate-200 px-4 py-3">
-            <h2 className="text-sm font-semibold text-slate-950">Récréations programmées</h2>
-            <p className="mt-1 text-xs text-slate-500">Horaires prévus pour la classe les jours de cours (du lundi au samedi).</p>
-          </div>
-          <ul className="divide-y divide-slate-100">
-            {selectedChildBreaks.map(item => <li key={item.id} className="flex items-center justify-between gap-4 px-4 py-3">
-              <span className="text-sm font-medium text-slate-800">{item.label}</span>
-              <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">{formatTime(item.starts_at)} – {formatTime(item.ends_at)}</span>
-            </li>)}
-          </ul>
-        </section>}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
-          <div><h2 className="text-base font-semibold text-slate-950">Historique et absences</h2><p className="mt-1 text-xs text-slate-500">Consultez les cours passés et envoyez une justification.</p></div>
-          <button type="button" onClick={()=>{setPeriod("month");setAnchorDate(todayInGabon());setDateFilter("");setSubjectFilter("all");setStatusFilter("all");setShowHistory(true)}} className="min-h-11 border border-blue-700 px-4 text-sm font-semibold text-blue-800">Voir l'historique</button>
-        </div>
-      </section>
+          <p className="mt-4 text-[11px] leading-4 text-slate-500">Le taux est calculé à partir des appels réellement enregistrés. Un cours sans appel validé n'est pas automatiquement considéré comme une absence.</p>
+          <button type="button" onClick={() => { setDateFilter(""); setSubjectFilter("all"); setStatusFilter("all"); setShowHistory(true) }} className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 text-sm font-bold text-white transition-colors hover:bg-blue-800">
+            Voir l'historique des cours <span aria-hidden="true">→</span>
+          </button>
+        </section>
+      </>}
+      {loading && !selectedChild && <p className="py-8 text-center text-sm text-slate-500">Chargement des informations…</p>}
 
       {showHistory && <div className="fixed inset-0 z-40 flex items-end justify-center bg-slate-950/40 sm:items-center sm:p-4">
         <div className="max-h-[92dvh] w-full max-w-5xl space-y-4 overflow-y-auto bg-white p-4 shadow-xl sm:p-6">

@@ -70,6 +70,16 @@ export default function ParentAbsences() {
     const interval = window.setInterval(() => setClock(Date.now()), 30_000)
     return () => window.clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    if (!activeChildId) return
+    const channel = supabaseBrowser
+      .channel("parent-attendance-" + activeChildId)
+      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_records", filter: "student_id=eq." + activeChildId }, () => { void refresh({ silent: true }) })
+      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_justification_requests", filter: "student_id=eq." + activeChildId }, () => { void refresh({ silent: true }) })
+      .subscribe()
+    return () => { void supabaseBrowser.removeChannel(channel) }
+  }, [activeChildId, refresh])
   const [period, setPeriod] = useState<PeriodFilter>("week")
   const [anchorDate, setAnchorDate] = useState(todayInGabon)
   const [customStart, setCustomStart] = useState(todayInGabon)
@@ -257,19 +267,16 @@ export default function ParentAbsences() {
           <p className="text-xs font-semibold text-blue-700">Espace famille</p>
           <h1 className="mt-1 text-2xl font-semibold leading-tight tracking-tight text-slate-950 sm:text-3xl">Présences</h1>
           <p className="mt-1.5 max-w-xl text-sm leading-5 text-slate-500 sm:leading-6">
-            Suivez les présences, retards et absences de chaque enfant, cours par cours.
+            Consultez les présences et les absences de l’élève sélectionné. Les informations se mettent à jour automatiquement.
           </p>
         </div>
-        <button type="button" onClick={() => void refresh()} disabled={loading} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50 sm:w-auto">
-          {loading ? "Actualisation…" : "Actualiser"}
-        </button>
       </header>
 
       {error && <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       <section className="space-y-4">
         <div className="space-y-2">
-          <label htmlFor="parent-attendance-child" className="text-sm font-semibold text-slate-800">Enfant sélectionné</label>
+          <label htmlFor="parent-attendance-child" className="text-sm font-semibold text-slate-800">Élève</label>
           <select id="parent-attendance-child" value={activeChildId} onChange={event=>{setChildId(event.target.value);setDateFilter("");setSubjectFilter("all")}} disabled={!allowed.length} className="h-14 w-full appearance-none border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 outline-none focus:border-blue-700 focus:ring-1 focus:ring-blue-700 disabled:bg-slate-50">
             {allowed.map(child=><option key={child.id} value={child.id}>{child.first_name} {child.last_name} · {child.class_name??child.level_name??"Classe non renseignée"}</option>)}
           </select>
@@ -282,8 +289,7 @@ export default function ParentAbsences() {
         </div>}
         {liveStatus && <section className="border border-slate-200 bg-white">
           <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-            <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Situation aujourd'hui</p><p className="mt-1 text-xs text-slate-500">Actualisation automatique</p></div>
-            <button type="button" onClick={()=>void refresh()} disabled={loading} className="text-sm font-semibold text-blue-800 disabled:opacity-50">{loading?"…":"Actualiser"}</button>
+            <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Situation aujourd'hui</p><p className="mt-1 text-xs text-slate-500">Mis à jour automatiquement</p></div>
           </div>
           <div className="px-4 py-4">
             <div className="flex items-start gap-3">
@@ -307,7 +313,7 @@ export default function ParentAbsences() {
         </section>}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
           <div><h2 className="text-base font-semibold text-slate-950">Historique et absences</h2><p className="mt-1 text-xs text-slate-500">Consultez les cours passés et envoyez une justification.</p></div>
-          <button type="button" onClick={()=>{setPeriod("month");setAnchorDate(todayInGabon());setDateFilter("");setSubjectFilter("all");setStatusFilter("all");setShowHistory(true)}} className="min-h-11 border border-blue-700 px-4 text-sm font-semibold text-blue-800">Ouvrir l'historique</button>
+          <button type="button" onClick={()=>{setPeriod("month");setAnchorDate(todayInGabon());setDateFilter("");setSubjectFilter("all");setStatusFilter("all");setShowHistory(true)}} className="min-h-11 border border-blue-700 px-4 text-sm font-semibold text-blue-800">Voir l'historique</button>
         </div>
       </section>
 
@@ -320,21 +326,15 @@ export default function ParentAbsences() {
       {showHistory && <section className="overflow-hidden border border-slate-200 bg-white">
         <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="space-y-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Enfant</span>
-            <select value={activeChildId} onChange={(event) => setChildId(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800">
-                {allowed.map((child) => <option key={child.id} value={child.id}>{child.first_name} {child.last_name}</option>)}
-            </select>
-          </label>
-          <label className="space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Période</span>
-            <select value={period} onChange={(event) => setPeriod(event.target.value as PeriodFilter)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800">
+            <select value={period} onChange={(event) => setPeriod(event.target.value as PeriodFilter)} className="h-10 w-full  border border-slate-200 bg-white px-3 text-sm text-slate-800">
               <option value="week">Semaine</option><option value="month">Mois</option><option value="custom">Période personnalisée</option>
             </select>
           </label>
           {period==="custom" ? <>
-            <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Du</span><input type="date" value={customStart} max={customEnd} onChange={event=>setCustomStart(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800" /></label>
-            <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Au</span><input type="date" value={customEnd} min={customStart} onChange={event=>setCustomEnd(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800" /></label>
-          </> : <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{period==="week"?"Semaine contenant":"Mois contenant"}</span><input type="date" value={anchorDate} onChange={event=>setAnchorDate(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800" /></label>}
+            <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Du</span><input type="date" value={customStart} max={customEnd} onChange={event=>setCustomStart(event.target.value)} className="h-10 w-full  border border-slate-200 bg-white px-3 text-sm text-slate-800" /></label>
+            <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Au</span><input type="date" value={customEnd} min={customStart} onChange={event=>setCustomEnd(event.target.value)} className="h-10 w-full  border border-slate-200 bg-white px-3 text-sm text-slate-800" /></label>
+          </> : <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{period==="week"?"Semaine contenant":"Mois contenant"}</span><input type="date" value={anchorDate} onChange={event=>setAnchorDate(event.target.value)} className="h-10 w-full  border border-slate-200 bg-white px-3 text-sm text-slate-800" /></label>}
           <label className="space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date précise</span>
             <input type="date" value={dateFilter} onChange={event=>{const value=event.target.value;setDateFilter(value);if(value){setPeriod("custom");setCustomStart(value);setCustomEnd(value)}}} className="h-10 w-full border border-slate-200 bg-white px-3 text-sm text-slate-800" />
@@ -348,7 +348,7 @@ export default function ParentAbsences() {
           </label>
           <label className="space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Statut</span>
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800">
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} className="h-10 w-full  border border-slate-200 bg-white px-3 text-sm text-slate-800">
               <option value="all">Tous les statuts</option><option value="present">Présent</option><option value="absent">Absent</option><option value="late">Retard</option><option value="justified">Justifié</option><option value="pending">Appel non effectué</option>
             </select>
           </label>
@@ -368,7 +368,7 @@ export default function ParentAbsences() {
           <div><h2 className="text-sm font-semibold text-slate-900">Taux de présence</h2><p className="mt-1 text-xs text-slate-500">Calculé sur les appels effectués des cours terminés.</p></div>
           <p className="text-2xl font-bold tabular-nums text-blue-800">{counts.rate===null?"—":counts.rate+"%"}</p>
         </div>
-        <div className="h-2.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-700 transition-all" style={{width:(counts.rate??0)+"%"}} /></div>
+        <div className="h-2.5 overflow-hidden  bg-slate-100"><div className="h-full  bg-blue-700 transition-all" style={{width:(counts.rate??0)+"%"}} /></div>
 
         <p className="mt-3 text-[11px] text-slate-500">Un cours sans appel validé n'est pas compté comme une absence. Les retards sont comptés comme une présence.</p>
       </section>}
@@ -391,7 +391,7 @@ export default function ParentAbsences() {
               </div>
               <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-2 text-xs text-slate-500"><span>Horaire</span><strong className="font-semibold tabular-nums text-slate-700">{formatTime(row.startsAt)} – {formatTime(row.endsAt)}</strong></div>
               <div className="flex items-center justify-between gap-3"><span className="text-xs text-slate-500">Justification</span>
-                {request?.status === "pending" ? <span className="text-xs font-medium text-amber-700">En attente</span> : request?.status === "approved" ? <span className="text-xs font-medium text-emerald-700">Acceptée</span> : request?.status === "rejected" ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFile(null); setFormError(null) }} className="min-h-9 rounded-md border border-red-200 px-3 text-xs font-semibold text-red-700">Refusée · Renvoyer</button> : canJustify ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFile(null); setFormError(null) }} className="min-h-9 rounded-md border border-slate-200 px-3 text-xs font-semibold text-slate-700">Justifier</button> : <span className="text-xs text-slate-400">—</span>}
+                {request?.status === "pending" ? <span className="text-xs font-medium text-amber-700">En attente</span> : request?.status === "approved" ? <span className="text-xs font-medium text-emerald-700">Acceptée</span> : request?.status === "rejected" ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFile(null); setFormError(null) }} className="min-h-9  border border-red-200 px-3 text-xs font-semibold text-red-700">Refusée · Renvoyer</button> : canJustify ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFile(null); setFormError(null) }} className="min-h-9  border border-slate-200 px-3 text-xs font-semibold text-slate-700">Justifier</button> : <span className="text-xs text-slate-400">—</span>}
               </div>
               {request?.attachment_name && <p className="text-[11px] text-slate-500">Pièce jointe : {request.attachment_name}</p>}
               {request?.reviewer_note && <p className="text-xs text-slate-600">Retour de l'établissement : {request.reviewer_note}</p>}
@@ -434,9 +434,9 @@ export default function ParentAbsences() {
                         : request?.status === "approved"
                           ? <span className="text-xs font-medium text-emerald-700">Acceptée</span>
                           : request?.status === "rejected"
-                            ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFile(null); setFormError(null) }} className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">Refusée · Renvoyer</button>
+                            ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFile(null); setFormError(null) }} className=" border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">Refusée · Renvoyer</button>
                             : canJustify
-                              ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFile(null); setFormError(null) }} className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Justifier</button>
+                              ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFile(null); setFormError(null) }} className=" border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Justifier</button>
                               : <span className="text-xs text-slate-400">—</span>}
                       {request?.attachment_name && <p className="mt-1 text-[11px] text-slate-500">{request.attachment_name}</p>}
                       {request?.reviewer_note && <p className="mt-1 max-w-48 text-[11px] text-slate-500">{request.reviewer_note}</p>}
@@ -458,7 +458,7 @@ export default function ParentAbsences() {
 
       {selected && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 p-0 sm:items-center sm:p-4">
-          <div className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-slate-200 bg-white p-5 shadow-xl sm:rounded-2xl sm:p-6">
+          <div className="max-h-[90dvh] w-full max-w-lg overflow-y-auto  border border-slate-200 bg-white p-5 shadow-xl sm: sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="font-semibold text-slate-900">Justifier le {selected.status === "late" || selected.status === "retard" ? "retard" : "cours"}</h2>
@@ -469,7 +469,7 @@ export default function ParentAbsences() {
 
             {selected && requests.get(selected.id)?.status === "rejected" && requests.get(selected.id)?.reviewer_note && <p className="mt-4 border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700"><strong>Retour de l'établissement :</strong> {requests.get(selected.id)?.reviewer_note}</p>}
             <label className="mt-5 block text-sm font-semibold text-slate-700">Motif de la justification
-              <textarea className="mt-2 min-h-28 w-full rounded-md border border-slate-200 p-3 text-sm font-normal text-slate-800 outline-none focus:border-blue-500" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Expliquez brièvement le motif…" maxLength={2000} />
+              <textarea className="mt-2 min-h-28 w-full  border border-slate-200 p-3 text-sm font-normal text-slate-800 outline-none focus:border-blue-500" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Expliquez brièvement le motif…" maxLength={2000} />
             </label>
 
             <label className="mt-4 block">
@@ -479,7 +479,7 @@ export default function ParentAbsences() {
                 accept="image/jpeg,image/png,image/webp,application/pdf"
                 capture="environment"
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                className="mt-2 block w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                className="mt-2 block w-full  border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
               />
               <span className="mt-1 block text-xs text-slate-500">Facultatif : photo JPG, PNG, WebP ou PDF — 10 Mo maximum.</span>
               {file && <span className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-600"><span className="truncate">{file.name} · {(file.size/1024/1024).toFixed(2)} Mo</span><button type="button" onClick={() => setFile(null)} className="font-semibold text-red-700">Retirer</button></span>}
@@ -488,8 +488,8 @@ export default function ParentAbsences() {
             {formError && <p className="mt-4 border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>}
 
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <button type="button" className="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700" onClick={() => { setSelected(null); setFile(null); setFormError(null) }}>Annuler</button>
-              <button type="button" disabled={busy || reason.trim().length < 3} className="min-h-11 rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-800 disabled:opacity-50" onClick={() => void submitJustification()}>
+              <button type="button" className="min-h-11  border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700" onClick={() => { setSelected(null); setFile(null); setFormError(null) }}>Annuler</button>
+              <button type="button" disabled={busy || reason.trim().length < 3} className="min-h-11  bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-800 disabled:opacity-50" onClick={() => void submitJustification()}>
                 {busy ? "Envoi…" : "Envoyer la justification"}
               </button>
             </div>

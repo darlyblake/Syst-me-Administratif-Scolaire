@@ -1,12 +1,14 @@
 "use client"
 
+import type React from "react"
 import { AppBrandMark } from "@/components/brand/AppBrandMark"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
-  LayoutDashboard, GraduationCap, CalendarDays, BookOpen, FileText, Bell,
-  MessageSquare, UserRound, Menu, X, LogOut, ClipboardList, Users,
-  ChevronRight, MoreHorizontal,
+  Home, ShieldCheck, BookOpen, MessageSquare,
+  CreditCard, LogOut, X, ChevronRight,
+  Bell, GraduationCap, CalendarDays, FileText,
+  Users, ClipboardList, UserRound, Menu,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -15,40 +17,83 @@ import { useParentPortal } from "@/hooks/use-parent-portal"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 
-const sections = [
+/* ------------------------------------------------------------------ */
+/*  Configuration de la navigation                                      */
+/* ------------------------------------------------------------------ */
+
+/** 5 onglets permanents dans la bottom tab bar */
+const MOBILE_TABS = [
+  {
+    href: "/parents/tableau-bord",
+    label: "Accueil",
+    icon: Home,
+    matches: ["/parents/tableau-bord", "/parents/tableau-de-bord"],
+    badge: null as "msgs" | "notifs" | null,
+  },
+  {
+    href: "/parents/absences",
+    label: "Présences",
+    icon: ShieldCheck,
+    matches: ["/parents/absences", "/parents/emploi-du-temps", "/parents/evenements", "/parents/cahier-de-textes"],
+    badge: null as "msgs" | "notifs" | null,
+  },
+  {
+    href: "/parents/notes",
+    label: "Résultats",
+    icon: GraduationCap,
+    matches: ["/parents/notes"],
+    badge: null as "msgs" | "notifs" | null,
+  },
+  {
+    href: "/parents/messages",
+    label: "Messages",
+    icon: MessageSquare,
+    matches: ["/parents/messages"],
+    badge: "msgs" as "msgs" | "notifs" | null,
+  },
+  {
+    href: "/parents/paiements",
+    label: "Finances",
+    icon: CreditCard,
+    matches: ["/parents/paiements"],
+    badge: null as "msgs" | "notifs" | null,
+  },
+]
+
+/** Sections du menu complet (drawer / sidebar desktop) */
+const SECTIONS = [
   {
     title: "Vue générale",
-    items: [{ href: "/parents/tableau-bord", label: "Aujourd’hui", icon: LayoutDashboard }],
+    items: [
+      { href: "/parents/tableau-bord", label: "Tableau de bord", icon: Home },
+    ],
   },
   {
     title: "Vie scolaire",
     items: [
-      { href: "/parents/enfants", label: "Mes enfants", icon: Users },
-      { href: "/parents/absences", label: "Présences et absences", icon: CalendarDays },
-      { href: "/parents/emploi-du-temps", label: "Emploi du temps", icon: CalendarDays },
-      { href: "/parents/cahier-de-textes", label: "Cahier de textes", icon: BookOpen },
-      { href: "/parents/evenements", label: "Événements", icon: CalendarDays },
+      { href: "/parents/enfants",         label: "Mes enfants",          icon: Users },
+      { href: "/parents/absences",         label: "Présences & absences", icon: ShieldCheck },
+      { href: "/parents/emploi-du-temps",  label: "Emploi du temps",      icon: CalendarDays },
+      { href: "/parents/cahier-de-textes", label: "Cahier de textes",     icon: BookOpen },
+      { href: "/parents/evenements",       label: "Événements",           icon: CalendarDays },
     ],
   },
   {
-    title: "Échanges et compte",
+    title: "Échanges & compte",
     items: [
-      { href: "/parents/notes", label: "Résultats", icon: GraduationCap },
-      { href: "/parents/messages", label: "Messagerie", icon: MessageSquare, badge: "msgs" as const },
-      { href: "/parents/paiements", label: "Paiements", icon: ClipboardList },
-      { href: "/parents/documents", label: "Documents", icon: FileText },
-      { href: "/parents/notifications", label: "Notifications", icon: Bell, badge: "notifs" as const },
-      { href: "/parents/profil", label: "Mon compte", icon: UserRound },
+      { href: "/parents/notes",         label: "Résultats scolaires",  icon: GraduationCap,  badge: null as "msgs" | "notifs" | null },
+      { href: "/parents/messages",      label: "Messagerie",           icon: MessageSquare,   badge: "msgs"   as "msgs" | "notifs" | null },
+      { href: "/parents/paiements",     label: "Paiements",            icon: ClipboardList,   badge: null     as "msgs" | "notifs" | null },
+      { href: "/parents/documents",     label: "Documents",            icon: FileText,        badge: null     as "msgs" | "notifs" | null },
+      { href: "/parents/notifications", label: "Notifications",        icon: Bell,            badge: "notifs" as "msgs" | "notifs" | null },
+      { href: "/parents/profil",        label: "Mon compte",           icon: UserRound,       badge: null     as "msgs" | "notifs" | null },
     ],
   },
 ]
 
-const mobileTabs = [
-  { href: "/parents/tableau-bord", label: "Accueil", icon: LayoutDashboard, matches: ["/parents/tableau-bord"] },
-  { href: "/parents/enfants", label: "Enfants", icon: Users, matches: ["/parents/enfants"] },
-  { href: "/parents/absences", label: "Suivi", icon: CalendarDays, matches: ["/parents/absences", "/parents/emploi-du-temps", "/parents/cahier-de-textes", "/parents/evenements", "/parents/notes"] },
-  { href: "/parents/messages", label: "Messages", icon: MessageSquare, matches: ["/parents/messages"] },
-]
+/* ------------------------------------------------------------------ */
+/*  Composant principal                                                 */
+/* ------------------------------------------------------------------ */
 
 export function ParentNav() {
   const pathname = usePathname()
@@ -56,198 +101,274 @@ export function ParentNav() {
   const [queryString, setQueryString] = useState("")
   const { utilisateur, deconnecter } = useAuthentification()
   const { notifications } = useParentPortal()
-  const unreadNotifications = notifications.filter((notification) => !notification.read_at).length
-  const [open, setOpen] = useState(false)
+  const unreadNotifications = notifications.filter((n) => !n.read_at).length
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [loggingOut, setLoggingOut] = useState(false)
 
-  useEffect(() => { setQueryString(typeof window !== "undefined" ? window.location.search : "") }, [pathname])
+  /* Sync query string */
+  useEffect(() => {
+    setQueryString(typeof window !== "undefined" ? window.location.search : "")
+  }, [pathname])
 
+  /* Fermer le drawer à chaque changement de page */
+  useEffect(() => { setDrawerOpen(false) }, [pathname])
+
+  /* Comptage messages non lus */
   useEffect(() => {
     let mounted = true
-    const loadUnreadMessages = async () => {
-      if (!utilisateur?.id) {
-        setUnreadMessages(0)
-        return
-      }
+    const load = async () => {
+      if (!utilisateur?.id) { setUnreadMessages(0); return }
       const { data: participants, error } = await supabaseBrowser
         .from("conversation_participants")
         .select("conversation_id,last_read_at")
         .eq("user_id", utilisateur.id)
       if (!mounted) return
-      if (error || !participants?.length) {
-        setUnreadMessages(0)
-        return
-      }
-      const ids = participants.map((item) => item.conversation_id).filter(Boolean)
-      if (!ids.length) {
-        setUnreadMessages(0)
-        return
-      }
-      const { data: messages } = await supabaseBrowser
+      if (error || !participants?.length) { setUnreadMessages(0); return }
+      const ids = participants.map((p) => p.conversation_id).filter(Boolean)
+      if (!ids.length) { setUnreadMessages(0); return }
+      const { data: msgs } = await supabaseBrowser
         .from("messages")
         .select("conversation_id,sender_id,created_at")
         .in("conversation_id", ids)
         .neq("sender_id", utilisateur.id)
-      const reads = new Map(participants.map((item) => [
-        item.conversation_id,
-        item.last_read_at ? Date.parse(item.last_read_at) : 0,
+      const reads = new Map(participants.map((p) => [
+        p.conversation_id,
+        p.last_read_at ? Date.parse(p.last_read_at) : 0,
       ]))
       if (mounted) {
-        setUnreadMessages((messages ?? []).filter(
-          (message) => Date.parse(message.created_at) > (reads.get(message.conversation_id) ?? 0),
-        ).length)
+        setUnreadMessages(
+          (msgs ?? []).filter((m) => Date.parse(m.created_at) > (reads.get(m.conversation_id) ?? 0)).length
+        )
       }
     }
-    void loadUnreadMessages()
+    void load()
     return () => { mounted = false }
   }, [utilisateur?.id, pathname])
 
+  /* Helpers */
   const isActive = (href: string) => {
     const [path, query] = href.split("?")
     if (pathname !== path && !pathname?.startsWith(path + "/")) return false
-    if (query) {
-      const expected = new URLSearchParams(query)
-      for (const [key, value] of expected.entries()) if (new URLSearchParams(queryString).get(key) !== value) return false
-      return true
+    if (!query) return true
+    const expected = new URLSearchParams(query)
+    for (const [k, v] of expected.entries()) {
+      if (new URLSearchParams(queryString).get(k) !== v) return false
     }
-    if (path === "/parents/cahier-de-textes" && new URLSearchParams(queryString).get("tab") === "homework") return true
     return true
   }
 
   const isTabActive = (matches: string[]) =>
-    matches.some((path) => pathname === path || pathname?.startsWith(path + "/"))
+    matches.some((p) => pathname === p || pathname?.startsWith(p + "/"))
 
-  const badge = (key?: "notifs" | "msgs") => key === "notifs" ? unreadNotifications : key === "msgs" ? unreadMessages : 0
+  const badgeCount = (key?: "msgs" | "notifs" | null) =>
+    key === "msgs" ? unreadMessages : key === "notifs" ? unreadNotifications : 0
+
+  const initials = (utilisateur?.nomUtilisateur ?? "P").trim().slice(0, 2).toUpperCase()
 
   const logout = async () => {
     if (loggingOut) return
     setLoggingOut(true)
-    setOpen(false)
-    try {
-      await deconnecter()
-    } finally {
+    setDrawerOpen(false)
+    try { await deconnecter() } finally {
       router.replace("/connexion")
       router.refresh()
       setLoggingOut(false)
     }
   }
 
-  const NavLink = ({ item }: { item: (typeof sections)[number]["items"][number] }) => {
+  /* ---- Sous-composant : lien de navigation sidebar / drawer ---- */
+  const NavLink = ({ item }: { item: { href: string; label: string; icon: React.ComponentType<{ className?: string }>; badge?: "msgs" | "notifs" | null } }) => {
     const Icon = item.icon
-    const count = "badge" in item ? badge(item.badge) : 0
+    const count = badgeCount(item.badge)
     const active = isActive(item.href)
     return (
-      <Link href={item.href} onClick={() => setOpen(false)} className={cn(
-        "flex min-h-11 items-center gap-3 rounded-md px-3 text-sm transition-colors",
-        active ? "bg-blue-50 font-semibold text-blue-800" : "text-slate-600 hover:bg-slate-50 hover:text-slate-950",
-      )}>
-        <Icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-blue-700" : "text-slate-400")} />
+      <Link
+        href={item.href}
+        onClick={() => setDrawerOpen(false)}
+        className={cn(
+          "flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm transition-colors",
+          active
+            ? "bg-sky-50 font-semibold text-sky-800"
+            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+        )}
+      >
+        <Icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-sky-700" : "text-slate-400")} />
         <span className="min-w-0 flex-1 truncate">{item.label}</span>
-        {count > 0 && <span className="min-w-5 rounded-full bg-blue-700 px-1.5 py-0.5 text-center text-[10px] font-semibold text-white">{count > 99 ? "99+" : count}</span>}
+        {count > 0 && (
+          <span className="min-w-5 rounded-full bg-sky-700 px-1.5 py-0.5 text-center text-[10px] font-semibold text-white">
+            {count > 99 ? "99+" : count}
+          </span>
+        )}
         <ChevronRight className="h-4 w-4 text-slate-300" />
       </Link>
     )
   }
 
-  const Navigation = () => (
+  /* ---- Sous-composant : navigation complète (sections) ---- */
+  const FullNav = () => (
     <nav className="space-y-6">
-      {sections.map((section) => (
+      {SECTIONS.map((section) => (
         <div key={section.title}>
-          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">{section.title}</p>
-          <div className="space-y-1">{section.items.map((item) => <NavLink key={item.href} item={item} />)}</div>
+          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+            {section.title}
+          </p>
+          <div className="space-y-0.5">
+            {section.items.map((item) => <NavLink key={item.href} item={item} />)}
+          </div>
         </div>
       ))}
     </nav>
   )
 
-  const initials = (utilisateur?.nomUtilisateur ?? "P").trim().slice(0, 2).toUpperCase()
-
   return (
     <>
-      <header className="sticky top-0 z-30 hidden h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white px-8 lg:ml-[248px] lg:flex">
-        <p className="text-sm text-slate-500">NOVA <span className="px-1 text-slate-300">/</span><span className="font-semibold text-slate-800">Portail parent</span></p>
-        <Link href="/parents/notifications" aria-label={unreadNotifications ? `Notifications, ${unreadNotifications} non lues` : "Notifications"} className="relative flex h-10 w-10 items-center justify-center rounded-md text-slate-600 hover:bg-slate-50">
-          <Bell className="h-[18px] w-[18px]" />
-          {unreadNotifications > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}
-        </Link>
-      </header>
-
-      <header className="parent-mobile-topbar sticky top-0 z-30 flex h-16 w-full min-w-0 items-center justify-between border-b border-slate-200 bg-white px-3 sm:px-4 lg:hidden">
+      {/* ============================================================
+          MOBILE — Top Bar (< lg)
+          Hauteur 60px + safe area, blurry, logo + cloche + menu
+          ============================================================ */}
+      <header className="sp-topbar lg:hidden" role="banner">
+        {/* Gauche : logo + nom app */}
         <div className="flex min-w-0 items-center gap-2.5">
-          <AppBrandMark size={30} className="rounded-md" />
-          <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">NOVA Portail parent</p></div>
+          <AppBrandMark size={30} className="rounded-lg shrink-0" />
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-bold leading-tight text-slate-900">ScolarParent</p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400 leading-tight">Portail parent</p>
+          </div>
         </div>
+
+        {/* Droite : notifications + menu */}
         <div className="flex shrink-0 items-center gap-1">
-          <Link href="/parents/notifications" aria-label="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100">
-            <Bell className="h-5 w-5" />
-            {unreadNotifications > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}
+          <Link
+            href="/parents/notifications"
+            aria-label={unreadNotifications ? `${unreadNotifications} notifications` : "Notifications"}
+            className="relative flex h-10 w-10 items-center justify-center rounded-full text-slate-600 active:bg-slate-100"
+          >
+            <Bell className="h-[20px] w-[20px]" />
+            {unreadNotifications > 0 && (
+              <span className="absolute right-2 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-white">
+                {unreadNotifications > 9 ? "9+" : unreadNotifications}
+              </span>
+            )}
           </Link>
-          <button type="button" onClick={() => setOpen(true)} aria-label="Ouvrir le menu" aria-expanded={open} className="flex h-10 w-10 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100">
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Ouvrir le menu"
+            aria-expanded={drawerOpen}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-slate-700 active:bg-slate-100"
+          >
             <Menu className="h-5 w-5" />
           </button>
         </div>
       </header>
 
-      <nav aria-label="Navigation principale" className="parent-mobile-tabbar fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-1 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))] lg:hidden">
-        <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
-          {mobileTabs.map(({ href, label, icon: Icon, matches }) => {
-            const active = isTabActive(matches)
-            const count = href === "/parents/messages" ? unreadMessages : 0
-            return (
-              <Link key={href} href={href} aria-current={active ? "page" : undefined} className={cn(
-                "relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-0.5 text-[10px] font-medium",
-                active ? "text-blue-800" : "text-slate-500 hover:text-slate-800",
-              )}>
-                <span className="relative"><Icon className="h-5 w-5 shrink-0" />{count > 0 && <span className="absolute -right-2 -top-1 min-w-4 rounded-full bg-blue-700 px-1 text-center text-[9px] leading-4 text-white">{count > 9 ? "9+" : count}</span>}</span>
-                <span className="max-w-full truncate">{label}</span>
-                {active && <span className="absolute inset-x-3 top-0 h-0.5 rounded-full bg-blue-700" />}
-              </Link>
-            )
-          })}
-          <button type="button" onClick={() => setOpen(true)} aria-label="Ouvrir toutes les rubriques" aria-expanded={open} className="relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-0.5 text-[10px] font-medium text-slate-500">
-            <MoreHorizontal className="h-5 w-5" />
-            <span>Plus</span>
-          </button>
-        </div>
+      {/* ============================================================
+          MOBILE — Bottom Tab Bar (5 onglets)
+          ============================================================ */}
+      <nav aria-label="Navigation principale" className="sp-tabbar lg:hidden">
+        {MOBILE_TABS.map(({ href, label, icon: Icon, matches, badge }) => {
+          const active = isTabActive(matches)
+          const count = badgeCount(badge)
+          return (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              aria-label={count > 0 ? `${label}, ${count} non lu${count > 1 ? "s" : ""}` : label}
+            >
+              {/* Icône + badge superposé */}
+              <span style={{ position: "relative", display: "inline-flex" }}>
+                <Icon className="h-[22px] w-[22px]" />
+                {count > 0 && (
+                  <span style={{
+                    position: "absolute",
+                    top: "-5px",
+                    right: "-7px",
+                    minWidth: "16px",
+                    height: "16px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: "999px",
+                    background: "#0284c7",
+                    color: "#fff",
+                    fontSize: "9px",
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    padding: "0 3px",
+                  }}>
+                    {count > 9 ? "9+" : count}
+                  </span>
+                )}
+              </span>
+              {/* Label */}
+              <span style={{ fontSize: "10px", fontWeight: 500, lineHeight: 1 }}>{label}</span>
+            </Link>
+          )
+        })}
       </nav>
 
-      {open && (
-        <div className="fixed inset-0 z-50 bg-slate-950/35 lg:hidden" onClick={() => setOpen(false)}>
-          <aside role="dialog" aria-modal="true" aria-label="Menu de l’espace parent" className="parent-mobile-menu-sheet flex h-full w-[min(340px,88vw)] max-w-full flex-col overflow-hidden bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+      {/* ============================================================
+          MOBILE — Drawer (bottom sheet)
+          Contient la navigation complète + déconnexion
+          ============================================================ */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-[2px] lg:hidden"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
+        >
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu de navigation"
+            className="sp-sheet"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* En-tête du drawer */}
             <div className="mb-5 flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-sm font-semibold text-blue-800">{initials}</span>
-                <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">{utilisateur?.nomUtilisateur ?? "Parent"}</p><p className="text-xs text-slate-500">NOVA Portail parent</p></div>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sm font-semibold text-sky-800">
+                  {initials}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-900">
+                    {utilisateur?.nomUtilisateur ?? "Parent"}
+                  </p>
+                  <p className="text-xs text-slate-500">Portail des familles</p>
+                </div>
               </div>
-              <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setOpen(false)} aria-label="Fermer le menu"><X className="h-5 w-5" /></Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 rounded-full"
+                onClick={() => setDrawerOpen(false)}
+                aria-label="Fermer le menu"
+              >
+                <X className="h-5 w-5" />
+              </Button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4"><Navigation /></div>
-            <Button variant="outline" className="mt-3 min-h-11 w-full shrink-0" onClick={() => void logout()} disabled={loggingOut}>
-              <LogOut className="mr-2 h-4 w-4" />{loggingOut ? "Déconnexion…" : "Déconnexion"}
+
+            {/* Navigation complète */}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4">
+              <FullNav />
+            </div>
+
+            {/* Déconnexion */}
+            <Button
+              variant="outline"
+              className="mt-4 min-h-11 w-full shrink-0 rounded-xl"
+              onClick={() => void logout()}
+              disabled={loggingOut}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              {loggingOut ? "Déconnexion…" : "Déconnexion"}
             </Button>
           </aside>
         </div>
       )}
 
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[248px] flex-col border-r border-slate-200 bg-white lg:flex">
-        <div className="border-b border-slate-200 px-5 py-5">
-          <div className="mb-5 flex items-center gap-3">
-            <AppBrandMark size={36} className="rounded-md" />
-            <div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">GESTION SCOLAIRE</p><p className="text-[15px] font-semibold text-slate-900">Portail parent</p></div>
-          </div>
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-800">{initials}</span>
-            <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-800">{utilisateur?.nomUtilisateur ?? "Parent"}</p><p className="text-xs text-slate-500">Portail des familles</p></div>
-          </div>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-5"><Navigation /></div>
-        <div className="border-t border-slate-200 p-3">
-          <Button variant="ghost" className="min-h-11 w-full justify-start text-slate-600 hover:bg-slate-50" onClick={() => void logout()} disabled={loggingOut}>
-            <LogOut className="mr-2 h-4 w-4" />{loggingOut ? "Déconnexion…" : "Déconnexion"}
-          </Button>
-        </div>
-      </aside>
     </>
   )
 }

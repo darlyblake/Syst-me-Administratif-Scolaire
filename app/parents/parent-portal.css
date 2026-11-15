@@ -1,228 +1,266 @@
-/* ScolarParent — système visuel commun, mobile-first */
+/* ============================================================
+   ScolarParent — Design System · Native Android Experience
+   Inspiré de stitch_parent_mobile_companion_experience
+   ============================================================ */
+
+/* ---- Tokens ---- */
 :root {
-  --parent-ink: #0b1c30;
-  --parent-muted: #64748b;
-  --parent-blue: #0284c7;
-  --parent-blue-dark: #075985;
-  --parent-blue-soft: #eaf5ff;
-  --parent-canvas: #f8faff;
-  --parent-line: #e2e8f0;
-  --parent-line-soft: #eef2f7;
-  --parent-white: #ffffff;
+  /* Surfaces */
+  --sp-canvas:   #f4f7fc;
+  --sp-surface:  #ffffff;
+  --sp-surface-2:#eff4ff;
+
+  /* Ink */
+  --sp-ink:      #0b1c30;
+  --sp-ink-2:    #3d5166;
+  --sp-muted:    #64748b;
+
+  /* Accent */
+  --sp-blue:     #0284c7;
+  --sp-blue-dk:  #075985;
+  --sp-blue-soft:#e0f2fe;
+
+  /* Semantic */
+  --sp-green:    #047857;
+  --sp-green-bg: #ecfdf5;
+  --sp-amber:    #b45309;
+  --sp-amber-bg: #fffbeb;
+  --sp-red:      #b91c1c;
+  --sp-red-bg:   #fef2f2;
+
+  /* Lines */
+  --sp-line:     #e2e8f0;
+  --sp-line-2:   #f1f5f9;
 }
+
+/* ============================================================
+   Base Mobile — fond canvas
+   ============================================================ */
+html:has(.parent-portal-content) {
+  background: var(--sp-canvas);
+  overflow-y: auto;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior-y: auto;
+}
+body:has(.parent-portal-content) {
+  background: var(--sp-canvas);
+  overflow-x: hidden;   /* hidden plutôt que clip pour ne pas intercepter les fixed */
+  overflow-y: auto;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: auto;
+}
+
+/* ============================================================
+   Contenu principal
+   ============================================================ */
 .parent-portal-content {
   box-sizing: border-box;
   width: 100%;
-  max-width: 1180px !important;
   min-width: 0;
+  max-width: 1040px !important;
   margin: 0 auto !important;
-  padding: 28px 32px 56px !important;
-  color: var(--parent-ink);
+  padding: 24px 28px 56px !important;
+  color: var(--sp-ink);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: transparent;
 }
+
+.parent-portal-content > * { min-width: 0; max-width: 100%; }
+
+/* ---- Typographie ---- */
 .parent-portal-content h1 {
   margin: 0;
-  color: var(--parent-ink) !important;
   font-size: clamp(1.45rem, 2vw, 1.9rem) !important;
-  line-height: 1.2 !important;
   font-weight: 700 !important;
+  line-height: 1.18 !important;
   letter-spacing: -0.035em !important;
+  color: var(--sp-ink) !important;
 }
 .parent-portal-content h2 {
-  color: var(--parent-ink) !important;
   font-size: 1rem !important;
-  line-height: 1.4 !important;
   font-weight: 650 !important;
+  line-height: 1.4 !important;
+  color: var(--sp-ink) !important;
 }
-.parent-portal-content h3 { color: #263548 !important; font-weight: 600 !important; }
+.parent-portal-content h3 {
+  font-weight: 600 !important;
+  color: #263548 !important;
+}
+
+/* ---- En-tête de page ---- */
 .parent-portal-content .parent-page-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 16px;
   flex-wrap: wrap;
-  margin: 0 0 24px;
+  margin: 0 0 20px;
   padding: 0 0 18px;
-  border-bottom: 1px solid var(--parent-line);
+  border-bottom: 1px solid var(--sp-line);
 }
 .parent-portal-content .parent-page-head > div:first-child > p:first-child {
-  color: var(--parent-blue-dark);
+  color: var(--sp-blue-dk);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: .09em;
   text-transform: uppercase;
+  margin-bottom: 7px;
 }
-.parent-portal-content .parent-page-head p { color: var(--parent-muted); }
+.parent-portal-content .parent-page-head p { color: var(--sp-muted); }
+
+/* ---- Surfaces / cards ---- */
 .parent-portal-content .parent-surface,
-.parent-portal-content section[class*="border"] {
+.parent-portal-content section[class*="border"],
+.parent-portal-content section:not([class*="p-"]):not([class*="px-"]) {
   min-width: 0;
-  background: var(--parent-white);
-  border-color: var(--parent-line) !important;
-  border-radius: 14px !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .025);
+  background: var(--sp-surface);
+  border: 1px solid var(--sp-line) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 3px rgba(15,23,42,.05), 0 1px 2px rgba(15,23,42,.03);
+  overflow: hidden;
 }
+
 .parent-portal-content .parent-surface-title {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
   padding: 15px 18px;
-  border-bottom: 1px solid var(--parent-line-soft);
+  border-bottom: 1px solid var(--sp-line-2);
 }
+
 .parent-portal-content .parent-list-row {
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
-  padding: 14px 18px;
-  border-top: 1px solid var(--parent-line-soft);
+  min-height: 58px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--sp-line-2);
 }
 .parent-portal-content .parent-list-row:first-child { border-top: 0; }
+
+/* ---- Grille deux colonnes ---- */
 .parent-portal-content .parent-two-columns {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(270px, 1fr);
   gap: 20px;
 }
+
+/* ---- Tableaux ---- */
 .parent-portal-content table { width: 100%; border-collapse: separate; border-spacing: 0; }
 .parent-portal-content thead { background: #f6f9fd; }
 .parent-portal-content th {
   padding: 12px 16px;
-  color: #64748b;
+  color: var(--sp-muted);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: .045em;
   text-align: left;
   text-transform: uppercase;
-  border-bottom: 1px solid var(--parent-line);
+  border-bottom: 1px solid var(--sp-line);
 }
 .parent-portal-content td {
   padding: 13px 16px;
   color: #263548;
   font-size: 13px;
-  border-top: 1px solid var(--parent-line-soft);
+  border-top: 1px solid var(--sp-line-2);
 }
 .parent-portal-content tbody tr:first-child td { border-top: 0; }
 .parent-portal-content tbody tr:hover { background: #f9fbff; }
-.parent-portal-content button,
-.parent-portal-content a { -webkit-tap-highlight-color: transparent; }
-.parent-portal-content :focus-visible {
-  outline: 2px solid #38a5e8;
-  outline-offset: 2px;
-}
+
+/* ---- Formulaires ---- */
 .parent-portal-content input:not([type=checkbox]):not([type=radio]),
 .parent-portal-content select,
 .parent-portal-content textarea {
   max-width: 100%;
-  min-height: 44px;
-  border-color: #cbd5e1;
-  border-radius: 9px !important;
-  background-color: #fff;
-  color: var(--parent-ink);
+  min-height: 48px;
+  border: 1px solid #cbd5e1;
+  border-radius: 13px !important;
+  background: #fff;
+  color: var(--sp-ink);
   box-shadow: none !important;
+  font-size: 15px;
 }
-.parent-portal-content textarea { min-height: 100px; }
+.parent-portal-content textarea { min-height: 112px; }
 .parent-portal-content input:focus,
 .parent-portal-content select:focus,
 .parent-portal-content textarea:focus {
-  border-color: var(--parent-blue) !important;
-  outline: 2px solid rgba(2, 132, 199, .12);
+  border-color: var(--sp-blue) !important;
+  outline: 2px solid rgba(2,132,199,.14);
   outline-offset: 0;
 }
-/* Surfaces sobres : pas d'empilement de cartes ni d'ombres décoratives */
+
+/* ---- Boutons ---- */
+.parent-portal-content button,
+.parent-portal-content [role="button"],
+.parent-portal-content a { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.parent-portal-content button:not([aria-label]),
+.parent-portal-content [role="button"] { min-height: 44px; }
+.parent-portal-content :focus-visible {
+  outline: 3px solid rgba(2,132,199,.22);
+  outline-offset: 2px;
+}
+
+/* ---- Override radius génériques ---- */
 .parent-portal-content [class*="rounded-2xl"],
-.parent-portal-content [class*="rounded-xl"] { border-radius: 12px !important; }
-.parent-portal-content [class*="shadow"] { box-shadow: 0 1px 2px rgba(15, 23, 42, .035) !important; }
-.parent-portal-content [class*="text-terre"] { color: var(--parent-ink) !important; }
-.parent-portal-content [class*="text-pierre"] { color: var(--parent-muted) !important; }
-.parent-portal-content [class*="text-vert"] { color: #047857 !important; }
-.parent-portal-content [class*="bg-papier"],
-.parent-portal-content [class*="bg-creme"] { background: #fff !important; }
-.parent-portal-content [class*="bg-terre-soft"] { background: #f1f7fd !important; }
-.parent-portal-content [class*="border-terre"] { border-color: var(--parent-line) !important; }
-.parent-portal-content .parent-page-head button { border-radius: 9px !important; }
-.parent-portal-content [role="tablist"] {
-  gap: 4px;
-  border-color: var(--parent-line) !important;
+.parent-portal-content [class*="rounded-xl"] { border-radius: 16px !important; }
+.parent-portal-content [class*="shadow"] {
+  box-shadow: 0 1px 3px rgba(15,23,42,.05) !important;
 }
-.parent-portal-content [role="tab"] {
-  min-height: 44px;
-  border-radius: 9px 9px 0 0;
-  white-space: nowrap;
-}
+
+/* ---- État vide ---- */
 .parent-portal-content .parent-empty-state {
-  border: 1px dashed #cbd5e1;
-  border-radius: 14px;
+  padding: 30px 20px;
+  border: 1px dashed #c8d6e6;
+  border-radius: 16px;
   background: #fff;
 }
-@media (max-width: 1024px) {
-  .parent-portal-content .parent-two-columns { grid-template-columns: 1fr; }
-}
-@media (max-width: 768px) {
-  .parent-portal-content {
-    width: 100%;
-    min-height: calc(100dvh - 4rem);
-    padding: 22px 16px calc(6.5rem + env(safe-area-inset-bottom)) !important;
-    overscroll-behavior-y: contain;
-    touch-action: pan-y;
-  }
-  .parent-portal-content h1 { font-size: 23px !important; line-height: 1.22 !important; }
-  .parent-portal-content h2 { font-size: 15px !important; }
-  .parent-portal-content .parent-page-head {
-    align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 18px;
-    padding-bottom: 15px;
-  }
-  .parent-portal-content .parent-page-head > div:first-child { width: 100%; }
-  .parent-portal-content .parent-page-head > div:last-child {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  .parent-portal-content .parent-list-row {
-    align-items: flex-start;
-    padding: 13px 14px;
-    flex-wrap: wrap;
-  }
-  .parent-portal-content .parent-surface-title { padding: 13px 14px; }
-  .parent-portal-content .parent-two-columns { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-  .parent-portal-content section { min-width: 0; }
-  .parent-portal-content button,
-  .parent-portal-content [role="button"],
-  .parent-portal-content select { min-height: 44px; }
-  .parent-portal-content table {
-    display: block;
-    width: 100%;
-    max-width: 100%;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    -webkit-overflow-scrolling: touch;
-  }
-  .parent-portal-content thead { display: table-header-group; }
-  .parent-portal-content tbody { display: table-row-group; }
-  .parent-portal-content tr { display: table-row; padding: 0; border: 0; }
-  .parent-portal-content th,
-  .parent-portal-content td { display: table-cell; padding: 11px 12px; white-space: nowrap; }
-  .parent-portal-content td:before { content: none; }
-  .parent-portal-content .grid { min-width: 0; }
-  .parent-portal-content [class*="overflow-x-auto"] { max-width: 100%; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
-}
-@media (min-width: 769px) {
-  .parent-portal-content { padding-bottom: 56px !important; }
-}
-.parent-child-row { scroll-margin-bottom: 8rem; }
-html:has(.parent-portal-content),
-body:has(.parent-portal-content) {
-  min-height: 100%;
-  height: auto;
-  overflow-x: clip;
-  overflow-y: auto;
-}
-body:has(.parent-portal-content) {
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: auto;
-}
-.parent-portal-content > * { min-width: 0; max-width: 100%; }
 
-/* Le sélecteur d'enfant reste compact à l'intérieur de sa capsule. */
+/* ---- Segmented control (onglets) ---- */
+.parent-portal-content [role="tablist"] {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #dde6f0 !important;
+  border-radius: 14px;
+  background: #edf3fa;
+  overflow-x: auto;
+  scrollbar-width: none;
+  width: 100%;
+}
+.parent-portal-content [role="tablist"]::-webkit-scrollbar { display: none; }
+.parent-portal-content [role="tab"] {
+  flex: 1 0 auto;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0 !important;
+  border-radius: 10px !important;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background .15s, color .15s, box-shadow .15s;
+}
+.parent-portal-content [role="tab"][aria-selected="true"] {
+  background: #fff !important;
+  color: #174b83 !important;
+  box-shadow: 0 1px 3px rgba(25,55,90,.09);
+}
+
+/* ---- Dividers ---- */
+.parent-portal-content [class*="divide-y"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e9eff6;
+}
+
+/* ---- Dialogs plein écran mobile ---- */
+.parent-portal-content [role="dialog"] {
+  max-width: 100vw;
+  max-height: 100dvh;
+}
+
+/* ---- Sélecteur enfant inline ---- */
 .parent-portal-content label select {
   min-height: 24px !important;
   height: 24px;
@@ -232,167 +270,78 @@ body:has(.parent-portal-content) {
   border-radius: 0 !important;
   background: transparent;
   box-shadow: none !important;
+  font-size: 14px;
 }
 .parent-portal-content label select:focus {
   outline: none;
   box-shadow: none !important;
 }
-.parent-portal-content {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+/* ---- Badges status ---- */
+.sp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
 }
-@media (max-width: 380px) {
-  .parent-portal-content { padding-left: 12px !important; padding-right: 12px !important; }
-  .parent-portal-content .parent-page-head > div:last-child > * { max-width: 100%; }
+.sp-badge-green  { background: var(--sp-green-bg); color: var(--sp-green); }
+.sp-badge-amber  { background: var(--sp-amber-bg); color: var(--sp-amber); }
+.sp-badge-red    { background: var(--sp-red-bg);   color: var(--sp-red);   }
+.sp-badge-blue   { background: var(--sp-blue-soft); color: var(--sp-blue-dk); }
+.sp-badge-slate  { background: #f1f5f9; color: var(--sp-muted); }
+
+/* ---- Scroll ---- */
+.parent-portal-content [class*="overflow-x-auto"] {
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.parent-portal-content .grid { min-width: 0; }
+.parent-portal-content .overflow-x-auto { -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.parent-portal-content .divide-y > :first-child { border-top: 0; }
+.parent-child-row { scroll-margin-bottom: 8rem; }
+
+/* ============================================================
+   Responsive — Tablette (≤ 1024px)
+   ============================================================ */
+@media (max-width: 1024px) {
+  .parent-portal-content .parent-two-columns { grid-template-columns: 1fr; }
 }
 
-
-/* Ajustements de finition — langage visuel Stitch, décliné en bleu */
-.parent-portal-content {
-  max-width: 1040px !important;
-  padding-top: 24px !important;
-  background: transparent;
-}
-.parent-portal-content .parent-page-head {
-  align-items: flex-start;
-  margin-bottom: 20px;
-  padding-bottom: 18px;
-}
-.parent-portal-content .parent-page-head > div:first-child > p:first-child {
-  margin-bottom: 7px;
-  color: #1767a5;
-  letter-spacing: .12em;
-}
-.parent-portal-content .parent-page-head h1 {
-  font-size: clamp(1.55rem, 2.2vw, 2rem) !important;
-  letter-spacing: -.045em !important;
-}
-.parent-portal-content .parent-page-head p:not(:first-child) {
-  max-width: 620px;
-  line-height: 1.55;
-}
-.parent-portal-content .parent-surface,
-.parent-portal-content section[class*="border"] {
-  border-radius: 10px !important;
-  box-shadow: none !important;
-}
-.parent-portal-content [class*="rounded-2xl"],
-.parent-portal-content [class*="rounded-xl"] {
-  border-radius: 10px !important;
-}
-.parent-portal-content [class*="shadow"] {
-  box-shadow: none !important;
-}
-.parent-portal-content [role="tablist"] {
-  display: flex;
-  width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-  border-bottom: 1px solid #dce5ef;
-}
-.parent-portal-content [role="tab"] {
-  flex: 0 0 auto;
-  padding-inline: 16px;
-}
-.parent-portal-content :is(button, a)[class*="bg-blue-"] {
-  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
-}
-.parent-portal-content .parent-empty-state {
-  padding: 30px 20px;
-}
-.parent-portal-content [class*="divide-y"] > :not([hidden]) ~ :not([hidden]) {
-  border-color: #e9eff6;
-}
-.parent-portal-content .parent-child-row {
-  scroll-margin-bottom: calc(6rem + env(safe-area-inset-bottom));
-}
+/* ============================================================
+   Mobile Android — ≤ 768px
+   ============================================================ */
 @media (max-width: 768px) {
-  .parent-portal-content {
-    padding: 18px 16px calc(6.75rem + env(safe-area-inset-bottom)) !important;
-  }
-  .parent-portal-content .parent-page-head {
-    gap: 10px;
-    margin-bottom: 16px;
-    padding-bottom: 14px;
-  }
-  .parent-portal-content .parent-page-head h1 {
-    font-size: 22px !important;
-    line-height: 1.18 !important;
-  }
-  .parent-portal-content .parent-page-head p:not(:first-child) {
-    font-size: 13px;
-    line-height: 1.45;
-  }
-  .parent-portal-content .parent-page-head > div:last-child {
-    width: auto;
-    max-width: 100%;
-  }
-  .parent-portal-content .parent-page-head > div:last-child button {
-    min-height: 40px;
-    padding-inline: 12px;
-  }
-  .parent-portal-content [role="tablist"] {
-    margin-inline: -2px;
-    width: calc(100% + 4px);
-  }
-  .parent-portal-content [role="tab"] {
-    min-height: 42px;
-    padding-inline: 12px;
-    font-size: 13px;
-  }
-  .parent-portal-content .parent-empty-state {
-    padding: 24px 16px;
-  }
-  .parent-portal-content input:not([type=checkbox]):not([type=radio]),
-  .parent-portal-content select,
-  .parent-portal-content textarea {
-    font-size: 16px;
-  }
-}
-@media (max-width: 380px) {
-  .parent-portal-content { padding-inline: 12px !important; }
-  .parent-portal-content .parent-page-head h1 { font-size: 20px !important; }
-}
-
-
-/* NOVA Parent — expérience mobile native (Android / iOS) */
-@media (max-width: 768px) {
-  html:has(.parent-portal-content) {
-    background: #f4f7fc;
-    overscroll-behavior-y: none;
-  }
-  body:has(.parent-portal-content) {
-    background: #f4f7fc;
-    -webkit-font-smoothing: antialiased;
-    -webkit-text-size-adjust: 100%;
-  }
   .parent-portal-content {
     max-width: none !important;
-    min-height: calc(100dvh - 4rem);
-    padding: 18px 16px calc(6.25rem + env(safe-area-inset-bottom)) !important;
-    background: #f4f7fc;
+    min-height: calc(100dvh - 60px);
+    padding: 16px 16px calc(80px + env(safe-area-inset-bottom)) !important;
+    background: var(--sp-canvas);
   }
+
+  .parent-portal-content h1 { font-size: 24px !important; line-height: 1.18 !important; }
+  .parent-portal-content h2 { font-size: 15px !important; letter-spacing: -.01em; }
+  .parent-portal-content h3 { font-size: 14px; }
+
+  /* Page head */
   .parent-portal-content .parent-page-head {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    margin: 0 0 18px;
+    margin: 0 0 16px;
     padding: 0 0 14px;
     border-bottom: 0;
+    gap: 10px;
   }
   .parent-portal-content .parent-page-head > div:first-child { width: 100%; }
-  .parent-portal-content .parent-page-head > div:first-child > p:first-child {
-    margin-bottom: 5px;
-    color: #2563a6;
-    font-size: 10px;
-    letter-spacing: .08em;
-  }
   .parent-portal-content .parent-page-head h1 {
     font-size: 25px !important;
     line-height: 1.18 !important;
     letter-spacing: -.04em !important;
   }
   .parent-portal-content .parent-page-head p:not(:first-child) {
-    max-width: 34rem;
     margin-top: 6px;
     font-size: 13px;
     line-height: 1.45;
@@ -413,15 +362,14 @@ body:has(.parent-portal-content) {
     background: #fff;
   }
   .parent-portal-content .parent-page-head button svg { margin: 0; }
-  .parent-portal-content h2 { font-size: 15px !important; letter-spacing: -.01em; }
-  .parent-portal-content h3 { font-size: 14px; }
-  .parent-portal-content .parent-two-columns { gap: 12px; }
+
+  /* Cards mobile */
   .parent-portal-content .parent-surface,
-  .parent-portal-content section[class*="border"] {
-    border: 1px solid #e2eaf3 !important;
+  .parent-portal-content section[class*="border"],
+  .parent-portal-content section:not([class*="p-"]):not([class*="px-"]) {
     border-radius: 17px !important;
-    background: #fff;
-    box-shadow: 0 2px 8px rgba(20, 48, 83, .035) !important;
+    border: 1px solid #e2eaf3 !important;
+    box-shadow: 0 2px 8px rgba(20,48,83,.04) !important;
   }
   .parent-portal-content .parent-surface-title {
     padding: 15px 15px 12px;
@@ -434,7 +382,18 @@ body:has(.parent-portal-content) {
     padding: 12px 15px;
     border-color: #edf1f6;
   }
-  .parent-portal-content table { display: block; max-width: 100%; overflow-x: auto; }
+  .parent-portal-content .parent-two-columns { gap: 12px; }
+
+  /* Tableau mobile */
+  .parent-portal-content table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Formulaires mobile */
   .parent-portal-content input:not([type=checkbox]):not([type=radio]),
   .parent-portal-content select,
   .parent-portal-content textarea {
@@ -442,106 +401,207 @@ body:has(.parent-portal-content) {
     border-radius: 13px !important;
     font-size: 16px;
   }
-  .parent-portal-content textarea { min-height: 112px; }
+
+  /* Boutons mobile */
   .parent-portal-content button,
   .parent-portal-content [role="button"],
   .parent-portal-content a { touch-action: manipulation; }
   .parent-portal-content button:not([aria-label]),
   .parent-portal-content [role="button"] { min-height: 44px; }
-  .parent-portal-content [role="tablist"] {
-    display: flex;
-    width: 100%;
-    overflow-x: auto;
-    gap: 6px;
-    padding: 4px;
-    border: 1px solid #e1e9f2 !important;
-    border-radius: 14px;
-    background: #edf3fa;
-    scrollbar-width: none;
-  }
-  .parent-portal-content [role="tablist"]::-webkit-scrollbar { display: none; }
-  .parent-portal-content [role="tab"] {
-    flex: 1 0 auto;
-    min-height: 40px;
-    padding: 0 13px;
-    border: 0 !important;
-    border-radius: 10px !important;
-    background: transparent;
-    font-size: 12px;
-  }
-  .parent-portal-content [role="tab"][aria-selected="true"] {
-    background: #fff !important;
-    color: #174b83 !important;
-    box-shadow: 0 1px 3px rgba(25, 55, 90, .09);
-  }
-  .parent-portal-content .parent-empty-state {
-    padding: 26px 18px;
-    border: 1px dashed #c8d6e6;
-    border-radius: 16px;
-    background: #fff;
-  }
-  .parent-portal-content [class*="overflow-hidden"][class*="border"] {
-    min-width: 0;
-  }
-  .parent-portal-content .grid { min-width: 0; }
-  .parent-portal-content a,
-  .parent-portal-content button { -webkit-tap-highlight-color: transparent; }
-  .parent-portal-content :focus-visible {
-    outline: 3px solid rgba(37, 99, 166, .25);
-    outline-offset: 2px;
-  }
-  /* Les panneaux latéraux et dialogues deviennent des surfaces plein écran sur téléphone. */
+
+  /* Dialogs plein écran */
   .parent-portal-content [role="dialog"] {
+    border-radius: 0;
     max-width: 100vw;
     max-height: 100dvh;
-    border-radius: 0;
   }
-}
-@media (max-width: 768px) {
-  .parent-portal-content table thead th { position: sticky; top: 0; }
-  .parent-portal-content .overflow-x-auto { -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
-  .parent-portal-content .divide-y > :first-child { border-top: 0; }
 }
 
-@media (max-width: 768px) {
-  .parent-mobile-topbar {
-    height: calc(4rem + env(safe-area-inset-top));
-    padding-top: env(safe-area-inset-top);
-    border-bottom-color: #e5ebf3;
-    background: rgba(255,255,255,.97);
-  }
-  .parent-mobile-tabbar {
-    min-height: calc(4.1rem + env(safe-area-inset-bottom));
-    padding-bottom: max(7px, env(safe-area-inset-bottom));
-    border-top-color: #e3eaf2;
-    background: rgba(255,255,255,.98);
-    box-shadow: 0 -5px 20px rgba(24, 48, 78, .045);
-  }
-  .parent-mobile-tabbar a[aria-current="page"] { color: #174f8b !important; }
-  .parent-mobile-tabbar a[aria-current="page"] svg { stroke-width: 2.4; }
-  .parent-mobile-menu-sheet {
-    position: absolute;
-    inset: auto 0 0;
-    width: 100%;
-    height: min(88dvh, 760px);
-    max-height: calc(100dvh - env(safe-area-inset-top) - 12px);
-    padding: 18px 18px calc(14px + env(safe-area-inset-bottom));
-    border-radius: 24px 24px 0 0;
-    box-shadow: 0 -12px 40px rgba(10, 30, 55, .16);
-    animation: parent-sheet-in .18s ease-out;
-  }
-  .parent-mobile-menu-sheet::before {
-    content: "";
-    display: block;
-    width: 38px;
-    height: 4px;
-    margin: 0 auto 16px;
-    border-radius: 999px;
-    background: #d8e1ec;
-  }
-  .parent-mobile-menu-sheet nav { padding-bottom: 12px; }
+/* ============================================================
+   Top Bar Mobile — classe sp-topbar
+   ============================================================ */
+.sp-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: calc(60px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 14px 0;
+  background: rgba(255,255,255,.97);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid #e5ebf3;
 }
-@keyframes parent-sheet-in {
-  from { transform: translateY(18px); opacity: .7; }
-  to { transform: translateY(0); opacity: 1; }
+
+/* ============================================================
+   Bottom Tab Bar Mobile — Material You Pill Style
+   Mobile uniquement : masqué sur ≥ 1024px via lg:hidden
+   ============================================================ */
+.sp-tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  z-index: 40;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  height: calc(70px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  /* Fond glass blanc */
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-top: 1px solid rgba(226, 234, 242, 0.9);
+  box-shadow:
+    0 -1px 0 rgba(226, 234, 242, 0.6),
+    0 -6px 24px rgba(15, 23, 42, 0.05);
+  /* Pas de max-width — toujours pleine largeur */
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+/* ---- Chaque onglet ---- */
+.sp-tabbar a {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 2px 6px;
+  color: #94a3b8;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  position: relative;
+  text-align: center;
+  transition: color 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Empêche le débordement du label */
+  overflow: hidden;
+}
+
+/* ---- Pill indicator (pseudo-élément ::before) ---- */
+.sp-tabbar a::before {
+  content: "";
+  position: absolute;
+  /* centré sur l'icône, 10px au-dessus du centre */
+  top: 50%;
+  left: 50%;
+  width: 56px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(2, 132, 199, 0.11);
+  transform: translate(-50%, calc(-50% - 8px)) scale(0.6);
+  opacity: 0;
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.2s ease;
+  pointer-events: none;
+}
+
+/* ---- État actif — pill visible + bounce spring ---- */
+.sp-tabbar a[aria-current="page"]::before {
+  transform: translate(-50%, calc(-50% - 8px)) scale(1);
+  opacity: 1;
+}
+
+.sp-tabbar a[aria-current="page"] {
+  color: #0284c7 !important;
+  font-weight: 600;
+}
+
+/* ---- Icône SVG ---- */
+.sp-tabbar a svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: block;
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    stroke-width 0.2s ease;
+  will-change: transform;
+}
+
+/* Icône active : monte légèrement + grossit */
+.sp-tabbar a[aria-current="page"] svg {
+  transform: scale(1.15) translateY(-2px);
+  stroke-width: 2.3;
+}
+
+/* ---- Ripple au tap (via :active) ---- */
+.sp-tabbar a:active::before {
+  transform: translate(-50%, calc(-50% - 8px)) scale(0.9);
+  opacity: 0.6;
+  transition-duration: 0.08s;
+}
+
+/* ---- Label : fondu sur actif ---- */
+.sp-tabbar a span:last-child {
+  transition: opacity 0.2s ease, font-weight 0.15s;
+}
+.sp-tabbar a:not([aria-current="page"]) span:last-child {
+  opacity: 0.72;
+}
+
+/* ============================================================
+   Menu sheet bas de page (drawer)
+   ============================================================ */
+.sp-sheet {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 50;
+  width: 100%;
+  height: min(88dvh, 760px);
+  max-height: calc(100dvh - env(safe-area-inset-top) - 12px);
+  padding: 20px 18px calc(16px + env(safe-area-inset-bottom));
+  border-radius: 24px 24px 0 0;
+  background: #fff;
+  box-shadow: 0 -12px 40px rgba(10,30,55,.16);
+  animation: sp-sheet-in .18s ease-out;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.sp-sheet::before {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 4px;
+  margin: 0 auto 20px;
+  border-radius: 999px;
+  background: #d8e1ec;
+}
+@keyframes sp-sheet-in {
+  from { transform: translateY(20px); opacity: .75; }
+  to   { transform: translateY(0);    opacity: 1;   }
+}
+
+/* ============================================================
+   Sidebar Desktop — inchangée (lg:flex)
+   ============================================================ */
+@media (min-width: 1024px) {
+  .parent-portal-content {
+    padding-bottom: 56px !important;
+  }
+  /* Rétablir max-width pour desktop */
+  .parent-portal-content { max-width: 1040px !important; }
+}
+
+/* ============================================================
+   Petit mobile (< 380px)
+   ============================================================ */
+@media (max-width: 380px) {
+  .parent-portal-content { padding-inline: 12px !important; }
+  .parent-portal-content .parent-page-head h1 { font-size: 21px !important; }
 }

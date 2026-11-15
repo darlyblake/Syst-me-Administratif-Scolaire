@@ -258,16 +258,16 @@ export default function ParentAbsences() {
   }
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:gap-4 sm:pb-6 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mx-auto w-full max-w-5xl space-y-5 pb-8 sm:space-y-6">
+      <header className="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-blue-600">Vie scolaire</p>
-          <h1 className="mt-1 text-[23px] font-bold leading-tight tracking-tight text-slate-950 sm:mt-1.5 sm:text-3xl">Présences</h1>
-          <p className="mt-1 text-[13px] leading-5 text-slate-500 sm:mt-1.5 sm:text-sm sm:leading-6">
+          <p className="text-xs font-semibold text-blue-700">Espace famille</p>
+          <h1 className="mt-1 text-2xl font-semibold leading-tight tracking-tight text-slate-950 sm:text-3xl">Présences</h1>
+          <p className="mt-1.5 max-w-xl text-sm leading-5 text-slate-500 sm:leading-6">
             Suivez les présences, retards et absences de chaque enfant, cours par cours.
           </p>
         </div>
-        <button type="button" onClick={() => void refresh()} disabled={loading} className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50 sm:w-auto">
+        <button type="button" onClick={() => void refresh()} disabled={loading} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50 sm:w-auto">
           {loading ? "Actualisation…" : "Actualiser"}
         </button>
       </header>
@@ -281,7 +281,7 @@ export default function ParentAbsences() {
         </div>
         {loading && allowed.length===0 ? <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">Chargement des enfants…</div> :
         allowed.length===0 ? <div className="rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">Aucun enfant rattaché à votre compte avec accès aux informations scolaires.</div> :
-        <div className="divide-y divide-slate-200 border-y border-slate-200 bg-white">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
           {allowed.map(child=>{
             const week=weeklySummaries.find(x=>x.id===child.id)
             const term=trimesterSummaries.find(x=>x.id===child.id)
@@ -290,7 +290,7 @@ export default function ParentAbsences() {
             const photo=(child as typeof child & {photo_url?:string|null;avatar_url?:string|null;photo?:string|null}).photo_url||(child as typeof child & {avatar_url?:string|null}).avatar_url||(child as typeof child & {photo?:string|null}).photo
             const age=ageFromBirthDate(child.birth_date)
             const active=childId===child.id
-            return <article key={child.id} className={"parent-child-row px-4 py-4 transition-colors sm:px-5 "+(active?"bg-blue-50/50":"bg-white")}>
+            return <article key={child.id} className={"parent-child-row px-4 py-4 transition-colors sm:px-5 "+(active?"bg-blue-50/70":"bg-white hover:bg-slate-50/70")}>
               <div className="flex min-w-0 items-center gap-3">
                 <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
                   {photo?<img src={photo} alt="" className="h-full w-full object-cover"/>:<div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-700">{(child.first_name?.[0]??"")+(child.last_name?.[0]??"")}</div>}
@@ -301,7 +301,7 @@ export default function ParentAbsences() {
                 </div>
                 <span className={"shrink-0 rounded-sm px-2 py-1 text-[11px] font-medium "+(hasAbsence?"bg-red-50 text-red-700":"bg-slate-100 text-slate-600")}>{hasAbsence?(week?.absent??0)+" absence"+((week?.absent??0)>1?"s":""):"Aucune absence"}</span>
               </div>
-              <div className="mt-4 grid grid-cols-3 divide-x divide-slate-200 border-y border-slate-100 py-2.5">
+              <div className="mt-4 grid grid-cols-3 divide-x divide-slate-200 rounded-xl bg-slate-50/80 py-3">
                 <div className="px-2 first:pl-0"><p className="text-base font-semibold tabular-nums text-slate-900">{week?.present??0}</p><p className="text-[11px] text-slate-500">Présences</p></div>
                 <div className="px-3"><p className="text-base font-semibold tabular-nums text-slate-900">{week?.late??0}</p><p className="text-[11px] text-slate-500">Retards</p></div>
                 <div className="px-3"><p className={"text-base font-semibold tabular-nums "+(hasAbsence?"text-red-700":"text-slate-900")}>{week?.absent??0}</p><p className="text-[11px] text-slate-500">Absences</p></div>
@@ -313,7 +313,7 @@ export default function ParentAbsences() {
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   {requestable>0&&<button type="button" onClick={()=>{setChildId(child.id);setPeriod("custom");setCustomStart(term?.start??todayInGabon());setCustomEnd(todayInGabon());setStatusFilter("absent");setShowHistory(true)}} className="min-h-10 text-xs font-semibold text-red-700 underline underline-offset-2">Justifier ({requestable})</button>}
-                  <button type="button" onClick={()=>{setChildId(child.id);setPeriod("custom");setCustomStart(term?.start??todayInGabon());setCustomEnd(todayInGabon());setStatusFilter("all");setShowHistory(true)}} className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-blue-800 hover:bg-blue-50">Voir le détail</button>
+                  <button type="button" onClick={()=>{setChildId(child.id);setPeriod("custom");setCustomStart(term?.start??todayInGabon());setCustomEnd(todayInGabon());setStatusFilter("all");setShowHistory(true)}} className="min-h-10 rounded-xl border border-blue-200 bg-white px-4 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-50">Voir le détail</button>
                 </div>
               </div>
             </article>
@@ -325,7 +325,7 @@ export default function ParentAbsences() {
         <div><h2 className="text-base font-bold text-slate-950">Historique des présences</h2><p className="mt-1 text-xs text-slate-500">{allowed.find(x=>x.id===childId)?.first_name??"Enfant sélectionné"} · dates, matières et justifications</p></div>
         <button type="button" onClick={()=>{setShowHistory(false);setChildId("tous");setPeriod("week");setStatusFilter("all")}} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Retour aux enfants</button>
       </div>}
-      {showHistory && <section className="border-y border-slate-200 bg-white">
+      {showHistory && <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="grid gap-3 p-4 md:grid-cols-4">
           <label className="space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Enfant</span>
@@ -361,7 +361,7 @@ export default function ParentAbsences() {
         </div>
       </section>}
 
-      {showHistory && <section className="border-b border-slate-200 bg-white px-4 py-4">
+      {showHistory && <section className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
           <div><h2 className="text-sm font-semibold text-slate-900">Taux de présence</h2><p className="mt-1 text-xs text-slate-500">Calculé sur les appels effectués des cours terminés.</p></div>
           <p className="text-2xl font-bold tabular-nums text-blue-800">{counts.rate===null?"—":counts.rate+"%"}</p>
@@ -371,7 +371,7 @@ export default function ParentAbsences() {
         <p className="mt-3 text-[11px] text-slate-500">Un cours sans appel validé n'est pas compté comme une absence. Les retards sont comptés comme une présence.</p>
       </section>}
 
-      {showHistory && <section className="overflow-hidden border border-slate-200 bg-white">
+      {showHistory && <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
           Historique du {formatRange(bounds.start, bounds.end)}
         </div>
@@ -452,8 +452,8 @@ export default function ParentAbsences() {
       </section>}
 
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
-          <div className="w-full max-w-lg border border-slate-200 bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 p-0 sm:items-center sm:p-4">
+          <div className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-slate-200 bg-white p-5 shadow-xl sm:rounded-2xl sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="font-semibold text-slate-900">Justifier le {selected.status === "late" || selected.status === "retard" ? "retard" : "cours"}</h2>
@@ -482,9 +482,9 @@ export default function ParentAbsences() {
 
             {formError && <p className="mt-4 border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>}
 
-            <div className="mt-5 flex justify-end gap-2">
-              <button type="button" className="rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700" onClick={() => { setSelected(null); setFile(null); setFormError(null) }}>Annuler</button>
-              <button type="button" disabled={busy || reason.trim().length < 3} className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" onClick={() => void submitJustification()}>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button type="button" className="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700" onClick={() => { setSelected(null); setFile(null); setFormError(null) }}>Annuler</button>
+              <button type="button" disabled={busy || reason.trim().length < 3} className="min-h-11 rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-800 disabled:opacity-50" onClick={() => void submitJustification()}>
                 {busy ? "Envoi…" : "Envoyer la justification"}
               </button>
             </div>

@@ -354,38 +354,60 @@ function useParentPortalState() {
     void refresh()
 
     let disposed=false
-    let notificationChannel: ReturnType<typeof supabaseBrowser.channel> | null = null
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null
+    let liveChannel: ReturnType<typeof supabaseBrowser.channel> | null = null
+    const scheduleRefresh=()=>{
+      if(disposed) return
+      if(refreshTimer) clearTimeout(refreshTimer)
+      refreshTimer=setTimeout(()=>{ void refresh({silent:true}) },350)
+    }
+
     void supabaseBrowser.auth.getUser().then(({data})=>{
       const user=data.user
       if(!user||disposed) return
-      notificationChannel=supabaseBrowser
-        .channel(`parent-notifications:${user.id}`)
+
+      let channel=supabaseBrowser.channel(`parent-portal-live:${user.id}`)
+      const liveTables=[
+        "attendance_records",
+        "attendance_justification_requests",
+        "grades",
+        "assessments",
+        "payments",
+        "payment_schedules",
+        "payment_allocations",
+        "timetable_slots",
+        "class_breaks",
+        "teacher_lesson_entries",
+        "teacher_homework",
+        "school_events",
+        "school_document_requests",
+        "enrollments",
+        "enrollment_options",
+        "class_subjects",
+        "student_options",
+      ]
+      for(const table of liveTables){
+        channel=channel.on("postgres_changes",{event:"*",schema:"public",table},scheduleRefresh)
+      }
+      channel=channel
         .on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications",filter:`recipient_user_id=eq.${user.id}`},payload=>{
           const notification=payload.new as ParentNotification
           setNotifications(current=>{
             const next=[notification,...current.filter(item=>item.id!==notification.id)]
             return next.sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)).slice(0,50)
           })
-          // Les données concernées sont rechargées dès réception de leur notification.
-          // Pour un paiement, cela actualise l'historique, les allocations et les échéances
-          // sans obliger le parent à quitter la page ou à la recharger manuellement.
-          if(
-            notification.type==="payment_received" ||
-            notification.type==="timetable_updated" ||
-            notification.type.startsWith("attendance_")
-          ) void refresh({silent:true})
+          scheduleRefresh()
         })
         .on("postgres_changes",{event:"UPDATE",schema:"public",table:"notifications",filter:`recipient_user_id=eq.${user.id}`},payload=>{
           const notification=payload.new as ParentNotification
           setNotifications(current=>{
             const exists=current.some(item=>item.id===notification.id)
-            const next=exists
-              ?current.map(item=>item.id===notification.id?notification:item)
-              :[notification,...current]
+            const next=exists?current.map(item=>item.id===notification.id?notification:item):[notification,...current]
             return next.sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)).slice(0,50)
           })
         })
         .subscribe()
+      liveChannel=channel
     })
 
     const {data:{subscription}}=supabaseBrowser.auth.onAuthStateChange((event,session)=>{
@@ -396,8 +418,9 @@ function useParentPortalState() {
     })
     return ()=>{
       disposed=true
+      if(refreshTimer) clearTimeout(refreshTimer)
       subscription.unsubscribe()
-      if(notificationChannel) void supabaseBrowser.removeChannel(notificationChannel)
+      if(liveChannel) void supabaseBrowser.removeChannel(liveChannel)
     }
   },[refresh])
   return {loading,error,refresh,children,grades,payments,attendance,justificationRequests,notifications,events,paymentSchedules,paymentAllocations,enrollmentOptions,timetable,timetableBreaks,lessons,homework,documents,schoolDocumentRequests,claimChild,unclaimChild,requestAttendanceJustification,cancelAttendanceJustification,markNotificationRead,markAllNotificationsRead}

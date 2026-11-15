@@ -14,6 +14,7 @@ import {
 
 function notificationHref(notification: NotificationRecord, isParent: boolean) {
   if (notification.type === "attendance_call_missing") return "/ecole/registre-appel"
+  if (notification.type === "timetable_updated" && isParent) return "/parents/emploi-du-temps"
   if (notification.entity_type === "attendance_record") {
     return isParent ? "/parents/absences" : "/ecole/registre-appel"
   }
@@ -26,6 +27,8 @@ function notificationHref(notification: NotificationRecord, isParent: boolean) {
     case "parent_document_request":
     case "parent_document_publication":
       return "/ecole/documents"
+    case "timetable_schedule":
+      return isParent ? "/parents/emploi-du-temps" : "/ecole/emploi-du-temps"
     case "attendance_record":
     case "attendance_justification_request":
       return isParent ? "/parents/absences" : "/ecole/registre-appel"

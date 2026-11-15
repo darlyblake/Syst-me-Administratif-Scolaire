@@ -152,12 +152,13 @@ export default function ParentAbsences() {
     const year=now.getFullYear()
     const schoolStartYear=now.getMonth()>=9?year:year-1
     const schoolStart=new Date(schoolStartYear,9,1,12)
-    const trimesterIndex=Math.min(2,Math.max(0,Math.floor((now.getFullYear()-schoolStart.getFullYear())*12+(now.getMonth()-schoolStart.getMonth())/3)))
+    const monthOffset=(now.getFullYear()-schoolStart.getFullYear())*12+(now.getMonth()-schoolStart.getMonth())
+    const trimesterIndex=Math.min(2,Math.max(0,Math.floor(monthOffset/3)))
     const start=new Date(schoolStartYear,9+trimesterIndex*3,1,12)
     const end=new Date(schoolStartYear,12+trimesterIndex*3,0,12)
     const startKey=dateKey(start),endKey=dateKey(end)
     return allowed.map(child=>{
-      const records=attendance.filter(item=>item.student_id===child.id&&item.attendance_date>=startKey&&item.attendance_date<=endKey&&item.status==="absent")
+      const records=attendance.filter(item=>item.student_id===child.id&&item.attendance_date>=startKey&&item.attendance_date<=endKey&&["absent","justified","excused"].includes(item.status))
       const hours=records.reduce((sum,item)=>{
         const slot=timetable.find(s=>s.class_id===child.class_id&&s.id===item.lesson_key)
         if(!slot)return sum

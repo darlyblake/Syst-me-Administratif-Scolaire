@@ -398,7 +398,7 @@ export default function ParentAbsences() {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-bold text-slate-900">{period==="week"?"Cette semaine":period==="month"?"Ce mois-ci":"Ce trimestre"}</p>
-              <p className="mt-1 text-xs text-slate-500">{counts.planned} cours terminés prévus · {counts.recorded} appels enregistrés · {counts.pending} appel(s) non effectué(s)</p>
+              <p className="mt-1 text-xs text-slate-500">{counts.planned} cours prévus passés · {counts.recorded} appels saisis · {counts.pending} appel(s) non effectué(s)</p>
               <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                 <div className="flex items-center justify-between gap-2"><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 bg-blue-600" />Présences</span><strong className="tabular-nums">{counts.present} · {counts.rate??0}%</strong></div>
                 <div className="flex items-center justify-between gap-2"><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 bg-amber-500" />Retards</span><strong className="tabular-nums">{counts.late} · {counts.lateRate??0}%</strong></div>
@@ -411,7 +411,7 @@ export default function ParentAbsences() {
             <div className="text-xs text-slate-500">Profil d’assiduité : <strong className={counts.status==="Régulier"?"text-blue-700":counts.status==="Retardataire"?"text-amber-700":counts.status.startsWith("Absentéisme")?"text-red-700":"text-slate-700"}>{counts.status}</strong></div>
             {counts.status==="Absentéisme à surveiller" && <span className="border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700">Signal de vigilance</span>}
           </div>
-          <p className="mt-3 text-[11px] leading-4 text-slate-500">Les pourcentages sont calculés sur les cours terminés prévus dans l’emploi du temps. Un appel non effectué reste distinct d’une absence. Les absences justifiées sont incluses dans le total des absences.</p>
+          <p className="mt-3 text-[11px] leading-4 text-slate-500">Les pourcentages sont calculés sur les cours prévus passés dans l’emploi du temps. Un appel non effectué reste distinct d’une absence. Les absences justifiées sont incluses dans le total des absences.</p>
           <button type="button" onClick={() => { setDateFilter(""); setSubjectFilter("all"); setStatusFilter("all"); setShowHistory(true) }} className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 text-sm font-bold text-white transition-colors hover:bg-blue-800">
             Voir l'historique des cours <span aria-hidden="true">→</span>
           </button>

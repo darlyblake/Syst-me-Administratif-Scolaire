@@ -173,7 +173,7 @@ export function ParentNav() {
         </Link>
       </header>
 
-      <header className="sticky top-0 z-30 flex h-16 w-full min-w-0 items-center justify-between border-b border-slate-200 bg-white px-3 sm:px-4 lg:hidden">
+      <header className="parent-mobile-topbar sticky top-0 z-30 flex h-16 w-full min-w-0 items-center justify-between border-b border-slate-200 bg-white px-3 sm:px-4 lg:hidden">
         <div className="flex min-w-0 items-center gap-2.5">
           <AppBrandMark size={30} className="rounded-md" />
           <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">NOVA Portail parent</p></div>
@@ -189,7 +189,7 @@ export function ParentNav() {
         </div>
       </header>
 
-      <nav aria-label="Navigation principale" className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-1 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))] lg:hidden">
+      <nav aria-label="Navigation principale" className="parent-mobile-tabbar fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-1 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))] lg:hidden">
         <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
           {mobileTabs.map(({ href, label, icon: Icon, matches }) => {
             const active = isTabActive(matches)
@@ -214,7 +214,7 @@ export function ParentNav() {
 
       {open && (
         <div className="fixed inset-0 z-50 bg-slate-950/35 lg:hidden" onClick={() => setOpen(false)}>
-          <aside role="dialog" aria-modal="true" aria-label="Menu de l’espace parent" className="flex h-full w-[min(340px,88vw)] max-w-full flex-col overflow-hidden bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+          <aside role="dialog" aria-modal="true" aria-label="Menu de l’espace parent" className="parent-mobile-menu-sheet flex h-full w-[min(340px,88vw)] max-w-full flex-col overflow-hidden bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
             <div className="mb-5 flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-sm font-semibold text-blue-800">{initials}</span>

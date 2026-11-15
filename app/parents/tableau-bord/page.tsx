@@ -1,116 +1,91 @@
 "use client"
 
 import Link from "next/link"
-import { ChevronRight, RefreshCw } from "lucide-react"
 import { useMemo } from "react"
+import { AlertCircle, CalendarDays, ChevronRight, ClipboardList, RefreshCw, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useParentPortal } from "@/hooks/use-parent-portal"
-import { ParentPageHeader } from "@/components/parent/ParentPageHeader"
 import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
 
-const dateTime = (value: string | null | undefined) => {
-  if (!value) return "Date indisponible"
+const dateLabel = (value: string) => {
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return "Date indisponible"
-  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(date)
+  return Number.isNaN(date.getTime()) ? "Date indisponible" : new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" }).format(date)
 }
+const money = (value: number) => new Intl.NumberFormat("fr-FR").format(value) + " FCFA"
 
 export default function ParentsDashboard() {
   const { utilisateur } = useAuthentification()
-  const { loading, error, refresh, children, grades, attendance, events } = useParentPortal()
-  const academicIds = useMemo(() => new Set(children.filter((child) => child.can_view_academic).map((child) => child.id)), [children])
-  const visibleGrades = grades.filter((grade) => academicIds.has(grade.student_id))
-  const visibleAttendance = attendance.filter((item) => academicIds.has(item.student_id) && item.status !== "present")
-  const upcoming = events.filter((event) => Date.parse(event.starts_at) >= Date.now()).sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at)).slice(0, 3)
+  const { loading, error, refresh, children, grades, attendance, events, paymentSchedules } = useParentPortal()
+  const academicChildren = useMemo(() => children.filter(child => child.can_view_academic), [children])
+  const visibleGrades = useMemo(() => grades.filter(grade => academicChildren.some(child => child.id === grade.student_id)), [grades, academicChildren])
+  const issues = useMemo(() => attendance.filter(item => item.status !== "present" && academicChildren.some(child => child.id === item.student_id)).sort((a,b) => Date.parse(b.attendance_date)-Date.parse(a.attendance_date)).slice(0,4), [attendance, academicChildren])
+  const upcoming = useMemo(() => events.filter(event => Date.parse(event.starts_at) >= Date.now()).sort((a,b) => Date.parse(a.starts_at)-Date.parse(b.starts_at)).slice(0,3), [events])
+  const dueSchedules = useMemo(() => paymentSchedules.filter(item => item.amount_due > item.amount_paid).sort((a,b) => Date.parse(a.due_date)-Date.parse(b.due_date)), [paymentSchedules])
+  const totalDue = dueSchedules.reduce((sum,item)=>sum+Math.max(0,item.amount_due-item.amount_paid),0)
+  const totalAnnual = paymentSchedules.reduce((sum,item)=>sum+item.amount_due,0)
+  const totalPaid = paymentSchedules.reduce((sum,item)=>sum+item.amount_paid,0)
+  const completion = totalAnnual > 0 ? Math.min(100,Math.round(totalPaid/totalAnnual*100)) : 0
 
-  if (loading) return <div className="flex min-h-[50vh] items-center justify-center text-sm text-slate-500"><RefreshCw className="mr-2 h-4 w-4 animate-spin text-blue-600" />Chargement de votre espace parent…</div>
+  if (loading) return <div className="flex min-h-[45vh] items-center justify-center text-sm text-slate-500"><RefreshCw className="mr-2 h-4 w-4 animate-spin text-blue-700" />Chargement de votre espace parent…</div>
 
   return (
-    <div className="space-y-7">
-      <ParentPageHeader
-        eyebrow="Portail familles"
-        title={utilisateur?.nomUtilisateur ? `Bonjour, ${utilisateur.nomUtilisateur}` : "Bonjour"}
-        description="Retrouvez en un coup d’œil les informations importantes concernant vos enfants."
-        onRefresh={() => void refresh()}
-        refreshing={loading}
-      />
+    <div className="space-y-5">
+      <header className="parent-page-head">
+        <div><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-blue-700">Portail des familles</p><h1>{utilisateur?.nomUtilisateur ? `Bonjour, ${utilisateur.nomUtilisateur}` : "Bonjour"}</h1><p className="mt-1 text-sm">Voici les informations importantes concernant vos enfants.</p></div>
+        <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
+      </header>
+      {error && <div role="alert" className="flex flex-col gap-3 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between"><span>{error}</span><Button variant="outline" size="sm" className="bg-white" onClick={() => void refresh()}>Réessayer</Button></div>}
+      {!children.length ? <ParentEmptyState title="Aucun enfant associé à votre compte" description="Associez votre enfant depuis « Mes enfants » avec le code ou le QR remis par l’établissement." action={<Button asChild><Link href="/parents/enfants">Associer un enfant</Link></Button>} /> : (
+        <div className="parent-two-columns">
+          <div className="space-y-5">
+            <section>
+              <div className="parent-surface-title"><div><h2>À traiter</h2><p className="mt-1 text-xs text-slate-500">Les points qui demandent votre attention.</p></div><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800">{issues.length + dueSchedules.length} éléments</span></div>
+              {issues.length || dueSchedules.length ? <div>
+                {issues.map(item => { const child=children.find(entry=>entry.id===item.student_id); return <div key={item.id} className="parent-list-row"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-red-50 text-red-700"><AlertCircle className="h-4 w-4"/></span><div className="min-w-0 flex-1"><p className="text-sm font-semibold text-slate-900">{item.status==="absent"?"Absence à vérifier":"Retard enregistré"}{child? ` — ${child.first_name} ${child.last_name}`:""}</p><p className="text-xs text-slate-500">{dateLabel(item.attendance_date)}{item.reason?` · ${item.reason}`:""}</p></div><Button asChild variant="outline" size="sm"><Link href="/parents/absences">Consulter</Link></Button></div>})}
+                {dueSchedules.slice(0,3).map(item => <div key={item.id} className="parent-list-row"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-amber-50 text-amber-700"><Wallet className="h-4 w-4"/></span><div className="min-w-0 flex-1"><p className="text-sm font-semibold text-slate-900">{item.label || "Échéance de scolarité"}</p><p className="text-xs text-slate-500">{money(Math.max(0,item.amount_due-item.amount_paid))} · échéance {dateLabel(item.due_date)}</p></div><Button asChild variant="outline" size="sm"><Link href="/parents/paiements">Voir</Link></Button></div>)}
+              </div> : <p className="px-5 py-6 text-sm text-slate-500">Aucune action urgente pour le moment.</p>}
+            </section>
 
-      {error && (
-        <div className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
-          <span>{error}</span>
-          <Button variant="outline" size="sm" className="rounded-lg bg-white" onClick={() => void refresh()}>Réessayer</Button>
-        </div>
-      )}
-
-      {children.length === 0 && !error ? (
-        <ParentEmptyState title="Aucun enfant associé à votre compte" description="Associez votre enfant depuis « Mes enfants » avec le code ou le QR remis par l’établissement." action={<Button className="rounded-lg" asChild><Link href="/parents/enfants">Mes enfants</Link></Button>} />
-      ) : (
-        <>
-          <section className="overflow-hidden border-y border-slate-200">
-            <div className="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
-              <div><h2 className="text-base font-bold text-slate-950">Mes enfants</h2><p className="text-sm text-slate-500">Accédez directement à leur suivi scolaire.</p></div>
-              <Link href="/parents/enfants" className="inline-flex items-center text-sm font-semibold text-blue-700 hover:text-blue-800">Gérer les enfants<ChevronRight className="ml-1 h-4 w-4" /></Link>
-            </div>
-            <div className="divide-y divide-slate-100">
-              {children.map((child) => {
-                const childGrades = child.can_view_academic ? grades.filter((grade) => grade.student_id === child.id) : []
-                const average = childGrades.length ? childGrades.reduce((sum, grade) => sum + grade.score, 0) / childGrades.length : null
-                const issues = child.can_view_academic ? attendance.filter((item) => item.student_id === child.id && item.status !== "present").length : null
-                return (
-                  <div key={child.id} className="px-4 py-4 transition-colors hover:bg-slate-50/70 sm:px-5 sm:py-5">
-                    <div className="grid gap-5 lg:grid-cols-[minmax(240px,1.5fr)_repeat(2,minmax(120px,.6fr))_auto] lg:items-center">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-700">{child.first_name?.[0] ?? ""}{child.last_name?.[0] ?? ""}</div>
-                        <div className="min-w-0"><p className="truncate font-semibold text-slate-950">{child.first_name} {child.last_name}</p><p className="mt-0.5 text-sm text-slate-500">{child.class_name ?? "Classe non attribuée"}</p></div>
-                      </div>
-                      {child.can_view_academic ? <><DataValue label="Moyenne" value={average === null ? "—" : `${average.toFixed(1)}/20`} /><DataValue label="Absences / retards" value={String(issues ?? 0)} /></> : <><DataValue label="Suivi scolaire" value="Limité" /><DataValue label="Accès" value="Restreint" /></>}
-                      <div className="flex flex-wrap gap-2 lg:justify-end">
-                        {child.can_view_academic && <Button variant="outline" size="sm" className="rounded-lg border-slate-200" asChild><Link href={`/parents/notes?eleve=${child.id}`}>Résultats</Link></Button>}
-                        <Button variant="ghost" size="sm" className="rounded-lg" asChild><Link href={`/parents/enfants?eleve=${child.id}`}>Voir</Link></Button>
-                      </div>
-                    </div>
-                  </div>
-                )
+            <section>
+              <div className="parent-surface-title"><div><h2>Vos enfants</h2><p className="mt-1 text-xs text-slate-500">Accédez rapidement à leur suivi scolaire.</p></div><Link href="/parents/enfants" className="text-sm font-semibold text-blue-700">Tout voir <ChevronRight className="inline h-4 w-4"/></Link></div>
+              {children.map(child => {
+                const childGrades=grades.filter(grade=>grade.student_id===child.id)
+                const average=childGrades.length?childGrades.reduce((sum,grade)=>sum+grade.score,0)/childGrades.length:null
+                const attendanceCount=attendance.filter(item=>item.student_id===child.id&&item.status!=="present").length
+                return <div key={child.id} className="parent-list-row">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-800">{child.first_name?.[0]}{child.last_name?.[0]}</div>
+                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-slate-900">{child.first_name} {child.last_name}</p><p className="text-xs text-slate-500">{child.class_name??"Classe non attribuée"}</p></div>
+                  <div className="hidden text-right sm:block"><p className="text-[11px] text-slate-500">Moyenne</p><p className="text-sm font-semibold text-slate-900">{child.can_view_academic&&average!==null?`${average.toFixed(1)}/20`:"—"}</p></div>
+                  <div className="hidden text-right sm:block"><p className="text-[11px] text-slate-500">Incidents</p><p className="text-sm font-semibold text-slate-900">{child.can_view_academic?attendanceCount:"—"}</p></div>
+                  <Button asChild variant="outline" size="sm"><Link href={`/parents/enfants?eleve=${child.id}`}>Dossier</Link></Button>
+                </div>
               })}
-            </div>
-          </section>
+            </section>
+          </div>
 
-          <section className="border-y border-slate-200">
-            <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-900">Accès rapides</h2>
-                <p className="text-xs text-slate-500">Ouvrez directement les informations qui nécessitent votre attention.</p>
+          <div className="space-y-5">
+            <section>
+              <div className="parent-surface-title"><h2>Scolarité et paiements</h2><Link href="/parents/paiements" className="text-sm font-semibold text-blue-700">Détails</Link></div>
+              <div className="p-5">
+                <p className="text-xs text-slate-500">Reste à régler</p><p className="mt-1 text-2xl font-bold tracking-tight text-slate-950">{money(totalDue)}</p>
+                <div className="my-4 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-700" style={{width:`${completion}%`}}/></div>
+                <div className="flex justify-between gap-3 text-xs text-slate-500"><span>Réglé <b className="text-slate-800">{money(totalPaid)}</b></span><span>Total <b className="text-slate-800">{money(totalAnnual)}</b></span></div>
+                {!paymentSchedules.length&&<p className="mt-3 text-xs text-slate-500">Aucune échéance disponible pour le moment.</p>}
               </div>
-              <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-                <Link href="/parents/notes" className="font-medium text-blue-700 hover:text-blue-800">Résultats <span className="ml-1 text-slate-500">({visibleGrades.length})</span></Link>
-                <Link href="/parents/absences" className="font-medium text-blue-700 hover:text-blue-800">Présences <span className="ml-1 text-slate-500">({visibleAttendance.length})</span></Link>
-              </div>
-            </div>
-          </section>
-
-          <InfoSection
-            title="À venir"
-            description="Les prochains rendez-vous de la vie scolaire."
-            href="/parents/evenements"
-            items={upcoming.map((item) => ({
-              id: item.id,
-              title: item.title,
-              detail: item.location ?? "Établissement",
-              date: item.starts_at,
-            }))}
-            empty="Aucun événement à venir."
-          />
-        </>
+            </section>
+            <section>
+              <div className="parent-surface-title"><div><h2>Agenda</h2><p className="mt-1 text-xs text-slate-500">Les prochains rendez-vous.</p></div><Link href="/parents/evenements" className="text-sm font-semibold text-blue-700">Voir tout</Link></div>
+              {upcoming.length?upcoming.map(event=><div key={event.id} className="parent-list-row"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-blue-50 text-blue-800"><CalendarDays className="h-4 w-4"/></span><div className="min-w-0 flex-1"><p className="text-sm font-semibold text-slate-900">{event.title}</p><p className="text-xs text-slate-500">{dateLabel(event.starts_at)}{event.location?` · ${event.location}`:""}</p></div></div>):<p className="px-5 py-6 text-sm text-slate-500">Aucun événement à venir.</p>}
+            </section>
+            <section>
+              <div className="parent-surface-title"><h2>Résultats récents</h2><Link href="/parents/notes" className="text-sm font-semibold text-blue-700">Voir tout</Link></div>
+              {visibleGrades.slice(0,3).map(grade=>{const child=children.find(entry=>entry.id===grade.student_id);return <div key={grade.id} className="parent-list-row"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-blue-50 text-blue-800"><ClipboardList className="h-4 w-4"/></span><div className="min-w-0 flex-1"><p className="text-sm font-semibold text-slate-900">{grade.subject??grade.title??"Évaluation"}</p><p className="text-xs text-slate-500">{child?.first_name} {child?.last_name}</p></div><span className="text-sm font-bold text-slate-900">{grade.score}/{grade.max_score??20}</span></div>})}
+              {!visibleGrades.length&&<p className="px-5 py-6 text-sm text-slate-500">Aucun résultat publié pour le moment.</p>}
+            </section>
+          </div>
+        </div>
       )}
     </div>
   )
-}
-
-function DataValue({ label, value }: { label: string; value: string }) {
-  return <div><p className="text-xs text-slate-500">{label}</p><p className="mt-1 font-bold text-slate-950">{value}</p></div>
-}
-
-function InfoSection({ title, description, href, items, empty }: { title: string; description: string; href: string; items: { id: string; title: string; detail: string; date: string }[]; empty: string }) {
-  return <section className="overflow-hidden border-y border-slate-200"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="text-base font-bold text-slate-950">{title}</h2><p className="text-sm text-slate-500">{description}</p></div><Link href={href} className="text-sm font-semibold text-blue-700 hover:text-blue-800">Voir tout</Link></div>{items.length ? <div className="divide-y divide-slate-100">{items.map((item) => <Link key={item.id} href={href} className="block px-5 py-4 transition-colors hover:bg-slate-50"><p className="truncate text-sm font-semibold text-slate-900">{item.title}</p><p className="mt-1 line-clamp-2 text-sm text-slate-500">{item.detail}</p><p className="mt-1 text-xs text-slate-400">{dateTime(item.date)}</p></Link>)}</div> : <p className="px-4 py-7 text-sm text-slate-500 sm:px-5 sm:py-8">{empty}</p>}</section>
 }

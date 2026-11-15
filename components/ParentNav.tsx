@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard, GraduationCap, CalendarDays, BookOpen, FileText, Bell,
   MessageSquare, UserRound, Menu, X, LogOut, ClipboardList, Users,
-  ChevronRight,
+  ChevronRight, MoreHorizontal,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -44,11 +44,10 @@ const sections = [
 ]
 
 const mobileTabs = [
-  { href: "/parents/tableau-bord", label: "Aujourd’hui", icon: LayoutDashboard, matches: ["/parents/tableau-bord"] },
-  { href: "/parents/absences", label: "Vie scolaire", icon: CalendarDays, matches: ["/parents/absences", "/parents/enfants", "/parents/emploi-du-temps", "/parents/cahier-de-textes", "/parents/evenements"] },
-  { href: "/parents/notes", label: "Notes", icon: GraduationCap, matches: ["/parents/notes"] },
+  { href: "/parents/tableau-bord", label: "Accueil", icon: LayoutDashboard, matches: ["/parents/tableau-bord"] },
+  { href: "/parents/enfants", label: "Enfants", icon: Users, matches: ["/parents/enfants"] },
+  { href: "/parents/absences", label: "Suivi", icon: CalendarDays, matches: ["/parents/absences", "/parents/emploi-du-temps", "/parents/cahier-de-textes", "/parents/evenements", "/parents/notes"] },
   { href: "/parents/messages", label: "Messages", icon: MessageSquare, matches: ["/parents/messages"] },
-  { href: "/parents/profil", label: "Compte", icon: UserRound, matches: ["/parents/profil", "/parents/paiements", "/parents/documents", "/parents/notifications", "/parents/demandes-documents"] },
 ]
 
 export function ParentNav() {
@@ -206,6 +205,10 @@ export function ParentNav() {
               </Link>
             )
           })}
+          <button type="button" onClick={() => setOpen(true)} aria-label="Ouvrir toutes les rubriques" aria-expanded={open} className="relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-0.5 text-[10px] font-medium text-slate-500">
+            <MoreHorizontal className="h-5 w-5" />
+            <span>Plus</span>
+          </button>
         </div>
       </nav>
 

@@ -111,10 +111,10 @@ export function ParentNav() {
 
   const NavItem = ({ href, label, icon: Icon, count = 0, close = false }: { href: string; label: string; icon: typeof LayoutDashboard; count?: number; close?: boolean }) => (
     <Link href={href} onClick={() => close && setOpen(false)} className={cn(
-      "group flex min-h-10 min-w-0 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition-colors",
-      isActive(href) ? "bg-[#1e3a8a] text-white" : "text-[#303746] hover:bg-[#f2f3ff] hover:text-[#131b2e]",
+      "group flex min-h-10 min-w-0 items-center gap-3 rounded-md px-3 text-[13px] font-medium transition-colors",
+      isActive(href) ? "bg-blue-800 text-white shadow-[inset_3px_0_0_#60a5fa]" : "text-blue-100/85 hover:bg-white/10 hover:text-white",
     )}>
-      <Icon className={cn("h-[17px] w-[17px] shrink-0", isActive(href) ? "text-white" : "text-slate-400 group-hover:text-slate-600")} />
+      <Icon className={cn("h-[17px] w-[17px] shrink-0", isActive(href) ? "text-white" : "text-blue-200 group-hover:text-white")} />
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {count > 0 && <span className="min-w-5 shrink-0 rounded-full bg-blue-600 px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{count > 99 ? "99+" : count}</span>}
     </Link>
@@ -122,17 +122,17 @@ export function ParentNav() {
 
   const Nav = ({ close = false }: { close?: boolean }) => (
     <nav className="space-y-6">
-      <div><p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Suivi scolaire</p><div className="space-y-1">{principal.map((item) => <NavItem key={item.href} {...item} close={close} />)}</div></div>
+      <div><p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-200/65">Suivi scolaire</p><div className="space-y-1">{principal.map((item) => <NavItem key={item.href} {...item} close={close} />)}</div></div>
       <div><p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Communication</p><div className="space-y-1">{secondaire.filter((item) => !(close && item.badge === "notifs")).map((item) => <NavItem key={item.href} {...item} count={badge(item.badge)} close={close} />)}</div></div>
     </nav>
   )
 
   const User = ({ compact = false }: { compact?: boolean }) => (
     <div className={cn("flex min-w-0 items-center gap-3", compact && "max-w-[calc(100%-48px)]")}>
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">{(utilisateur?.nomUtilisateur ?? "P").slice(0, 2).toUpperCase()}</div>
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-blue-900">{(utilisateur?.nomUtilisateur ?? "P").slice(0, 2).toUpperCase()}</div>
       <div className="min-w-0 flex-1 overflow-hidden">
-        <p className="truncate text-[13px] font-semibold text-slate-900">{utilisateur?.nomUtilisateur ?? "Parent"}</p>
-        <p className="truncate text-[11px] text-slate-500">Espace parent</p>
+        <p className="truncate text-[13px] font-semibold text-white">{utilisateur?.nomUtilisateur ?? "Parent"}</p>
+        <p className="truncate text-[11px] text-blue-100/65">Espace parent</p>
       </div>
     </div>
   )
@@ -141,10 +141,10 @@ export function ParentNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 hidden h-14 items-center justify-end gap-3 border-b border-slate-200 bg-white/95 px-6 backdrop-blur lg:ml-64 lg:flex">
+      <header className="sticky top-0 z-30 hidden h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 lg:ml-64 lg:flex"><p className="text-sm text-slate-500">Espace parent <span className="px-1 text-slate-300">/</span><span className="font-semibold text-slate-800">Portail des familles</span></p>
         <div className="relative">
-          <button type="button" onClick={() => setProfileMenuOpen((value) => !value)} aria-expanded={profileMenuOpen} aria-label="Ouvrir le menu du profil" className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-slate-100">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-700 text-[11px] font-bold text-white">{(utilisateur?.nomUtilisateur ?? "P").slice(0, 2).toUpperCase()}</span>
+          <button type="button" onClick={() => setProfileMenuOpen((value) => !value)} aria-expanded={profileMenuOpen} aria-label="Ouvrir le menu du profil" className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-slate-50">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-800 text-[11px] font-bold text-white">{(utilisateur?.nomUtilisateur ?? "P").slice(0, 2).toUpperCase()}</span>
             <span className="max-w-36 truncate text-sm font-medium text-slate-800">{utilisateur?.nomUtilisateur ?? "Mon compte"}</span>
             <ChevronDown className="h-4 w-4 text-slate-400" />
           </button>
@@ -181,10 +181,10 @@ export function ParentNav() {
         </aside>
       </div>}
 
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-slate-200 bg-white lg:flex lg:flex-col">
-        <div className="border-b border-slate-200 px-5 py-5"><div className="mb-5 flex items-center gap-3"><Image src="/nova-logo.webp" alt="NOVA" width={36} height={36} className="rounded-lg object-contain" /><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">NOVA</p><p className="text-[15px] font-bold text-slate-900">Portail familles</p></div></div><User /></div>
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-blue-950 bg-[#102B55] text-white lg:flex lg:flex-col">
+        <div className="border-b border-white/10 px-5 py-5"><div className="mb-5 flex items-center gap-3"><Image src="/nova-logo.webp" alt="NOVA" width={36} height={36} className="rounded-md bg-white p-1 object-contain" /><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-blue-200/65">GESTION SCOLAIRE</p><p className="text-[15px] font-bold text-white">Portail familles</p></div></div><User /></div>
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-5"><Nav /></div>
-        <div className="border-t border-slate-200 p-3"><Button variant="ghost" className="w-full justify-start rounded-lg text-slate-500 hover:text-slate-900" onClick={() => void logout()} disabled={loggingOut}><LogOut className="mr-2 h-4 w-4" />{loggingOut ? "Déconnexion…" : "Déconnexion"}</Button></div>
+        <div className="border-t border-white/10 p-3"><Button variant="ghost" className="w-full justify-start rounded-md text-blue-100/75 hover:bg-white/10 hover:text-white" onClick={() => void logout()} disabled={loggingOut}><LogOut className="mr-2 h-4 w-4" />{loggingOut ? "Déconnexion…" : "Déconnexion"}</Button></div>
       </aside>
     </>
   )

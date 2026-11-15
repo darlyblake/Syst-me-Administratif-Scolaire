@@ -123,7 +123,7 @@ export default function ParentAbsences() {
     const completed = slots.filter(slot => minutes(slot.ends_at) <= currentMinutes)
     const current = slots.find(slot => minutes(slot.starts_at) <= currentMinutes && currentMinutes < minutes(slot.ends_at))
     const next = slots.find(slot => minutes(slot.starts_at) > currentMinutes)
-    const records = attendance.filter(item => item.student_id === selectedChild.id && item.attendance_date === today)
+    const records = attendance.filter(item => item.student_id === selectedChild.id && item.attendance_date === today && slots.some(slot => slot.id === item.lesson_key))
     const recordFor = (slotId:string) => records.find(item => item.lesson_key === slotId)
     const present = records.filter(item => item.status === "present").length
     const late = records.filter(item => ["late","retard"].includes(item.status)).length
@@ -133,15 +133,21 @@ export default function ParentAbsences() {
     const summary = { completed:completed.length, total:slots.length, present, late, absent, recorded, missing }
     if (current) {
       const record = recordFor(current.id)
-      return { ...summary, kind:"lesson", title:record ? statusLabel(record.status) : "Appel non effectué", detail:record ? "L'appel de ce cours a été enregistré." : "Le cours a commencé. L'enseignant n'a pas encore enregistré l'appel.", subject:current.subject, teacher:current.teacher_name, room:current.room, next:null }
+      return { ...summary, kind:"lesson", title:"Cours en cours", detail:record ? "Appel enregistré : " + statusLabel(record.status) + "." : "Appel non effectué : l'enseignant n'a pas encore enregistré la présence.", subject:current.subject, teacher:current.teacher_name, room:current.room, next:null }
     }
     if (next && completed.length > 0) {
-      return { ...summary, kind:"break", title:"Pause", detail:"Aucun cours n'est en cours pour le moment.", subject:null, teacher:null, room:null, next:next.subject + " à " + formatTime(next.starts_at) }
+      const last = completed[completed.length - 1]
+      const lastRecord = recordFor(last.id)
+      const lastStatus = lastRecord ? statusLabel(lastRecord.status) : "Appel non effectué"
+      return { ...summary, kind:"break", title:"Pause", detail:"Dernier cours : " + last.subject + " · " + lastStatus + ".", subject:null, teacher:null, room:null, next:next.subject + " à " + formatTime(next.starts_at) }
     }
     if (next) {
       return { ...summary, kind:"before", title:"Les cours n'ont pas encore commencé", detail:"Le prochain cours est prévu à " + formatTime(next.starts_at) + ".", subject:next.subject, teacher:next.teacher_name, room:next.room, next:null }
     }
-    return { ...summary, kind:slots.length ? "finished" : "empty", title:slots.length ? "Cours terminés pour aujourd'hui" : "Aucun cours prévu aujourd'hui", detail:slots.length ? "Le programme de la journée est terminé." : "Aucun cours n'est inscrit à l'emploi du temps aujourd'hui.", subject:null, teacher:null, room:null, next:null }
+    const last = completed[completed.length - 1]
+    const lastRecord = last ? recordFor(last.id) : null
+    const lastStatus = lastRecord ? statusLabel(lastRecord.status) : "Appel non effectué"
+    return { ...summary, kind:slots.length ? "finished" : "empty", title:slots.length ? "Cours terminés pour aujourd'hui" : "Aucun cours prévu aujourd'hui", detail:slots.length ? (last ? "Dernier cours : " + last.subject + " · " + lastStatus + ". Le programme de la journée est terminé." : "Le programme de la journée est terminé.") : "Aucun cours n'est inscrit à l'emploi du temps aujourd'hui.", subject:null, teacher:null, room:null, next:null }
   }, [selectedChild, timetable, attendance, clock])
 
   const counts=useMemo(()=>{
@@ -354,16 +360,15 @@ export default function ParentAbsences() {
       {showHistory && <div className="fixed inset-0 z-40 flex items-end justify-center bg-slate-950/40 sm:items-center sm:p-4">
         <div className="max-h-[92dvh] w-full max-w-5xl space-y-4 overflow-y-auto bg-white p-4 shadow-xl sm:p-6">
       <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
-        <div><h2 className="text-lg font-semibold text-slate-950">Suivi des présences</h2><p className="mt-1 text-xs text-slate-500">{allowed.find(x=>x.id===childId)?.first_name??"Enfant sélectionné"} · Consultez les cours, les absences et les demandes de justification.</p></div>
-        <button type="button" onClick={()=>{setShowHistory(false);setChildId("tous");setPeriod("week");setStatusFilter("all");setDateFilter("");setSubjectFilter("all")}} className="border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Fermer</button>
+        <div><h2 className="text-lg font-semibold text-slate-950">Suivi des présences</h2><p className="mt-1 text-xs text-slate-500">{selectedChild?.first_name??"Enfant sélectionné"} · Consultez les cours, les absences et les demandes de justification.</p></div>
+        <button type="button" onClick={()=>{setShowHistory(false);setChildId(activeChildId);setPeriod("week");setStatusFilter("all");setDateFilter("");setSubjectFilter("all")}} className="border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Fermer</button>
       </div>
       {showHistory && <section className="overflow-hidden border border-slate-200 bg-white">
         <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Enfant</span>
-            <select value={childId} onChange={(event) => setChildId(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800">
-              <option value="tous">Tous les enfants</option>
-              {allowed.map((child) => <option key={child.id} value={child.id}>{child.first_name} {child.last_name}</option>)}
+            <select value={activeChildId} onChange={(event) => setChildId(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800">
+                {allowed.map((child) => <option key={child.id} value={child.id}>{child.first_name} {child.last_name}</option>)}
             </select>
           </label>
           <label className="space-y-1.5">

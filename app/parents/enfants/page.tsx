@@ -12,7 +12,7 @@ import { ParentPageHeader } from "@/components/parent/ParentPageHeader"
 import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
 
 export default function ParentChildren() {
-  const { loading, error, refresh, children, claimChild, unclaimChild } = useParentPortal()
+  const { loading, error, children, claimChild, unclaimChild } = useParentPortal()
   const [open, setOpen] = useState(false)
   const [selectedChild, setSelectedChild] = useState<(typeof children)[number] | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -38,8 +38,6 @@ export default function ParentChildren() {
         eyebrow="Famille"
         title="Mes enfants"
         description="Consultez rapidement les enfants associés à votre compte."
-        onRefresh={() => void refresh()}
-        refreshing={loading}
         action={<Button size="sm" onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Ajouter un enfant</Button>}
       />
 

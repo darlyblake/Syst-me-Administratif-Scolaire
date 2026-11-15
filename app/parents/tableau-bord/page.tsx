@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useMemo, useState } from "react"
 import {
   ArrowRight, BookOpen, CalendarDays, CreditCard,
-  FileText, GraduationCap, MessageSquare, RefreshCw,
+  FileText, GraduationCap, MessageSquare,
   ShieldCheck, Users, ChevronRight, AlertCircle,
 } from "lucide-react"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -174,15 +174,7 @@ export default function ParentsDashboard() {
           </h1>
           <p className="mt-1 text-[13px] capitalize text-slate-500">{dateStr}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          disabled={loading}
-          aria-label="Actualiser"
-          className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 active:bg-slate-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-        </button>
+
       </header>
 
       {/* ---- Sélecteur enfant ---- */}
@@ -198,9 +190,7 @@ export default function ParentsDashboard() {
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <div className="min-w-0 flex-1">
             <p>{error}</p>
-            <button type="button" className="mt-2 font-semibold underline" onClick={() => void refresh()}>
-              Réessayer
-            </button>
+
           </div>
         </div>
       )}

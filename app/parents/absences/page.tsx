@@ -326,7 +326,7 @@ export default function ParentAbsences() {
       <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
         <div><h2 className="text-lg font-semibold text-slate-950">Suivi des présences</h2><p className="mt-1 text-xs text-slate-500">{allowed.find(x=>x.id===childId)?.first_name??"Enfant sélectionné"} · Consultez les cours, les absences et les demandes de justification.</p></div>
         <button type="button" onClick={()=>{setShowHistory(false);setChildId("tous");setPeriod("week");setStatusFilter("all")}} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Fermer</button>
-      </div>}
+      </div>
       {showHistory && <section className="overflow-hidden border border-slate-200 bg-white">
         <div className="grid gap-3 p-4 md:grid-cols-4">
           <label className="space-y-1.5">

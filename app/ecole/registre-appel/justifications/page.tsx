@@ -63,7 +63,7 @@ export default function AttendanceJustificationsPage() {
       ])
       if(studentsResult.error) throw studentsResult.error
       if(attendanceResult.error) throw attendanceResult.error
-      const subjectIds=[...new Set((attendanceResult.data??[]).map(a=>a.subject_id).filter(Boolean))]
+      const subjectIds=[...new Set((attendanceResult.data??[]).map(a=>a.subject_id).filter((id): id is string => Boolean(id)))]
       const subjectsResult=subjectIds.length ? await supabaseBrowser.from("subjects").select("id,name").in("id",subjectIds) : {data:[],error:null}
       if(subjectsResult.error) throw subjectsResult.error
       const studentMap=new Map((studentsResult.data??[]).map(s=>[s.id,[s.first_name,s.last_name].filter(Boolean).join(" ")]))

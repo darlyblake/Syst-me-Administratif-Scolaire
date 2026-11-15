@@ -146,10 +146,13 @@ export default function ParentAbsences() {
     const slots = timetable.filter(slot => slot.class_id === selectedChild.class_id && slot.day_of_week === day).sort((a,b) => a.starts_at.localeCompare(b.starts_at))
     const breaks = timetableBreaks.filter(item =>
       item.class_id === selectedChild.class_id &&
-      (!selectedChild.academic_year_id || item.academic_year_id === selectedChild.academic_year_id)
+      !!selectedChild.academic_year_id &&
+      item.academic_year_id === selectedChild.academic_year_id
     )
     const minutes = (value:string) => { const [h,m] = value.split(":").map(Number); return h * 60 + m }
-    const currentBreak = breaks.find(item => minutes(item.starts_at) <= currentMinutes && currentMinutes < minutes(item.ends_at))
+    const currentBreak = day >= 1 && day <= 6
+      ? breaks.find(item => minutes(item.starts_at) <= currentMinutes && currentMinutes < minutes(item.ends_at))
+      : undefined
     const completed = slots.filter(slot => minutes(slot.ends_at) <= currentMinutes)
     const current = slots.find(slot => minutes(slot.starts_at) <= currentMinutes && currentMinutes < minutes(slot.ends_at))
     const next = slots.find(slot => minutes(slot.starts_at) > currentMinutes)

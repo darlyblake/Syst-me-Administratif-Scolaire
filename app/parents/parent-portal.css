@@ -32,16 +32,17 @@
 .parent-portal-content .parent-page-head{padding-bottom:18px;border-bottom:1px solid #e2e8f0}
 @media(max-width:1024px){.parent-portal-content .parent-two-columns{grid-template-columns:1fr}}
 @media(max-width:768px){
- .parent-portal-content{padding:20px 16px calc(6.75rem + env(safe-area-inset-bottom))!important}
+ .parent-portal-content{min-height:calc(100dvh - 4rem);padding:20px 16px calc(8rem + env(safe-area-inset-bottom))!important;overscroll-behavior-y:auto;touch-action:pan-y}
  .parent-portal-content h1{font-size:22px!important}
  .parent-portal-content .parent-list-row{padding:13px 16px;flex-wrap:wrap}
  .parent-portal-content .parent-surface-title{padding:14px 16px}
  .parent-portal-content .parent-two-columns{grid-template-columns:1fr}
- .parent-portal-content table,.parent-portal-content tbody,.parent-portal-content tr,.parent-portal-content td{display:block}
- .parent-portal-content thead{display:none}
- .parent-portal-content tr{padding:10px 16px;border-top:1px solid #e5eaf1}
- .parent-portal-content td{display:flex;justify-content:space-between;gap:12px;padding:2px 0;border:0}
- .parent-portal-content td:before{content:attr(data-label);color:#64748b;font-size:12px}
+ .parent-portal-content table{display:block;width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+ .parent-portal-content thead{display:table-header-group}
+ .parent-portal-content tbody{display:table-row-group}
+ .parent-portal-content tr{display:table-row;padding:0;border:0}
+ .parent-portal-content th,.parent-portal-content td{display:table-cell;white-space:nowrap;padding:11px 14px}
+ .parent-portal-content td:before{content:none}
 }
 @media(min-width:769px){
  .parent-portal-content{padding-bottom:56px!important}
@@ -50,4 +51,7 @@
 @supports(overflow:clip){
  .parent-portal-content{overflow:visible}
 }
-html:has(.parent-portal-content),body:has(.parent-portal-content){min-height:100%;height:auto;overflow-y:auto}
+html:has(.parent-portal-content),body:has(.parent-portal-content){min-height:100%;height:auto;overflow-x:clip;overflow-y:auto}
+body:has(.parent-portal-content){-webkit-overflow-scrolling:touch;overscroll-behavior-y:auto}
+.parent-portal-content{box-sizing:border-box;min-width:0;overflow:visible}
+.parent-portal-content>*{min-width:0;max-width:100%}

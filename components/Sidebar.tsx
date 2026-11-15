@@ -145,12 +145,10 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
         "lg:translate-x-0",
       ].join(" ")}>
         <div className="flex h-14 shrink-0 items-center gap-2 border-b border-[#c5c5d3]/35 px-4">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#1e3a8a] text-white">
-            <School className="h-4 w-4" strokeWidth={1.8} />
-          </div>
+          <AppBrandMark size={32} className="rounded-lg" />
           <div className="min-w-0">
             <p className="truncate text-[16px] font-semibold leading-5 tracking-tight text-[#00236f]">NOVA</p>
-            <p className="truncate text-[11px] leading-4 text-[#515f74]">Administration Centrale</p>
+            <p className="truncate text-[11px] leading-4 text-[#515f74]">{userRole.toLowerCase().includes("enseignant") ? "NOVA Portail enseignant" : "NOVA Portail administration"}</p>
           </div>
         </div>
 

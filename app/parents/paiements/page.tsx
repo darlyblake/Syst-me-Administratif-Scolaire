@@ -122,6 +122,32 @@ export default function ParentPaiements() {
   }, [schedules])
   const optionSchedules = schedules.filter((schedule) => schedule.category === "option")
 
+  // Les échéances de la famille sont classées par priorité : retard, partiel,
+  // à venir. Les prises en charge externes restent dans leur rubrique dédiée.
+  const familyTuitionSchedules = tuitionSchedules.filter(
+    (schedule) => (schedule.payer_type ?? "family") === "family",
+  )
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const overdueSchedules = familyTuitionSchedules.filter((schedule) => {
+    const dueDate = new Date(schedule.due_date)
+    dueDate.setHours(0, 0, 0, 0)
+    return schedule.amount_due > schedule.amount_paid && dueDate < today
+  })
+  const partialSchedules = familyTuitionSchedules.filter(
+    (schedule) => schedule.amount_paid > 0 && schedule.amount_due > schedule.amount_paid &&
+      !overdueSchedules.some((item) => item.id === schedule.id),
+  )
+  const upcomingSchedules = familyTuitionSchedules.filter((schedule) => {
+    const dueDate = new Date(schedule.due_date)
+    dueDate.setHours(0, 0, 0, 0)
+    return schedule.amount_due > schedule.amount_paid && dueDate >= today
+  })
+  const settledSchedules = familyTuitionSchedules.filter(
+    (schedule) => schedule.amount_due <= schedule.amount_paid || schedule.status === "paid",
+  )
+  const attentionCount = overdueSchedules.length + partialSchedules.length + upcomingSchedules.length
+
   const modes = [...new Set(selectedChildren.map((child) => child.payment_mode).filter(Boolean))]
   const modeLabel = modes.length === 1
     ? paymentModeLabel(modes[0])
@@ -161,7 +187,7 @@ export default function ParentPaiements() {
   }
 
   const sectionTabs: { id: Section; label: string; count?: number }[] = [
-    { id: "echeances", label: "À payer", count: tuitionSchedules.filter((schedule) => schedule.amount_due > schedule.amount_paid).length },
+    { id: "echeances", label: "Échéances", count: attentionCount },
     { id: "historique", label: "Versements", count: list.length },
     { id: "options", label: "Options", count: options.length },
   ]
@@ -290,51 +316,139 @@ export default function ParentPaiements() {
           </div>
 
           {section === "echeances" && (
-            <section className="space-y-3">
-              <div className="flex items-center justify-between px-1">
-                <div>
-                  <h2 className="text-base font-semibold text-slate-900">Échéancier</h2>
-                  <p className="mt-0.5 text-xs text-slate-500">Les dates et montants prévus par l’établissement.</p>
-                </div>
-                <span className="text-xs text-slate-400">{tuitionSchedules.length} échéance(s)</span>
+            <section className="space-y-5">
+              <div className="px-1">
+                <h2 className="text-base font-semibold text-slate-900">Vos échéances</h2>
+                <p className="mt-0.5 text-xs text-slate-500">Les paiements à suivre apparaissent en premier. Les échéances réglées restent consultables plus bas.</p>
               </div>
-              {tuitionSchedules.length === 0 ? (
+
+              {attentionCount === 0 && settledSchedules.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-9 text-center text-sm text-slate-500">
                   Aucune échéance de scolarité disponible.
                 </div>
               ) : (
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                  {tuitionSchedules.map((schedule) => {
-                    const payer = schedule.payer_type ?? "family"
-                    const rest = Math.max(schedule.amount_due - schedule.amount_paid, 0)
-                    const status = payer === "state"
-                      ? (rest === 0 ? "Prise en charge réglée" : "Prise en charge État")
-                      : payer === "other"
-                        ? schedule.organization_id
-                          ? (rest === 0 ? "Partenaire réglé" : schedule.amount_paid > 0 ? "Partenaire · partiel" : "En attente partenaire")
-                          : "Exonérée"
-                        : schedule.status === "paid" || rest === 0
-                          ? "Réglée"
-                          : schedule.amount_paid > 0
-                            ? "Partiellement réglée"
-                            : new Date(schedule.due_date) < new Date() ? "En retard" : "À venir"
-                    const settled = rest === 0
-                    return (
-                      <article key={schedule.id} className="flex items-center gap-3 border-b border-slate-100 px-4 py-4 last:border-0">
-                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${settled ? "bg-emerald-50 text-emerald-700" : status === "En retard" ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-700"}`}>
-                          {settled ? <Check className="h-5 w-5" /> : <Clock3 className="h-5 w-5" />}
+                <div className="space-y-5">
+                  {overdueSchedules.length > 0 && (
+                    <section className="space-y-2" aria-labelledby="overdue-title">
+                      <div className="flex items-center justify-between px-1">
+                        <div>
+                          <h3 id="overdue-title" className="text-sm font-semibold text-red-700">En retard</h3>
+                          <p className="text-xs text-slate-500">Ces échéances demandent votre attention.</p>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-slate-900">{frenchLabel(schedule.label)}</p>
-                          <p className="mt-1 text-xs text-slate-500">{dateLabel(schedule.due_date)} · {status}</p>
+                        <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">{overdueSchedules.length}</span>
+                      </div>
+                      <div className="overflow-hidden rounded-2xl border border-red-100 bg-white">
+                        {overdueSchedules.map((schedule) => {
+                          const rest = Math.max(schedule.amount_due - schedule.amount_paid, 0)
+                          return (
+                            <article key={schedule.id} className="flex items-center gap-3 border-b border-slate-100 px-4 py-4 last:border-0">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600"><Clock3 className="h-5 w-5" /></div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-slate-900">{frenchLabel(schedule.label)}</p>
+                                <p className="mt-1 text-xs text-red-600">Échéance du {dateLabel(schedule.due_date)}</p>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <p className="text-sm font-bold text-slate-900">{money(rest)}</p>
+                                <p className="mt-1 text-[11px] text-red-600">Reste à payer</p>
+                              </div>
+                            </article>
+                          )
+                        })}
+                      </div>
+                    </section>
+                  )}
+
+                  {partialSchedules.length > 0 && (
+                    <section className="space-y-2" aria-labelledby="partial-title">
+                      <div className="flex items-center justify-between px-1">
+                        <div>
+                          <h3 id="partial-title" className="text-sm font-semibold text-amber-700">Partiellement réglées</h3>
+                          <p className="text-xs text-slate-500">Un versement a déjà été enregistré.</p>
                         </div>
-                        <div className="shrink-0 text-right">
-                          <p className="text-sm font-semibold text-slate-900">{money(schedule.amount_due)}</p>
-                          <p className="mt-1 text-[11px] text-slate-500">{payer === "family" || payer === "state" || Boolean(schedule.organization_id) ? "Reste " + money(rest) : "Sans reste à charge"}</p>
+                        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{partialSchedules.length}</span>
+                      </div>
+                      <div className="overflow-hidden rounded-2xl border border-amber-100 bg-white">
+                        {partialSchedules.map((schedule) => {
+                          const rest = Math.max(schedule.amount_due - schedule.amount_paid, 0)
+                          return (
+                            <article key={schedule.id} className="flex items-center gap-3 border-b border-slate-100 px-4 py-4 last:border-0">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><Wallet className="h-5 w-5" /></div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-slate-900">{frenchLabel(schedule.label)}</p>
+                                <p className="mt-1 text-xs text-slate-500">{money(schedule.amount_paid)} réglés sur {money(schedule.amount_due)}</p>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <p className="text-sm font-bold text-slate-900">{money(rest)}</p>
+                                <p className="mt-1 text-[11px] text-slate-500">Reste à payer</p>
+                              </div>
+                            </article>
+                          )
+                        })}
+                      </div>
+                    </section>
+                  )}
+
+                  {upcomingSchedules.length > 0 && (
+                    <section className="space-y-2" aria-labelledby="upcoming-title">
+                      <div className="flex items-center justify-between px-1">
+                        <div>
+                          <h3 id="upcoming-title" className="text-sm font-semibold text-[#124a78]">À venir</h3>
+                          <p className="text-xs text-slate-500">Les prochaines dates de règlement.</p>
                         </div>
-                      </article>
-                    )
-                  })}
+                        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{upcomingSchedules.length}</span>
+                      </div>
+                      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                        {upcomingSchedules.map((schedule) => {
+                          const rest = Math.max(schedule.amount_due - schedule.amount_paid, 0)
+                          return (
+                            <article key={schedule.id} className="flex items-center gap-3 border-b border-slate-100 px-4 py-4 last:border-0">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700"><Clock3 className="h-5 w-5" /></div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-slate-900">{frenchLabel(schedule.label)}</p>
+                                <p className="mt-1 text-xs text-slate-500">À régler avant le {dateLabel(schedule.due_date)}</p>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <p className="text-sm font-semibold text-slate-900">{money(rest)}</p>
+                                <p className="mt-1 text-[11px] text-slate-500">À payer</p>
+                              </div>
+                            </article>
+                          )
+                        })}
+                      </div>
+                    </section>
+                  )}
+
+                  {settledSchedules.length > 0 && (
+                    <details className="overflow-hidden rounded-2xl border border-emerald-100 bg-white">
+                      <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                        <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                          Déjà réglées
+                        </span>
+                        <span className="flex items-center gap-2 text-xs text-slate-500">
+                          {settledSchedules.length} échéance(s) <ChevronRight className="h-4 w-4" />
+                        </span>
+                      </summary>
+                      <div className="border-t border-slate-100">
+                        {settledSchedules.map((schedule) => (
+                          <article key={schedule.id} className="flex items-center gap-3 border-b border-slate-100 px-4 py-4 last:border-0">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><Check className="h-5 w-5" /></div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-slate-900">{frenchLabel(schedule.label)}</p>
+                              <p className="mt-1 text-xs text-slate-500">{dateLabel(schedule.due_date)} · Réglée</p>
+                            </div>
+                            <p className="shrink-0 text-sm font-semibold text-emerald-700">{money(schedule.amount_due)}</p>
+                          </article>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+
+                  {attentionCount === 0 && settledSchedules.length > 0 && (
+                    <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                      Toutes vos échéances de scolarité sont réglées.
+                    </p>
+                  )}
                 </div>
               )}
             </section>

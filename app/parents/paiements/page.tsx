@@ -9,7 +9,6 @@ import {
   Clock3,
   CreditCard,
   Receipt,
-  RefreshCw,
   Wallet,
 } from "lucide-react"
 import { useParentPortal } from "@/hooks/use-parent-portal"
@@ -210,8 +209,6 @@ export default function ParentPaiements() {
         eyebrow="Espace famille"
         title="Paiements"
         description="Comprenez en un coup d’œil ce qui est réglé et ce qu’il reste à payer."
-        onRefresh={() => void refresh()}
-        refreshing={loading}
       />
 
       {error && (
@@ -461,9 +458,7 @@ export default function ParentPaiements() {
                   <h2 className="text-base font-semibold text-slate-900">Versements reçus</h2>
                   <p className="mt-0.5 text-xs text-slate-500">Les règlements transmis par l’établissement.</p>
                 </div>
-                <button type="button" onClick={() => void refresh()} disabled={loading} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50">
-                  <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Actualiser
-                </button>
+
               </div>
 
               {newPaymentId && (

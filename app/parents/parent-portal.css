@@ -244,3 +244,111 @@ body:has(.parent-portal-content) {
   .parent-portal-content { padding-left: 12px !important; padding-right: 12px !important; }
   .parent-portal-content .parent-page-head > div:last-child > * { max-width: 100%; }
 }
+
+
+/* Ajustements de finition — langage visuel Stitch, décliné en bleu */
+.parent-portal-content {
+  max-width: 1040px !important;
+  padding-top: 24px !important;
+  background: transparent;
+}
+.parent-portal-content .parent-page-head {
+  align-items: flex-start;
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+}
+.parent-portal-content .parent-page-head > div:first-child > p:first-child {
+  margin-bottom: 7px;
+  color: #1767a5;
+  letter-spacing: .12em;
+}
+.parent-portal-content .parent-page-head h1 {
+  font-size: clamp(1.55rem, 2.2vw, 2rem) !important;
+  letter-spacing: -.045em !important;
+}
+.parent-portal-content .parent-page-head p:not(:first-child) {
+  max-width: 620px;
+  line-height: 1.55;
+}
+.parent-portal-content .parent-surface,
+.parent-portal-content section[class*="border"] {
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+.parent-portal-content [class*="rounded-2xl"],
+.parent-portal-content [class*="rounded-xl"] {
+  border-radius: 10px !important;
+}
+.parent-portal-content [class*="shadow"] {
+  box-shadow: none !important;
+}
+.parent-portal-content [role="tablist"] {
+  display: flex;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid #dce5ef;
+}
+.parent-portal-content [role="tab"] {
+  flex: 0 0 auto;
+  padding-inline: 16px;
+}
+.parent-portal-content :is(button, a)[class*="bg-blue-"] {
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.parent-portal-content .parent-empty-state {
+  padding: 30px 20px;
+}
+.parent-portal-content [class*="divide-y"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e9eff6;
+}
+.parent-portal-content .parent-child-row {
+  scroll-margin-bottom: calc(6rem + env(safe-area-inset-bottom));
+}
+@media (max-width: 768px) {
+  .parent-portal-content {
+    padding: 18px 16px calc(6.75rem + env(safe-area-inset-bottom)) !important;
+  }
+  .parent-portal-content .parent-page-head {
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+  }
+  .parent-portal-content .parent-page-head h1 {
+    font-size: 22px !important;
+    line-height: 1.18 !important;
+  }
+  .parent-portal-content .parent-page-head p:not(:first-child) {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .parent-portal-content .parent-page-head > div:last-child {
+    width: auto;
+    max-width: 100%;
+  }
+  .parent-portal-content .parent-page-head > div:last-child button {
+    min-height: 40px;
+    padding-inline: 12px;
+  }
+  .parent-portal-content [role="tablist"] {
+    margin-inline: -2px;
+    width: calc(100% + 4px);
+  }
+  .parent-portal-content [role="tab"] {
+    min-height: 42px;
+    padding-inline: 12px;
+    font-size: 13px;
+  }
+  .parent-portal-content .parent-empty-state {
+    padding: 24px 16px;
+  }
+  .parent-portal-content input:not([type=checkbox]):not([type=radio]),
+  .parent-portal-content select,
+  .parent-portal-content textarea {
+    font-size: 16px;
+  }
+}
+@media (max-width: 380px) {
+  .parent-portal-content { padding-inline: 12px !important; }
+  .parent-portal-content .parent-page-head h1 { font-size: 20px !important; }
+}

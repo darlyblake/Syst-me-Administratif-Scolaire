@@ -110,6 +110,40 @@ export default function ParentAbsences() {
     if(statusFilter==="justified")return row.derivedStatus==="justified"||row.derivedStatus==="excused"
     return row.derivedStatus==="absent"
   }),[allRows,statusFilter])
+  const liveStatus = useMemo(() => {
+    if (!selectedChild) return null
+    const today = todayInGabon()
+    const parts = new Intl.DateTimeFormat("fr-FR", { timeZone:"Africa/Libreville", hour:"2-digit", minute:"2-digit", hourCycle:"h23" }).formatToParts(new Date(clock))
+    const hour = Number(parts.find(part => part.type === "hour")?.value ?? 0)
+    const minute = Number(parts.find(part => part.type === "minute")?.value ?? 0)
+    const currentMinutes = hour * 60 + minute
+    const day = dayOfWeekFromDate(today)
+    const slots = timetable.filter(slot => slot.class_id === selectedChild.class_id && slot.day_of_week === day).sort((a,b) => a.starts_at.localeCompare(b.starts_at))
+    const minutes = (value:string) => { const [h,m] = value.split(":").map(Number); return h * 60 + m }
+    const completed = slots.filter(slot => minutes(slot.ends_at) <= currentMinutes)
+    const current = slots.find(slot => minutes(slot.starts_at) <= currentMinutes && currentMinutes < minutes(slot.ends_at))
+    const next = slots.find(slot => minutes(slot.starts_at) > currentMinutes)
+    const records = attendance.filter(item => item.student_id === selectedChild.id && item.attendance_date === today)
+    const recordFor = (slotId:string) => records.find(item => item.lesson_key === slotId)
+    const present = records.filter(item => item.status === "present").length
+    const late = records.filter(item => ["late","retard"].includes(item.status)).length
+    const absent = records.filter(item => item.status === "absent").length
+    const recorded = records.length
+    const missing = completed.filter(slot => !recordFor(slot.id)).length
+    const summary = { completed:completed.length, total:slots.length, present, late, absent, recorded, missing }
+    if (current) {
+      const record = recordFor(current.id)
+      return { ...summary, kind:"lesson", title:record ? statusLabel(record.status) : "Appel non effectué", detail:record ? "L'appel de ce cours a été enregistré." : "Le cours a commencé. L'enseignant n'a pas encore enregistré l'appel.", subject:current.subject, teacher:current.teacher_name, room:current.room, next:null }
+    }
+    if (next && completed.length > 0) {
+      return { ...summary, kind:"break", title:"Pause", detail:"Aucun cours n'est en cours pour le moment.", subject:null, teacher:null, room:null, next:next.subject + " à " + formatTime(next.starts_at) }
+    }
+    if (next) {
+      return { ...summary, kind:"before", title:"Les cours n'ont pas encore commencé", detail:"Le prochain cours est prévu à " + formatTime(next.starts_at) + ".", subject:next.subject, teacher:next.teacher_name, room:next.room, next:null }
+    }
+    return { ...summary, kind:slots.length ? "finished" : "empty", title:slots.length ? "Cours terminés pour aujourd'hui" : "Aucun cours prévu aujourd'hui", detail:slots.length ? "Le programme de la journée est terminé." : "Aucun cours n'est inscrit à l'emploi du temps aujourd'hui.", subject:null, teacher:null, room:null, next:null }
+  }, [selectedChild, timetable, attendance, clock])
+
   const counts=useMemo(()=>{
     const recorded=allRows.filter(row=>row.attendance!==null)
     const present=recorded.filter(row=>row.derivedStatus==="present").length
@@ -274,61 +308,57 @@ export default function ParentAbsences() {
 
       {error && <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      <section className="space-y-3">
-        <div className="flex items-end justify-between gap-3">
-          <div><h2 className="text-base font-bold text-slate-950">Mes enfants</h2><p className="mt-1 text-xs text-slate-500">Sélectionnez un enfant pour consulter son suivi.</p></div>
-          <span className="text-xs font-medium text-slate-500">{allowed.length} enfant{allowed.length>1?"s":""}</span>
+      <section className="space-y-4">
+        <div className="space-y-2">
+          <label htmlFor="parent-attendance-child" className="text-sm font-semibold text-slate-800">Enfant sélectionné</label>
+          <select id="parent-attendance-child" value={activeChildId} onChange={event=>{setChildId(event.target.value);setDateFilter("");setSubjectFilter("all")}} disabled={!allowed.length} className="h-14 w-full appearance-none border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 outline-none focus:border-blue-700 focus:ring-1 focus:ring-blue-700 disabled:bg-slate-50">
+            {allowed.map(child=><option key={child.id} value={child.id}>{child.first_name} {child.last_name} · {child.class_name??child.level_name??"Classe non renseignée"}</option>)}
+          </select>
         </div>
-        {loading && allowed.length===0 ? <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">Chargement des enfants…</div> :
-        allowed.length===0 ? <div className="rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">Aucun enfant rattaché à votre compte avec accès aux informations scolaires.</div> :
-        <div className="overflow-hidden border border-slate-200 bg-white">
-          {allowed.map(child=>{
-            const week=weeklySummaries.find(x=>x.id===child.id)
-            const term=trimesterSummaries.find(x=>x.id===child.id)
-            const requestable=attendance.filter(x=>x.student_id===child.id&&["absent","late","retard"].includes(x.status)&&(!requests.get(x.id)||["rejected","cancelled"].includes(requests.get(x.id)!.status))).length
-            const hasAbsence=(week?.absent??0)>0
-            const photo=(child as typeof child & {photo_url?:string|null;avatar_url?:string|null;photo?:string|null}).photo_url||(child as typeof child & {avatar_url?:string|null}).avatar_url||(child as typeof child & {photo?:string|null}).photo
-            const age=ageFromBirthDate(child.birth_date)
-            const active=childId===child.id
-            return <article key={child.id} className={"parent-child-row border-b border-slate-200 px-4 py-4 transition-colors last:border-b-0 sm:px-5 "+(active?"bg-blue-50/70":"bg-white hover:bg-slate-50/70")}>
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
-                  {photo?<img src={photo} alt="" className="h-full w-full object-cover"/>:<div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-700">{(child.first_name?.[0]??"")+(child.last_name?.[0]??"")}</div>}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-sm font-semibold text-slate-900">{child.first_name} {child.last_name}</h3>
-                  <p className="mt-0.5 truncate text-xs text-slate-500">{child.class_name??child.level_name??"Classe non renseignée"}{age===null?"":" · "+age+" ans"}</p>
-                </div>
-                <span className={"shrink-0 rounded-sm px-2 py-1 text-[11px] font-medium "+(hasAbsence?"bg-red-50 text-red-700":"bg-slate-100 text-slate-600")}>{hasAbsence?(week?.absent??0)+" absence"+((week?.absent??0)>1?"s":""):"Aucune absence"}</span>
-              </div>
-              <div className="mt-4 grid grid-cols-3 divide-x divide-slate-200 bg-slate-50/80 py-3">
-                <div className="px-2 first:pl-0"><p className="text-base font-semibold tabular-nums text-slate-900">{week?.present??0}</p><p className="text-[11px] text-slate-500">Présences</p></div>
-                <div className="px-3"><p className="text-base font-semibold tabular-nums text-slate-900">{week?.late??0}</p><p className="text-[11px] text-slate-500">Retards</p></div>
-                <div className="px-3"><p className={"text-base font-semibold tabular-nums "+(hasAbsence?"text-red-700":"text-slate-900")}>{week?.absent??0}</p><p className="text-[11px] text-slate-500">Absences</p></div>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[11px] text-slate-500">{term?.label??"Trimestre en cours"} · {term?.count??0} cours concernés</p>
-                  <p className="mt-0.5 text-sm font-semibold text-slate-800">{term?.hours??0} h d'absence <span className="font-normal text-slate-500">· {week?.rate===null||week?.rate===undefined?"Taux indisponible":week.rate+"% de présence cette semaine"}</span></p>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  {requestable>0&&<button type="button" onClick={()=>{setChildId(child.id);setPeriod("custom");setCustomStart(term?.start??todayInGabon());setCustomEnd(todayInGabon());setStatusFilter("absent");setShowHistory(true)}} className="min-h-10 text-xs font-semibold text-red-700 underline underline-offset-2">Justifier ({requestable})</button>}
-                  <button type="button" onClick={()=>{setChildId(child.id);setPeriod("custom");setCustomStart(term?.start??todayInGabon());setCustomEnd(todayInGabon());setStatusFilter("all");setShowHistory(true)}} className="min-h-10 rounded-xl border border-blue-200 bg-white px-4 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-50">Voir le détail</button>
-                </div>
-              </div>
-            </article>
-          })}
+        {selectedChild && <div className="border-y border-slate-200 bg-white py-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Élève suivi</p>
+          <h2 className="mt-1 text-xl font-semibold text-slate-950">{selectedChild.first_name} {selectedChild.last_name}</h2>
+          <p className="mt-1 text-sm text-slate-600">{selectedChild.class_name??selectedChild.level_name??"Classe non renseignée"}{selectedChild.academic_year_name?" · "+selectedChild.academic_year_name:""}</p>
         </div>}
+        {liveStatus && <section className="border border-slate-200 bg-white">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+            <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Situation aujourd'hui</p><p className="mt-1 text-xs text-slate-500">Actualisation automatique</p></div>
+            <button type="button" onClick={()=>void refresh()} disabled={loading} className="text-sm font-semibold text-blue-800 disabled:opacity-50">{loading?"…":"Actualiser"}</button>
+          </div>
+          <div className="px-4 py-4">
+            <div className="flex items-start gap-3">
+              <span className={"mt-1 h-2.5 w-2.5 shrink-0 "+(liveStatus.kind==="lesson"?"bg-blue-700":liveStatus.kind==="break"?"bg-amber-500":liveStatus.kind==="finished"?"bg-emerald-600":"bg-slate-400")}></span>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-lg font-semibold text-slate-950">{liveStatus.title}</h3>
+                <p className="mt-1 text-sm leading-5 text-slate-600">{liveStatus.detail}</p>
+                {liveStatus.subject&&<p className="mt-3 text-sm font-semibold text-slate-900">{liveStatus.subject}</p>}
+                {liveStatus.teacher&&<p className="mt-1 text-sm text-slate-600">Enseignant : {liveStatus.teacher}</p>}
+                {liveStatus.room&&<p className="mt-1 text-sm text-slate-500">Salle : {liveStatus.room}</p>}
+                {liveStatus.next&&<p className="mt-2 text-sm text-slate-600">Prochain cours : {liveStatus.next}</p>}
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 border-t border-slate-200 text-center">
+            <div className="px-2 py-3"><p className="text-xl font-semibold tabular-nums text-emerald-700">{liveStatus.present}</p><p className="text-xs text-slate-500">Présences</p></div>
+            <div className="border-x border-slate-200 px-2 py-3"><p className="text-xl font-semibold tabular-nums text-amber-700">{liveStatus.late}</p><p className="text-xs text-slate-500">Retards</p></div>
+            <div className="px-2 py-3"><p className="text-xl font-semibold tabular-nums text-red-700">{liveStatus.absent}</p><p className="text-xs text-slate-500">Absences</p></div>
+          </div>
+          <div className="border-t border-slate-100 px-4 py-3 text-xs leading-5 text-slate-600">{liveStatus.recorded} appel(s) enregistré(s) sur {liveStatus.completed} cours terminés · {liveStatus.missing} appel(s) non effectué(s)</div>
+        </section>}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
+          <div><h2 className="text-base font-semibold text-slate-950">Historique et absences</h2><p className="mt-1 text-xs text-slate-500">Consultez les cours passés et envoyez une justification.</p></div>
+          <button type="button" onClick={()=>{setPeriod("month");setAnchorDate(todayInGabon());setDateFilter("");setSubjectFilter("all");setStatusFilter("all");setShowHistory(true)}} className="min-h-11 border border-blue-700 px-4 text-sm font-semibold text-blue-800">Ouvrir l'historique</button>
+        </div>
       </section>
 
       {showHistory && <div className="fixed inset-0 z-40 flex items-end justify-center bg-slate-950/40 sm:items-center sm:p-4">
         <div className="max-h-[92dvh] w-full max-w-5xl space-y-4 overflow-y-auto bg-white p-4 shadow-xl sm:p-6">
       <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
         <div><h2 className="text-lg font-semibold text-slate-950">Suivi des présences</h2><p className="mt-1 text-xs text-slate-500">{allowed.find(x=>x.id===childId)?.first_name??"Enfant sélectionné"} · Consultez les cours, les absences et les demandes de justification.</p></div>
-        <button type="button" onClick={()=>{setShowHistory(false);setChildId("tous");setPeriod("week");setStatusFilter("all")}} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Fermer</button>
+        <button type="button" onClick={()=>{setShowHistory(false);setChildId("tous");setPeriod("week");setStatusFilter("all");setDateFilter("");setSubjectFilter("all")}} className="border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Fermer</button>
       </div>
       {showHistory && <section className="overflow-hidden border border-slate-200 bg-white">
-        <div className="grid gap-3 p-4 md:grid-cols-4">
+        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Enfant</span>
             <select value={childId} onChange={(event) => setChildId(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800">
@@ -346,6 +376,17 @@ export default function ParentAbsences() {
             <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Du</span><input type="date" value={customStart} max={customEnd} onChange={event=>setCustomStart(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800" /></label>
             <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Au</span><input type="date" value={customEnd} min={customStart} onChange={event=>setCustomEnd(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800" /></label>
           </> : <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{period==="week"?"Semaine contenant":"Mois contenant"}</span><input type="date" value={anchorDate} onChange={event=>setAnchorDate(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800" /></label>}
+          <label className="space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date précise</span>
+            <input type="date" value={dateFilter} onChange={event=>setDateFilter(event.target.value)} className="h-10 w-full border border-slate-200 bg-white px-3 text-sm text-slate-800" />
+          </label>
+          <label className="space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Matière</span>
+            <select value={subjectFilter} onChange={event=>setSubjectFilter(event.target.value)} className="h-10 w-full border border-slate-200 bg-white px-3 text-sm text-slate-800">
+              <option value="all">Toutes les matières</option>
+              {subjectOptions.map(subject=><option key={subject} value={subject}>{subject}</option>)}
+            </select>
+          </label>
           <label className="space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Statut</span>
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800">

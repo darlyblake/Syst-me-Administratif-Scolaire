@@ -13,7 +13,7 @@ export type ParentEvent = { id:string; establishment_id:string; title:string; de
 export type ParentPaymentSchedule = { id:string; enrollment_id:string; installment_number:number; label:string; due_date:string; amount_due:number; amount_paid:number; status:string; category:string|null; payer_type?:string|null; organization_id?:string|null; organization?:{name:string}|null }
 export type ParentPaymentAllocation = { id:string; payment_id:string; payment_schedule_id:string; amount:number; created_at:string; payment_date?:string }
 export type ParentEnrollmentOption = { id:string; enrollment_id:string; option_id:string; amount:number; name:string; description:string|null; option_type:string|null; required:boolean }
-export type ParentTimetableSlot = { id:string; class_subject_id:string; day_of_week:number; starts_at:string; ends_at:string; room:string|null; class_id:string; subject:string; teacher_id:string|null }
+export type ParentTimetableSlot = { id:string; class_subject_id:string; day_of_week:number; starts_at:string; ends_at:string; room:string|null; class_id:string; subject:string; teacher_id:string|null; teacher_name:string }
 export type ParentLesson = { id:string; timetable_slot_id:string; lesson_date:string; topic:string; content:string; activities:string|null; subject:string; class_id:string }
 export type ParentHomework = { id:string; timetable_slot_id:string; class_id:string; subject_id:string; title:string; instructions:string; due_date:string|null; created_at:string; subject:string }
 export type ParentSchoolDocumentRequest = { id: string; establishment_id: string; student_id: string; document_type: string; message: string | null; status: string; rejection_reason: string | null; created_at: string; updated_at: string }
@@ -214,7 +214,7 @@ function useParentPortalState() {
         academicClassIds.length && academicYearIds.length
           ? supabaseBrowser
               .from("timetable_slots")
-              .select("id,class_subject_id,academic_year_id,day_of_week,starts_at,ends_at,room,class_subjects!inner(class_id,subject_id,teacher_id)")
+              .select("id,class_subject_id,academic_year_id,day_of_week,starts_at,ends_at,room,class_subjects!inner(class_id,subject_id,teacher_id,teachers!inner(first_name,last_name))")
               .in("class_subjects.class_id", academicClassIds)
               .in("academic_year_id", academicYearIds)
               .order("day_of_week")
@@ -247,7 +247,8 @@ function useParentPortalState() {
       // Garder la requête class_subjects séparée uniquement pour les slots si nécessaire (fallback)
       const csIds=[...new Set(slotRows.filter(x=>!x.class_subjects).map((x:any)=>x.class_subject_id))]
       const hwSubjectIds=[...new Set((thr.data??[]).map(x=>x.subject_id))]
-      const allSubjectIds=[...new Set([...subjectIds,...hwSubjectIds])]
+      const timetableSubjectIds=[...new Set(slotRows.map((x:any)=>x.class_subjects?.subject_id).filter(Boolean))]
+      const allSubjectIds=[...new Set([...subjectIds,...hwSubjectIds,...timetableSubjectIds])]
       const [csr,tsubr]=await Promise.all([
         csIds.length?supabaseBrowser.from("class_subjects").select("id,class_id,subject_id,teacher_id").in("id",csIds):Promise.resolve({data:[],error:null}),
         allSubjectIds.length?supabaseBrowser.from("subjects").select("id,name").in("id",allSubjectIds):Promise.resolve({data:[],error:null})
@@ -258,7 +259,7 @@ function useParentPortalState() {
       const csMap=new Map(slotRows.map((x:any)=>[x.class_subject_id, x.class_subjects ?? fallbackCsMap.get(x.class_subject_id)]))
       const names=new Map((tsubr.data??[]).map(x=>[x.id,x.name]))
       const visibleSlots=slotRows.filter(s=>academicClassIds.includes((csMap.get(s.class_subject_id) as any)?.class_id??"")), visibleSlotIds=new Set(visibleSlots.map((s:any)=>s.id))
-      setTimetable(visibleSlots.map((s:any)=>{const cs=csMap.get(s.class_subject_id) as any;return {...s,class_id:cs?.class_id??"",subject:cs?.subject_id?names.get(cs.subject_id)??"Matière":"Matière",teacher_id:cs?.teacher_id??null}}))
+      setTimetable(visibleSlots.map((s:any)=>{const cs=csMap.get(s.class_subject_id) as any;return {...s,class_id:cs?.class_id??"",subject:cs?.subject_id?names.get(cs.subject_id)??"Matière":"Matière",teacher_id:cs?.teacher_id??null,teacher_name:[cs?.teachers?.first_name,cs?.teachers?.last_name].filter(Boolean).join(" ")||"Enseignant"}}))
       setLessons((tlr.data??[]).filter(x=>visibleSlotIds.has(x.timetable_slot_id)).map(x=>{const slot=slotRows.find(s=>s.id===x.timetable_slot_id),cs=slot?csMap.get(slot.class_subject_id):undefined;return {...x,subject:cs?.subject_id?names.get(cs.subject_id)??"Matière":"Matière",class_id:cs?.class_id??""}}))
       setHomework((thr.data??[]).filter(x=>academicClassIds.includes(x.class_id)).map(x=>({...x,subject:names.get(x.subject_id)??"Matière"})))
       setPayments((paymentsR.data??[]).filter(p=>enrollmentStudentMap.has(p.enrollment_id)).map(p=>({...p,amount:Number(p.amount)})))

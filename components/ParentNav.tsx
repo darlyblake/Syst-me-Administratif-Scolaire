@@ -7,7 +7,7 @@ import { LayoutDashboard, Users, GraduationCap, CalendarDays, BookOpen, FileText
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
-import { supabaseBrowser } from "@/lib/supabase/client"
+import { useParentPortal } from "@/hooks/use-parent-portal"
 import { cn } from "@/lib/utils"
 
 const principal = [
@@ -32,8 +32,9 @@ export function ParentNav() {
   const router = useRouter()
   const [queryString, setQueryString] = useState("")
   const { utilisateur, deconnecter } = useAuthentification()
+  const { notifications } = useParentPortal()
+  const unreadNotifications = notifications.filter((notification) => !notification.read_at).length
   const [open, setOpen] = useState(false)
-  const [unreadNotifications, setUnreadNotifications] = useState(0)
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [loggingOut, setLoggingOut] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
@@ -42,42 +43,42 @@ export function ParentNav() {
 
   useEffect(() => {
     let mounted = true
-    let notificationChannel: ReturnType<typeof supabaseBrowser.channel> | null = null
-    const refreshUnreadNotifications = async () => {
-      if (!utilisateur?.id) return
-      const { count, error } = await supabaseBrowser
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("recipient_user_id", utilisateur.id)
-        .is("read_at", null)
-      if (mounted) setUnreadNotifications(error ? 0 : count ?? 0)
-    }
-    const load = async () => {
-      if (!utilisateur?.id) return
-      const [p] = await Promise.all([
-        supabaseBrowser.from("conversation_participants").select("conversation_id,last_read_at").eq("user_id", utilisateur.id),
-        refreshUnreadNotifications(),
-      ])
+    const loadUnreadMessages = async () => {
+      if (!utilisateur?.id) {
+        setUnreadMessages(0)
+        return
+      }
+      const { data: participants, error } = await supabaseBrowser
+        .from("conversation_participants")
+        .select("conversation_id,last_read_at")
+        .eq("user_id", utilisateur.id)
       if (!mounted) return
-      if (p.error || !p.data?.length) { setUnreadMessages(0); return }
-      const ids = p.data.map((x) => x.conversation_id).filter(Boolean)
-      if (!ids.length) { setUnreadMessages(0); return }
-      const { data: messages } = await supabaseBrowser.from("messages").select("conversation_id,sender_id,created_at").in("conversation_id", ids).neq("sender_id", utilisateur.id)
-      const reads = new Map(p.data.map((x) => [x.conversation_id, x.last_read_at ? Date.parse(x.last_read_at) : 0]))
-      if (mounted) setUnreadMessages((messages ?? []).filter((m) => Date.parse(m.created_at) > (reads.get(m.conversation_id) ?? 0)).length)
+      if (error || !participants?.length) {
+        setUnreadMessages(0)
+        return
+      }
+      const ids = participants.map((item) => item.conversation_id).filter(Boolean)
+      if (!ids.length) {
+        setUnreadMessages(0)
+        return
+      }
+      const { data: messages } = await supabaseBrowser
+        .from("messages")
+        .select("conversation_id,sender_id,created_at")
+        .in("conversation_id", ids)
+        .neq("sender_id", utilisateur.id)
+      const reads = new Map(participants.map((item) => [
+        item.conversation_id,
+        item.last_read_at ? Date.parse(item.last_read_at) : 0,
+      ]))
+      if (mounted) {
+        setUnreadMessages((messages ?? []).filter(
+          (message) => Date.parse(message.created_at) > (reads.get(message.conversation_id) ?? 0),
+        ).length)
+      }
     }
-    void load()
-    if (utilisateur?.id) {
-      notificationChannel = supabaseBrowser
-        .channel(`parent-nav-notifications:${utilisateur.id}`)
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `recipient_user_id=eq.${utilisateur.id}` }, () => { void refreshUnreadNotifications() })
-        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "notifications", filter: `recipient_user_id=eq.${utilisateur.id}` }, () => { void refreshUnreadNotifications() })
-        .subscribe()
-    }
-    return () => {
-      mounted = false
-      if (notificationChannel) void supabaseBrowser.removeChannel(notificationChannel)
-    }
+    void loadUnreadMessages()
+    return () => { mounted = false }
   }, [utilisateur?.id, pathname])
 
   const isActive = (href: string) => {
@@ -121,7 +122,7 @@ export function ParentNav() {
   const Nav = ({ close = false }: { close?: boolean }) => (
     <nav className="space-y-6">
       <div><p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Suivi scolaire</p><div className="space-y-1">{principal.map((item) => <NavItem key={item.href} {...item} close={close} />)}</div></div>
-      <div><p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Communication</p><div className="space-y-1">{secondaire.map((item) => <NavItem key={item.href} {...item} count={badge(item.badge)} close={close} />)}</div></div>
+      <div><p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Communication</p><div className="space-y-1">{secondaire.filter((item) => !(close && item.badge === "notifs")).map((item) => <NavItem key={item.href} {...item} count={badge(item.badge)} close={close} />)}</div></div>
     </nav>
   )
 
@@ -140,10 +141,6 @@ export function ParentNav() {
   return (
     <>
       <header className="sticky top-0 z-30 hidden h-14 items-center justify-end gap-3 border-b border-slate-200 bg-white/95 px-6 backdrop-blur lg:ml-64 lg:flex">
-        <Link href="/parents/notifications" aria-label="Ouvrir les notifications" className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 hover:text-blue-700">
-          <Bell className="h-[18px] w-[18px]" />
-          {unreadNotifications > 0 && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}
-        </Link>
         <div className="relative">
           <button type="button" onClick={() => setProfileMenuOpen((value) => !value)} aria-expanded={profileMenuOpen} aria-label="Ouvrir le menu du profil" className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-slate-100">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-700 text-[11px] font-bold text-white">{(utilisateur?.nomUtilisateur ?? "P").slice(0, 2).toUpperCase()}</span>

@@ -65,6 +65,7 @@ export default function ParentAbsences() {
   const [customStart, setCustomStart] = useState(todayInGabon)
   const [customEnd, setCustomEnd] = useState(todayInGabon)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+  const [showHistory, setShowHistory] = useState(false)
   const [selected, setSelected] = useState<ParentAttendance | null>(null)
   const [reason, setReason] = useState("")
   const [file, setFile] = useState<File | null>(null)
@@ -122,6 +123,59 @@ export default function ParentAbsences() {
     const attended=sessions.filter(row=>["present","late","retard"].includes(row.derivedStatus)).length
     return {id:child.id,name:(child.first_name+" "+child.last_name).trim(),attended,recorded:sessions.length,rate:sessions.length?Math.round(attended/sessions.length*100):null}
   }),[allowed,allRows,childId])
+
+  const weeklySummaries=useMemo(()=>{
+    const week=getBounds("week",todayInGabon(),todayInGabon(),todayInGabon())
+    const today=todayInGabon()
+    return allowed.map(child=>{
+      const slots=timetable.filter(slot=>slot.class_id===child.class_id)
+      const sessions:Array<{status:string;recorded:boolean}>=[]
+      for(let date=week.start;date<=week.end;date=addDays(date,1)){
+        if(date>today)continue
+        const day=dayOfWeekFromDate(date)
+        for(const slot of slots){
+          if(slot.day_of_week!==day)continue
+          if(date===today&&slot.ends_at.slice(0,5)>timeInGabon())continue
+          const record=attendance.find(item=>item.student_id===child.id&&item.attendance_date===date&&item.lesson_key===slot.id)
+          if(record)sessions.push({status:record.status,recorded:true})
+        }
+      }
+      const present=sessions.filter(x=>["present","late","retard"].includes(x.status)).length
+      const absent=sessions.filter(x=>x.status==="absent").length
+      const late=sessions.filter(x=>["late","retard"].includes(x.status)).length
+      return {id:child.id,present,absent,late,total:sessions.length,rate:sessions.length?Math.round(present/sessions.length*100):null}
+    })
+  },[allowed,attendance,timetable])
+
+  const trimesterSummaries=useMemo(()=>{
+    const now=new Date(todayInGabon()+"T12:00:00")
+    const year=now.getFullYear()
+    const schoolStartYear=now.getMonth()>=9?year:year-1
+    const schoolStart=new Date(schoolStartYear,9,1,12)
+    const trimesterIndex=Math.min(2,Math.max(0,Math.floor((now.getFullYear()-schoolStart.getFullYear())*12+(now.getMonth()-schoolStart.getMonth())/3)))
+    const start=new Date(schoolStartYear,9+trimesterIndex*3,1,12)
+    const end=new Date(schoolStartYear,12+trimesterIndex*3,0,12)
+    const startKey=dateKey(start),endKey=dateKey(end)
+    return allowed.map(child=>{
+      const records=attendance.filter(item=>item.student_id===child.id&&item.attendance_date>=startKey&&item.attendance_date<=endKey&&item.status==="absent")
+      const hours=records.reduce((sum,item)=>{
+        const slot=timetable.find(s=>s.class_id===child.class_id&&s.id===item.lesson_key)
+        if(!slot)return sum
+        const [sh,sm]=slot.starts_at.split(":").map(Number),[eh,em]=slot.ends_at.split(":").map(Number)
+        return sum+Math.max(0,(eh*60+em)-(sh*60+sm))/60
+      },0)
+      return {id:child.id,hours:Number(hours.toFixed(1)),count:records.length,label:"Trimestre "+(trimesterIndex+1),start:startKey,end:endKey}
+    })
+  },[allowed,attendance,timetable])
+
+  function ageFromBirthDate(value?:string|null) {
+    if(!value)return null
+    const birth=new Date(value+"T12:00:00"),today=new Date(todayInGabon()+"T12:00:00")
+    if(Number.isNaN(birth.getTime())||birth>today)return null
+    let age=today.getFullYear()-birth.getFullYear()
+    if(today.getMonth()<birth.getMonth()||(today.getMonth()===birth.getMonth()&&today.getDate()<birth.getDate()))age--
+    return age
+  }
 
   async function submitJustification() {
     if (!selected?.attendance) return
@@ -203,7 +257,7 @@ export default function ParentAbsences() {
   }
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-6">
       <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:gap-4 sm:pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-blue-600">Vie scolaire</p>
@@ -219,7 +273,58 @@ export default function ParentAbsences() {
 
       {error && <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      <section className="border-y border-slate-200 bg-white">
+      <section className="space-y-3">
+        <div className="flex items-end justify-between gap-3">
+          <div><h2 className="text-base font-bold text-slate-950">Mes enfants</h2><p className="mt-1 text-xs text-slate-500">Sélectionnez un enfant pour consulter son suivi.</p></div>
+          <span className="text-xs font-medium text-slate-500">{allowed.length} enfant{allowed.length>1?"s":""}</span>
+        </div>
+        {loading && allowed.length===0 ? <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">Chargement des enfants…</div> :
+        allowed.length===0 ? <div className="rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">Aucun enfant rattaché à votre compte avec accès aux informations scolaires.</div> :
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {allowed.map(child=>{
+            const week=weeklySummaries.find(x=>x.id===child.id)
+            const term=trimesterSummaries.find(x=>x.id===child.id)
+            const requestable=attendance.filter(x=>x.student_id===child.id&&["absent","late","retard"].includes(x.status)&&(!requests.get(x.id)||["rejected","cancelled"].includes(requests.get(x.id)!.status))).length
+            const hasAbsence=(week?.absent??0)>0
+            const photo=(child as typeof child & {photo_url?:string|null;avatar_url?:string|null;photo?:string|null}).photo_url||(child as typeof child & {avatar_url?:string|null}).avatar_url||(child as typeof child & {photo?:string|null}).photo
+            const age=ageFromBirthDate(child.birth_date)
+            const active=childId===child.id
+            return <article key={child.id} className={"rounded-xl border bg-white p-4 transition-colors "+(active?"border-blue-400 ring-1 ring-blue-100":"border-slate-200")}>
+              <div className="flex items-center gap-3">
+                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-blue-50">
+                  {photo?<img src={photo} alt="" className="h-full w-full object-cover"/>:<div className="flex h-full w-full items-center justify-center text-sm font-bold text-blue-800">{(child.first_name?.[0]??"")+(child.last_name?.[0]??"")}</div>}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-sm font-bold text-slate-950">{child.first_name} {child.last_name}</h3>
+                  <p className="mt-0.5 text-xs text-slate-500">{age===null?"Âge non renseigné":age+" ans"}{child.class_name?" · "+child.class_name:""}</p>
+                  <p className="mt-1 text-[11px] text-slate-400">{child.level_name??"Élève"}</p>
+                </div>
+                {hasAbsence?<span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-red-100 px-2 text-xs font-bold text-red-700" title="Absences cette semaine">{week?.absent}</span>:<span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-emerald-50 px-2 text-xs font-semibold text-emerald-700">✓</span>}
+              </div>
+              <div className="mt-4">
+                <div className="mb-1.5 flex items-center justify-between text-xs"><span className="font-medium text-slate-600">Présence cette semaine</span><strong className="tabular-nums text-slate-900">{week?.rate===null||week?.rate===undefined?"—":week.rate+"%"}</strong></div>
+                <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-700" style={{width:(week?.rate??0)+"%"}}/></div>
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+                  <span className="text-emerald-700">{week?.present??0} présents</span><span className="text-amber-700">{week?.late??0} retards</span><span className={(week?.absent??0)>0?"font-semibold text-red-700":"text-slate-500"}>{week?.absent??0} absences</span>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+                <div><p className="text-[11px] text-slate-500">{term?.label??"Trimestre en cours"}</p><p className="text-sm font-bold text-slate-900">{term?.hours??0} h d'absence</p><p className="text-[10px] text-slate-400">{term?.count??0} cours concernés</p></div>
+                <div className="flex flex-col items-end gap-2">
+                  {requestable>0&&<button type="button" onClick={()=>{setChildId(child.id);setPeriod("custom");setCustomStart(term?.start??todayInGabon());setCustomEnd(todayInGabon());setStatusFilter("absent");setShowHistory(true)}} className="text-xs font-semibold text-red-700 underline underline-offset-2">Justifier ({requestable})</button>}
+                  <button type="button" onClick={()=>{setChildId(child.id);setPeriod("custom");setCustomStart(trimesterSummaries.find(x=>x.id===child.id)?.start??todayInGabon());setCustomEnd(todayInGabon());setStatusFilter("all");setShowHistory(true)}} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-800">Historique</button>
+                </div>
+              </div>
+            </article>
+          })}
+        </div>}
+      </section>
+
+      {showHistory && <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
+        <div><h2 className="text-base font-bold text-slate-950">Historique des présences</h2><p className="mt-1 text-xs text-slate-500">{allowed.find(x=>x.id===childId)?.first_name??"Enfant sélectionné"} · dates, matières et justifications</p></div>
+        <button type="button" onClick={()=>{setShowHistory(false);setChildId("tous");setPeriod("week");setStatusFilter("all")}} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Retour aux enfants</button>
+      </div>}
+      {showHistory && <section className="border-y border-slate-200 bg-white">
         <div className="grid gap-3 p-4 md:grid-cols-4">
           <label className="space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Enfant</span>
@@ -255,7 +360,9 @@ export default function ParentAbsences() {
         </div>
       </section>
 
-      <section className="border-b border-slate-200 bg-white px-4 py-4">
+      </section>}
+
+      {showHistory && <section className="border-b border-slate-200 bg-white px-4 py-4">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
           <div><h2 className="text-sm font-semibold text-slate-900">Taux de présence</h2><p className="mt-1 text-xs text-slate-500">Calculé sur les appels effectués des cours terminés.</p></div>
           <p className="text-2xl font-bold tabular-nums text-blue-800">{counts.rate===null?"—":counts.rate+"%"}</p>
@@ -265,7 +372,7 @@ export default function ParentAbsences() {
         <p className="mt-3 text-[11px] text-slate-500">Un cours sans appel validé n'est pas compté comme une absence. Les retards sont comptés comme une présence.</p>
       </section>
 
-      <section className="overflow-hidden border border-slate-200 bg-white">
+      {showHistory && <section className="overflow-hidden border border-slate-200 bg-white">
         <div className="border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
           Historique du {formatRange(bounds.start, bounds.end)}
         </div>
@@ -344,6 +451,8 @@ export default function ParentAbsences() {
           <div className="px-5 py-12 text-center text-sm text-slate-500">Aucun cours correspondant aux filtres sélectionnés.</div>
         )}
       </section>
+
+      </section>}
 
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">

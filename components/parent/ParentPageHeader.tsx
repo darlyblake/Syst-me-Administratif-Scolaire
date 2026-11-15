@@ -15,10 +15,10 @@ type Props = {
 
 export function ParentPageHeader({ eyebrow, title, description, action, onRefresh, refreshing }: Props) {
   return (
-    <header className="flex min-w-0 flex-col gap-3 border-b border-slate-200 pb-4 sm:gap-4 sm:pb-6 sm:flex-row sm:items-end sm:justify-between">
+    <header className="flex min-w-0 flex-col gap-3 border-b border-slate-200 pb-4 sm:gap-4 sm:pb-5 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        {eyebrow && <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-blue-600">{eyebrow}</p>}
-        <h1 className="mt-1 text-[23px] font-bold leading-tight tracking-tight text-slate-950 [overflow-wrap:anywhere] sm:mt-1.5 sm:text-3xl">{title}</h1>
+        {eyebrow && <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-blue-700">{eyebrow}</p>}
+        <h1 className="mt-1 text-[23px] font-bold leading-tight tracking-tight text-[#102B55] [overflow-wrap:anywhere] sm:mt-1.5 sm:text-3xl">{title}</h1>
         {description && <p className="mt-1 max-w-2xl text-[13px] leading-5 text-slate-500 sm:mt-1.5 sm:text-sm sm:leading-6">{description}</p>}
       </div>
       {(action || onRefresh) && (

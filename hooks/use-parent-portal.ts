@@ -385,6 +385,10 @@ function useParentPortalState() {
         "enrollment_options",
         "class_subjects",
         "student_options",
+        "parent_document_publications",
+        "documents",
+        "student_guardians",
+        "students",
       ]
       for(const table of liveTables){
         channel=channel.on("postgres_changes",{event:"*",schema:"public",table},scheduleRefresh)

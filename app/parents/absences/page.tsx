@@ -163,7 +163,7 @@ export default function ParentAbsences() {
     const absent = records.filter(item => item.status === "absent").length
     const recorded = records.length
     const missing = completed.filter(slot => !recordFor(slot.id)).length
-    const summary = { completed:completed.length, total:slots.length, present, late, absent, recorded, missing }
+    const summary = { completed:completed.length, total:slots.length, present, late, absent, recorded, missing, attendanceLabel:null as string | null }
     if (currentBreak) {
       return {
         ...summary,

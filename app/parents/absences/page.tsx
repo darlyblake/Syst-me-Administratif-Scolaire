@@ -358,8 +358,6 @@ export default function ParentAbsences() {
           <span><strong className="text-blue-700">{counts.justified}</strong> justifiés</span>
           <span><strong className="text-slate-500">{counts.pending}</strong> appels manquants</span>
         </div>
-      </section>
-
       </section>}
 
       {showHistory && <section className="border-b border-slate-200 bg-white px-4 py-4">
@@ -370,7 +368,7 @@ export default function ParentAbsences() {
         <div className="h-2.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-700 transition-all" style={{width:(counts.rate??0)+"%"}} /></div>
         {childSummaries.length>1&&<div className="mt-4 space-y-3 border-t border-slate-100 pt-3">{childSummaries.map(summary=><div key={summary.id}><div className="mb-1 flex items-center justify-between gap-3 text-xs"><span className="font-medium text-slate-700">{summary.name}</span><span className="tabular-nums text-slate-500">{summary.rate===null?"Aucun appel":summary.rate+"% · "+summary.attended+"/"+summary.recorded+" cours suivis"}</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600" style={{width:(summary.rate??0)+"%"}} /></div></div>)}</div>}
         <p className="mt-3 text-[11px] text-slate-500">Un cours sans appel validé n'est pas compté comme une absence. Les retards sont comptés comme une présence.</p>
-      </section>
+      </section>}
 
       {showHistory && <section className="overflow-hidden border border-slate-200 bg-white">
         <div className="border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -450,8 +448,6 @@ export default function ParentAbsences() {
         {!loading && rows.length === 0 && (
           <div className="px-5 py-12 text-center text-sm text-slate-500">Aucun cours correspondant aux filtres sélectionnés.</div>
         )}
-      </section>
-
       </section>}
 
       {selected && (

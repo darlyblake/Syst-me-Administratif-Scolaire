@@ -197,11 +197,12 @@ function useParentPortalState() {
         // Emploi du temps : filtre directement par class_id (connus depuis les enrollments)
         // + JOIN inline avec class_subjects pour récupérer subject_id et teacher_id en une seule requête
         // Cela évite la dépendance à csMap (qui était vide si la RLS sur class_subjects bloquait)
-        academicClassIds.length
+        academicClassIds.length && academicYearIds.length
           ? supabaseBrowser
               .from("timetable_slots")
-              .select("id,class_subject_id,day_of_week,starts_at,ends_at,room,class_subjects!inner(class_id,subject_id,teacher_id)")
+              .select("id,class_subject_id,academic_year_id,day_of_week,starts_at,ends_at,room,class_subjects!inner(class_id,subject_id,teacher_id)")
               .in("class_subjects.class_id", academicClassIds)
+              .in("academic_year_id", academicYearIds)
               .order("day_of_week")
               .order("starts_at")
           : Promise.resolve({data:[],error:null}),

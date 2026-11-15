@@ -8,6 +8,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useParentPortal } from "@/hooks/use-parent-portal"
+import { supabaseBrowser } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 
 const principal = [

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useParentPortal, type ParentAttendance } from "@/hooks/use-parent-portal"
 import { supabaseBrowser } from "@/lib/supabase/client"
 
@@ -59,7 +59,17 @@ export default function ParentAbsences() {
   } = useParentPortal()
 
   const allowed = useMemo(() => children.filter((c) => c.can_view_academic), [children])
-  const [childId, setChildId] = useState("tous")
+  const [childId, setChildId] = useState("")
+  const activeChildId = allowed.some(child => child.id === childId) ? childId : (allowed[0]?.id ?? "")
+  const selectedChild = allowed.find(child => child.id === activeChildId) ?? null
+  const [dateFilter, setDateFilter] = useState("")
+  const [subjectFilter, setSubjectFilter] = useState("all")
+  const [clock, setClock] = useState(() => Date.now())
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setClock(Date.now()), 30_000)
+    return () => window.clearInterval(interval)
+  }, [])
   const [period, setPeriod] = useState<PeriodFilter>("week")
   const [anchorDate, setAnchorDate] = useState(todayInGabon)
   const [customStart, setCustomStart] = useState(todayInGabon)
@@ -82,7 +92,7 @@ export default function ParentAbsences() {
 
   const bounds = useMemo(() => getBounds(period,anchorDate,customStart,customEnd),[period,anchorDate,customStart,customEnd])
   const allRows = useMemo(() => {
-    const selectedChildren=allowed.filter(child=>childId==="tous"||child.id===childId)
+    const selectedChildren=allowed.filter(child=>child.id===activeChildId)
     const recordMap=new Map<string,ParentAttendance>(attendance.map(item=>[item.student_id+":"+item.attendance_date+":"+(item.lesson_key??""),item] as const))
     const result:Array<{key:string;childId:string;childName:string;date:string;slotId:string;subject:string;startsAt:string;endsAt:string;attendance:ParentAttendance|null;derivedStatus:string}>=[]
     const today=todayInGabon(),nowTime=timeInGabon()
@@ -101,15 +111,18 @@ export default function ParentAbsences() {
       }
     }
     return result.sort((a,b)=>b.date.localeCompare(a.date)||a.startsAt.localeCompare(b.startsAt))
-  },[allowed,attendance,bounds.start,bounds.end,childId,timetable])
+  },[allowed,attendance,bounds.start,bounds.end,activeChildId,timetable])
+  const subjectOptions = useMemo(() => Array.from(new Set(allRows.map(row => row.subject))).sort((a,b) => a.localeCompare(b, "fr")), [allRows])
   const rows=useMemo(()=>allRows.filter(row=>{
+    if(dateFilter && row.date !== dateFilter)return false
+    if(subjectFilter !== "all" && row.subject !== subjectFilter)return false
     if(statusFilter==="all")return true
     if(statusFilter==="pending")return row.derivedStatus==="pending"
     if(statusFilter==="present")return row.derivedStatus==="present"
     if(statusFilter==="late")return row.derivedStatus==="late"||row.derivedStatus==="retard"
     if(statusFilter==="justified")return row.derivedStatus==="justified"||row.derivedStatus==="excused"
     return row.derivedStatus==="absent"
-  }),[allRows,statusFilter])
+  }),[allRows,dateFilter,subjectFilter,statusFilter])
   const liveStatus = useMemo(() => {
     if (!selectedChild) return null
     const today = todayInGabon()

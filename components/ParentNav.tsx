@@ -167,7 +167,7 @@ export function ParentNav() {
   return (
     <>
       <header className="sticky top-0 z-30 hidden h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white px-8 lg:ml-[248px] lg:flex">
-        <p className="text-sm text-slate-500">Espace parent <span className="px-1 text-slate-300">/</span><span className="font-semibold text-slate-800">Portail des familles</span></p>
+        <p className="text-sm text-slate-500">NOVA <span className="px-1 text-slate-300">/</span><span className="font-semibold text-slate-800">Portail parent</span></p>
         <Link href="/parents/notifications" aria-label={unreadNotifications ? `Notifications, ${unreadNotifications} non lues` : "Notifications"} className="relative flex h-10 w-10 items-center justify-center rounded-md text-slate-600 hover:bg-slate-50">
           <Bell className="h-[18px] w-[18px]" />
           {unreadNotifications > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}
@@ -177,7 +177,7 @@ export function ParentNav() {
       <header className="sticky top-0 z-30 flex h-16 w-full min-w-0 items-center justify-between border-b border-slate-200 bg-white px-3 sm:px-4 lg:hidden">
         <div className="flex min-w-0 items-center gap-2.5">
           <AppBrandMark size={30} className="rounded-md" />
-          <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">NOVA</p><p className="truncate text-sm font-semibold text-slate-900">Espace parent</p></div>
+          <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">NOVA Portail parent</p></div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <Link href="/parents/notifications" aria-label="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100">
@@ -215,7 +215,7 @@ export function ParentNav() {
             <div className="mb-5 flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-sm font-semibold text-blue-800">{initials}</span>
-                <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">{utilisateur?.nomUtilisateur ?? "Parent"}</p><p className="text-xs text-slate-500">Espace parent</p></div>
+                <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">{utilisateur?.nomUtilisateur ?? "Parent"}</p><p className="text-xs text-slate-500">NOVA Portail parent</p></div>
               </div>
               <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setOpen(false)} aria-label="Fermer le menu"><X className="h-5 w-5" /></Button>
             </div>
@@ -231,7 +231,7 @@ export function ParentNav() {
         <div className="border-b border-slate-200 px-5 py-5">
           <div className="mb-5 flex items-center gap-3">
             <Image src="/nova-logo.webp" alt="NOVA" width={36} height={36} className="rounded-md object-contain" />
-            <div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">GESTION SCOLAIRE</p><p className="text-[15px] font-semibold text-slate-900">Espace parent</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">GESTION SCOLAIRE</p><p className="text-[15px] font-semibold text-slate-900">Portail parent</p></div>
           </div>
           <div className="flex min-w-0 items-center gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-800">{initials}</span>

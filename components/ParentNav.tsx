@@ -306,7 +306,6 @@ export function ParentNav() {
         <div
           className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-[2px] lg:hidden"
           onClick={() => setDrawerOpen(false)}
-          aria-hidden="true"
         >
           <aside
             role="dialog"

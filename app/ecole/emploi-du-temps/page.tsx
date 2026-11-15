@@ -320,7 +320,7 @@ export default function EmploiDuTempsPage() {
             </Button>
             <div>
               <h1 className="flex items-center gap-2 text-[23px] font-semibold leading-7 text-[#131b2e]"><Calendar className="h-6 w-6" />Emploi du temps</h1>
-              <p className="mt-0.5 text-[12px] text-[#515f74]">Planification des cours par classe, enseignant et matière</p>
+              <p className="mt-0.5 text-[12px] text-[#515f74]">Programme hebdomadaire de référence pour l’année scolaire sélectionnée</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#515f74]">

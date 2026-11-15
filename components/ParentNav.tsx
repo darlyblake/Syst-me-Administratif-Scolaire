@@ -112,9 +112,11 @@ export function ParentNav() {
   const NavItem = ({ href, label, icon: Icon, count = 0, close = false }: { href: string; label: string; icon: typeof LayoutDashboard; count?: number; close?: boolean }) => (
     <Link href={href} onClick={() => close && setOpen(false)} className={cn(
       "group flex min-h-10 min-w-0 items-center gap-3 rounded-md px-3 text-[13px] font-medium transition-colors",
-      isActive(href) ? "bg-blue-800 text-white shadow-[inset_3px_0_0_#60a5fa]" : "text-blue-100/85 hover:bg-white/10 hover:text-white",
+      close
+        ? (isActive(href) ? "bg-blue-800 text-white" : "text-slate-700 hover:bg-blue-50 hover:text-blue-900")
+        : (isActive(href) ? "bg-blue-800 text-white shadow-[inset_3px_0_0_#60a5fa]" : "text-blue-100/85 hover:bg-white/10 hover:text-white"),
     )}>
-      <Icon className={cn("h-[17px] w-[17px] shrink-0", isActive(href) ? "text-white" : "text-blue-200 group-hover:text-white")} />
+      <Icon className={cn("h-[17px] w-[17px] shrink-0", close ? (isActive(href) ? "text-white" : "text-slate-400 group-hover:text-blue-700") : (isActive(href) ? "text-white" : "text-blue-200 group-hover:text-white"))} />
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {count > 0 && <span className="min-w-5 shrink-0 rounded-full bg-blue-600 px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{count > 99 ? "99+" : count}</span>}
     </Link>
@@ -122,8 +124,8 @@ export function ParentNav() {
 
   const Nav = ({ close = false }: { close?: boolean }) => (
     <nav className="space-y-6">
-      <div><p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-200/65">Suivi scolaire</p><div className="space-y-1">{principal.map((item) => <NavItem key={item.href} {...item} close={close} />)}</div></div>
-      <div><p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Communication</p><div className="space-y-1">{secondaire.filter((item) => !(close && item.badge === "notifs")).map((item) => <NavItem key={item.href} {...item} count={badge(item.badge)} close={close} />)}</div></div>
+      <div><p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em]", close ? "text-slate-400" : "text-blue-200/65")}>Suivi scolaire</p><div className="space-y-1">{principal.map((item) => <NavItem key={item.href} {...item} close={close} />)}</div></div>
+      <div><p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em]", close ? "text-slate-400" : "text-blue-200/65")}>Communication</p><div className="space-y-1">{secondaire.filter((item) => !(close && item.badge === "notifs")).map((item) => <NavItem key={item.href} {...item} count={badge(item.badge)} close={close} />)}</div></div>
     </nav>
   )
 

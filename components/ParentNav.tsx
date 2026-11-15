@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation"
 import {
   Home, ShieldCheck, BookOpen, MessageSquare,
   CreditCard, LogOut, X, ChevronRight,
-  Bell, GraduationCap, CalendarDays, FileText,
+  GraduationCap, CalendarDays, FileText,
   Users, ClipboardList, UserRound, Menu,
 } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -16,6 +16,7 @@ import { useAuthentification } from "@/providers/authentification.provider"
 import { useParentPortal } from "@/hooks/use-parent-portal"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
+import { ParentNotificationBell } from "@/components/notifications/ParentNotificationBell"
 
 /* ------------------------------------------------------------------ */
 /*  Configuration de la navigation                                      */
@@ -85,7 +86,6 @@ const SECTIONS = [
       { href: "/parents/messages",      label: "Messagerie",           icon: MessageSquare,   badge: "msgs"   as "msgs" | "notifs" | null },
       { href: "/parents/paiements",     label: "Paiements",            icon: ClipboardList,   badge: null     as "msgs" | "notifs" | null },
       { href: "/parents/documents",     label: "Documents",            icon: FileText,        badge: null     as "msgs" | "notifs" | null },
-      { href: "/parents/notifications", label: "Notifications",        icon: Bell,            badge: "notifs" as "msgs" | "notifs" | null },
       { href: "/parents/profil",        label: "Mon compte",           icon: UserRound,       badge: null     as "msgs" | "notifs" | null },
     ],
   },
@@ -239,18 +239,7 @@ export function ParentNav() {
 
         {/* Droite : notifications + menu */}
         <div className="flex shrink-0 items-center gap-1">
-          <Link
-            href="/parents/notifications"
-            aria-label={unreadNotifications ? `${unreadNotifications} notifications` : "Notifications"}
-            className="relative flex h-10 w-10 items-center justify-center rounded-full text-slate-600 active:bg-slate-100"
-          >
-            <Bell className="h-[20px] w-[20px]" />
-            {unreadNotifications > 0 && (
-              <span className="absolute right-2 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-white">
-                {unreadNotifications > 9 ? "9+" : unreadNotifications}
-              </span>
-            )}
-          </Link>
+          <ParentNotificationBell />
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}

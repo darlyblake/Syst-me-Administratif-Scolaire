@@ -2,14 +2,13 @@
 
 import { useMemo, useState } from "react"
 import { Download, TrendingUp } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { useParentPortal } from "@/hooks/use-parent-portal"
 import { ParentPageHeader } from "@/components/parent/ParentPageHeader"
 import { ParentChildSelect } from "@/components/parent/ParentChildSelect"
 import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
 
 export default function ParentNotes() {
-  const { loading, error, refresh, children, grades } = useParentPortal()
+  const { loading, error, children, grades } = useParentPortal()
   const [childId, setChildId] = useState("tous")
   const allowed = useMemo(() => children.filter((c) => c.can_view_academic), [children])
   const list = useMemo(() => grades.filter((g) => childId === "tous" ? allowed.some((c) => c.id === g.student_id) : g.student_id === childId), [grades, childId, allowed])
@@ -25,8 +24,8 @@ export default function ParentNotes() {
     : null
 
   return <div className="space-y-7">
-    <ParentPageHeader eyebrow="Scolarité" title="Résultats" description="Consultez les notes et évaluations de vos enfants." onRefresh={() => void refresh()} refreshing={loading} />
-    {error && <div className="flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><span>{error}</span><Button size="sm" variant="outline" onClick={() => void refresh()}>Réessayer</Button></div>}
+    <ParentPageHeader eyebrow="Scolarité" title="Résultats" description="Consultez les notes et évaluations de vos enfants." />
+    {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
     {!loading && allowed.length > 0 && <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
       <ParentChildSelect children={allowed} value={childId} onChange={setChildId} />
       <div className="flex items-center gap-3 text-sm text-slate-500"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-600"><TrendingUp className="h-4 w-4" /></span><span>Moyenne affichée <strong className="ml-1 text-slate-900">{avg === null ? "—" : avg.toFixed(1) + "/20"}</strong></span></div>

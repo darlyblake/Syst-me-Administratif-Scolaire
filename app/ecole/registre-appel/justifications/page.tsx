@@ -90,6 +90,8 @@ export default function AttendanceJustificationsPage() {
       const {error:updateError}=await supabaseBrowser.from("attendance_justification_requests").update({
         status,reviewer_note:note||null,reviewed_by:user.id,reviewed_at:new Date().toISOString()
       }).eq("id",row.id).eq("establishment_id",establishmentId).eq("status","pending")
+        .select("id")
+        .single()
       if(updateError) throw updateError
       await load()
     } catch(cause) {

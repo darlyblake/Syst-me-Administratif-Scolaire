@@ -244,3 +244,84 @@ export async function supprimerCreneauEmploiDuTemps(id: string, etablissementId:
 
   if (error) throw new Error(`Impossible de supprimer le créneau: ${error.message}`)
 }
+
+
+export interface ClassBreak {
+  id: string
+  establishment_id: string
+  academic_year_id: string
+  class_id: string
+  label: string
+  starts_at: string
+  ends_at: string
+}
+
+const BREAK_SELECT = "id,establishment_id,academic_year_id,class_id,label,starts_at,ends_at"
+
+export async function obtenirPausesClasse(etablissementId: string, classId: string, academicYearId: string): Promise<ClassBreak[]> {
+  const { data, error } = await supabaseBrowser
+    .from("class_breaks")
+    .select(BREAK_SELECT)
+    .eq("establishment_id", etablissementId)
+    .eq("class_id", classId)
+    .eq("academic_year_id", academicYearId)
+    .order("starts_at")
+
+  if (error) throw new Error(`Impossible de charger les pauses de la classe: ${error.message}`)
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    starts_at: toTime(row.starts_at),
+    ends_at: toTime(row.ends_at),
+  }))
+}
+
+export async function creerPauseClasse(params: {
+  etablissementId: string
+  academicYearId: string
+  classId: string
+  startsAt: string
+  endsAt: string
+  label: string
+}): Promise<void> {
+  if (params.startsAt >= params.endsAt) throw new Error("L'heure de fin doit être après l'heure de début.")
+
+  const { data: classSlots, error: slotsError } = await supabaseBrowser
+    .from("timetable_slots")
+    .select("starts_at,ends_at,class_subjects!inner(class_id)")
+    .eq("establishment_id", params.etablissementId)
+    .eq("academic_year_id", params.academicYearId)
+    .eq("class_subjects.class_id", params.classId)
+
+  if (slotsError) throw new Error(`Impossible de vérifier les cours de la classe: ${slotsError.message}`)
+
+  const overlapsCourse = (classSlots ?? []).some((slot: any) =>
+    params.startsAt < toTime(slot.ends_at) && params.endsAt > toTime(slot.starts_at)
+  )
+  if (overlapsCourse) {
+    throw new Error("Cette pause chevauche au moins un cours de la classe. Choisissez une plage libre sur tous les jours.")
+  }
+
+  const { error } = await supabaseBrowser.from("class_breaks").insert({
+    establishment_id: params.etablissementId,
+    academic_year_id: params.academicYearId,
+    class_id: params.classId,
+    label: params.label.trim() || "Récréation",
+    starts_at: params.startsAt,
+    ends_at: params.endsAt,
+  })
+
+  if (error) {
+    if (error.code === "23505") throw new Error("Cette pause existe déjà pour cette classe.")
+    throw new Error(`Impossible d'enregistrer la pause: ${error.message}`)
+  }
+}
+
+export async function supprimerPauseClasse(id: string, etablissementId: string): Promise<void> {
+  const { error } = await supabaseBrowser
+    .from("class_breaks")
+    .delete()
+    .eq("id", id)
+    .eq("establishment_id", etablissementId)
+
+  if (error) throw new Error(`Impossible de supprimer la pause: ${error.message}`)
+}

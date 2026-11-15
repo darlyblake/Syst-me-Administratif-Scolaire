@@ -354,9 +354,14 @@ function useParentPortalState() {
             const next=[notification,...current.filter(item=>item.id!==notification.id)]
             return next.sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)).slice(0,50)
           })
-          // Le nouvel emploi du temps doit être visible dès réception de l'alerte,
-          // sans demander au parent de recharger la page.
-          if(notification.type==="timetable_updated" || notification.type.startsWith("attendance_")) void refresh({silent:true})
+          // Les données concernées sont rechargées dès réception de leur notification.
+          // Pour un paiement, cela actualise l'historique, les allocations et les échéances
+          // sans obliger le parent à quitter la page ou à la recharger manuellement.
+          if(
+            notification.type==="payment_received" ||
+            notification.type==="timetable_updated" ||
+            notification.type.startsWith("attendance_")
+          ) void refresh({silent:true})
         })
         .on("postgres_changes",{event:"UPDATE",schema:"public",table:"notifications",filter:`recipient_user_id=eq.${user.id}`},payload=>{
           const notification=payload.new as ParentNotification

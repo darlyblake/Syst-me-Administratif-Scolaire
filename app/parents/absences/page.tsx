@@ -281,7 +281,7 @@ export default function ParentAbsences() {
         </div>
         {loading && allowed.length===0 ? <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">Chargement des enfants…</div> :
         allowed.length===0 ? <div className="rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">Aucun enfant rattaché à votre compte avec accès aux informations scolaires.</div> :
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="divide-y divide-slate-200 border-y border-slate-200 bg-white">
           {allowed.map(child=>{
             const week=weeklySummaries.find(x=>x.id===child.id)
             const term=trimesterSummaries.find(x=>x.id===child.id)
@@ -290,30 +290,30 @@ export default function ParentAbsences() {
             const photo=(child as typeof child & {photo_url?:string|null;avatar_url?:string|null;photo?:string|null}).photo_url||(child as typeof child & {avatar_url?:string|null}).avatar_url||(child as typeof child & {photo?:string|null}).photo
             const age=ageFromBirthDate(child.birth_date)
             const active=childId===child.id
-            return <article key={child.id} className={"rounded-xl border bg-white p-4 transition-colors "+(active?"border-blue-400 ring-1 ring-blue-100":"border-slate-200")}>
-              <div className="flex items-center gap-3">
-                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-blue-50">
-                  {photo?<img src={photo} alt="" className="h-full w-full object-cover"/>:<div className="flex h-full w-full items-center justify-center text-sm font-bold text-blue-800">{(child.first_name?.[0]??"")+(child.last_name?.[0]??"")}</div>}
+            return <article key={child.id} className={"parent-child-row px-4 py-4 transition-colors sm:px-5 "+(active?"bg-blue-50/50":"bg-white")}>
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+                  {photo?<img src={photo} alt="" className="h-full w-full object-cover"/>:<div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-700">{(child.first_name?.[0]??"")+(child.last_name?.[0]??"")}</div>}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-sm font-bold text-slate-950">{child.first_name} {child.last_name}</h3>
-                  <p className="mt-0.5 text-xs text-slate-500">{age===null?"Âge non renseigné":age+" ans"}{child.class_name?" · "+child.class_name:""}</p>
-                  <p className="mt-1 text-[11px] text-slate-400">{child.level_name??"Élève"}</p>
+                  <h3 className="truncate text-sm font-semibold text-slate-900">{child.first_name} {child.last_name}</h3>
+                  <p className="mt-0.5 truncate text-xs text-slate-500">{child.class_name??child.level_name??"Classe non renseignée"}{age===null?"":" · "+age+" ans"}</p>
                 </div>
-                {hasAbsence?<span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-red-100 px-2 text-xs font-bold text-red-700" title="Absences cette semaine">{week?.absent}</span>:<span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-emerald-50 px-2 text-xs font-semibold text-emerald-700">✓</span>}
+                <span className={"shrink-0 rounded-sm px-2 py-1 text-[11px] font-medium "+(hasAbsence?"bg-red-50 text-red-700":"bg-slate-100 text-slate-600")}>{hasAbsence?(week?.absent??0)+" absence"+((week?.absent??0)>1?"s":""):"Aucune absence"}</span>
               </div>
-              <div className="mt-4">
-                <div className="mb-1.5 flex items-center justify-between text-xs"><span className="font-medium text-slate-600">Présence cette semaine</span><strong className="tabular-nums text-slate-900">{week?.rate===null||week?.rate===undefined?"—":week.rate+"%"}</strong></div>
-                <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-700" style={{width:(week?.rate??0)+"%"}}/></div>
-                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
-                  <span className="text-emerald-700">{week?.present??0} présents</span><span className="text-amber-700">{week?.late??0} retards</span><span className={(week?.absent??0)>0?"font-semibold text-red-700":"text-slate-500"}>{week?.absent??0} absences</span>
+              <div className="mt-4 grid grid-cols-3 divide-x divide-slate-200 border-y border-slate-100 py-2.5">
+                <div className="px-2 first:pl-0"><p className="text-base font-semibold tabular-nums text-slate-900">{week?.present??0}</p><p className="text-[11px] text-slate-500">Présences</p></div>
+                <div className="px-3"><p className="text-base font-semibold tabular-nums text-slate-900">{week?.late??0}</p><p className="text-[11px] text-slate-500">Retards</p></div>
+                <div className="px-3"><p className={"text-base font-semibold tabular-nums "+(hasAbsence?"text-red-700":"text-slate-900")}>{week?.absent??0}</p><p className="text-[11px] text-slate-500">Absences</p></div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] text-slate-500">{term?.label??"Trimestre en cours"} · {term?.count??0} cours concernés</p>
+                  <p className="mt-0.5 text-sm font-semibold text-slate-800">{term?.hours??0} h d'absence <span className="font-normal text-slate-500">· {week?.rate===null||week?.rate===undefined?"Taux indisponible":week.rate+"% de présence cette semaine"}</span></p>
                 </div>
-              </div>
-              <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-                <div><p className="text-[11px] text-slate-500">{term?.label??"Trimestre en cours"}</p><p className="text-sm font-bold text-slate-900">{term?.hours??0} h d'absence</p><p className="text-[10px] text-slate-400">{term?.count??0} cours concernés</p></div>
-                <div className="flex flex-col items-end gap-2">
-                  {requestable>0&&<button type="button" onClick={()=>{setChildId(child.id);setPeriod("custom");setCustomStart(term?.start??todayInGabon());setCustomEnd(todayInGabon());setStatusFilter("absent");setShowHistory(true)}} className="text-xs font-semibold text-red-700 underline underline-offset-2">Justifier ({requestable})</button>}
-                  <button type="button" onClick={()=>{setChildId(child.id);setPeriod("custom");setCustomStart(trimesterSummaries.find(x=>x.id===child.id)?.start??todayInGabon());setCustomEnd(todayInGabon());setStatusFilter("all");setShowHistory(true)}} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-800">Historique</button>
+                <div className="flex shrink-0 items-center gap-3">
+                  {requestable>0&&<button type="button" onClick={()=>{setChildId(child.id);setPeriod("custom");setCustomStart(term?.start??todayInGabon());setCustomEnd(todayInGabon());setStatusFilter("absent");setShowHistory(true)}} className="min-h-10 text-xs font-semibold text-red-700 underline underline-offset-2">Justifier ({requestable})</button>}
+                  <button type="button" onClick={()=>{setChildId(child.id);setPeriod("custom");setCustomStart(term?.start??todayInGabon());setCustomEnd(todayInGabon());setStatusFilter("all");setShowHistory(true)}} className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-blue-800 hover:bg-blue-50">Voir le détail</button>
                 </div>
               </div>
             </article>

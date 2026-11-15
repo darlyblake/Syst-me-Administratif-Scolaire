@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Check, Clock, Save, UserCheck, X, History, ChartNoAxesCombined } from "lucide-react"
+import { Check, Clock, Save, UserCheck, X, History, ChartNoAxesCombined, FileText } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -489,7 +489,7 @@ export default function RegistreAppelPage() {
           </div>
         </div>
 
-        <nav aria-label="Suivi des appels" className="mb-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <nav aria-label="Suivi des appels" className="mb-5 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <Button variant="outline" className="h-auto min-h-12 justify-start px-4 py-3" asChild>
             <Link href="/ecole/registre-appel/historique">
               <History className="mr-2 h-4 w-4 shrink-0" />
@@ -499,6 +499,15 @@ export default function RegistreAppelPage() {
               </span>
             </Link>
           </Button>
+          {canManageAll && <Button variant="outline" className="h-auto min-h-12 justify-start px-4 py-3" asChild>
+            <Link href="/ecole/registre-appel/justifications">
+              <FileText className="mr-2 h-4 w-4 shrink-0" />
+              <span className="text-left">
+                <span className="block font-semibold">Justifications d'absence</span>
+                <span className="block text-xs font-normal text-slate-500">Examiner les motifs et documents transmis par les parents</span>
+              </span>
+            </Link>
+          </Button>}
           <Button variant="outline" className="h-auto min-h-12 justify-start px-4 py-3" asChild>
             <Link href="/ecole/registre-appel/rapports">
               <ChartNoAxesCombined className="mr-2 h-4 w-4 shrink-0" />

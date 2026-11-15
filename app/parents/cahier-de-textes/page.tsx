@@ -14,9 +14,32 @@ export default function ParentCahier() {
   const [childId, setChildId] = useState("tous")
   const [tab, setTab] = useState<"lessons" | "homework">("lessons")
   const [query, setQuery] = useState("")
+  const [subjectFilter, setSubjectFilter] = useState("toutes")
+
   const classIds = new Set(allowed.filter(child => childId === "tous" || child.id === childId).map(child => child.class_id).filter(Boolean))
-  const lessonList = lessons.filter(item => classIds.has(item.class_id)).filter(item => (item.subject + " " + item.topic + " " + item.content).toLowerCase().includes(query.toLowerCase()))
-  const homeworkList = homework.filter(item => classIds.has(item.class_id)).filter(item => (item.subject + " " + item.title + " " + item.instructions).toLowerCase().includes(query.toLowerCase()))
+  const visibleLessons = lessons.filter(item => classIds.has(item.class_id))
+  const visibleHomework = homework.filter(item => classIds.has(item.class_id))
+  const subjectOptions = Array.from(new Set(
+    (tab === "lessons" ? visibleLessons : visibleHomework)
+      .map(item => item.subject?.trim())
+      .filter((subject): subject is string => Boolean(subject))
+  )).sort((a, b) => a.localeCompare(b, "fr"))
+
+  const lessonList = visibleLessons
+    .filter(item => subjectFilter === "toutes" || item.subject?.trim() === subjectFilter)
+    .filter(item => (item.subject + " " + item.topic + " " + item.content).toLowerCase().includes(query.toLowerCase()))
+  const homeworkList = visibleHomework
+    .filter(item => subjectFilter === "toutes" || item.subject?.trim() === subjectFilter)
+    .filter(item => (item.subject + " " + item.title + " " + item.instructions).toLowerCase().includes(query.toLowerCase()))
+
+  const changeChild = (value: string) => {
+    setChildId(value)
+    setSubjectFilter("toutes")
+  }
+  const changeTab = (value: "lessons" | "homework") => {
+    setTab(value)
+    setSubjectFilter("toutes")
+  }
 
   return (
     <div className="space-y-5 sm:space-y-7">
@@ -28,21 +51,30 @@ export default function ParentCahier() {
         <>
           <div className="space-y-3 border-b border-slate-200 pb-3">
             <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Type de contenu">
-              <button type="button" role="tab" aria-selected={tab === "lessons"} onClick={() => setTab("lessons")} className={tab === "lessons" ? "flex min-h-11 items-center justify-center gap-2 border-b-2 border-blue-700 bg-blue-50 px-2 text-sm font-semibold text-blue-800" : "flex min-h-11 items-center justify-center gap-2 border-b border-slate-200 px-2 text-sm text-slate-600"}>
+              <button type="button" role="tab" aria-selected={tab === "lessons"} onClick={() => changeTab("lessons")} className={tab === "lessons" ? "flex min-h-11 items-center justify-center gap-2 border-b-2 border-blue-700 bg-blue-50 px-2 text-sm font-semibold text-blue-800" : "flex min-h-11 items-center justify-center gap-2 border-b border-slate-200 px-2 text-sm text-slate-600"}>
                 <BookOpen className="h-4 w-4" />Leçons
               </button>
-              <button type="button" role="tab" aria-selected={tab === "homework"} onClick={() => setTab("homework")} className={tab === "homework" ? "flex min-h-11 items-center justify-center gap-2 border-b-2 border-blue-700 bg-blue-50 px-2 text-sm font-semibold text-blue-800" : "flex min-h-11 items-center justify-center gap-2 border-b border-slate-200 px-2 text-sm text-slate-600"}>
+              <button type="button" role="tab" aria-selected={tab === "homework"} onClick={() => changeTab("homework")} className={tab === "homework" ? "flex min-h-11 items-center justify-center gap-2 border-b-2 border-blue-700 bg-blue-50 px-2 text-sm font-semibold text-blue-800" : "flex min-h-11 items-center justify-center gap-2 border-b border-slate-200 px-2 text-sm text-slate-600"}>
                 <ClipboardList className="h-4 w-4" />Devoirs
               </button>
             </div>
-            <div className="grid gap-2 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
-              <ParentChildSelect children={allowed} value={childId} onChange={setChildId} />
-              <Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Rechercher une matière, une leçon…" className="w-full" />
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,200px)_minmax(0,200px)_minmax(0,1fr)]">
+              <ParentChildSelect children={allowed} value={childId} onChange={changeChild} />
+              <select
+                value={subjectFilter}
+                onChange={event => setSubjectFilter(event.target.value)}
+                aria-label="Filtrer par matière"
+                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              >
+                <option value="toutes">Toutes les matières</option>
+                {subjectOptions.map(subject => <option key={subject} value={subject}>{subject}</option>)}
+              </select>
+              <Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Rechercher dans le cahier de textes…" className="w-full" />
             </div>
           </div>
 
           {tab === "lessons" ? (
-            <div className="divide-y divide-slate-100 border-y border-slate-200 bg-white sm:border sm:rounded-lg">
+            <div className="divide-y divide-slate-100 border-y border-slate-200 bg-white sm:rounded-lg sm:border">
               {lessonList.map(item => (
                 <article key={item.id} className="space-y-2 px-3 py-4 sm:px-5">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
@@ -54,10 +86,10 @@ export default function ParentCahier() {
                   {item.activities && <p className="break-words text-sm text-slate-500">Activités : {item.activities}</p>}
                 </article>
               ))}
-              {lessonList.length === 0 && <ParentEmptyState title="Aucun cours publié" description="Les entrées du cahier de textes apparaîtront ici dès leur publication." />}
+              {lessonList.length === 0 && <ParentEmptyState title="Aucun cours publié" description="Aucun cours ne correspond à cette sélection pour le moment." />}
             </div>
           ) : (
-            <div className="divide-y divide-slate-100 border-y border-slate-200 bg-white sm:border sm:rounded-lg">
+            <div className="divide-y divide-slate-100 border-y border-slate-200 bg-white sm:rounded-lg sm:border">
               {homeworkList.map(item => (
                 <article key={item.id} className="space-y-2 px-3 py-4 sm:px-5">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
@@ -67,7 +99,7 @@ export default function ParentCahier() {
                   <p className="whitespace-pre-line break-words text-sm leading-6 text-slate-600">{item.instructions}</p>
                 </article>
               ))}
-              {homeworkList.length === 0 && <ParentEmptyState title="Aucun devoir publié" description="Les devoirs actifs apparaîtront ici dès leur publication." />}
+              {homeworkList.length === 0 && <ParentEmptyState title="Aucun devoir publié" description="Aucun devoir ne correspond à cette sélection pour le moment." />}
             </div>
           )}
         </>

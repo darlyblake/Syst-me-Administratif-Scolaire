@@ -25,16 +25,26 @@ export default function ParentProfile() {
 
   useEffect(() => {
     let active = true
-    void supabaseBrowser.auth.getUser().then(({ data }) => {
-      if (!active || !data.user) return
-      const metadata = data.user.user_metadata ?? {}
-      const context = await serviceAuthentification.obtenirContexte()
-      if (!active) return
-      setFirstName(String(metadata.first_name ?? context?.first_name ?? ""))
-      setLastName(String(metadata.last_name ?? context?.last_name ?? ""))
-      setEmail(data.user.email ?? "")
-      setInitialEmail(data.user.email ?? "")
-    })
+
+    const loadProfile = async () => {
+      try {
+        const { data } = await supabaseBrowser.auth.getUser()
+        if (!active || !data.user) return
+
+        const metadata = data.user.user_metadata ?? {}
+        const context = await serviceAuthentification.obtenirContexte()
+        if (!active) return
+
+        setFirstName(String(metadata.first_name ?? context?.first_name ?? ""))
+        setLastName(String(metadata.last_name ?? context?.last_name ?? ""))
+        setEmail(data.user.email ?? "")
+        setInitialEmail(data.user.email ?? "")
+      } catch (cause) {
+        console.error("Erreur lors du chargement du profil parent :", cause)
+      }
+    }
+
+    void loadProfile()
     return () => { active = false }
   }, [utilisateur?.nomUtilisateur])
 

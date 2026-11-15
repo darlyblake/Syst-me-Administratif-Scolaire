@@ -214,7 +214,7 @@ function useParentPortalState() {
         academicClassIds.length && academicYearIds.length
           ? supabaseBrowser
               .from("timetable_slots")
-              .select("id,class_subject_id,academic_year_id,day_of_week,starts_at,ends_at,room,class_subjects!inner(class_id,subject_id,teacher_id,subjects!inner(id,name),teachers!inner(first_name,last_name))")
+              .select("id,class_subject_id,academic_year_id,day_of_week,starts_at,ends_at,room,class_subjects!inner(class_id,subject_id,teacher_id,subjects!inner(id,name),teachers(first_name,last_name))")
               .in("class_subjects.class_id", academicClassIds)
               .in("academic_year_id", academicYearIds)
               .order("day_of_week")

@@ -14,6 +14,8 @@ import {
 
 function notificationHref(notification: NotificationRecord, isParent: boolean) {
   if (notification.type === "attendance_call_missing") return "/ecole/registre-appel"
+  if (notification.type === "attendance_justification_submitted") return "/ecole/registre-appel/justifications"
+  if (notification.type === "attendance_justification_reviewed" && isParent) return "/parents/absences"
   if (notification.type === "timetable_updated" && isParent) return "/parents/emploi-du-temps"
   if (notification.entity_type === "attendance_record") {
     return isParent ? "/parents/absences" : "/ecole/registre-appel"
@@ -59,8 +61,9 @@ function notificationPermission(notification: NotificationRecord): string {
     case "homework":
       return "classes.view"
     case "attendance_record":
-    case "attendance_justification_request":
       return "attendance.read"
+    case "attendance_justification_request":
+      return "attendance.manage"
     case "timetable_slot":
       return "attendance.manage"
     case "school_event":

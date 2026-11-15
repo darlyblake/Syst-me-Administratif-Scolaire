@@ -456,7 +456,7 @@ export default function ParentAbsences() {
           </label>
         </div>
         <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-slate-100 px-4 py-3 text-sm text-slate-600">
-          <span><strong className="text-slate-900">{counts.recorded}</strong> appels effectués</span>
+          <span><strong className="text-slate-900">{counts.planned}</strong> cours prévus terminés</span><span><strong className="text-slate-700">{counts.recorded}</strong> appels saisis</span>
           <span><strong className="text-emerald-700">{counts.present}</strong> présents</span>
           <span><strong className="text-amber-700">{counts.late}</strong> retards</span>
           <span><strong className="text-red-700">{counts.absent}</strong> absents</span>

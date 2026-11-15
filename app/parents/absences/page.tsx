@@ -79,7 +79,7 @@ export default function ParentAbsences() {
   const bounds = useMemo(() => getBounds(period,anchorDate,customStart,customEnd),[period,anchorDate,customStart,customEnd])
   const allRows = useMemo(() => {
     const selectedChildren=allowed.filter(child=>childId==="tous"||child.id===childId)
-    const recordMap=new Map(attendance.map(item=>[item.student_id+":"+item.attendance_date+":"+(item.lesson_key??""),item]))
+    const recordMap=new Map<string,ParentAttendance>(attendance.map(item=>[item.student_id+":"+item.attendance_date+":"+(item.lesson_key??""),item] as const))
     const result:Array<{key:string;childId:string;childName:string;date:string;slotId:string;subject:string;startsAt:string;endsAt:string;attendance:ParentAttendance|null;derivedStatus:string}>=[]
     const today=todayInGabon(),nowTime=timeInGabon()
     if(bounds.start>bounds.end)return result
@@ -196,7 +196,7 @@ export default function ParentAbsences() {
           <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-blue-600">Vie scolaire</p>
           <h1 className="mt-1 text-[23px] font-bold leading-tight tracking-tight text-slate-950 sm:mt-1.5 sm:text-3xl">Présences</h1>
           <p className="mt-1 text-[13px] leading-5 text-slate-500 sm:mt-1.5 sm:text-sm sm:leading-6">
-            Consultez chaque cours de votre enfant, son horaire et son statut de présence.
+            Suivez les présences, retards et absences de chaque enfant, cours par cours.
           </p>
         </div>
         <button type="button" onClick={() => void refresh()} disabled={loading} className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50 sm:w-auto">

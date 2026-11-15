@@ -18,16 +18,16 @@ export function ParentChildSelect({
   const selected = visible.find((child) => child.id === value)
 
   return (
-    <label className="inline-flex min-w-0 items-center gap-2.5 rounded-full border border-slate-200 bg-white px-3 py-2.5">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-700">
+    <label className="inline-flex min-w-0 max-w-full items-center gap-3 rounded-lg border border-[#d8e5f1] bg-white px-3 py-2.5 shadow-none">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#eaf4ff] text-[#1767a5]">
         <Users className="h-4 w-4" aria-hidden="true" />
       </span>
       <span className="min-w-0">
-        <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Afficher pour</span>
+        <span className="block text-[10px] font-semibold uppercase tracking-[0.09em] text-slate-500">Afficher pour</span>
         <select
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-6 w-full min-w-[130px] max-w-[220px] border-0 bg-transparent p-0 pr-6 text-sm font-semibold text-slate-900 outline-none focus:ring-0"
+          className="h-7 w-full min-w-[130px] max-w-[220px] border-0 bg-transparent p-0 pr-6 text-sm font-semibold text-[#102b45] outline-none focus:ring-0"
           aria-label="Sélectionner un enfant"
         >
           <option value="tous">Tous les enfants</option>

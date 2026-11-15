@@ -110,10 +110,10 @@ export function ParentNav() {
 
   const NavItem = ({ href, label, icon: Icon, count = 0, close = false }: { href: string; label: string; icon: typeof LayoutDashboard; count?: number; close?: boolean }) => (
     <Link href={href} onClick={() => close && setOpen(false)} className={cn(
-      "group flex min-h-10 min-w-0 items-center gap-3 rounded-md px-3 text-[13px] font-medium transition-colors",
+      "group flex min-h-9 min-w-0 items-center gap-3 rounded-sm px-3 text-[13px] font-medium transition-colors",
       close
         ? (isActive(href) ? "bg-blue-800 text-white" : "text-slate-700 hover:bg-blue-50 hover:text-blue-900")
-        : (isActive(href) ? "bg-blue-800 text-white shadow-[inset_3px_0_0_#60a5fa]" : "text-blue-100/85 hover:bg-white/10 hover:text-white"),
+        : (isActive(href) ? "bg-white/10 text-white border-l-2 border-white" : "text-blue-100/85 hover:bg-white/10 hover:text-white"),
     )}>
       <Icon className={cn("h-[17px] w-[17px] shrink-0", close ? (isActive(href) ? "text-white" : "text-slate-400 group-hover:text-blue-700") : (isActive(href) ? "text-white" : "text-blue-200 group-hover:text-white"))} />
       <span className="min-w-0 flex-1 truncate">{label}</span>
@@ -123,8 +123,8 @@ export function ParentNav() {
 
   const Nav = ({ close = false }: { close?: boolean }) => (
     <nav className="space-y-6">
-      <div><p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em]", close ? "text-slate-400" : "text-blue-200/65")}>Scolarité</p><div className="space-y-1">{principal.map((item) => <NavItem key={item.href} {...item} close={close} />)}</div></div>
-      <div><p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em]", close ? "text-slate-400" : "text-blue-200/65")}>Échanges et gestion</p><div className="space-y-1">{secondaire.map((item) => <NavItem key={item.href} {...item} count={badge(item.badge)} close={close} />)}</div></div>
+      <div><p className={cn("mb-2 px-3 text-[11px] font-semibold", close ? "text-slate-400" : "text-blue-200/65")}>Scolarité</p><div className="space-y-1">{principal.map((item) => <NavItem key={item.href} {...item} close={close} />)}</div></div>
+      <div><p className={cn("mb-2 px-3 text-[11px] font-semibold", close ? "text-slate-400" : "text-blue-200/65")}>Échanges et gestion</p><div className="space-y-1">{secondaire.map((item) => <NavItem key={item.href} {...item} count={badge(item.badge)} close={close} />)}</div></div>
     </nav>
   )
 
@@ -146,7 +146,7 @@ export function ParentNav() {
         <Link href="/parents/notifications" aria-label={unreadNotifications ? `Notifications, ${unreadNotifications} non lues` : "Notifications"} className="relative flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"><Bell className="h-[18px] w-[18px]" />{unreadNotifications > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}</Link>
       </header>
 
-      <div className="sticky top-0 z-30 flex h-16 w-full min-w-0 items-center justify-between border-b border-slate-200 bg-white/95 px-3 backdrop-blur sm:px-4 lg:hidden">
+      <div className="sticky top-0 z-30 flex h-16 w-full min-w-0 items-center justify-between border-b border-slate-200 bg-white px-3 sm:px-4 lg:hidden">
         <div className="flex min-w-0 items-center gap-2.5">
           <Image src="/nova-logo.webp" alt="NOVA" width={30} height={30} className="shrink-0 rounded-md object-contain" />
           <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">NOVA</p><p className="truncate text-sm font-bold text-slate-900">Portail familles</p></div>
@@ -159,8 +159,8 @@ export function ParentNav() {
 
       <div className="fixed inset-x-0 bottom-0 z-40 w-full border-t border-slate-200 bg-white px-1 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))] lg:hidden">
         <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
-          {mobilePrimary.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={cn("relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-0.5 text-[10px] font-medium transition-colors", isActive(href) ? "text-blue-800" : "text-slate-500")}><Icon className="h-5 w-5 shrink-0" /><span className="max-w-full truncate">{label === "Accueil" ? "Accueil" : label === "Mes enfants" ? "Enfants" : label}</span>{isActive(href) && <span className="absolute inset-x-3 top-0 h-0.5 rounded-full bg-blue-700" />}</Link>)}
-          <button type="button" onClick={() => setOpen(true)} aria-label="Ouvrir les autres rubriques" aria-expanded={open} className={cn("flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-0.5 text-[10px] font-medium", open ? "text-blue-800" : "text-slate-500")}><Menu className="h-5 w-5" /><span>Plus</span></button>
+          {mobilePrimary.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={cn("relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-sm px-0.5 text-[10px] font-medium transition-colors", isActive(href) ? "text-blue-800" : "text-slate-500")}><Icon className="h-5 w-5 shrink-0" /><span className="max-w-full truncate">{label === "Accueil" ? "Accueil" : label === "Mes enfants" ? "Enfants" : label}</span>{isActive(href) && <span className="absolute inset-x-3 top-0 h-0.5 rounded-full bg-blue-700" />}</Link>)}
+          <button type="button" onClick={() => setOpen(true)} aria-label="Ouvrir les autres rubriques" aria-expanded={open} className={cn("flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-sm px-0.5 text-[10px] font-medium", open ? "text-blue-800" : "text-slate-500")}><Menu className="h-5 w-5" /><span>Plus</span></button>
         </div>
       </div>
 
@@ -172,7 +172,7 @@ export function ParentNav() {
         </aside>
       </div>}
 
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[248px] border-r border-[#0B2143] bg-[#102B55] text-white lg:flex lg:flex-col">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[248px] border-r border-[#0B2143] bg-[#18324F] text-white lg:flex lg:flex-col">
         <div className="border-b border-white/10 px-5 py-5"><div className="mb-5 flex items-center gap-3"><Image src="/nova-logo.webp" alt="NOVA" width={36} height={36} className="rounded-md bg-white p-1 object-contain" /><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-blue-200/65">GESTION SCOLAIRE</p><p className="text-[15px] font-bold text-white">Portail familles</p></div></div><User /></div>
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-5"><Nav /></div>
         <div className="border-t border-white/10 px-3 py-3"><Link href="/parents/profil" className={cn("flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] font-medium transition-colors", pathname === "/parents/profil" ? "bg-white/10 text-white" : "text-blue-100/85 hover:bg-white/10 hover:text-white")}><UserRound className="h-[17px] w-[17px] text-blue-200" />Mon profil</Link></div>

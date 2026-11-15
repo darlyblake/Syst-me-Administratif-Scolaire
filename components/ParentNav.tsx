@@ -16,16 +16,15 @@ const principal = [
   { href: "/parents/enfants", label: "Mes enfants", icon: Users },
   { href: "/parents/notes", label: "Résultats", icon: GraduationCap },
   { href: "/parents/absences", label: "Présences", icon: CalendarDays },
-  { href: "/parents/cahier-de-textes", label: "Cahier de textes", icon: BookOpen },
-  { href: "/parents/cahier-de-textes?tab=homework", label: "Devoirs", icon: ClipboardList },
   { href: "/parents/emploi-du-temps", label: "Emploi du temps", icon: CalendarDays },
-  { href: "/parents/paiements", label: "Scolarité & paiements", icon: ClipboardList },
+  { href: "/parents/cahier-de-textes", label: "Cahier de textes", icon: BookOpen },
 ]
 const secondaire = [
+  { href: "/parents/paiements", label: "Paiements", icon: ClipboardList },
   { href: "/parents/documents", label: "Documents", icon: FileText },
-  { href: "/parents/notifications", label: "Notifications", icon: Bell, badge: "notifs" as const },
   { href: "/parents/messages", label: "Messages", icon: MessageSquare, badge: "msgs" as const },
   { href: "/parents/evenements", label: "Événements", icon: CalendarDays },
+  { href: "/parents/notifications", label: "Notifications", icon: Bell, badge: "notifs" as const },
 ]
 
 export function ParentNav() {
@@ -124,8 +123,8 @@ export function ParentNav() {
 
   const Nav = ({ close = false }: { close?: boolean }) => (
     <nav className="space-y-6">
-      <div><p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em]", close ? "text-slate-400" : "text-blue-200/65")}>Suivi scolaire</p><div className="space-y-1">{principal.map((item) => <NavItem key={item.href} {...item} close={close} />)}</div></div>
-      <div><p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em]", close ? "text-slate-400" : "text-blue-200/65")}>Communication</p><div className="space-y-1">{secondaire.filter((item) => !(close && item.badge === "notifs")).map((item) => <NavItem key={item.href} {...item} count={badge(item.badge)} close={close} />)}</div></div>
+      <div><p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em]", close ? "text-slate-400" : "text-blue-200/65")}>Scolarité</p><div className="space-y-1">{principal.map((item) => <NavItem key={item.href} {...item} close={close} />)}</div></div>
+      <div><p className={cn("mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em]", close ? "text-slate-400" : "text-blue-200/65")}>Échanges et gestion</p><div className="space-y-1">{secondaire.filter((item) => !(close && item.badge === "notifs")).map((item) => <NavItem key={item.href} {...item} count={badge(item.badge)} close={close} />)}</div></div>
     </nav>
   )
 

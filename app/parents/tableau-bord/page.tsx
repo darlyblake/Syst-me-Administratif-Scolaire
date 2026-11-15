@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useMemo, useState } from "react"
-import { Activity, ArrowRight, BookOpen, FileText, MessageSquare, RefreshCw, Users } from "lucide-react"
+import { Activity, ArrowRight, BookOpen, CalendarDays, FileText, MessageSquare, RefreshCw, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { useParentPortal } from "@/hooks/use-parent-portal"

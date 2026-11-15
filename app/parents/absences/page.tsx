@@ -71,10 +71,13 @@ export default function ParentAbsences() {
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
-  const requests = useMemo(
-    () => new Map(justificationRequests.map((request) => [request.attendance_id, request])),
-    [justificationRequests],
-  )
+  const requests = useMemo(() => {
+    const latest = new Map<string, (typeof justificationRequests)[number]>()
+    for (const request of [...justificationRequests].sort((a,b) => Date.parse(a.created_at)-Date.parse(b.created_at))) {
+      latest.set(request.attendance_id, request)
+    }
+    return latest
+  }, [justificationRequests])
 
   const bounds = useMemo(() => getBounds(period,anchorDate,customStart,customEnd),[period,anchorDate,customStart,customEnd])
   const allRows = useMemo(() => {
@@ -134,6 +137,8 @@ export default function ParentAbsences() {
 
     setBusy(true)
     setFormError(null)
+    let uploadedPath: string | null = null
+    let createdRequestId: string | null = null
     try {
       const child = allowed.find((item) => item.id === selected.student_id)
       const { data: auth, error: authError } = await supabaseBrowser.auth.getUser()
@@ -153,6 +158,7 @@ export default function ParentAbsences() {
         .single()
 
       if (requestError) throw requestError
+      createdRequestId = request.id
 
       if (file) {
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
@@ -162,6 +168,7 @@ export default function ParentAbsences() {
           .upload(path, file, { contentType: file.type, upsert: false })
 
         if (uploadError) throw uploadError
+        uploadedPath = path
 
         const { error: attachError } = await supabaseBrowser
           .from("attendance_justification_requests")
@@ -174,6 +181,8 @@ export default function ParentAbsences() {
           .eq("id", request.id)
           .eq("parent_user_id", auth.user.id)
           .eq("status", "pending")
+          .select("id")
+          .single()
 
         if (attachError) throw attachError
       }
@@ -183,6 +192,10 @@ export default function ParentAbsences() {
       setFile(null)
       await refresh()
     } catch (cause) {
+      if (uploadedPath) await supabaseBrowser.storage.from("attendance-justifications").remove([uploadedPath])
+      if (createdRequestId) {
+        await supabaseBrowser.from("attendance_justification_requests").update({status:"cancelled"}).eq("id",createdRequestId).eq("status","pending")
+      }
       setFormError(cause instanceof Error ? cause.message : "Impossible d'envoyer la justification.")
     } finally {
       setBusy(false)
@@ -263,7 +276,7 @@ export default function ParentAbsences() {
             const request = record ? requests.get(record.id) : undefined
             const pending = !record
             const label = pending ? "En attente" : statusLabel(row.derivedStatus)
-            const canJustify = !!record && (row.derivedStatus === "absent" || row.derivedStatus === "late" || row.derivedStatus === "retard") && !request
+            const canJustify = !!record && (row.derivedStatus === "absent" || row.derivedStatus === "late" || row.derivedStatus === "retard") && (!request || request.status === "rejected" || request.status === "cancelled")
             return <article key={row.key} className="space-y-3 p-4">
               <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">{row.subject}</p><p className="mt-0.5 text-xs text-slate-500">{row.childName} · {new Date(row.date + "T12:00:00").toLocaleDateString("fr-FR", {day:"2-digit",month:"short",year:"numeric"})}</p></div>
                 {pending ? <span className="shrink-0 text-xs text-slate-400">Appel non effectué</span> : <span className={"shrink-0 border px-2 py-1 text-[11px] font-semibold " + statusClass(row.derivedStatus)}>{label}</span>}

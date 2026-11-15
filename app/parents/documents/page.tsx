@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { Download, Search, Upload, FileUp, Info, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
@@ -17,12 +17,6 @@ export default function ParentDocuments() {
   const [childId, setChildId] = useState("tous")
   const [query, setQuery] = useState("")
   const [uploadingId, setUploadingId] = useState<string | null>(null)
-
-  // Le portail parent conserve son état entre les pages : recharger ici permet de
-  // récupérer les publications faites par l’école depuis la dernière visite.
-  useEffect(() => {
-    void refresh()
-  }, [refresh])
 
   const list = (documents || []).filter(d => (childId === "tous" || d.student_id === childId) && (d.title + " " + d.document_type).toLowerCase().includes(query.toLowerCase()))
   const requests = (schoolDocumentRequests || []).filter(r => (childId === "tous" || r.student_id === childId) && r.document_type.toLowerCase().includes(query.toLowerCase()))
@@ -51,7 +45,7 @@ export default function ParentDocuments() {
       if (updateError) throw updateError
       
       toast.success("Document envoyé avec succès.")
-      refresh()
+      void refresh({ silent: true })
     } catch (err: any) {
       toast.error(err.message || "Erreur lors de l'envoi.")
     } finally {
@@ -72,7 +66,7 @@ export default function ParentDocuments() {
 
   return (
     <div className="space-y-5 sm:space-y-7">
-      <ParentPageHeader eyebrow="Documents" title="Documents & bulletins" description="Bulletins, pièces réclamées et documents officiels." onRefresh={() => void refresh()} refreshing={loading} />
+      <ParentPageHeader eyebrow="Documents" title="Documents & bulletins" description="Bulletins, pièces réclamées et documents officiels." />
       {error && <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       
       {!loading && allowed.length === 0 ? (

@@ -230,7 +230,7 @@ export function ParentNav() {
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[248px] flex-col border-r border-slate-200 bg-white lg:flex">
         <div className="border-b border-slate-200 px-5 py-5">
           <div className="mb-5 flex items-center gap-3">
-            <Image src="/nova-logo.webp" alt="NOVA" width={36} height={36} className="rounded-md object-contain" />
+            <AppBrandMark size={36} className="rounded-md" />
             <div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">GESTION SCOLAIRE</p><p className="text-[15px] font-semibold text-slate-900">Portail parent</p></div>
           </div>
           <div className="flex min-w-0 items-center gap-3">

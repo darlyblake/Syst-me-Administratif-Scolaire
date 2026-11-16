@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Check, AlertTriangle, Clock3, RefreshCw } from "lucide-react"
+import { ArrowLeft, Check, AlertTriangle, Clock3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { obtenirEnseignantsSupabase } from "@/services/enseignants.supabase.service"
 import { enseignantPointageService, type TeacherLessonPointage, type TeacherLessonSlot, type TeacherWeeklySummary } from "@/services/enseignant-pointage.service"
 import type { DonneesEnseignant } from "@/types/models"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 const JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
 
@@ -44,6 +45,7 @@ export default function PointageEnseignantPage() {
   const { etablissementActif } = useAuthentification()
   const establishmentId = etablissementActif?.id ?? ""
   const enseignantId = params.enseignantId
+  const realtimeRevision = useSchoolRealtime(["teacher_lesson_attendance", "timetable_slots", "pointage_alerts", "pointage_event_history"])
 
   const [teachers, setTeachers] = useState<DonneesEnseignant[]>([])
   const [selected, setSelected] = useState<DonneesEnseignant | null>(null)
@@ -85,7 +87,7 @@ export default function PointageEnseignantPage() {
     }
   }
 
-  useEffect(() => { void load() }, [establishmentId, enseignantId, date]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load() }, [establishmentId, enseignantId, date, realtimeRevision]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const recordsByKey = useMemo(() => new Map(records.map((record) => [`${record.attendance_date}|${record.timetable_slot_id}`, record])), [records])
   const rows = useMemo(() => slots.flatMap((slot) => {
@@ -108,7 +110,6 @@ export default function PointageEnseignantPage() {
             <h1 className="text-2xl font-semibold">{selected.prenom} {selected.nom}</h1>
             <p className="text-sm text-muted-foreground">{selected.matieres?.join(", ") || "Enseignant"}</p>
           </div>
-          <Button variant="outline" size="sm" className="ml-auto" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />Actualiser</Button>
         </div>
 
         <div className="border bg-muted/20 px-4 py-3">

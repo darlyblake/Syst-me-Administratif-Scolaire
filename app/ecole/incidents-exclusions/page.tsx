@@ -4,6 +4,7 @@ import { AlertTriangle,CheckCircle2,Loader2,ShieldCheck,XCircle } from "lucide-r
 import { Button } from "@/components/ui/button"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useAuthentification } from "@/providers/authentification.provider"
+import { TeacherCourseExclusionReview } from "@/components/ecole/TeacherCourseExclusionReview"
 
 type Enrol={student_id:string;class_id:string;student_name:string;student_number:string|null;class_name:string}
 type Sanction={id:string;student_id:string;class_id:string;reason:string;start_date:string;end_date:string|null;is_permanent:boolean;status:string;lift_reason:string|null}
@@ -48,6 +49,7 @@ export default function CourseExclusionsAdminPage(){
  const person=(x:Sanction)=>enrol.find(e=>e.student_id===x.student_id&&e.class_id===x.class_id)
  return <main className="mx-auto max-w-6xl space-y-7">
   <header><p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Vie scolaire · Administration</p><h1 className="mt-1 text-2xl font-semibold text-slate-950">Décisions disciplinaires</h1><p className="mt-1 text-sm text-slate-600">Une exclusion administrative concerne toutes les matières, contrairement à une exclusion prononcée par un enseignant.</p></header>
+  <TeacherCourseExclusionReview />
   {error&&<p role="alert" className="border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}{notice&&<p role="status" className="flex items-center gap-2 border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800"><CheckCircle2 className="h-4 w-4"/>{notice}</p>}
   <section className="space-y-4 border border-slate-200 bg-white p-4 sm:p-6"><div className="flex items-center gap-3"><ShieldCheck className="h-6 w-6 text-blue-700"/><div><h2 className="font-semibold">Prononcer une exclusion administrative</h2><p className="text-sm text-slate-500">Les responsables légaux sont automatiquement informés.</p></div></div>
    <div className="grid gap-4 sm:grid-cols-2">

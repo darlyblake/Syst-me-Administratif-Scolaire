@@ -32,6 +32,7 @@ export default function CourseExclusionsAdminPage(){
  const history=rows.filter(x=>!active.some(a=>a.id===x.id))
  const create=async()=>{
   if(!selected||reason.trim().length<3||(!permanent&&end<start))return
+  if(permanent&&!window.confirm("Confirmer une exclusion définitive de toutes les matières pour cet élève ?"))return
   setSaving(true);setError("");setNotice("")
   const {error:e}=await supabaseBrowser.rpc("admin_create_administrative_exclusion",{p_establishment_id:eid,p_student_id:selected.student_id,p_class_id:selected.class_id,p_reason:reason.trim(),p_start_date:start,p_is_permanent:permanent,p_end_date:permanent?null:end})
   if(e){setError(e.message);setSaving(false);return}

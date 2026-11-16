@@ -188,6 +188,8 @@ export default function ParentAbsences() {
     const recorded = records.length
     const missing = completed.filter(slot => !recordFor(slot.id)).length
     const summary = { completed:completed.length, total:slots.length, present, late, absent, recorded, missing, attendanceLabel:null as string | null }
+    const activeAdministrativeExclusion = liveExclusions.admin.find(item => item.status === "active")
+    if (activeAdministrativeExclusion) return { ...summary, kind:"excluded", title:"Exclusion administrative en cours", detail:activeAdministrativeExclusion.reason || "Votre enfant ne participe pas aux cours pendant cette période.", subject:null, teacher:null, room:null, next:null }
     if (currentBreak) {
       return {
         ...summary,
@@ -228,7 +230,7 @@ export default function ParentAbsences() {
     const lastRecord = last ? recordFor(last.id) : null
     const lastStatus = lastRecord ? statusLabel(lastRecord.status) : "Appel non effectué"
     return { ...summary, kind:slots.length ? "finished" : "empty", title:slots.length ? "Cours terminés pour aujourd'hui" : "Aucun cours prévu aujourd'hui", detail:slots.length ? (last ? "Dernier cours : " + last.subject + " · " + lastStatus + ". Le programme de la journée est terminé." : "Le programme de la journée est terminé.") : "Aucun cours n'est inscrit à l'emploi du temps aujourd'hui.", subject:null, teacher:null, room:null, next:null }
-  }, [selectedChild, timetable, timetableBreaks, attendance, clock])
+  }, [selectedChild, timetable, timetableBreaks, attendance, liveExclusions, clock])
 
   const counts=useMemo(()=>{
     const recorded=allRows.filter(row=>row.attendance!==null)

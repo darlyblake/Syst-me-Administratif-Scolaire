@@ -80,7 +80,7 @@ export default function LecteurPointagePage() {
           </p>
           <div className="mt-5">
             <Button variant="outline" onClick={() => void generate()} disabled={busy}>
-              <RefreshCw className="mr-2 h-4 w-4" /> {busy ? "Actualisation…" : "Nouveau QR"}
+              <QrCode className="mr-2 h-4 w-4" /> {busy ? "Génération…" : "Nouveau QR"}
             </Button>
           </div>
           {error && <p className="mt-4 text-sm text-red-600">{error}</p>}

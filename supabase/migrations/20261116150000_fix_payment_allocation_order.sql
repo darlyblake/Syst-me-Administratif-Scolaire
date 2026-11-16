@@ -138,9 +138,8 @@ BEGIN
   FOR r IN
     SELECT x.value
     FROM jsonb_array_elements(p_allocations) AS x(value)
-    JOIN public.payment_schedules s
+    LEFT JOIN public.payment_schedules s
       ON s.id = (x.value->>'payment_schedule_id')::uuid
-    WHERE s.enrollment_id = p_enrollment_id
     ORDER BY s.priority_rank NULLS LAST, s.installment_number, s.due_date, s.id
   LOOP
     v_schedule_id := (r->>'payment_schedule_id')::uuid;

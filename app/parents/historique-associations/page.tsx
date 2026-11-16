@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { History, UserPlus, UserMinus, UserCheck } from "lucide-react"
+import { History, UserPlus, UserMinus, UserCheck, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -72,7 +72,7 @@ export default function ParentAssociationHistoryPage() {
   }, [loadHistory, utilisateur?.id])
 
   if (loading) {
-    return <div className="flex min-h-[50vh] items-center justify-center text-pierre"><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Chargement de l'historique…</div>
+    return <div className="flex min-h-[50vh] items-center justify-center text-pierre"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Chargement de l'historique…</div>
   }
 
   return (

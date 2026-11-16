@@ -55,7 +55,7 @@ export const enseignantPortalService = {
   }),
   getAssessmentStudents: (assessmentId: string) => rpc<TeacherAssessmentStudent[]>("teacher_assessment_students", { p_assessment_id: assessmentId }),
   recordGrade: (assessmentId: string, studentId: string, score: number, comment?: string) => rpc<string>("record_grade", { p_assessment_id: assessmentId, p_student_id: studentId, p_score: score, p_comment: comment || null }),
-  getAttendance: (establishmentId: string, classId: string, date: string) => rpc<TeacherAttendanceStudent[]>("teacher_attendance_for_date", { p_establishment_id: establishmentId, p_class_id: classId, p_date: date }),
+  getAttendance: (establishmentId: string, classId: string, timetableSlotId: string, date: string) => rpc<TeacherAttendanceStudent[]>("teacher_attendance_for_lesson", { p_establishment_id: establishmentId, p_class_id: classId, p_timetable_slot_id: timetableSlotId, p_date: date }),
   recordAttendanceBatch: (establishmentId: string, classId: string, timetableSlotId: string, date: string, records: Array<{ student_id: string; status: string; reason?: string }>) => rpc<number>("teacher_record_attendance_batch", { p_establishment_id: establishmentId, p_class_id: classId, p_timetable_slot_id: timetableSlotId, p_date: date, p_records: records }),
   getClassOverview: (establishmentId: string, classId: string) => rpc<TeacherClassOverview[]>("teacher_class_overview", { p_establishment_id: establishmentId, p_class_id: classId }),
   getNotifications: (limit = 30) => rpc<TeacherNotification[]>("teacher_notifications", { p_limit: limit }),

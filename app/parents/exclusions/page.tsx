@@ -45,6 +45,7 @@ export default function ParentExclusionsPage(){
     {visibleAdmin.map(x=><article key={x.id} className="p-4 sm:p-5"><div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-700"><AlertTriangle className="h-5 w-5"/></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-slate-900">Exclusion administrative</h3><span className="rounded-full bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700">Toutes les matières</span></div><p className="mt-1 text-sm text-slate-600">{x.students?x.students.first_name+" "+x.students.last_name:"Votre enfant"}</p><p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-800">{x.reason}</p><p className="mt-3 text-sm font-medium text-slate-700">{x.is_permanent?"Durée : définitive":"Du "+fmt(x.start_date)+" au "+(x.end_date?fmt(x.end_date):"—")}</p></div></div></article>)}
    </div>
   </section>
+  {admin.some(x=>!visibleAdmin.some(v=>v.id===x.id))&&<section className="space-y-3"><h2 className="font-semibold text-slate-900">Historique des décisions administratives</h2><div className="divide-y border-y border-slate-200 bg-white sm:rounded-xl sm:border">{admin.filter(x=>!visibleAdmin.some(v=>v.id===x.id)).map(x=><article key={x.id} className="p-4"><p className="text-sm font-semibold text-slate-800">{x.students?x.students.first_name+" "+x.students.last_name:"Votre enfant"} · {x.is_permanent?"Exclusion définitive":"Du "+fmt(x.start_date)+" au "+(x.end_date?fmt(x.end_date):"—")}</p><p className="mt-1 text-sm text-slate-600">{x.reason}</p><p className="mt-1 text-xs text-slate-500">{x.status==="lifted"?"Décision levée":x.status==="expired"||(x.end_date&&x.end_date<new Date().toISOString().slice(0,10))?"Décision terminée":"Décision administrative"}</p></article>)}</div></section>}
   <section className="space-y-3"><h2 className="font-semibold text-slate-900">Exclusions signalées par les enseignants</h2>
    {!loading&&!courses.length&&<p className="border border-dashed p-5 text-sm text-slate-500">Aucune exclusion de cours publiée.</p>}
    <div className="divide-y divide-slate-100 border-y border-slate-200 bg-white sm:rounded-xl sm:border">
@@ -52,6 +53,6 @@ export default function ParentExclusionsPage(){
    </div>
   </section>
   {loading&&<p className="text-sm text-slate-500">Chargement des informations…</p>}
-  {!loading&&!visibleAdmin.length&&!courses.length&&!error&&<ParentEmptyState title="Aucune décision publiée" description="Les décisions disciplinaires communiquées par l’établissement apparaîtront ici."/>}
+  {!loading&&!admin.length&&!courses.length&&!error&&<ParentEmptyState title="Aucune décision publiée" description="Les décisions disciplinaires communiquées par l’établissement apparaîtront ici."/>}
  </div>
 }

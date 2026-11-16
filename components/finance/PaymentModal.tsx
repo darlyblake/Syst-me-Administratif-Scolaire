@@ -76,6 +76,7 @@ export function PaymentModal({ open, onClose, studentSchedules, onSuccess }: Pay
   const selected = unpaidSchedules.find((s) => s.schedule_id === selectedScheduleId)
   const numericAmount = Math.round(Number(amount))
   const isOverpayment = !!selected && Number.isFinite(numericAmount) && numericAmount > Number(selected.remaining_amount || 0)
+  const canCarrySurplus = !!selected && ["registration", "tuition", "scolarite"].includes(String(selected.category || "").toLowerCase())
 
   useEffect(() => {
     if (!open) return
@@ -90,6 +91,7 @@ export function PaymentModal({ open, onClose, studentSchedules, onSuccess }: Pay
     if (!open || !enrollmentId) return
     let cancelled = false
     setAllocationSchedulesLoading(true)
+    setAllocationSchedules([])
     setAllocationLoadError(null)
     void financeService.getPaymentAllocationSchedules(enrollmentId)
       .then((rows) => { if (!cancelled) setAllocationSchedules(rows) })
@@ -266,7 +268,9 @@ export function PaymentModal({ open, onClose, studentSchedules, onSuccess }: Pay
                   Le surplus de {money(numericAmount - Number(selected!.remaining_amount))} peut être affecté automatiquement aux prochaines échéances de scolarité.
                 </p>
               </div>
-              {allocationSchedulesLoading ? (
+              {!canCarrySurplus ? (
+                <p className="text-xs text-red-700">Le surplus d’une option ne peut pas être reporté sur la scolarité. Réduisez le montant à son solde restant.</p>
+              ) : allocationSchedulesLoading ? (
                 <p className="text-xs text-amber-800">Vérification des prochaines échéances…</p>
               ) : allocationLoadError ? (
                 <p className="text-xs text-red-700">{allocationLoadError}</p>
@@ -292,7 +296,7 @@ export function PaymentModal({ open, onClose, studentSchedules, onSuccess }: Pay
                   className="mt-0.5 h-4 w-4 accent-amber-700"
                   checked={carrySurplus}
                   onChange={(e) => setCarrySurplus(e.target.checked)}
-                  disabled={allocationSchedulesLoading || allocationPreview.unallocated > 0 || allocationPreview.allocations.length < 2}
+                  disabled={!canCarrySurplus || allocationSchedulesLoading || allocationPreview.unallocated > 0 || allocationPreview.allocations.length < 2}
                 />
                 <span>Oui, répartir le surplus sur les prochaines échéances affichées ci-dessus.</span>
               </label>

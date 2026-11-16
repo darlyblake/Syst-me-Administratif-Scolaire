@@ -14,6 +14,7 @@ const fmt=(d:string)=>new Date(d+"T12:00:00").toLocaleDateString("fr-FR")
 export default function CourseExclusionsAdminPage(){
  const {etablissementActif,contexte}=useAuthentification()
  const eid=etablissementActif?.id??contexte?.establishments?.[0]?.id??null
+  const realtimeRevision=useSchoolRealtime(["administrative_exclusions","course_exclusions","enrollments","students"])
  const [enrol,setEnrol]=useState<Enrol[]>([]),[rows,setRows]=useState<Sanction[]>([])
  const [choice,setChoice]=useState(""),[reason,setReason]=useState(""),[start,setStart]=useState(today()),[end,setEnd]=useState(today()),[permanent,setPermanent]=useState(false)
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[busy,setBusy]=useState(""),[error,setError]=useState(""),[notice,setNotice]=useState("")
@@ -28,7 +29,7 @@ export default function CourseExclusionsAdminPage(){
   setEnrol(e.flatMap(x=>{const s=sm.get(x.student_id);return s?[{student_id:x.student_id,class_id:x.class_id,student_name:s.last_name+" "+s.first_name,student_number:s.student_number,class_name:cm.get(x.class_id)??"Classe"}]:[]}))
   setRows((sr.data??[]) as Sanction[]);setLoading(false)
  },[eid])
- useEffect(()=>{void load()},[load])
+ useEffect(()=>{void load()},[load,realtimeRevision])
  const selected=enrol.find(x=>x.student_id+"|"+x.class_id===choice)
  const active=rows.filter(x=>x.status==="active"&&(x.is_permanent||!x.end_date||x.end_date>=today()))
  const history=rows.filter(x=>!active.some(a=>a.id===x.id))

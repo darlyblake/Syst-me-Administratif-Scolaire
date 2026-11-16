@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Building2, CheckCircle2, Copy, Edit3, Loader2, Power, RefreshCcw, Shield, Trash2, UserCog, UserPlus, Users, X, XCircle, CreditCard, LifeBuoy, Info } from "lucide-react"
+import { ArrowLeft, Building2, CheckCircle2, Copy, Edit3, Loader2, Power, Shield, Trash2, UserCog, UserPlus, Users, X, XCircle, CreditCard, LifeBuoy, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { supabaseBrowser } from "@/lib/supabase/client"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 type Overview = { establishment_id: string; establishment_name: string; establishment_code: string; establishment_status: "active" | "inactive"; students_count: number; staff_count: number; classes_count: number; admins_count: number; plan_name: string | null; subscription_status: "active" | "expired" | "suspended" | null; starts_at: string | null; ends_at: string | null; max_students: number | null; max_staff: number | null; max_classes: number | null; max_admins: number | null }
 type Member = { member_id: string; user_id: string; role: string; active: boolean; first_name: string | null; last_name: string | null; phone: string | null; avatar_url: string | null; email: string | null }
@@ -21,7 +22,8 @@ export default function Page() {
   const [adminForm, setAdminForm] = useState({ first_name: "", last_name: "", email: "", password: "" }); const [adminSaving, setAdminSaving] = useState(false); const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null)
 
   const load = useCallback(async () => { setLoading(true); setError(null); const [o, m] = await Promise.all([supabaseBrowser.rpc("platform_admin_establishment_overview", { p_establishment_id: id }), supabaseBrowser.rpc("get_establishment_members", { p_establishment_id: id })]); if (o.error) setError(o.error.message); const row = (o.data?.[0] ?? null) as Overview | null; setOverview(row); setName(row?.establishment_name ?? ""); setMembers((m.data ?? []) as Member[]); if (m.error && !o.error) setError(m.error.message); setLoading(false) }, [id])
-  useEffect(() => { void load() }, [load])
+  const realtimeRevision = useSchoolRealtime(["establishments", "establishment_subscriptions", "establishment_members", "students", "staff_members", "school_classes"])
+  useEffect(() => { void load() }, [load, realtimeRevision])
 
   const updateName = async () => { if (!name.trim() || name.trim() === overview?.establishment_name) { setEditing(false); return } setSaving(true); setError(null); const { error: e } = await supabaseBrowser.rpc("platform_admin_update_establishment", { p_establishment_id: id, p_name: name.trim() }); if (e) setError(e.message); else setEditing(false); setSaving(false); await load() }
   const toggleStatus = async () => { if (!overview) return; setSaving(true); setError(null); const { error: e } = await supabaseBrowser.rpc("set_establishment_status", { p_establishment_id: id, p_status: overview.establishment_status === "active" ? "inactive" : "active" }); if (e) setError(e.message); setSaving(false); await load() }
@@ -46,7 +48,7 @@ export default function Page() {
   return <div className="mx-auto max-w-7xl space-y-6 pb-10">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <Button variant="ghost" onClick={() => router.push("/admin/etablissements")}><ArrowLeft className="mr-2 h-4 w-4" />Établissements</Button>
-      <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void load()}><RefreshCcw className="mr-2 h-4 w-4" />Actualiser</Button><Button variant="outline" onClick={() => setAdminModal(true)}><UserPlus className="mr-2 h-4 w-4" />Super administrateur</Button><Button variant="destructive" onClick={() => setDeleteConfirm(true)}><Trash2 className="mr-2 h-4 w-4" />Supprimer</Button></div>
+      <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setAdminModal(true)}><UserPlus className="mr-2 h-4 w-4" />Super administrateur</Button><Button variant="destructive" onClick={() => setDeleteConfirm(true)}><Trash2 className="mr-2 h-4 w-4" />Supprimer</Button></div>
     </div>
     {error && <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>}
 

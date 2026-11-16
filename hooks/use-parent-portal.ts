@@ -6,7 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client"
 export type ParentChild = { id:string; establishment_id:string; student_number:string|null; first_name:string; last_name:string; birth_date:string|null; sex:string|null; phone:string|null; email:string|null; active:boolean; can_view_academic:boolean; can_view_finance:boolean; relationship:string|null; class_name?:string; class_id?:string; level_name?:string; level_code?:string; cycle_name?:string; enrollment_id?:string; academic_year_id?:string; academic_year_name?:string; academic_year_start?:string; academic_year_end?:string; payment_mode?:string; installment_count?:number; funding_source?:"family"|"state"|"other" }
 export type ParentGrade = { id:string; student_id:string; score:number; comment:string|null; assessment_id:string; title?:string; assessment_date?:string; term?:string; max_score?:number; subject?:string }
 export type ParentPayment = { id:string; enrollment_id:string; amount:number; payment_date:string; reference:string|null; method:string|null; notes:string|null; category?:string|null; payer_type?:string|null }
-export type ParentAttendance = { id:string; student_id:string; attendance_date:string; status:string; reason:string|null; lesson_key:string|null; subject_id:string|null }
+export type ParentAttendance = { id:string; student_id:string; attendance_date:string; status:string; reason:string|null; lesson_key:string|null; subject_id:string|null; created_at?:string|null }
 export type ParentJustificationRequest = { id:string; attendance_id:string; student_id:string; reason:string; status:"pending"|"approved"|"rejected"|"cancelled"; reviewer_note:string|null; created_at:string; attachment_path?:string|null; attachment_name?:string|null; attachment_mime_type?:string|null; attachment_size_bytes?:number|null }
 export type ParentNotification = { id:string; title:string; body:string; type:string; entity_type?:string|null; read_at:string|null; created_at:string }
 export type ParentEvent = { id:string; establishment_id:string; title:string; description:string|null; event_type:string; starts_at:string; ends_at:string|null; location:string|null }
@@ -190,7 +190,7 @@ function useParentPortalState() {
           const all:any[]=[]
           for(let offset=0;offset<10000;offset+=pageSize){
             const page=await supabaseBrowser.from("attendance_records")
-              .select("id,student_id,attendance_date,status,reason,lesson_key,subject_id")
+              .select("id,student_id,attendance_date,status,reason,lesson_key,subject_id,created_at")
               .in("student_id",studentIds)
               .order("attendance_date",{ascending:false})
               .range(offset,offset+pageSize-1)

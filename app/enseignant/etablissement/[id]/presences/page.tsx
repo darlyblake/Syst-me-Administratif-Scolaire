@@ -140,7 +140,7 @@ export default function PresencesEnseignantPage() {
     )
   }, [students, search])
 
-  const counts = useMemo(() => students.reduce((acc, student) => {
+  const counts = useMemo(() => students.filter((student) => !student.administrative_excluded).reduce((acc, student) => {
     const status = statusesByStudent[student.student_id] ?? "present"
     acc[status] = (acc[status] ?? 0) + 1
     return acc

@@ -1,9 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { CalendarDays, Filter, RefreshCw, Users, X } from "lucide-react"
+import { CalendarDays, Filter, Users, X } from "lucide-react"
 import { useUserContext } from "@/hooks/useUserContext"
 import { supabaseBrowser } from "@/lib/supabase/client"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 import { financeService } from "@/lib/supabase/services/finance.service"
 
 type EnrollmentRow = {
@@ -48,7 +49,7 @@ export default function StatistiquesInscriptions() {
   const [enrollments, setEnrollments] = useState<EnrollmentRow[]>([])
   const [revenues, setRevenues] = useState<RevenueRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
+  const realtimeRevision = useSchoolRealtime(["enrollments", "payments", "payment_schedules"])
   const [error, setError] = useState<string | null>(null)
   const [filterOpen, setFilterOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -57,15 +58,14 @@ export default function StatistiquesInscriptions() {
   const [dateStart, setDateStart] = useState("")
   const [dateEnd, setDateEnd] = useState("")
 
-  const loadData = useCallback(async (quiet = false) => {
+  const loadData = useCallback(async () => {
     if (!establishmentId) {
       setEnrollments([])
       setRevenues([])
       setLoading(Boolean(estEnCoursDeChargement))
       return
     }
-    if (quiet) setRefreshing(true)
-    else setLoading(true)
+    setLoading(true)
     setError(null)
     try {
       const allRows: EnrollmentRow[] = []
@@ -119,13 +119,12 @@ export default function StatistiquesInscriptions() {
       setError(cause instanceof Error ? cause.message : "Les statistiques n'ont pas pu être chargées.")
     } finally {
       setLoading(false)
-      setRefreshing(false)
     }
   }, [establishmentId, estEnCoursDeChargement])
 
   useEffect(() => {
     void loadData()
-  }, [loadData])
+  }, [loadData, realtimeRevision])
 
   const stats = useMemo(() => {
     const inRange = (date: string) => Boolean(date) && (!dateStart || date.slice(0, 10) >= dateStart) && (!dateEnd || date.slice(0, 10) <= dateEnd)
@@ -219,9 +218,6 @@ export default function StatistiquesInscriptions() {
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={openFilters} className="inline-flex h-9 items-center gap-2 border border-[#cbd5e1] px-3 text-sm font-medium text-[#243b60] hover:bg-[#f5f8fc]">
               <Filter className="h-4 w-4" /> Période {dateStart || dateEnd ? "•" : ""}
-            </button>
-            <button type="button" onClick={() => void loadData(true)} disabled={loading || refreshing} className="inline-flex h-9 items-center gap-2 border border-[#cbd5e1] px-3 text-sm font-medium text-[#243b60] hover:bg-[#f5f8fc] disabled:opacity-50">
-              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Actualiser
             </button>
           </div>
         </header>

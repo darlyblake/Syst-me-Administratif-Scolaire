@@ -20,9 +20,14 @@ const localDate = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
 }
 
-const timeNow = () => new Date().toTimeString().slice(0, 8)
-const dayOfWeek = () => {
-  const day = new Date().getDay()
+const secondsOfDay = (value: string) => {
+  const [hours, minutes, seconds = 0] = value.slice(0, 8).split(":").map(Number)
+  return hours * 3600 + minutes * 60 + seconds
+}
+
+const TEACHER_ATTENDANCE_GRACE_SECONDS = 15 * 60
+const dayOfWeek = (date: Date) => {
+  const day = date.getDay()
   return day === 0 ? 7 : day
 }
 
@@ -42,6 +47,8 @@ export default function PresencesEnseignantPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [savedCount, setSavedCount] = useState<number | null>(null)
+  const [clockNow, setClockNow] = useState(() => new Date())
 
   const establishment = contexte?.establishments?.find((item) => item.id === id)
 
@@ -50,6 +57,11 @@ export default function PresencesEnseignantPage() {
       router.replace("/enseignant")
     }
   }, [estEnCoursDeChargement, utilisateur, establishment, router])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(new Date()), 10_000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     if (!id || !establishment) return
@@ -63,10 +75,14 @@ export default function PresencesEnseignantPage() {
   }, [id, establishment])
 
   const todayCourses = useMemo(() => {
-    const today = dayOfWeek()
-    const now = timeNow()
-    return schedule.filter((slot) => slot.day_of_week === today && slot.starts_at <= now && now <= slot.ends_at)
-  }, [schedule])
+    const today = dayOfWeek(clockNow)
+    const nowSeconds = clockNow.getHours() * 3600 + clockNow.getMinutes() * 60 + clockNow.getSeconds()
+    return schedule.filter((slot) =>
+      slot.day_of_week === today &&
+      nowSeconds >= secondsOfDay(slot.starts_at) &&
+      nowSeconds <= secondsOfDay(slot.ends_at) + TEACHER_ATTENDANCE_GRACE_SECONDS
+    )
+  }, [schedule, clockNow])
 
   const currentCourses = useMemo(() => {
     const seen = new Set<string>()
@@ -92,6 +108,10 @@ export default function PresencesEnseignantPage() {
     () => todayCourses.find((slot) => slot.class_id === classId) ?? null,
     [todayCourses, classId],
   )
+  const isAfterCourseEnd = currentCourse !== null &&
+    clockNow.getHours() * 3600 + clockNow.getMinutes() * 60 + clockNow.getSeconds() > secondsOfDay(currentCourse.ends_at)
+  const correctionDeadline = currentCourse ? secondsOfDay(currentCourse.ends_at) + TEACHER_ATTENDANCE_GRACE_SECONDS : 0
+  const correctionDeadlineLabel = String(Math.floor((correctionDeadline % 86400) / 3600)).padStart(2, "0") + ":" + String(Math.floor((correctionDeadline % 3600) / 60)).padStart(2, "0")
 
   useEffect(() => {
     if (!classId || !currentCourse || !id) return
@@ -124,6 +144,7 @@ export default function PresencesEnseignantPage() {
 
   const markAll = (status: string) => {
     setStatusesByStudent(Object.fromEntries(students.map((student) => [student.student_id, status])))
+    setSavedCount(null)
     setMessage(status === "present" ? "Tous les élèves sont marqués présents." : "Le statut a été appliqué à tous les élèves.")
   }
 
@@ -132,6 +153,7 @@ export default function PresencesEnseignantPage() {
     setSaving(true)
     setError(null)
     setMessage(null)
+    setSavedCount(null)
     try {
       const count = await enseignantPortalService.recordAttendanceBatch(
         id,
@@ -148,7 +170,8 @@ export default function PresencesEnseignantPage() {
         ...student,
         status: statusesByStudent[student.student_id] ?? "present",
       })))
-      setMessage(`${count} présence(s) enregistrée(s) pour ${currentCourse.class_name} · ${currentCourse.subject_name} · ${currentCourse.starts_at.slice(0, 5)}–${currentCourse.ends_at.slice(0, 5)}.`)
+      setSavedCount(count)
+      setMessage(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible d'enregistrer l'appel.")
     } finally {
@@ -175,17 +198,25 @@ export default function PresencesEnseignantPage() {
           <div className="mt-4">
             <p className="text-xs font-medium uppercase tracking-wide text-terre">Appel</p>
             <h1 className="text-2xl font-semibold">Présences des élèves</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{establishment.name} · appel disponible uniquement pendant un cours prévu.</p>
+            <p className="mt-1 text-sm text-muted-foreground">{establishment.name} · appel modifiable pendant le cours et jusqu’à 15 minutes après sa fin.</p>
           </div>
         </header>
 
         {error && <div role="alert" className="mb-5 border border-rouge-terre/30 bg-white p-3 text-sm text-rouge-terre">{error}</div>}
-        {message && <div role="status" className="mb-5 border bg-white p-3 text-sm">{message}</div>}
+        {savedCount !== null && (
+          <div role="status" aria-live="polite" className="mb-5 flex items-center gap-3 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+              <CheckCircle2 className="h-6 w-6 attendance-success-icon" />
+            </span>
+            <span><strong className="block">Appel validé avec succès</strong>{savedCount} présence(s) enregistrée(s). Vous pouvez encore corriger cet appel jusqu’à 15 minutes après la fin du cours.</span>
+          </div>
+        )}
+        {message && savedCount === null && <div role="status" className="mb-5 border bg-white p-3 text-sm">{message}</div>}
 
         {!currentCourses.length ? (
           <div className="border bg-white p-8 text-center">
             <p className="font-medium">Aucun cours en cours.</p>
-            <p className="mt-1 text-sm text-muted-foreground">L'appel sera disponible automatiquement lorsque votre emploi du temps indique un cours.</p>
+            <p className="mt-1 text-sm text-muted-foreground">L’appel apparaît pendant le cours et reste modifiable pendant 15 minutes après sa fin.</p>
           </div>
         ) : (
           <>
@@ -217,6 +248,7 @@ export default function PresencesEnseignantPage() {
                 <span className="font-medium">{currentCourse.class_name}</span>
                 <span>{currentCourse.subject_name}</span>
                 <span>{currentCourse.starts_at.slice(0, 5)}–{currentCourse.ends_at.slice(0, 5)}</span>
+                {isAfterCourseEnd && <span className="font-medium text-amber-700">Délai de correction · jusqu’à {correctionDeadlineLabel}</span>}
                 <span className="text-muted-foreground">{students.length} élève(s) · {counts.present ?? 0} présents · {counts.absent ?? 0} absents · {counts.late ?? 0} retards</span>
               </div>
             )}
@@ -251,7 +283,7 @@ export default function PresencesEnseignantPage() {
                                   type="button"
                                   size="sm"
                                   variant={selected === status.value ? "default" : "outline"}
-                                  onClick={() => setStatusesByStudent((current) => ({ ...current, [student.student_id]: status.value }))}
+                                  onClick={() => { setSavedCount(null); setMessage(null); setStatusesByStudent((current) => ({ ...current, [student.student_id]: status.value })) }}
                                 >
                                   {selected === status.value && <Check className="mr-1 h-3.5 w-3.5" />}
                                   {status.label}
@@ -278,6 +310,15 @@ export default function PresencesEnseignantPage() {
           </>
         )}
       </div>
+      <style jsx>{`
+        @keyframes attendance-success-pop {
+          0% { transform: scale(.55); opacity: .25; }
+          70% { transform: scale(1.18); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        .attendance-success-icon { animation: attendance-success-pop 520ms cubic-bezier(.2,.8,.2,1) both; }
+        @media (prefers-reduced-motion: reduce) { .attendance-success-icon { animation: none; } }
+      `}</style>
     </TeacherShell>
   )
 }

@@ -40,6 +40,7 @@ function formatRange(start:string,end:string) {
 }
 
 function formatArrival(value: string | null | undefined) { if (!value) return null; return new Intl.DateTimeFormat("fr-FR",{timeZone:"Africa/Libreville",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date(value)) }
+function lateByMinutes(value: string | null | undefined, startsAt: string) { const time=formatArrival(value); if(!time)return 0; const [h,m]=time.split(":").map(Number); const [sh,sm]=startsAt.split(":").map(Number); return Math.max(0,h*60+m-sh*60-sm) }
 function formatTime(value: string | null | undefined) {
   if (!value) return "—"
   return value.slice(0, 5)
@@ -502,7 +503,7 @@ export default function ParentAbsences() {
                 {pending ? <span className="shrink-0 text-xs text-slate-400">Appel non effectué</span> : <span className={"shrink-0 border px-2 py-1 text-[11px] font-semibold " + statusClass(row.derivedStatus)}>{label}</span>}
               </div>
               <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-2 text-xs text-slate-500"><span>Horaire</span><strong className="font-semibold tabular-nums text-slate-700">{formatTime(row.startsAt)} – {formatTime(row.endsAt)}</strong></div>
-              {record && ["late","retard"].includes(record.status) && <p className="text-xs font-semibold text-amber-700">Arrivé à {formatArrival(record.created_at) ?? "heure non renseignée"} · {record.created_at ? Math.max(0,Math.floor((Number(formatArrival(record.created_at)!.slice(0,2))*60+Number(formatArrival(record.created_at)!.slice(3,5))-(Number(row.startsAt.slice(0,2))*60+Number(row.startsAt.slice(3,5))))) : 0} min de retard</p>}
+              {record && ["late","retard"].includes(record.status) && <p className="text-xs font-semibold text-amber-700">Arrivé à {formatArrival(record.created_at) ?? "heure non renseignée"} · {lateByMinutes(record.created_at,row.startsAt)} min de retard</p>}
               <div className="flex items-center justify-between gap-3"><span className="text-xs text-slate-500">Justification</span>
                 {request?.status === "pending" ? <span className="text-xs font-medium text-amber-700">En attente</span> : request?.status === "approved" ? <span className="text-xs font-medium text-emerald-700">Acceptée</span> : request?.status === "rejected" ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFile(null); setFormError(null) }} className="min-h-9  border border-red-200 px-3 text-xs font-semibold text-red-700">Refusée · Renvoyer</button> : canJustify ? <button type="button" onClick={() => { setSelected(record); setReason(record.reason ?? ""); setFile(null); setFormError(null) }} className="min-h-9  border border-slate-200 px-3 text-xs font-semibold text-slate-700">Justifier</button> : <span className="text-xs text-slate-400">—</span>}
               </div>

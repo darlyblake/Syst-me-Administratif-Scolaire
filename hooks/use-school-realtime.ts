@@ -17,13 +17,18 @@ export function useSchoolRealtime(tables: string[] = []) {
 
   useEffect(() => {
     const allowed = new Set(tableKey ? tableKey.split("|") : [])
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null
     const handle = (event: Event) => {
       const detail = (event as CustomEvent<SchoolRealtimeDetail>).detail
       if (!detail || (allowed.size > 0 && !allowed.has(detail.table))) return
-      setRevision((value) => value + 1)
+      if (refreshTimer) clearTimeout(refreshTimer)
+      refreshTimer = setTimeout(() => setRevision((value) => value + 1), 250)
     }
     window.addEventListener(EVENT_NAME, handle)
-    return () => window.removeEventListener(EVENT_NAME, handle)
+    return () => {
+      window.removeEventListener(EVENT_NAME, handle)
+      if (refreshTimer) clearTimeout(refreshTimer)
+    }
   }, [tableKey])
 
   return revision

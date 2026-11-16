@@ -7,6 +7,7 @@ import { useAuthentification } from "@/providers/authentification.provider"
 import { enseignantPortalService, type TeacherScheduleSlot } from "@/services/enseignant-portal.service"
 import { enseignantPointageService, type TeacherLessonPointage } from "@/services/enseignant-pointage.service"
 import { TeacherShell } from "@/components/enseignant/teacher-shell"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 const labels = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
 
@@ -29,6 +30,7 @@ export default function TeacherPlanningPage() {
   const [loading, setLoading] = useState(true)
   const [mode, setMode] = useState<"planning" | "pointage">("planning")
   const [week, setWeek] = useState(new Date())
+  const realtimeRevision = useSchoolRealtime(["timetable_slots", "class_breaks", "attendance_records"])
 
   const load = async () => {
     setLoading(true)
@@ -61,7 +63,7 @@ export default function TeacherPlanningPage() {
     }
     if (!estEnCoursDeChargement && establishment) void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [estEnCoursDeChargement, utilisateur, establishment, id, week])
+  }, [estEnCoursDeChargement, utilisateur, establishment, id, week, realtimeRevision])
 
   const weekStart = startOfWeek(week)
   const weekEnd = new Date(weekStart)

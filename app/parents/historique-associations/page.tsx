@@ -1,8 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { History, RefreshCw, UserPlus, UserMinus, UserCheck } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { History, UserPlus, UserMinus, UserCheck } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -62,7 +61,15 @@ export default function ParentAssociationHistoryPage() {
 
   useEffect(() => {
     void loadHistory()
-  }, [loadHistory])
+    if (!utilisateur?.id) return
+    const channel = supabaseBrowser.channel("parent-association-history-" + utilisateur.id)
+      .on("postgres_changes", {
+        event: "*", schema: "public", table: "parent_student_association_history",
+        filter: "guardian_user_id=eq." + utilisateur.id,
+      }, () => { void loadHistory() })
+      .subscribe()
+    return () => { void supabaseBrowser.removeChannel(channel) }
+  }, [loadHistory, utilisateur?.id])
 
   if (loading) {
     return <div className="flex min-h-[50vh] items-center justify-center text-pierre"><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Chargement de l'historique…</div>
@@ -76,7 +83,6 @@ export default function ParentAssociationHistoryPage() {
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-terre">Historique des associations</h1>
           <p className="mt-1 text-sm text-pierre">Retrouvez les associations ajoutées, retirées ou réactivées depuis votre compte.</p>
         </div>
-        <Button variant="outline" onClick={() => void loadHistory()}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
       </header>
 
       {error && <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}

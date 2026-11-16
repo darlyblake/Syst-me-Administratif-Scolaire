@@ -60,7 +60,7 @@ export function PaymentModal({ open, onClose, studentSchedules, onSuccess }: Pay
         const meta = new Map(allocationSchedules.map((row) => [row.id, row]))
         const rankA = meta.get(a.schedule_id)?.priority_rank ?? Number.MAX_SAFE_INTEGER
         const rankB = meta.get(b.schedule_id)?.priority_rank ?? Number.MAX_SAFE_INTEGER
-        return rankA - rankB || a.installment_number - b.installment_number || a.due_date.localeCompare(b.due_date)
+        return rankA - rankB || a.installment_number - b.installment_number || a.due_date.localeCompare(b.due_date) || a.schedule_id.localeCompare(b.schedule_id)
       })
 
     // La première échéance de scolarité reste prioritaire. Le surplus pourra

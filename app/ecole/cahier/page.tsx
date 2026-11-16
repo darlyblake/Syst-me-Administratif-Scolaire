@@ -2,9 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, BookOpenText, Loader2, Search } from "lucide-react"
+import { ArrowLeft, BookOpenText, Eye, Loader2, Search } from "lucide-react"
 import { ecoleCahierService, type SchoolCahierEntry } from "@/services/ecole-cahier.service"
 import { useUserContext } from "@/hooks/useUserContext"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 const days = ["", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
 
@@ -20,6 +28,10 @@ export default function EcoleCahierPage() {
   const [subjectFilter, setSubjectFilter] = useState("all")
   const [classFilter, setClassFilter] = useState("all")
   const [periodFilter, setPeriodFilter] = useState("all")
+  const [selectedContent, setSelectedContent] = useState<{
+    type: "lesson" | "homework"
+    entry: SchoolCahierEntry
+  } | null>(null)
 
   const load = async () => {
     if (!establishmentId) return
@@ -72,7 +84,7 @@ export default function EcoleCahierPage() {
       if (periodFilter !== "all" && entry.timetable_slot_id !== periodFilter) return false
       if (
         q &&
-        ![entry.teacher_name, entry.subject_name, entry.class_name, entry.topic, entry.content, entry.homework_title ?? ""]
+        ![entry.teacher_name, entry.subject_name, entry.class_name, entry.topic, entry.content, entry.homework_title ?? "", entry.homework_instructions ?? ""]
           .join(" ")
           .toLowerCase()
           .includes(q)
@@ -175,13 +187,32 @@ export default function EcoleCahierPage() {
                       <td className="px-4 py-3">{entry.class_name}</td>
                       <td className="px-4 py-3">
                         <p className="font-medium">{entry.topic || "Sans thème"}</p>
-                        {entry.content && <p className="mt-1 max-w-sm truncate text-xs text-[#6f776f]">{entry.content}</p>}
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="mt-2 h-8 gap-1.5 px-2.5 text-xs"
+                          onClick={() => setSelectedContent({ type: "lesson", entry })}
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          Voir la leçon
+                        </Button>
                       </td>
                       <td className="px-4 py-3">
                         {entry.homework_id ? (
                           <div>
-                            <p className="font-medium">{entry.homework_title}</p>
+                            <p className="font-medium">{entry.homework_title || "Devoir"}</p>
                             <p className="mt-1 text-xs text-[#6f776f]">À rendre le {entry.homework_due_date || "—"}</p>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="mt-2 h-8 gap-1.5 px-2.5 text-xs"
+                              onClick={() => setSelectedContent({ type: "homework", entry })}
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              Voir le devoir
+                            </Button>
                           </div>
                         ) : (
                           <span className="text-[#8a9088]">Aucun</span>
@@ -196,6 +227,63 @@ export default function EcoleCahierPage() {
           )}
         </section>
       </div>
+
+      <Dialog open={selectedContent !== null} onOpenChange={(open) => { if (!open) setSelectedContent(null) }}>
+        <DialogContent className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+          {selectedContent && (
+            <>
+              <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-5 pr-12 text-left sm:px-6">
+                <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+                  {selectedContent.type === "lesson" ? "Contenu de la leçon" : "Contenu du devoir"}
+                </p>
+                <DialogTitle className="mt-1 break-words text-lg text-slate-900">
+                  {selectedContent.type === "lesson"
+                    ? selectedContent.entry.topic || "Leçon"
+                    : selectedContent.entry.homework_title || "Devoir"}
+                </DialogTitle>
+                <DialogDescription>
+                  {selectedContent.entry.subject_name} · {selectedContent.entry.class_name} · {selectedContent.entry.lesson_date}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">
+                {selectedContent.type === "lesson" ? (
+                  <>
+                    <section className="space-y-2">
+                      <h3 className="text-sm font-semibold text-slate-900">Cours</h3>
+                      <p className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-700">
+                        {selectedContent.entry.content?.trim() || "Aucun contenu détaillé n’a été renseigné."}
+                      </p>
+                    </section>
+                    {selectedContent.entry.activities?.trim() && (
+                      <section className="space-y-2 border-t border-slate-100 pt-4">
+                        <h3 className="text-sm font-semibold text-slate-900">Activités</h3>
+                        <p className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-700">{selectedContent.entry.activities}</p>
+                      </section>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="text-xs text-slate-500">
+                      Date limite : {selectedContent.entry.homework_due_date || "Non précisée"}
+                    </div>
+                    <section className="space-y-2">
+                      <h3 className="text-sm font-semibold text-slate-900">Consignes du devoir</h3>
+                      <p className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-700">
+                        {selectedContent.entry.homework_instructions?.trim() || "Aucune consigne détaillée n’a été renseignée."}
+                      </p>
+                    </section>
+                  </>
+                )}
+              </div>
+              <div className="shrink-0 border-t border-slate-200 px-5 py-3 sm:px-6">
+                <Button type="button" variant="outline" className="w-full sm:ml-auto sm:w-auto" onClick={() => setSelectedContent(null)}>
+                  Fermer
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }

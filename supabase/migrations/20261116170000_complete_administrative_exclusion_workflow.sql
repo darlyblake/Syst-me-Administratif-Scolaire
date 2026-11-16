@@ -79,6 +79,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public','private','pg_t
   and private.is_teacher_for_class_subject(cs.class_id,cs.subject_id)
  order by st.id,en.created_at desc nulls last;
 $function$;
+REVOKE ALL ON FUNCTION public.teacher_attendance_for_lesson(uuid,uuid,uuid,date) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.teacher_attendance_for_lesson(uuid,uuid,uuid,date) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.teacher_record_attendance_batch(p_establishment_id uuid,p_timetable_slot_id uuid,p_class_id uuid,p_date date,p_records jsonb)

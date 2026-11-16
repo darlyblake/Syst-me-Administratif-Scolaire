@@ -13,15 +13,19 @@ const LIVE_TABLES = [
   "attendance_records",
   "teacher_lesson_entries",
   "teacher_homework",
-  "grades",
+  "assessments",
+  "attendance_justification_requests",
   "payments",
-  "payment_schedules",
   "enrollments",
   "documents",
   "school_events",
   "school_document_requests",
   "parent_document_publications",
   "class_breaks",
+  "student_guardians",
+  "students",
+  "enrollment_options",
+  "student_options",
 ] as const
 
 export function RealtimeSyncProvider({ children }: { children: ReactNode }) {
@@ -58,7 +62,7 @@ export function RealtimeSyncProvider({ children }: { children: ReactNode }) {
       .subscribe()
     channels.push(notificationChannel)
 
-    if (activeEstablishmentId) {
+    if (activeEstablishmentId && contexte?.account_type !== "parent") {
       const channel = supabaseBrowser.channel("nova-school-data-" + userId + "-" + activeEstablishmentId)
       for (const table of LIVE_TABLES) {
         channel.on("postgres_changes", {
@@ -82,7 +86,7 @@ export function RealtimeSyncProvider({ children }: { children: ReactNode }) {
     return () => {
       channels.forEach((channel) => { void supabaseBrowser.removeChannel(channel) })
     }
-  }, [userId, activeEstablishmentId])
+  }, [userId, activeEstablishmentId, contexte?.account_type])
 
   return <>{children}</>
 }

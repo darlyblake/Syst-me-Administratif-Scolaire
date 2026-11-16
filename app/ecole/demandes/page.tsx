@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { CheckCircle2, Clock3, Download, FileCheck2, FileUp, Loader2, MapPin, Paperclip, RefreshCw, XCircle } from "lucide-react"
+import { CheckCircle2, Clock3, Download, FileCheck2, FileUp, Loader2, MapPin, Paperclip, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useAuthentification } from "@/providers/authentification.provider"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 type Request = { id: string; establishment_id: string; parent_user_id: string; student_id: string | null; document_type: string; message: string | null; response_message: string | null; delivery_method: string | null; response_document_id: string | null; status: string; created_at: string; updated_at: string }
 type Student = { id: string; first_name: string; last_name: string; student_number: string | null }
@@ -30,6 +31,7 @@ export default function SchoolDemandesPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const realtimeRevision = useSchoolRealtime(["parent_document_requests", "parent_document_request_attachments", "documents"])
 
   const load = async () => {
     if (!establishmentId) return
@@ -51,7 +53,7 @@ export default function SchoolDemandesPage() {
     setLoading(false)
   }
 
-  useEffect(() => { void load() }, [establishmentId])
+  useEffect(() => { void load() }, [establishmentId, realtimeRevision])
 
   const filtered = useMemo(() => filter === "all" ? requests : requests.filter((r) => r.status === filter), [requests, filter])
   const getStudent = (id: string | null) => id ? students.find((s) => s.id === id) : undefined

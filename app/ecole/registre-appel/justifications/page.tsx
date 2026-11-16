@@ -123,7 +123,7 @@ export default function AttendanceJustificationsPage() {
         <Button asChild variant="outline" size="sm"><Link href="/ecole/registre-appel"><ArrowLeft className="mr-2 h-4 w-4"/>Registre d'appel</Link></Button>
         <div><p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Vie scolaire</p><h1 className="text-xl font-semibold text-slate-950 sm:text-2xl">Justifications d'absence</h1><p className="mt-1 text-sm text-slate-500">Examinez les motifs et les pièces envoyées par les parents.</p></div>
       </div>
-      <Button variant="outline" size="sm" onClick={()=>void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button>
+
     </header>
     {error&&<div role="alert" className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">

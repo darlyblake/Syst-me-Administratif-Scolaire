@@ -5,7 +5,7 @@ import Link from "next/link"
 import { toast } from "sonner"
 import {
   UserPlus,
-  RefreshCw,
+  Repeat2,
   ArrowRightLeft,
   BarChart3,
   Search,
@@ -309,7 +309,7 @@ export default function InscriptionsPage() {
               onClick={openReinscription}
               className="inline-flex h-8 items-center gap-1.5 border border-[#c5c5d3] bg-white px-3 text-[11px] font-medium text-[#131b2e] hover:bg-[#f2f3ff]"
             >
-              <RefreshCw className="h-3.5 w-3.5" />
+              <Repeat2 className="h-3.5 w-3.5" />
               Réinscription rapide
             </button>
             <Link

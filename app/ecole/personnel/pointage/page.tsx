@@ -12,7 +12,6 @@ import {
   Play,
   QrCode,
   KeyRound,
-  RefreshCw,
   Settings2,
   Square,
   Users,
@@ -25,6 +24,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { useUserContext } from "@/hooks/useUserContext"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 import { getAcademicYears } from "@/lib/supabase/services/academic-year.service"
 import { servicePointage, type PointageAction, type PointageAlert, type PointageSettings } from "@/services/pointage.service"
 import { toast } from "sonner"
@@ -167,6 +167,7 @@ const methodLabel = (method: string) => ({
 export default function PersonnelPointagePage() {
   const { primaryEstablishment, estEnCoursDeChargement } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
+  const realtimeRevision = useSchoolRealtime(["staff_attendance", "teacher_lesson_attendance", "pointage_event_history", "timetable_slots", "staff_members"])
   const today = localDate()
 
   const [section, setSection] = useState<Section>("pointage")
@@ -276,7 +277,7 @@ export default function PersonnelPointagePage() {
 
   useEffect(() => {
     void loadMonitoring()
-  }, [loadMonitoring])
+  }, [loadMonitoring, realtimeRevision])
 
   const createQrSession = async () => {
     if (!establishmentId) return
@@ -427,7 +428,7 @@ export default function PersonnelPointagePage() {
 
   useEffect(() => {
     if (section === "fiches") void loadFiche()
-  }, [section, loadFiche])
+  }, [section, loadFiche, realtimeRevision])
 
   const updateSetting = <K extends keyof PointageSettingsWithSchedule>(key: K, value: PointageSettingsWithSchedule[K]) => {
     setSettings(current => current ? { ...current, [key]: value } : current)
@@ -503,9 +504,6 @@ export default function PersonnelPointagePage() {
             <span className="border bg-background px-3 py-2"><Users className="mr-1 inline h-4 w-4" />{counts.present} présent(s)</span>
             <span className="border bg-background px-3 py-2"><AlertTriangle className="mr-1 inline h-4 w-4" />{alerts.length} alerte(s)</span>
             <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" /> Imprimer</Button>
-            <Button variant="outline" size="sm" onClick={() => void loadMonitoring()} disabled={refreshing}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Actualiser
-            </Button>
           </div>
         </header>
 

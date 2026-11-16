@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
-import { Plus, Search, Users, Pencil, UserPlus, UserMinus, RefreshCw, X, Check, CalendarDays, Hash } from "lucide-react"
+import { Plus, Search, Users, Pencil, UserPlus, UserMinus, X, Check, CalendarDays, Hash } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useUserContext } from "@/hooks/useUserContext"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 type Family = {
   id: string
@@ -41,6 +42,7 @@ type StudentResult = {
 export default function FamillesPage() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
+  const realtimeRevision = useSchoolRealtime(["school_families", "student_family_members", "students", "enrollments", "enrollment_discount_snapshots"])
   const [families, setFamilies] = useState<Family[]>([])
   const [selectedFamilyId, setSelectedFamilyId] = useState("")
   const [members, setMembers] = useState<FamilyMember[]>([])
@@ -135,8 +137,8 @@ export default function FamillesPage() {
     }
   }, [establishmentId, selectedFamilyId])
 
-  useEffect(() => { void loadFamilies() }, [loadFamilies])
-  useEffect(() => { void loadMembers() }, [loadMembers])
+  useEffect(() => { void loadFamilies() }, [loadFamilies, realtimeRevision])
+  useEffect(() => { void loadMembers() }, [loadMembers, realtimeRevision])
 
   const closeFamilyModal = () => {
     setSelectedFamilyId("")
@@ -269,9 +271,6 @@ export default function FamillesPage() {
         </div>
         <div className="flex items-center justify-between text-sm text-[#64748b]">
           <span>{filteredFamilies.length} famille(s)</span>
-          <Button variant="ghost" size="sm" onClick={() => void loadFamilies()} className="gap-2">
-            <RefreshCw className="h-3.5 w-3.5" /> Actualiser
-          </Button>
         </div>
 
         <div className="overflow-hidden border border-[#d7dce5] bg-white">
@@ -433,7 +432,6 @@ export default function FamillesPage() {
               </div>
             </div>
             <div className="flex justify-between border-t border-[#e5e7eb] px-5 py-3 sm:px-6">
-              <Button variant="ghost" size="sm" onClick={() => { void loadFamilies(); void loadMembers() }} className="gap-2"><RefreshCw className="h-3.5 w-3.5" /> Actualiser</Button>
               <Button variant="outline" onClick={closeFamilyModal}>Fermer</Button>
             </div>
           </section>

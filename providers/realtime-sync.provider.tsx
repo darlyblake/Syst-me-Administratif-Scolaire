@@ -70,13 +70,23 @@ export function RealtimeSyncProvider({ children }: { children: ReactNode }) {
         filter: "recipient_user_id=eq." + userId,
       }, (payload) => {
         const row = (payload.new ?? payload.old) as Record<string, unknown>
+        const establishmentId = typeof row.establishment_id === "string" ? row.establishment_id : undefined
         emitSchoolRealtime({
           table: "notifications",
           eventType: payload.eventType,
-          establishmentId: typeof row.establishment_id === "string" ? row.establishment_id : undefined,
+          establishmentId,
           record: row,
         })
         if (payload.eventType === "INSERT") {
+          const notificationType = typeof row.type === "string" ? row.type : ""
+          const affectedTable =
+            notificationType === "timetable_updated" ? "timetable_slots" :
+            notificationType.startsWith("administrative_exclusion_") ? "administrative_exclusions" :
+            notificationType.startsWith("course_exclusion_") ? "course_exclusions" :
+            null
+          if (affectedTable) {
+            emitSchoolRealtime({ table: affectedTable, eventType: "UPDATE", establishmentId, record: row })
+          }
           const title = typeof row.title === "string" ? row.title : "Nouvelle notification"
           const body = typeof row.body === "string" ? row.body : undefined
           toast(title, { description: body, duration: 6500 })

@@ -215,7 +215,7 @@ export default function PresencesEnseignantPage() {
 
         {error && <div role="alert" className="mb-5 border border-rouge-terre/30 bg-white p-3 text-sm text-rouge-terre">{error}</div>}
         {savedCount !== null && (
-          <div role="status" aria-live="polite" className="mb-5 flex items-center gap-3 border border-blue-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <div role="status" aria-live="polite" className="mb-5 flex items-center gap-3 border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100">
               <CheckCircle2 className="h-6 w-6 attendance-success-icon" />
             </span>

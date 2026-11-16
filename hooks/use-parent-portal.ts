@@ -370,6 +370,8 @@ function useParentPortalState() {
       const liveTables=[
         "attendance_records",
         "attendance_justification_requests",
+        "administrative_exclusions",
+        "course_exclusions",
         "grades",
         "assessments",
         "payments",

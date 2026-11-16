@@ -276,7 +276,7 @@ export default function PresencesEnseignantPage() {
                           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">{index + 1}</span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-slate-900">{student.last_name} {student.first_name}</p>
-                            {student.administrative_excluded && <p className="mt-1 text-xs font-semibold text-rose-700">Exclusion administrative · toutes les matières{student.administrative_exclusion_permanent ? " · définitive" : student.administrative_exclusion_end_date ? " jusqu’au " + new Date(student.administrative_exclusion_end_date + "T12:00:00").toLocaleDateString("fr-FR") : ""}</p>}
+                            {student.administrative_excluded && <div className="mt-1 text-xs text-rose-700"><p className="font-semibold">Exclusion administrative · toutes les matières{student.administrative_exclusion_permanent ? " · définitive" : student.administrative_exclusion_end_date ? " jusqu’au " + new Date(student.administrative_exclusion_end_date + "T12:00:00").toLocaleDateString("fr-FR") : ""}</p>{student.administrative_exclusion_reason && <p className="mt-0.5 line-clamp-2">{student.administrative_exclusion_reason}</p>}</div>}
                             {student.student_number && <p className="mt-0.5 text-xs text-slate-500">N° {student.student_number}</p>}
                             {!student.administrative_excluded && <button type="button" onClick={() => setExclusionStudent(student)} className="mt-1 text-xs font-semibold text-rose-700 underline-offset-2 hover:underline">Exclure du cours</button>}
                           </div>

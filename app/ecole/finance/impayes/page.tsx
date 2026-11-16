@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, Search, Printer, RefreshCw } from "lucide-react"
+import { AlertTriangle, Search, Printer } from "lucide-react"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { financeService } from "@/lib/supabase/services/finance.service"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 type DebtRow = any
 
@@ -28,6 +29,7 @@ export default function ImpayesPage() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [classFilter, setClassFilter] = useState("all")
+  const realtimeRevision = useSchoolRealtime(["payment_schedules", "payments", "enrollments"])
 
   const load = async () => {
     if (!establishmentId || !academicYear) {
@@ -57,7 +59,7 @@ export default function ImpayesPage() {
   useEffect(() => {
     if (!yearsLoading) void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [establishmentId, academicYear?.id, yearsLoading])
+  }, [establishmentId, academicYear?.id, yearsLoading, realtimeRevision])
 
   const classOptions = useMemo(() => {
     const map = new Map<string, string>()
@@ -109,14 +111,6 @@ export default function ImpayesPage() {
             Suivi des échéances arrivées à terme et restant à payer.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="inline-flex h-9 items-center justify-center gap-2 border border-[#c5c5d3] bg-white px-3 text-sm font-medium text-[#303746] hover:bg-[#f5f6fa]"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Actualiser
-        </button>
       </header>
 
       <div className="grid grid-cols-1 gap-3 border-y border-[#d9dce5] bg-white sm:grid-cols-3">

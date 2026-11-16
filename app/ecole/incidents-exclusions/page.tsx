@@ -19,7 +19,7 @@ export default function CourseExclusionsAdminPage() {
   const [rows,setRows] = useState<Row[]>([])
   const [subjects,setSubjects] = useState<Record<string,string>>({})
   const [endDates,setEndDates] = useState<Record<string,string>>({})
-  const [scopes,setScopes] = useState<Record<string,"same_subject_until"|"all_courses_until">>({})
+  const [scopes,setScopes] = useState<Record<string,"same_subject_until">>({})
   const [notes,setNotes] = useState<Record<string,string>>({})
   const [loading,setLoading] = useState(true)
   const [busy,setBusy] = useState<string|null>(null)
@@ -36,7 +36,7 @@ export default function CourseExclusionsAdminPage() {
     const items=(data??[]) as unknown as Row[]
     setRows(items)
     setEndDates(Object.fromEntries(items.map(row=>[row.id,row.end_date??row.lesson_date])))
-    setScopes(Object.fromEntries(items.map(row=>[row.id,row.scope==="all_courses_until"?"all_courses_until":"same_subject_until"])))
+    setScopes(Object.fromEntries(items.map(row=>[row.id,"same_subject_until"])))
     const ids=[...new Set(items.map(row=>row.subject_id))]
     if(ids.length){
       const {data:subjectRows}=await supabaseBrowser.from("subjects").select("id,name").in("id",ids)
@@ -88,8 +88,8 @@ export default function CourseExclusionsAdminPage() {
             </div>
             <div className="grid gap-3 border-t pt-4 sm:grid-cols-2">
               <label className="text-sm font-medium text-slate-700">Portée de la décision
-                <select value={scopes[row.id]??"same_subject_until"} onChange={e=>setScopes(v=>({...v,[row.id]:e.target.value as "same_subject_until"|"all_courses_until"}))} className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
-                  <option value="same_subject_until">Cette matière uniquement</option><option value="all_courses_until">Tous les cours</option>
+                <select value={scopes[row.id]??"same_subject_until"} onChange={e=>setScopes(v=>({...v,[row.id]:e.target.value as "same_subject_until"}))} className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                  <option value="same_subject_until">Cette matière uniquement</option>
                 </select>
               </label>
               <label className="text-sm font-medium text-slate-700">Date de fin

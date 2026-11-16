@@ -146,8 +146,11 @@ export default function PresencesEnseignantPage() {
     return acc
   }, {} as Record<string, number>), [students, statusesByStudent])
 
+  const eligibleStudents = students.filter((student) => !student.administrative_excluded)
+  const excludedCount = students.length - eligibleStudents.length
+
   const markAll = (status: string) => {
-    setStatusesByStudent(Object.fromEntries(students.map((student) => [student.student_id, status])))
+    setStatusesByStudent(Object.fromEntries(eligibleStudents.map((student) => [student.student_id, status])))
     setSavedCount(null)
     setMessage(status === "present" ? "Tous les élèves sont marqués présents." : "Le statut a été appliqué à tous les élèves.")
   }
@@ -164,7 +167,7 @@ export default function PresencesEnseignantPage() {
         classId,
         currentCourse.slot_id,
         localDate(),
-        students.map((student) => ({
+        eligibleStudents.map((student) => ({
           student_id: student.student_id,
           status: statusesByStudent[student.student_id] ?? "present",
           reason: reasons[student.student_id],
@@ -242,7 +245,7 @@ export default function PresencesEnseignantPage() {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input aria-label="Rechercher un élève" className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher un élève…" />
               </div>
-              <Button variant="outline" onClick={() => markAll("present")} disabled={!students.length || loading || saving}>
+              <Button variant="outline" onClick={() => markAll("present")} disabled={!eligibleStudents.length || loading || saving}>
                 <CheckCircle2 className="mr-2 h-4 w-4" />Tous présents
               </Button>
             </div>
@@ -253,7 +256,7 @@ export default function PresencesEnseignantPage() {
                 <span>{currentCourse.subject_name}</span>
                 <span>{currentCourse.starts_at.slice(0, 5)}–{currentCourse.ends_at.slice(0, 5)}</span>
                 {isAfterCourseEnd && <span className="font-medium text-amber-700">Délai de correction · jusqu’à {correctionDeadlineLabel}</span>}
-                <span className="text-muted-foreground">{students.length} élève(s) · {counts.present ?? 0} présents · {counts.absent ?? 0} absents · {counts.late ?? 0} retards</span>
+                <span className="text-muted-foreground">{students.length} élève(s) · {counts.present ?? 0} présents · {counts.absent ?? 0} absents · {counts.late ?? 0} retards{excludedCount > 0 ? " · " + excludedCount + " sous sanction globale" : ""}</span>
               </div>
             )}
 
@@ -273,15 +276,16 @@ export default function PresencesEnseignantPage() {
                           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">{index + 1}</span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-slate-900">{student.last_name} {student.first_name}</p>
+                            {student.administrative_excluded && <p className="mt-1 text-xs font-semibold text-rose-700">Exclusion administrative · toutes les matières{student.administrative_exclusion_permanent ? " · définitive" : student.administrative_exclusion_end_date ? " jusqu’au " + new Date(student.administrative_exclusion_end_date + "T12:00:00").toLocaleDateString("fr-FR") : ""}</p>}
                             {student.student_number && <p className="mt-0.5 text-xs text-slate-500">N° {student.student_number}</p>}
-                            <button type="button" onClick={() => setExclusionStudent(student)} className="mt-1 text-xs font-semibold text-rose-700 underline-offset-2 hover:underline">Exclure du cours</button>
+                            {!student.administrative_excluded && <button type="button" onClick={() => setExclusionStudent(student)} className="mt-1 text-xs font-semibold text-rose-700 underline-offset-2 hover:underline">Exclure du cours</button>}
                           </div>
                           <span className={selected === "present" ? "rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700" : selected === "absent" ? "rounded-full bg-rose-50 px-2 py-1 text-[11px] font-medium text-rose-700" : "rounded-full bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700"}>
                             {statuses.find((status) => status.value === selected)?.label ?? "Présent"}
                           </span>
                         </div>
                         <div className="grid grid-cols-3 gap-2" role="group" aria-label={`Présence de ${student.first_name} ${student.last_name}`}>
-                          {statuses.map((status) => {
+                          {student.administrative_excluded ? <p className="col-span-3 rounded-lg bg-rose-50 px-3 py-3 text-center text-xs text-rose-800">Appel bloqué pendant la sanction administrative.</p> : statuses.map((status) => {
                             const active = selected === status.value
                             const activeClass = status.value === "present"
                               ? "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700"
@@ -326,11 +330,12 @@ export default function PresencesEnseignantPage() {
                           <tr key={student.student_id}>
                             <td className="px-4 py-3 font-medium">
                               {student.last_name} {student.first_name}
+                              {student.administrative_excluded && <span className="ml-2 rounded bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">Exclu de toutes les matières</span>}
                               {student.student_number && <span className="ml-2 text-xs font-normal text-muted-foreground">{student.student_number}</span>}
                             </td>
                             <td className="px-4 py-2">
                               <div className="flex gap-2">
-                                {statuses.map((status) => (
+                                {student.administrative_excluded ? <span className="text-xs font-medium text-rose-700">Appel bloqué pendant la sanction administrative.</span> : statuses.map((status) => (
                                   <Button
                                     key={status.value}
                                     type="button"
@@ -343,7 +348,7 @@ export default function PresencesEnseignantPage() {
                                     {status.label}
                                   </Button>
                                 ))}
-                                <Button type="button" size="sm" variant="outline" className="border-rose-200 text-rose-700 hover:bg-rose-50" onClick={() => setExclusionStudent(student)}>Exclure</Button>
+                                {!student.administrative_excluded && <Button type="button" size="sm" variant="outline" className="border-rose-200 text-rose-700 hover:bg-rose-50" onClick={() => setExclusionStudent(student)}>Exclure</Button>}
                               </div>
                             </td>
                           </tr>
@@ -361,9 +366,9 @@ export default function PresencesEnseignantPage() {
               <div className="mx-auto flex max-w-lg items-center gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold text-slate-900">{students.length} élève(s)</p>
-                  <p className="truncate text-[11px] text-slate-500">{counts.present ?? 0} présents · {counts.absent ?? 0} absents · {counts.late ?? 0} retards</p>
+                  <p className="truncate text-[11px] text-slate-500">{counts.present ?? 0} présents · {counts.absent ?? 0} absents · {counts.late ?? 0} retards{excludedCount > 0 ? " · " + excludedCount + " exclus" : ""}</p>
                 </div>
-                <Button className="h-11 shrink-0 rounded-xl px-5" onClick={() => void saveAll()} disabled={saving || loading || !students.length}>
+                <Button className="h-11 shrink-0 rounded-xl px-5" onClick={() => void saveAll()} disabled={saving || loading || !eligibleStudents.length}>
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                   {saving ? "Enregistrement…" : "Valider l’appel"}
                 </Button>

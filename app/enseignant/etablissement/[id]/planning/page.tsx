@@ -30,7 +30,7 @@ export default function TeacherPlanningPage() {
   const [loading, setLoading] = useState(true)
   const [mode, setMode] = useState<"planning" | "pointage">("planning")
   const [week, setWeek] = useState(new Date())
-  const realtimeRevision = useSchoolRealtime(["timetable_slots", "class_breaks", "attendance_records"])
+  const realtimeRevision = useSchoolRealtime(["timetable_slots", "class_subjects", "class_breaks", "attendance_records"])
 
   const load = async () => {
     setLoading(true)

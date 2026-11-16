@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Bell, CheckCheck, Loader2, RefreshCw } from "lucide-react"
+import { Bell, CheckCheck, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { enseignantPortalService, type TeacherNotification } from "@/services/enseignant-portal.service"
 import { TeacherShell } from "@/components/enseignant/teacher-shell"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 export default function NotificationsEnseignantPage() {
   const router = useRouter()
@@ -14,6 +15,7 @@ export default function NotificationsEnseignantPage() {
   const [items, setItems] = useState<TeacherNotification[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const realtimeRevision = useSchoolRealtime(["notifications"])
 
   const load = async () => {
     setLoading(true)
@@ -26,7 +28,7 @@ export default function NotificationsEnseignantPage() {
   useEffect(() => {
     if (!estEnCoursDeChargement && (!utilisateur || utilisateur.role !== "enseignant")) router.replace("/")
     else if (!estEnCoursDeChargement) void load()
-  }, [estEnCoursDeChargement, utilisateur, router])
+  }, [estEnCoursDeChargement, utilisateur, router, realtimeRevision])
 
   const unread = items.filter((item) => !item.read_at).length
   const markOne = async (id: string) => {
@@ -53,9 +55,6 @@ export default function NotificationsEnseignantPage() {
           <p className="mt-1 text-sm text-[#6d7280]">Les informations importantes de vos établissements.</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={() => void load()} disabled={loading} className="inline-flex items-center rounded-md border border-[#dfe2ec] bg-white px-3 py-2 text-sm font-medium">
-            <RefreshCw className={"mr-2 h-4 w-4 " + (loading ? "animate-spin" : "")} />Actualiser
-          </button>
           {unread > 0 && <button type="button" onClick={() => void markAll()} className="inline-flex items-center rounded-md border border-[#dfe2ec] bg-white px-3 py-2 text-sm font-medium"><CheckCheck className="mr-2 h-4 w-4" />Tout lire</button>}
         </div>
       </header>

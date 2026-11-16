@@ -48,7 +48,7 @@ const LIVE_TABLES = [
 ] as const
 
 // Tables sans establishment_id : Realtime applique leurs politiques RLS à chaque abonné.
-const LIVE_RLS_TABLES = ["payment_schedules", "payment_allocations", "grades", "class_subjects", "establishment_registration_requests", "parent_document_request_attachments", "student_transfer_requests", "establishments"] as const
+const LIVE_RLS_TABLES = ["payment_schedules", "payment_allocations", "grades", "class_subjects", "establishment_registration_requests", "parent_document_request_attachments", "student_transfer_requests", "establishments", "establishment_subscriptions", "establishment_members", "school_classes", "students", "staff_members"] as const
 
 export function RealtimeSyncProvider({ children }: { children: ReactNode }) {
   const { utilisateur, etablissementActif, contexte } = useAuthentification()

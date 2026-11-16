@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { supabaseBrowser } from "@/lib/supabase/client"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 type YearOption = { id: string; name: string; status: string }
 type LevelOption = { id: string; name: string; active: boolean }
@@ -43,6 +44,7 @@ export default function SchoolPromotionsPanel({ establishmentId, academicYears, 
   const [appliesToReRegistration, setAppliesToReRegistration] = useState(false)
   const allLevelsSelected = gradeLevelIds.length === 0 || gradeLevelIds.length === gradeLevels.length
 
+  const realtimeRevision = useSchoolRealtime(["school_promotions"])
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -56,7 +58,7 @@ export default function SchoolPromotionsPanel({ establishmentId, academicYears, 
     } finally { setLoading(false) }
   }, [establishmentId])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load() }, [load, realtimeRevision])
 
   const resetForm = () => {
     setName(""); setPromotionType("fixed_price"); setValue(""); setValidFrom(""); setValidUntil("")

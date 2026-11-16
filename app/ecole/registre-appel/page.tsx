@@ -34,6 +34,7 @@ type CallStudent = {
 type AttendanceEntry = {
   status: AttendanceStatus
   reason: string
+  recordedAt?: string | null
 }
 
 type LessonCallState = {
@@ -83,6 +84,9 @@ const toSeconds = (value: string) => {
 
 const getCurrentSeconds = (date: Date) =>
   date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds()
+
+const formatGabonTime = (value?: string | null) => value ? new Intl.DateTimeFormat("fr-FR",{timeZone:"Africa/Libreville",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date(value)) : null
+const minutesLate = (value?: string | null, start?: string) => { const time=formatGabonTime(value); if(!time||!start)return 0; const [h,m]=time.split(":").map(Number); const [sh,sm]=start.split(":").map(Number); return Math.max(0,h*60+m-sh*60-sm) }
 
 const TEACHER_CALL_GRACE_MINUTES = 15
 const TEACHER_CALL_GRACE_SECONDS = TEACHER_CALL_GRACE_MINUTES * 60
@@ -361,6 +365,7 @@ export default function RegistreAppelPage() {
           nextAttendance[record.student_id] = {
             status: record.status === "excused" ? "justified" : (record.status as AttendanceStatus),
             reason: record.reason ?? "",
+            recordedAt: record.created_at ?? null,
           }
         }
       })
@@ -438,7 +443,7 @@ export default function RegistreAppelPage() {
     setShowSaveConfirmation(false)
     setAttendance((current) => ({
       ...current,
-      [studentId]: { status, reason: current[studentId]?.reason ?? "" },
+      [studentId]: { status, reason: current[studentId]?.reason ?? "", recordedAt: current[studentId]?.recordedAt ?? null },
     }))
   }
 
@@ -446,7 +451,7 @@ export default function RegistreAppelPage() {
     setShowSaveConfirmation(false)
     setAttendance((current) => {
       const next = { ...current }
-      students.forEach((student) => { next[student.id] = { status: "present", reason: "" } })
+      students.forEach((student) => { next[student.id] = { status: "present", reason: "", recordedAt: null } })
       return next
     })
   }
@@ -483,7 +488,7 @@ export default function RegistreAppelPage() {
 
       await Promise.all(
         students.map((student) => {
-          const entry = attendance[student.id] ?? { status: "present", reason: "" }
+          const entry = attendance[student.id] ?? { status: "present", reason: "", recordedAt: null }
           return recordLessonAttendance({
             establishmentId,
             studentId: student.id,
@@ -778,7 +783,7 @@ export default function RegistreAppelPage() {
                     </thead>
                     <tbody>
                       {filteredStudents.map((student, index) => {
-                        const entry = attendance[student.id] ?? { status: "present" as AttendanceStatus, reason: "" }
+                        const entry = attendance[student.id] ?? { status: "present" as AttendanceStatus, reason: "", recordedAt: null }
                         return (
                           <tr key={student.id} className="border-b last:border-0 hover:bg-slate-50">
                             <td className="px-3 py-3 text-slate-500">{index + 1}</td>
@@ -797,6 +802,7 @@ export default function RegistreAppelPage() {
                               </td>
                             ))}
                             <td className="px-3 py-3">
+                              {entry.status === "late" && entry.recordedAt && <p className="mb-1 text-[11px] font-semibold text-amber-700">Arrivé à {formatGabonTime(entry.recordedAt)} · {minutesLate(entry.recordedAt, selectedLesson?.heureDebut)} min de retard</p>}
                               <Input value={entry.reason} onChange={(event) => { setShowSaveConfirmation(false); setAttendance((current) => ({ ...current, [student.id]: { ...entry, reason: event.target.value } })) }} placeholder={entry.status === "present" ? "—" : "Motif"} disabled={entry.status === "present"} className="h-9 min-w-0" />
                             </td>
                           </tr>
@@ -836,6 +842,7 @@ export default function RegistreAppelPage() {
                             </button>
                           ))}
                         </div>
+                        {entry.status === "late" && entry.recordedAt && <p className="mt-2 text-xs font-semibold text-amber-700">Arrivé à {formatGabonTime(entry.recordedAt)} · {minutesLate(entry.recordedAt, selectedLesson?.heureDebut)} min de retard</p>}
                         <div className="mt-3">
                           <label className="mb-1 block text-xs font-medium text-slate-600">Motif</label>
                           <Input value={entry.reason} onChange={(event) => { setShowSaveConfirmation(false); setAttendance((current) => ({ ...current, [student.id]: { ...entry, reason: event.target.value } })) }} placeholder={entry.status === "present" ? "Aucun motif nécessaire" : "Préciser le motif"} disabled={entry.status === "present"} className="h-10 min-w-0" />

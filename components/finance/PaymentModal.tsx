@@ -57,9 +57,10 @@ export function PaymentModal({ open, onClose, studentSchedules, onSuccess }: Pay
     const unpaid = [...studentSchedules]
       .filter((s) => Number(s.remaining_amount || 0) > 0)
       .sort((a, b) => {
-        const pa = a.category === "registration" ? 0 : a.category === "tuition" ? 1 : 2
-        const pb = b.category === "registration" ? 0 : b.category === "tuition" ? 1 : 2
-        return pa - pb || a.installment_number - b.installment_number
+        const meta = new Map(allocationSchedules.map((row) => [row.id, row]))
+        const rankA = meta.get(a.schedule_id)?.priority_rank ?? Number.MAX_SAFE_INTEGER
+        const rankB = meta.get(b.schedule_id)?.priority_rank ?? Number.MAX_SAFE_INTEGER
+        return rankA - rankB || a.installment_number - b.installment_number || a.due_date.localeCompare(b.due_date)
       })
 
     // La première échéance de scolarité reste prioritaire. Le surplus pourra
@@ -67,13 +68,13 @@ export function PaymentModal({ open, onClose, studentSchedules, onSuccess }: Pay
     const nextCore = unpaid.find((s) => s.category === "registration" || s.category === "tuition" || s.category === "scolarite")
     const options = unpaid.filter((s) => s.category === "option")
     return nextCore ? [nextCore, ...options] : options
-  }, [studentSchedules])
+  }, [studentSchedules, allocationSchedules])
 
   const enrollmentId = studentSchedules[0]?.enrollment_id
   const student = studentSchedules[0]?.student
   const studentName = student ? `${student.first_name} ${student.last_name}` : "Élève inconnu"
   const selected = unpaidSchedules.find((s) => s.schedule_id === selectedScheduleId)
-  const numericAmount = Number(amount)
+  const numericAmount = Math.round(Number(amount))
   const isOverpayment = !!selected && Number.isFinite(numericAmount) && numericAmount > Number(selected.remaining_amount || 0)
 
   useEffect(() => {

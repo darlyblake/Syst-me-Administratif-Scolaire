@@ -465,6 +465,6 @@ export default function PrisesEnChargeSettingsPage() {
       </DialogContent>
     </Dialog>
     <Dialog open={!!selectedDiscount} onOpenChange={(open) => { if (!open) setSelectedDiscount(null) }}><DialogContent><DialogHeader><DialogTitle>Actions sur la réduction</DialogTitle><DialogDescription>{selectedDiscount?.name}</DialogDescription></DialogHeader><div className="flex flex-col gap-3"><p className="text-sm text-slate-600">Statut actuel : <strong>{selectedDiscount?.active ? "Actif" : "Inactif"}</strong></p><Button disabled={!selectedDiscount} onClick={async () => { if (selectedDiscount) await toggleDiscount(selectedDiscount); setSelectedDiscount(null) }}>{selectedDiscount?.active ? "Désactiver la réduction" : "Réactiver la réduction"}</Button></div></DialogContent></Dialog>
-    <div className="flex justify-end"><Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button></div>
+
   </main>
 }

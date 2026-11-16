@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Check, Clock, Save, UserCheck, X, History, ChartNoAxesCombined, FileText } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,7 @@ import {
   type TeacherClassSubject,
 } from "@/lib/supabase/services/absence.service"
 import { serviceEmploiDuTempsClasses, type CreneauEmploiDuTemps } from "@/services/emploi-du-temps-classes.service"
+import { supabaseBrowser } from "@/lib/supabase/client"
 
 type AttendanceStatus = "present" | "absent" | "late" | "justified"
 
@@ -119,6 +120,7 @@ export default function RegistreAppelPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const attendanceRefreshTimer = useRef<number | null>(null)
 
   const classes = useMemo(
     () =>
@@ -377,6 +379,50 @@ export default function RegistreAppelPage() {
   useEffect(() => {
     void loadCall()
   }, [loadCall])
+
+  // Les appels saisis depuis l'espace enseignant sont diffusés en direct
+  // dans le registre administratif. On regroupe les événements d'un même
+  // enregistrement de classe pour éviter de relancer 30 chargements à la suite.
+  useEffect(() => {
+    if (!establishmentId) return
+
+    const channel = supabaseBrowser
+      .channel("school-attendance-register-" + establishmentId)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "attendance_records",
+          filter: "establishment_id=eq." + establishmentId,
+        },
+        (payload) => {
+          const changed = (payload.new ?? payload.old) as {
+            class_id?: string
+            attendance_date?: string
+          }
+          if (changed.class_id !== selectedClassId || changed.attendance_date !== date) return
+
+          if (attendanceRefreshTimer.current !== null) {
+            window.clearTimeout(attendanceRefreshTimer.current)
+          }
+          attendanceRefreshTimer.current = window.setTimeout(() => {
+            void loadLessonStates(lessons)
+            if (selectedLesson) void loadCall()
+            attendanceRefreshTimer.current = null
+          }, 450)
+        },
+      )
+      .subscribe()
+
+    return () => {
+      if (attendanceRefreshTimer.current !== null) {
+        window.clearTimeout(attendanceRefreshTimer.current)
+        attendanceRefreshTimer.current = null
+      }
+      void supabaseBrowser.removeChannel(channel)
+    }
+  }, [date, establishmentId, lessons, loadCall, loadLessonStates, selectedClassId, selectedLesson])
 
   const filteredStudents = useMemo(() => {
     const value = search.trim().toLowerCase()

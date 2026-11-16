@@ -10,8 +10,8 @@ import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 export default function NotificationsEnseignantPage() {
   const router = useRouter()
-  const { utilisateur, contexte, estEnCoursDeChargement } = useAuthentification()
-  const establishment = contexte?.establishments?.[0]
+  const { utilisateur, contexte, etablissementActif, estEnCoursDeChargement } = useAuthentification()
+  const establishment = etablissementActif ?? contexte?.establishments?.[0]
   const [items, setItems] = useState<TeacherNotification[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

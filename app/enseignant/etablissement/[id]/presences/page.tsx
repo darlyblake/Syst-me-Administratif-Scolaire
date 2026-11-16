@@ -52,7 +52,7 @@ export default function PresencesEnseignantPage() {
   const [savedCount, setSavedCount] = useState<number | null>(null)
   const [clockNow, setClockNow] = useState(() => new Date())
   const [exclusionStudent, setExclusionStudent] = useState<TeacherAttendanceStudent | null>(null)
-  const realtimeRevision = useSchoolRealtime(["timetable_slots", "administrative_exclusions", "course_exclusions", "attendance_records"])
+  const realtimeRevision = useSchoolRealtime(["timetable_slots", "class_subjects", "administrative_exclusions", "course_exclusions", "attendance_records"])
 
   const establishment = contexte?.establishments?.find((item) => item.id === id)
 

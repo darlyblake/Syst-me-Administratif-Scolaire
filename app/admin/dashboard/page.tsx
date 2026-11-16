@@ -6,6 +6,7 @@ import { AlertTriangle, ArrowRight, Building2, CalendarClock, CheckCircle2, Cloc
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { getAdminDashboardSummary, getAdminEstablishments, getAdminExpiringSubscriptions, refreshSubscriptionMonitoring, type AdminDashboardSummary, type AdminEstablishment, type AdminExpiringSubscription } from "@/lib/supabase/services/admin.service"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 type School = AdminEstablishment
 const initialSummary: AdminDashboardSummary = { establishments_count: 0, active_establishments_count: 0, inactive_establishments_count: 0, students_count: 0, staff_count: 0, classes_count: 0, admins_count: 0, active_subscriptions_count: 0, expiring_subscriptions_count: 0, expired_subscriptions_count: 0, suspended_subscriptions_count: 0 }
@@ -35,7 +36,8 @@ export default function AdminDashboard() {
     } finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { void loadDashboard() }, [loadDashboard])
+  const realtimeRevision = useSchoolRealtime(["establishments", "establishment_subscriptions", "establishment_members", "students", "staff_members", "school_classes"])
+  useEffect(() => { void loadDashboard() }, [loadDashboard, realtimeRevision])
 
   const stats = [
     { label: "Établissements", value: summary.establishments_count, icon: Building2 },

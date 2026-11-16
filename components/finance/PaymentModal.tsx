@@ -79,13 +79,20 @@ export function PaymentModal({ open, onClose, studentSchedules, onSuccess }: Pay
   const canCarrySurplus = !!selected && ["registration", "tuition", "scolarite"].includes(String(selected.category || "").toLowerCase())
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      setSelectedScheduleId("")
+      setAmount("")
+      setCarrySurplus(false)
+      return
+    }
+    const currentSelectionStillAvailable = unpaidSchedules.some((schedule) => schedule.schedule_id === selectedScheduleId)
+    if (currentSelectionStillAvailable) return
     const first = unpaidSchedules[0]
     setSelectedScheduleId(first?.schedule_id || "")
     setAmount(first ? String(Math.round(Number(first.remaining_amount))) : "")
     setError(null)
     setCarrySurplus(false)
-  }, [open, unpaidSchedules])
+  }, [open, unpaidSchedules, selectedScheduleId])
 
   useEffect(() => {
     if (!open || !enrollmentId) return

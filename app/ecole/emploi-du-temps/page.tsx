@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuthentification } from "@/providers/authentification.provider"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 import { obtenirClassesSupabase } from "@/services/classes.supabase.service"
 import { getAcademicYears } from "@/lib/supabase/services/academic-year.service"
 import {
@@ -41,6 +42,7 @@ const rowKey = (row: TimeRow) => `${row.startsAt}-${row.endsAt}`
 export default function EmploiDuTempsPage() {
   const { etablissementActif } = useAuthentification()
   const establishmentId = etablissementActif?.id ?? null
+  const realtimeRevision = useSchoolRealtime(["timetable_slots", "class_breaks"])
 
   const [classes, setClasses] = useState<{ id: string; nom: string }[]>([])
   const [academicYears, setAcademicYears] = useState<any[]>([])
@@ -163,7 +165,7 @@ export default function EmploiDuTempsPage() {
       }
     })()
     return () => { active = false }
-  }, [establishmentId, selectedClassId, selectedYearId])
+  }, [establishmentId, selectedClassId, selectedYearId, realtimeRevision])
 
   const openNewSlot = (dayOfWeek: number, row: TimeRow) => {
     setSuccess(null)

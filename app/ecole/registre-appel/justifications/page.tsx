@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Check, ExternalLink, FileText, RefreshCw, X } from "lucide-react"
+import { ArrowLeft, Check, ExternalLink, FileText, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useUserContext } from "@/hooks/useUserContext"
 import { supabaseBrowser } from "@/lib/supabase/client"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 type RequestRow = {
   id:string
@@ -42,6 +43,7 @@ export default function AttendanceJustificationsPage() {
   const [notes,setNotes] = useState<Record<string,string>>({})
   const [busyId,setBusyId] = useState<string|null>(null)
   const [signedUrls,setSignedUrls] = useState<Record<string,string>>({})
+  const realtimeRevision = useSchoolRealtime(["attendance_justification_requests", "attendance_records"])
 
   const load = useCallback(async () => {
     if (!establishmentId || !canManage) { setRows([]); setLoading(false); return }
@@ -78,7 +80,7 @@ export default function AttendanceJustificationsPage() {
     } finally { setLoading(false) }
   },[establishmentId,canManage])
 
-  useEffect(()=>{void load()},[load])
+  useEffect(()=>{void load()},[load,realtimeRevision])
 
   const review = async (row:RequestRow,status:"approved"|"rejected") => {
     const note=(notes[row.id]??"").trim()

@@ -256,7 +256,7 @@ export default function PresencesEnseignantPage() {
                 <span>{currentCourse.subject_name}</span>
                 <span>{currentCourse.starts_at.slice(0, 5)}–{currentCourse.ends_at.slice(0, 5)}</span>
                 {isAfterCourseEnd && <span className="font-medium text-amber-700">Délai de correction · jusqu’à {correctionDeadlineLabel}</span>}
-                <span className="text-muted-foreground">{students.length} élève(s) · {counts.present ?? 0} présents · {counts.absent ?? 0} absents · {counts.late ?? 0} retards{excludedCount > 0 ? " · " + excludedCount + " sous sanction globale" : ""}</span>
+                <span className="text-muted-foreground">{students.length} élève(s) · {counts.present ?? 0} présents · {counts.absent ?? 0} absents · {counts.late ?? 0} retards{excludedCount > 0 ? " · " + excludedCount + " exclus de ce cours ou de toutes les matières" : ""}</span>
               </div>
             )}
 

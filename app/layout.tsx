@@ -4,6 +4,7 @@ import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { ProviderAuthentification } from "@/providers/authentification.provider"
+import { RealtimeSyncProvider } from "@/providers/realtime-sync.provider"
 import { Suspense } from "react"
 import { Toaster } from "@/components/ui/toaster"
 import { PWARegister } from "@/components/pwa/PWARegister"
@@ -50,7 +51,7 @@ export default function RootLayout({
     <html lang="fr" translate="no">
       <body translate="no" className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <Suspense fallback={<div>Loading...</div>}>
-          <ProviderAuthentification>{children}</ProviderAuthentification>
+          <ProviderAuthentification><RealtimeSyncProvider>{children}</RealtimeSyncProvider></ProviderAuthentification>
         </Suspense>
         <ChunkLoadRecovery />
         <PWARegister />

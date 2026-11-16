@@ -183,6 +183,109 @@ begin
       and en.status::text = 'active' and s.active = true
   ) then raise exception 'Cet élève n’est pas inscrit dans cette classe'; end if;
 
+  if exists (
+    select 1 from public.attendance_records ar
+    where ar.establishment_id = p_establishment_id and ar.student_id = p_student_id
+      and ar.class_id = p_class_id and ar.attendance_date = p_lesson_date
+      and ar.lesson_key = p_timetable_slot_id::text and ar.status <> 'present'
+  ) then raise exception 'Seul un élève enregistré présent peut être exclu du cours'; end if;
+
+  -- Si l'appel est encore en cours de saisie, conserver explicitement la présence avant l'exclusion.
+  insert into public.attendance_records(
+    establishment_id, student_id, class_id, subject_id, attendance_date,
+    status, reason, recorded_by, lesson_key
+  )
+  select p_establishment_id, p_student_id, p_class_id, p_subject_id, p_lesson_date,
+    'present', null, auth.uid(), p_timetable_slot_id::text
+  where not exists (
+    select 1 from public.attendance_records ar
+    where ar.student_id = p_student_id and ar.attendance_date = p_lesson_date
+      and ar.lesson_key = p_timetable_slot_id::text
+  )
+  on conflict (student_id, attendance_date, lesson_key) do nothing;
+
+  v_status := case when p_scope = 'current_lesson' then 'approved' else 'pending' end;
+  insert into public.course_exclusions(
+    establishment_id, student_id, class_id, subject_id, timetable_slot_id,
+    academic_year_id, lesson_date, reason, teacher_note, scope, end_date,
+    status, created_by
+  ) values (
+    p_establishment_id, p_student_id, p_class_id, p_subject_id, p_timetable_slot_id,
+    v_academic_year_id, p_lesson_date, trim(p_reason), nullif(trim(p_teacher_note),''),
+    p_scope, p_end_date, v_status, auth.uid()
+  ) returning id into v_id;
+
+  select concat_ws(' ', s.first_name, s.last_name) into v_student_name
+  from public.students s where s.id = p_student_id;
+  select sub.name into v_subject_name
+  from public.subjects sub where sub.id = p_subject_id;
+
+  -- L'administration est toujours informée, y compris pour une exclusion limitée au cours.
+  for v_admin in
+    select em.user_id from public.establishment_members em
+    where em.establishment_id = p_establishment_id and em.active = true
+      and em.role in ('owner','admin','director','supervisor')
+  loop
+    insert into public.notifications(establishment_id, recipient_user_id, type, title, body, entity_type, entity_id)
+    values (p_establishment_id, v_admin.user_id, 'course_exclusion_reported',
+      'Signalement d’exclusion',
+      coalesce(v_student_name,'Un élève') || ' · ' || coalesce(v_subject_name,'Cours') || ' — ' || trim(p_reason),
+      'course_exclusion', v_id);
+  end loop;
+
+  -- Option B : l'exclusion du cours en cours est communiquée immédiatement au parent.
+  if v_status = 'approved' then
+    insert into public.notifications(establishment_id, recipient_user_id, type, title, body, entity_type, entity_id)
+    select p_establishment_id, sg.guardian_user_id, 'course_exclusion_approved',
+      'Exclusion du cours signalée',
+      coalesce(v_student_name,'Votre enfant') || ' a été sorti du cours de ' || coalesce(v_subject_name,'la matière') || '. Motif : ' || trim(p_reason),
+      'course_exclusion', v_id
+    from public.student_guardians sg
+    where sg.student_id = p_student_id and sg.establishment_id = p_establishment_id
+      and sg.active = true and sg.can_view_academic = true;
+  end if;
+
+  return v_id;
+end;
+$function$
+
+declare
+  v_id uuid;
+  v_academic_year_id uuid;
+  v_teacher_id uuid;
+  v_admin record;
+  v_student_name text;
+  v_subject_name text;
+  v_status text;
+begin
+  if auth.uid() is null then raise exception 'Authentification requise'; end if;
+  if length(trim(coalesce(p_reason,''))) < 3 then raise exception 'Le motif doit contenir au moins 3 caractères'; end if;
+  if p_scope not in ('current_lesson','same_subject_until','all_courses_until') then raise exception 'Portée invalide'; end if;
+  if p_scope = 'current_lesson' and p_end_date is not null then raise exception 'Une exclusion limitée au cours ne nécessite pas de date de fin'; end if;
+  if p_scope <> 'current_lesson' and (p_end_date is null or p_end_date < p_lesson_date) then raise exception 'La date de fin est obligatoire et doit être postérieure au début'; end if;
+
+  select t.academic_year_id, cs.teacher_id
+    into v_academic_year_id, v_teacher_id
+  from public.timetable_slots t
+  join public.class_subjects cs on cs.id = t.class_subject_id
+  where t.id = p_timetable_slot_id
+    and t.establishment_id = p_establishment_id
+    and cs.class_id = p_class_id
+    and cs.subject_id = p_subject_id;
+
+  if v_academic_year_id is null then raise exception 'Le cours sélectionné est introuvable'; end if;
+  if not private.is_teacher_for_class_subject(p_class_id, p_subject_id) then
+    raise exception 'Vous n’êtes pas autorisé à signaler un incident pour ce cours';
+  end if;
+
+  if not exists (
+    select 1 from public.enrollments en
+    join public.students s on s.id = en.student_id
+    where en.student_id = p_student_id and en.class_id = p_class_id
+      and en.establishment_id = p_establishment_id and en.academic_year_id = v_academic_year_id
+      and en.status::text = 'active' and s.active = true
+  ) then raise exception 'Cet élève n’est pas inscrit dans cette classe'; end if;
+
   if not exists (
     select 1 from public.attendance_records ar
     where ar.establishment_id = p_establishment_id and ar.student_id = p_student_id

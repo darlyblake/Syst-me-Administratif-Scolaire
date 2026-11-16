@@ -27,7 +27,7 @@ export default function EspaceEtablissementEnseignantPage() {
   const [schedule, setSchedule] = useState<TeacherScheduleSlot[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const realtimeRevision = useSchoolRealtime(["timetable_slots", "administrative_exclusions", "course_exclusions", "attendance_records", "teacher_lesson_entries", "grades"])
+  const realtimeRevision = useSchoolRealtime(["timetable_slots", "class_subjects", "administrative_exclusions", "course_exclusions", "attendance_records", "teacher_lesson_entries", "grades"])
 
   const load = async () => {
     if (!id) return

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useParentPortal, type ParentAttendance } from "@/hooks/use-parent-portal"
 import { supabaseBrowser } from "@/lib/supabase/client"
+import { PresenceScene } from "@/components/parent/PresenceScene"
 
 type StatusFilter = "all" | "present" | "absent" | "late" | "justified" | "pending"
 type PeriodFilter = "week" | "month" | "trimester" | "custom"
@@ -38,6 +39,7 @@ function formatRange(start:string,end:string) {
  return start===end?a:a+" au "+b
 }
 
+function formatArrival(value: string | null | undefined) { if (!value) return null; return new Intl.DateTimeFormat("fr-FR",{timeZone:"Africa/Libreville",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date(value)) }
 function formatTime(value: string | null | undefined) {
   if (!value) return "—"
   return value.slice(0, 5)
@@ -178,10 +180,12 @@ export default function ParentAbsences() {
     }
     if (current) {
       const record = recordFor(current.id)
-      const kind = !record ? "lesson-pending" : record.status === "absent" ? "lesson-absent" : "lesson-present"
+      const kind = !record ? "lesson-pending" : record.status === "absent" ? "lesson-absent" : ["late","retard"].includes(record.status) ? "lesson-late" : "lesson-present"
       const attendanceLabel = !record ? "Appel non effectué" : record.status === "absent" ? "Absent" : record.status === "late" || record.status === "retard" ? "En retard" : "Présent"
-      const detail = !record ? "L’enseignant n’a pas encore effectué l’appel." : record.status === "absent" ? "L’appel est fait : votre enfant est signalé absent." : record.status === "late" || record.status === "retard" ? "Votre enfant est présent, avec un retard enregistré." : "Votre enfant est présent en classe."
-      return { ...summary, kind, title:"Cours en cours", detail, attendanceLabel, subject:current.subject, teacher:current.teacher_name, room:current.room, next:null }
+      const arrivalAt = record && ["late","retard"].includes(record.status) ? formatArrival(record.created_at) : null
+      const lateMinutes = arrivalAt ? Math.max(0, Math.floor((Number(arrivalAt.slice(0,2))*60+Number(arrivalAt.slice(3,5)) - minutes(current.starts_at)))) : 0
+      const detail = !record ? "L’enseignant n’a pas encore effectué l’appel." : record.status === "absent" ? "L’appel est fait : votre enfant est signalé absent." : ["late","retard"].includes(record.status) ? (arrivalAt ? "Arrivé à " + arrivalAt + " · " + lateMinutes + " min de retard." : "Un retard a été enregistré.") : "Votre enfant est présent en classe."
+      return { ...summary, kind, title:"Cours en cours", detail, arrivalAt, lateMinutes, attendanceLabel, subject:current.subject, teacher:current.teacher_name, room:current.room, next:null }
     }
     if (next && completed.length > 0) {
       const last = completed[completed.length - 1]
@@ -323,23 +327,9 @@ export default function ParentAbsences() {
           </div>
 
           {liveStatus && <div className={"mt-4 rounded-2xl px-4 py-5 text-center " + (liveStatus.kind.startsWith("lesson") ? "bg-blue-50" : liveStatus.kind === "break" ? "bg-amber-50" : liveStatus.kind === "finished" ? "bg-slate-100" : "bg-slate-50")}>
-            <div className="mx-auto flex h-28 w-36 items-center justify-center" role="img" aria-label={liveStatus.kind === "break" ? "Élève qui prend son goûter" : liveStatus.kind.startsWith("lesson") ? "Élève en classe" : "Élève sans cours en ce moment"}>
-              <svg viewBox="0 0 160 120" className={"h-full w-full " + (liveStatus.kind === "lesson-absent" ? "animate-pulse" : "animate-bounce")} fill="none" xmlns="http://www.w3.org/2000/svg">
-                <ellipse cx="80" cy="108" rx="42" ry="6" fill="#CBD5E1" opacity=".55" />
-                <circle cx="80" cy="35" r="21" fill="#D99A6C" />
-                <path d="M60 31c1-17 38-24 42 0-8-7-14-9-23-8-7 1-12 4-19 8Z" fill="#26364B" />
-                <circle cx="73" cy="37" r="2" fill="#26364B" /><circle cx="87" cy="37" r="2" fill="#26364B" />
-                <path d="M74 46q6 5 12 0" stroke="#8B451F" strokeWidth="2.5" strokeLinecap="round" />
-                <path d="M59 66q21-16 42 0l8 35H51l8-35Z" fill={liveStatus.kind === "break" ? "#F59E0B" : liveStatus.kind === "lesson-absent" ? "#FCA5A5" : "#3B82F6"} />
-                <path d="M62 70 44 86M98 70l15 14" stroke="#D99A6C" strokeWidth="9" strokeLinecap="round" />
-                {liveStatus.kind === "break" ? <><path d="M110 80h19l-2 20h-15l-2-20Z" fill="#60A5FA" stroke="#2563EB" strokeWidth="2" /><path d="M113 78q6-7 13 0" stroke="#2563EB" strokeWidth="2" /><path d="M120 69v-7m-5 4 5-4 5 4" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" /></> : liveStatus.kind.startsWith("lesson") ? <><path d="m105 80 19 13" stroke="#D99A6C" strokeWidth="8" strokeLinecap="round" /><path d="m119 87 13 8" stroke="#F59E0B" strokeWidth="3" strokeLinecap="round" /><path d="M54 100h54" stroke="#1E40AF" strokeWidth="3" strokeLinecap="round" /></> : <><path d="M45 78 29 87M114 78l16-9" stroke="#D99A6C" strokeWidth="8" strokeLinecap="round" /><path d="M127 55q8-7 14 0m-9-10 8-6" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" /></>}
-                <path d="M65 100v8m30-8v8" stroke="#26364B" strokeWidth="7" strokeLinecap="round" />
-                {liveStatus.kind === "lesson-absent" && <path d="M132 25l12 12m0-12-12 12" stroke="#DC2626" strokeWidth="3" strokeLinecap="round" />}
-                {liveStatus.kind === "lesson-pending" && <circle cx="132" cy="26" r="10" stroke="#2563EB" strokeWidth="2" strokeDasharray="3 3" />}
-              </svg>
-            </div>
+            <PresenceScene kind={liveStatus.kind === "break" ? (/récré/i.test(liveStatus.title) ? "recess" : "break") : liveStatus.kind === "lesson-pending" ? "pending" : liveStatus.kind === "lesson-absent" ? "absent" : liveStatus.kind === "lesson-late" ? "late" : liveStatus.kind === "lesson-present" ? "writing" : liveStatus.kind === "finished" ? "going-home" : liveStatus.kind === "free" ? "free" : "before"} />
             <h3 className={"mt-1 text-xl font-extrabold " + (liveStatus.kind.startsWith("lesson") ? "text-blue-800" : liveStatus.kind === "break" ? "text-amber-800" : "text-slate-900")}>{liveStatus.title}</h3>
-            {liveStatus.kind.startsWith("lesson") && <span className={"mt-2 inline-flex border px-3 py-1 text-xs font-bold " + (liveStatus.kind === "lesson-absent" ? "border-red-200 bg-red-50 text-red-700" : liveStatus.kind === "lesson-pending" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-700")}>{liveStatus.attendanceLabel}</span>}
+            {liveStatus.kind.startsWith("lesson") && <span className={"mt-2 inline-flex border px-3 py-1 text-xs font-bold " + (liveStatus.kind === "lesson-absent" ? "border-red-200 bg-red-50 text-red-700" : liveStatus.kind === "lesson-pending" || liveStatus.kind === "lesson-late" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-700")}>{liveStatus.attendanceLabel}</span>}
             <p className="mx-auto mt-2 max-w-md text-sm leading-5 text-slate-600">{liveStatus.detail}</p>
             {liveStatus.subject && <div className="mx-auto mt-4 grid max-w-sm grid-cols-2 gap-2 text-left">
               <div className="rounded-xl bg-white px-3 py-2"><p className="text-[11px] text-slate-500">Matière</p><p className="text-sm font-bold text-slate-900">{liveStatus.subject}</p></div>

@@ -10,6 +10,7 @@ import { supabaseBrowser } from "@/lib/supabase/client"
 import { TeacherShell } from "@/components/enseignant/teacher-shell"
 import { CourseExclusionDialog } from "@/components/enseignant/CourseExclusionDialog"
 import { enseignantPortalService, type TeacherAttendanceStudent, type TeacherClass, type TeacherScheduleSlot } from "@/services/enseignant-portal.service"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 const statuses = [
   { value: "present", label: "Présent" },
@@ -52,6 +53,7 @@ export default function PresencesEnseignantPage() {
   const [savedCount, setSavedCount] = useState<number | null>(null)
   const [clockNow, setClockNow] = useState(() => new Date())
   const [exclusionStudent, setExclusionStudent] = useState<TeacherAttendanceStudent | null>(null)
+  const realtimeRevision = useSchoolRealtime(["timetable_slots", "administrative_exclusions", "course_exclusions", "attendance_records"])
 
   const establishment = contexte?.establishments?.find((item) => item.id === id)
 
@@ -75,7 +77,7 @@ export default function PresencesEnseignantPage() {
       setClasses(classRows)
       setSchedule(scheduleRows)
     }).catch((e) => setError(e instanceof Error ? e.message : "Impossible de charger votre emploi du temps."))
-  }, [id, establishment])
+  }, [id, establishment, realtimeRevision])
 
   const todayCourses = useMemo(() => {
     const today = dayOfWeek(clockNow)
@@ -131,24 +133,9 @@ export default function PresencesEnseignantPage() {
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Impossible de charger les élèves."))
       .finally(() => setLoading(false))
-  }, [classId, currentCourse, id])
+  }, [classId, currentCourse, id, realtimeRevision])
 
-  useEffect(() => {
-    if (!id || !classId || !currentCourse) return
-    const refreshExclusions = () => {
-      void enseignantPortalService.getAttendance(id, classId, currentCourse.slot_id, localDate())
-        .then((rows) => {
-          const uniqueRows = Array.from(new Map(rows.map((row) => [row.student_id, row])).values())
-          setStudents(uniqueRows)
-        })
-        .catch((e) => setError(e instanceof Error ? e.message : "Impossible d’actualiser les exclusions."))
-    }
-    const channel = supabaseBrowser.channel("teacher-attendance-exclusions-" + id + "-" + classId)
-      .on("postgres_changes", { event: "*", schema: "public", table: "administrative_exclusions", filter: "establishment_id=eq." + id }, refreshExclusions)
-      .on("postgres_changes", { event: "*", schema: "public", table: "course_exclusions", filter: "establishment_id=eq." + id }, refreshExclusions)
-      .subscribe()
-    return () => { void supabaseBrowser.removeChannel(channel) }
-  }, [id, classId, currentCourse])
+
 
   const filteredStudents = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -229,8 +216,8 @@ export default function PresencesEnseignantPage() {
 
         {error && <div role="alert" className="mb-5 border border-rouge-terre/30 bg-white p-3 text-sm text-rouge-terre">{error}</div>}
         {savedCount !== null && (
-          <div role="status" aria-live="polite" className="mb-5 flex items-center gap-3 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+          <div role="status" aria-live="polite" className="mb-5 flex items-center gap-3 border border-blue-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100">
               <CheckCircle2 className="h-6 w-6 attendance-success-icon" />
             </span>
             <span><strong className="block">Appel validé avec succès</strong>{savedCount} présence(s) enregistrée(s). Vous pouvez encore corriger cet appel jusqu’à 15 minutes après la fin du cours.</span>

@@ -1,0 +1,2 @@
+-- Migration: exclusions de cours (option B)
+-- Le contenu de cette migration est également appliqué au projet Supabase de production.

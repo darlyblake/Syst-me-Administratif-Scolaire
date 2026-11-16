@@ -5,7 +5,7 @@ import { AlertTriangle, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
-type ExclusionScope = "current_lesson" | "same_subject_until" | "all_courses_until"
+type ExclusionScope = "current_lesson" | "same_subject_until"
 
 type Props = {
   studentName: string
@@ -69,10 +69,6 @@ export function CourseExclusionDialog({ studentName, subjectName, onClose, onSub
           <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3">
             <input type="radio" name="exclusion-scope" checked={scope === "same_subject_until"} onChange={() => setScope("same_subject_until")} className="mt-1 accent-blue-700" />
             <span><strong className="block text-sm">Cette matière jusqu'à une date</strong><span className="text-xs text-slate-500">Soumis à la validation de l'administration.</span></span>
-          </label>
-          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3">
-            <input type="radio" name="exclusion-scope" checked={scope === "all_courses_until"} onChange={() => setScope("all_courses_until")} className="mt-1 accent-blue-700" />
-            <span><strong className="block text-sm">Tous les cours jusqu'à une date</strong><span className="text-xs text-slate-500">Soumis à la validation de l'administration.</span></span>
           </label>
         </fieldset>
 

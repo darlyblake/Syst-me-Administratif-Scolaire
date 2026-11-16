@@ -27,7 +27,7 @@ export default function EnseignantPointagePage() {
   const establishmentId = params.id
   const { utilisateur, contexte, estEnCoursDeChargement } = useAuthentification()
   const establishment = contexte?.establishments?.find(item => item.id === establishmentId)
-  const realtimeRevision = useSchoolRealtime(["teacher_lesson_attendance", "timetable_slots", "pointage_alerts", "pointage_event_history"])
+  const realtimeRevision = useSchoolRealtime(["teacher_lesson_attendance", "timetable_slots", "class_subjects", "pointage_alerts", "pointage_event_history"])
 
   const [course, setCourse] = useState<any>(null)
   const [slot, setSlot] = useState<TeacherLessonSlot | null>(null)

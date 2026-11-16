@@ -42,7 +42,7 @@ const rowKey = (row: TimeRow) => `${row.startsAt}-${row.endsAt}`
 export default function EmploiDuTempsPage() {
   const { etablissementActif } = useAuthentification()
   const establishmentId = etablissementActif?.id ?? null
-  const realtimeRevision = useSchoolRealtime(["timetable_slots", "class_breaks"])
+  const realtimeRevision = useSchoolRealtime(["timetable_slots", "class_subjects", "class_breaks"])
 
   const [classes, setClasses] = useState<{ id: string; nom: string }[]>([])
   const [academicYears, setAcademicYears] = useState<any[]>([])

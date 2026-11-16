@@ -110,7 +110,7 @@ export default function SchoolDemandesPage() {
     <header className="border-b border-[#c5c5d3]/60 pb-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div><p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#64748b]">Administration / Communication</p><h1 className="text-[26px] font-semibold tracking-[-0.02em]">Demandes des parents</h1><p className="mt-1 text-sm text-[#64748b]">Traitez les demandes de documents et préparez leur remise aux familles.</p></div>
-        <Button variant="outline" onClick={() => void load()} disabled={loading} className="h-10 rounded-md border-[#c5c5d3] bg-white shadow-none"><RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />Actualiser</Button>
+
       </div>
     </header>
 

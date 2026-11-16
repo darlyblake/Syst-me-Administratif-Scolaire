@@ -26,6 +26,14 @@ const LIVE_TABLES = [
   "students",
   "enrollment_options",
   "student_options",
+  "teacher_lesson_attendance",
+  "organization_payments",
+  "parent_student_association_history",
+  "pointage_alerts",
+  "pointage_event_history",
+  "staff_attendance",
+  "staff_members",
+  "sponsoring_organizations",
 ] as const
 
 // Tables sans establishment_id : Realtime applique leurs politiques RLS à chaque abonné.

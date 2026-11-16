@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, Building2, Printer, RefreshCw, Search, Wallet } from "lucide-react"
+import { ArrowLeft, Building2, Printer, Search, Wallet } from "lucide-react"
 import { useUserContext } from "@/hooks/useUserContext"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { supabaseBrowser } from "@/lib/supabase/client"
@@ -9,6 +9,7 @@ import { hasEffectiveSchoolPermission } from "@/lib/organization/runtime-permiss
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { OrganizationPaymentModal } from "@/components/finance/OrganizationPaymentModal"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 type CoverageRow = {
   enrollment_id: string
@@ -97,6 +98,7 @@ const formatDate = (value: string) => {
 export default function SuiviPrisesEnChargePage() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
+  const realtimeRevision = useSchoolRealtime(["organization_payments", "payment_schedules", "enrollments", "sponsoring_organizations"])
   const { data: academicYears, selectedYear, selectYear } = useAcademicYears(establishmentId)
 
   const [search, setSearch] = useState("")
@@ -177,7 +179,7 @@ export default function SuiviPrisesEnChargePage() {
     }
   }, [establishmentId, selectedYear?.id])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load() }, [load, realtimeRevision])
 
   const organizationSummaries = useMemo<OrganizationSummary[]>(() => {
     return organizations.map((organization) => {
@@ -313,9 +315,6 @@ export default function SuiviPrisesEnChargePage() {
               <ArrowLeft className="h-4 w-4" />Retour
             </Button>
           )}
-          <Button variant="outline" onClick={() => void load()} disabled={loading} className="gap-2">
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />Actualiser
-          </Button>
         </div>
       </header>
 

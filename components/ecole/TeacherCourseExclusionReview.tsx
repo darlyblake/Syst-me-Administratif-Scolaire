@@ -4,11 +4,13 @@ import { AlertTriangle,Check,Loader2,X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useAuthentification } from "@/providers/authentification.provider"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 type Row={id:string;student_id:string;subject_id:string;lesson_date:string;excluded_at:string;reason:string;teacher_note:string|null;scope:string;end_date:string|null;status:"pending"|"approved"|"rejected";review_note:string|null;students:{first_name:string;last_name:string}|null}
 export function TeacherCourseExclusionReview(){
  const {etablissementActif,contexte}=useAuthentification()
  const eid=etablissementActif?.id??contexte?.establishments?.[0]?.id??null
+ const realtimeRevision=useSchoolRealtime(["course_exclusions"])
  const [rows,setRows]=useState<Row[]>([]),[subjects,setSubjects]=useState<Record<string,string>>({})
  const [ends,setEnds]=useState<Record<string,string>>({}),[notes,setNotes]=useState<Record<string,string>>({})
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(""),[error,setError]=useState("")
@@ -22,7 +24,7 @@ export function TeacherCourseExclusionReview(){
   if(ids.length){const {data:subs}=await supabaseBrowser.from("subjects").select("id,name").in("id",ids);setSubjects(Object.fromEntries((subs??[]).map(x=>[x.id,x.name])))}
   setLoading(false)
  },[eid])
- useEffect(()=>{void load()},[load])
+ useEffect(()=>{void load()},[load,realtimeRevision])
  const review=async(row:Row,decision:"approved"|"rejected")=>{
   setBusy(row.id);setError("")
   const {error:e}=await supabaseBrowser.rpc("admin_review_course_exclusion",{p_exclusion_id:row.id,p_decision:decision,p_end_date:decision==="approved"?(ends[row.id]??row.end_date):null,p_scope:decision==="approved"?"same_subject_until":null,p_review_note:notes[row.id]??null})

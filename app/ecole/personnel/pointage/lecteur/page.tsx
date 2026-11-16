@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Monitor, QrCode, RefreshCw } from "lucide-react"
+import { Monitor, QrCode } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useUserContext } from "@/hooks/useUserContext"
 import { servicePointage } from "@/services/pointage.service"

@@ -84,6 +84,27 @@ export default function ParentAbsences() {
     return () => window.clearInterval(interval)
   }, [])
 
+  useEffect(() => {
+    if (!activeChildId) { setLiveExclusions({admin:[],course:[]}); return }
+    let active = true
+    const today = todayInGabon()
+    const load = async () => {
+      const [admin, course] = await Promise.all([
+        supabaseBrowser.from("administrative_exclusions").select("id,reason,start_date,end_date,is_permanent,status").eq("student_id",activeChildId).eq("status","active").lte("start_date",today).or("is_permanent.eq.true,end_date.gte."+today),
+        supabaseBrowser.from("course_exclusions").select("id,reason,subject_id,timetable_slot_id,lesson_date,scope,end_date,status").eq("student_id",activeChildId).eq("status","approved").lte("lesson_date",today).or("scope.eq.current_lesson,and(scope.neq.current_lesson,end_date.gte."+today+")")
+      ])
+      if (!active) return
+      if (admin.error) console.warn("Parent live administrative exclusion:",admin.error)
+      if (course.error) console.warn("Parent live course exclusion:",course.error)
+      setLiveExclusions({admin:admin.data??[],course:course.data??[]})
+    }
+    void load()
+    const channel = supabaseBrowser.channel("parent-live-exclusions-"+activeChildId)
+      .on("postgres_changes",{event:"*",schema:"public",table:"administrative_exclusions"},()=>{void load()})
+      .on("postgres_changes",{event:"*",schema:"public",table:"course_exclusions"},()=>{void load()})
+      .subscribe()
+    return () => { active=false; void supabaseBrowser.removeChannel(channel) }
+  },[activeChildId])
   const [period, setPeriod] = useState<PeriodFilter>("week")
   const [anchorDate, setAnchorDate] = useState(todayInGabon)
   const [customStart, setCustomStart] = useState(todayInGabon)
@@ -95,6 +116,7 @@ export default function ParentAbsences() {
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [liveExclusions, setLiveExclusions] = useState<{admin:any[];course:any[]}>({admin:[],course:[]})
 
   const requests = useMemo(() => {
     const latest = new Map<string, (typeof justificationRequests)[number]>()
@@ -179,6 +201,12 @@ export default function ParentAbsences() {
       }
     }
     if (current) {
+      const administrativeExclusion = liveExclusions.admin.find(item => item.status === "active")
+      const courseExclusion = liveExclusions.course.find(item => item.timetable_slot_id === current.id || (item.scope === "same_subject_until" && item.subject_id === current.subject_id) || item.scope === "all_courses_until")
+      if (administrativeExclusion || courseExclusion) {
+        const exclusion = administrativeExclusion ?? courseExclusion
+        return { ...summary, kind:"excluded", title:"Élève exclu du cours", detail:exclusion.reason || "Une exclusion est actuellement en vigueur.", attendanceLabel:"Exclusion en cours", subject:current.subject, teacher:current.teacher_name, room:current.room, next:null }
+      }
       const record = recordFor(current.id)
       const kind = !record ? "lesson-pending" : record.status === "absent" ? "lesson-absent" : ["late","retard"].includes(record.status) ? "lesson-late" : "lesson-present"
       const attendanceLabel = !record ? "Appel non effectué" : record.status === "absent" ? "Absent" : record.status === "late" || record.status === "retard" ? "En retard" : "Présent"
@@ -326,10 +354,10 @@ export default function ParentAbsences() {
             <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">{selectedChild.class_name ?? selectedChild.level_name ?? "Élève"}</span>
           </div>
 
-          {liveStatus && <div className={"mt-4 rounded-2xl px-4 py-5 text-center " + (liveStatus.kind.startsWith("lesson") ? "bg-blue-50" : liveStatus.kind === "break" ? "bg-amber-50" : liveStatus.kind === "finished" ? "bg-slate-100" : "bg-slate-50")}>
-            <PresenceScene kind={liveStatus.kind === "break" ? (/récré/i.test(liveStatus.title) ? "recess" : "break") : liveStatus.kind === "lesson-pending" ? "pending" : liveStatus.kind === "lesson-absent" ? "absent" : liveStatus.kind === "lesson-late" ? "late" : liveStatus.kind === "lesson-present" ? "writing" : liveStatus.kind === "finished" ? "going-home" : liveStatus.kind === "free" ? "free" : "before"} />
-            <h3 className={"mt-1 text-xl font-extrabold " + (liveStatus.kind.startsWith("lesson") ? "text-blue-800" : liveStatus.kind === "break" ? "text-amber-800" : "text-slate-900")}>{liveStatus.title}</h3>
-            {liveStatus.kind.startsWith("lesson") && <span className={"mt-2 inline-flex border px-3 py-1 text-xs font-bold " + (liveStatus.kind === "lesson-absent" ? "border-red-200 bg-red-50 text-red-700" : liveStatus.kind === "lesson-pending" || liveStatus.kind === "lesson-late" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-700")}>{liveStatus.attendanceLabel}</span>}
+          {liveStatus && <div className={"mt-4 rounded-2xl px-4 py-5 text-center " + (liveStatus.kind === "excluded" ? "bg-rose-50" : liveStatus.kind.startsWith("lesson") ? "bg-blue-50" : liveStatus.kind === "break" ? "bg-amber-50" : liveStatus.kind === "finished" ? "bg-slate-100" : "bg-slate-50")}>
+            <PresenceScene kind={liveStatus.kind === "break" ? (/récré/i.test(liveStatus.title) ? "recess" : "break") : liveStatus.kind === "lesson-pending" ? "pending" : liveStatus.kind === "lesson-absent" ? "absent" : liveStatus.kind === "excluded" ? "excluded" : liveStatus.kind === "lesson-late" ? "late" : liveStatus.kind === "lesson-present" ? "writing" : liveStatus.kind === "finished" ? "going-home" : liveStatus.kind === "free" ? "free" : "before"} />
+            <h3 className={"mt-1 text-xl font-extrabold " + (liveStatus.kind === "excluded" ? "text-rose-800" : liveStatus.kind.startsWith("lesson") ? "text-blue-800" : liveStatus.kind === "break" ? "text-amber-800" : "text-slate-900")}>{liveStatus.title}</h3>
+            {(liveStatus.kind.startsWith("lesson") || liveStatus.kind === "excluded") && <span className={"mt-2 inline-flex border px-3 py-1 text-xs font-bold " + (liveStatus.kind === "lesson-absent" ? "border-red-200 bg-red-50 text-red-700" : liveStatus.kind === "excluded" ? "border-rose-200 bg-rose-50 text-rose-700" : liveStatus.kind === "lesson-pending" || liveStatus.kind === "lesson-late" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-700")}>{liveStatus.attendanceLabel}</span>}
             <p className="mx-auto mt-2 max-w-md text-sm leading-5 text-slate-600">{liveStatus.detail}</p>
             {liveStatus.subject && <div className="mx-auto mt-4 grid max-w-sm grid-cols-2 gap-2 text-left">
               <div className="rounded-xl bg-white px-3 py-2"><p className="text-[11px] text-slate-500">Matière</p><p className="text-sm font-bold text-slate-900">{liveStatus.subject}</p></div>

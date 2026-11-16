@@ -10,6 +10,7 @@ import { useUserContext } from "@/hooks/useUserContext"
 import { listTeacherClassSubjects } from "@/lib/supabase/services/absence.service"
 import { useAcademicStructure } from "@/hooks/useAcademicStructure"
 import { supabaseBrowser } from "@/lib/supabase/client"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 type Summary = {
   total_records: number
@@ -105,6 +106,7 @@ export default function RapportsAssiduitePage() {
   const [report, setReport] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const realtimeRevision = useSchoolRealtime(["attendance_records", "attendance_justification_requests"])
 
   const loadReport = useCallback(async () => {
     if (!establishmentId) return
@@ -131,7 +133,7 @@ export default function RapportsAssiduitePage() {
 
   useEffect(() => {
     void loadReport()
-  }, [loadReport])
+  }, [loadReport, realtimeRevision])
 
   const summary = report?.summary
 
@@ -178,7 +180,7 @@ export default function RapportsAssiduitePage() {
           </div>
           <div className="flex items-end">
             <Button className="w-full" onClick={() => void loadReport()} disabled={loading || !establishmentId}>
-              {loading ? "Chargement…" : "Actualiser"}
+              {loading ? "Chargement…" : "Afficher le rapport"}
             </Button>
           </div>
         </section>

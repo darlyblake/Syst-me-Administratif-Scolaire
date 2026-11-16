@@ -199,7 +199,6 @@ export default function PersonnelPointagePage() {
   const [qrExpiresAt, setQrExpiresAt] = useState<string | null>(null)
   const [qrSvg, setQrSvg] = useState("")
   const [qrBusy, setQrBusy] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
   const [revealedCode, setRevealedCode] = useState<string | null>(null)
   const [revealedPerson, setRevealedPerson] = useState<string | null>(null)
   const [codeBusy, setCodeBusy] = useState<string | null>(null)
@@ -216,7 +215,6 @@ export default function PersonnelPointagePage() {
 
   const loadMonitoring = useCallback(async () => {
     if (!establishmentId) return
-    setRefreshing(true)
     try {
       await servicePointage.rafraichirAlertes(establishmentId, selectedDate)
       const [nextAlerts, nextStaff, nextLessons, nextHistory, nextPeople, years] = await Promise.all([
@@ -271,7 +269,6 @@ export default function PersonnelPointagePage() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Impossible de charger le pointage.")
     } finally {
-      setRefreshing(false)
     }
   }, [establishmentId, selectedDate])
 

@@ -91,7 +91,7 @@ function SidebarInner({ isOpen, setIsOpen }: SidebarProps) {
     ]},
     { section: "Vie scolaire", items: [
       { href: "/ecole/registre-appel", label: "Registre d'appel", icon: CheckSquare, permission: "attendance.view" },
-      { href: "/ecole/incidents-exclusions", label: "Incidents et exclusions", icon: AlertTriangle, permission: "attendance.view", adminOnly: true },
+      { href: "/ecole/incidents-exclusions", label: "Décisions disciplinaires", icon: AlertTriangle, permission: "attendance.view", adminOnly: true },
       { href: "/ecole/absences", label: "Absences", icon: AlertTriangle, permission: "attendance.view" },
       { href: "/ecole/absences/justifications", label: "Justifications", icon: ClipboardCheck, permission: "attendance.view" },
       { href: "/ecole/evenements", label: "Événements", icon: CalendarRange, permission: "events.view" },

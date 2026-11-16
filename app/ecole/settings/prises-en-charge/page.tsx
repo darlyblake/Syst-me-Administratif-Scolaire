@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { Building2, Users, Percent, Plus, RefreshCw, Save, FileSpreadsheet, CalendarDays } from "lucide-react"
+import { Building2, Users, Percent, Plus, Save, FileSpreadsheet, CalendarDays } from "lucide-react"
 import SchoolPromotionsPanel from "@/components/settings/SchoolPromotionsPanel"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { useUserContext } from "@/hooks/useUserContext"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 type Tab = "organismes" | "couverture" | "familles" | "reductions" | "promotions"
 type Organization = { id: string; name: string; organization_type: string; reference: string | null; contact_name: string | null; phone: string | null; email: string | null; active: boolean; is_state: boolean }
@@ -36,6 +37,7 @@ const optionTypeLabel = (value: string) => OPTION_TYPE_LABELS[value] || value.re
 export default function PrisesEnChargeSettingsPage() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
+  const realtimeRevision = useSchoolRealtime(["sponsoring_organizations", "organization_coverage_rules", "family_discount_rules", "school_families", "student_family_members", "student_options", "enrollments", "organization_student_assignments", "payment_schedules"])
   const [tab, setTab] = useState<Tab>("organismes")
   const [orgModalOpen, setOrgModalOpen] = useState(false)
   const [coverageModalOpen, setCoverageModalOpen] = useState(false)
@@ -111,7 +113,7 @@ export default function PrisesEnChargeSettingsPage() {
       toast.error(error instanceof Error ? error.message : "Impossible de charger les paramètres.")
     } finally { setLoading(false) }
   }, [establishmentId, ruleOrgId])
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load() }, [load, realtimeRevision])
 
   // L’État est un organisme à part entière : il doit participer aux mêmes règles de couverture.
   const activeOrganizations = useMemo(() => organizations.filter((item) => item.active), [organizations])

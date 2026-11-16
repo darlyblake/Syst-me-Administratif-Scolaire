@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { ArrowRightLeft, Check, Clock3, RefreshCw, Search, Send, School, X } from "lucide-react"
+import { ArrowRightLeft, Check, Clock3, Search, Send, School, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,6 +22,7 @@ import {
 import { useUserContext } from "@/hooks/useUserContext"
 import { useStudents } from "@/hooks/useStudents"
 import type { Establishment } from "@/lib/supabase/types"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 type GradeOption = { id: string; name: string }
 
@@ -39,6 +40,7 @@ function formatDate(value: string) {
 export default function TransfertPage() {
   const { primaryEstablishment } = useUserContext()
   const establishmentId = primaryEstablishment?.id ?? null
+  const realtimeRevision = useSchoolRealtime(["student_transfer_requests", "enrollments"])
   const { data: students, isLoading: studentsLoading, refresh: refreshStudents } = useStudents(establishmentId, { page: 1, pageSize: 100, active: true })
 
   const [establishments, setEstablishments] = useState<Establishment[]>([])
@@ -98,7 +100,7 @@ export default function TransfertPage() {
 
   useEffect(() => {
     void loadTransfers()
-  }, [loadTransfers])
+  }, [loadTransfers, realtimeRevision])
 
   useEffect(() => {
     let active = true
@@ -300,10 +302,6 @@ export default function TransfertPage() {
           <h1 className="text-2xl font-semibold text-encre">Transfert d’élèves</h1>
           <p className="mt-1 text-sm text-pierre">{reviewMode ? "Examinez les transferts reçus et suivez leur inscription sans accéder au module complet des inscriptions." : "Transmettez un dossier à une autre école et suivez son traitement."}</p>
         </div>
-        <Button variant="outline" className="rounded-xl self-start" onClick={() => void loadTransfers()} disabled={loadingTransfers}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${loadingTransfers ? "animate-spin" : ""}`} />
-          Actualiser
-        </Button>
       </header>
 
       <div className="flex flex-wrap gap-2 border-b border-terre/10 pb-3">

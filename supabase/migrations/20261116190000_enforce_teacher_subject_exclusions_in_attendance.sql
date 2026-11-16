@@ -87,4 +87,7 @@ begin
  end loop;
  return v_count;
 end; $function$;
+DROP POLICY IF EXISTS course_exclusions_teacher_subject_read ON public.course_exclusions;
+CREATE POLICY course_exclusions_teacher_subject_read ON public.course_exclusions
+FOR SELECT TO authenticated USING (private.is_teacher_for_class_subject(class_id,subject_id));
 NOTIFY pgrst, 'reload schema';

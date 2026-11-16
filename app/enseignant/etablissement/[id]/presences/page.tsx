@@ -140,13 +140,13 @@ export default function PresencesEnseignantPage() {
     )
   }, [students, search])
 
-  const counts = useMemo(() => students.filter((student) => !student.administrative_excluded).reduce((acc, student) => {
+  const counts = useMemo(() => students.filter((student) => !student.administrative_excluded && !student.course_excluded).reduce((acc, student) => {
     const status = statusesByStudent[student.student_id] ?? "present"
     acc[status] = (acc[status] ?? 0) + 1
     return acc
   }, {} as Record<string, number>), [students, statusesByStudent])
 
-  const eligibleStudents = students.filter((student) => !student.administrative_excluded)
+  const eligibleStudents = students.filter((student) => !student.administrative_excluded && !student.course_excluded)
   const excludedCount = students.length - eligibleStudents.length
 
   const markAll = (status: string) => {
@@ -276,16 +276,16 @@ export default function PresencesEnseignantPage() {
                           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">{index + 1}</span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-slate-900">{student.last_name} {student.first_name}</p>
-                            {student.administrative_excluded && <div className="mt-1 text-xs text-rose-700"><p className="font-semibold">Exclusion administrative · toutes les matières{student.administrative_exclusion_permanent ? " · définitive" : student.administrative_exclusion_end_date ? " jusqu’au " + new Date(student.administrative_exclusion_end_date + "T12:00:00").toLocaleDateString("fr-FR") : ""}</p>{student.administrative_exclusion_reason && <p className="mt-0.5 line-clamp-2">{student.administrative_exclusion_reason}</p>}</div>}
+                            {student.administrative_excluded ? <div className="mt-1 text-xs text-rose-700"><p className="font-semibold">Exclusion administrative · toutes les matières{student.administrative_exclusion_permanent ? " · définitive" : student.administrative_exclusion_end_date ? " jusqu’au " + new Date(student.administrative_exclusion_end_date + "T12:00:00").toLocaleDateString("fr-FR") : ""}</p>{student.administrative_exclusion_reason && <p className="mt-0.5 line-clamp-2">{student.administrative_exclusion_reason}</p>}</div> : student.course_excluded ? <div className="mt-1 text-xs text-amber-700"><p className="font-semibold">Exclusion de cette matière{student.course_exclusion_end_date ? " jusqu’au " + new Date(student.course_exclusion_end_date + "T12:00:00").toLocaleDateString("fr-FR") : " · ce cours uniquement"}</p>{student.course_exclusion_reason && <p className="mt-0.5 line-clamp-2">{student.course_exclusion_reason}</p>}</div> : null}
                             {student.student_number && <p className="mt-0.5 text-xs text-slate-500">N° {student.student_number}</p>}
-                            {!student.administrative_excluded && <button type="button" onClick={() => setExclusionStudent(student)} className="mt-1 text-xs font-semibold text-rose-700 underline-offset-2 hover:underline">Exclure du cours</button>}
+                            {!student.administrative_excluded && !student.course_excluded && <button type="button" onClick={() => setExclusionStudent(student)} className="mt-1 text-xs font-semibold text-rose-700 underline-offset-2 hover:underline">Exclure du cours</button>}
                           </div>
                           <span className={selected === "present" ? "rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700" : selected === "absent" ? "rounded-full bg-rose-50 px-2 py-1 text-[11px] font-medium text-rose-700" : "rounded-full bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700"}>
                             {statuses.find((status) => status.value === selected)?.label ?? "Présent"}
                           </span>
                         </div>
                         <div className="grid grid-cols-3 gap-2" role="group" aria-label={`Présence de ${student.first_name} ${student.last_name}`}>
-                          {student.administrative_excluded ? <p className="col-span-3 rounded-lg bg-rose-50 px-3 py-3 text-center text-xs text-rose-800">Appel bloqué pendant la sanction administrative.</p> : statuses.map((status) => {
+                          {student.administrative_excluded || student.course_excluded ? <p className="col-span-3 rounded-lg bg-rose-50 px-3 py-3 text-center text-xs text-rose-800">{student.administrative_excluded ? "Appel bloqué pendant la sanction administrative." : "Appel bloqué pour cette matière."}</p> : statuses.map((status) => {
                             const active = selected === status.value
                             const activeClass = status.value === "present"
                               ? "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700"
@@ -330,12 +330,12 @@ export default function PresencesEnseignantPage() {
                           <tr key={student.student_id}>
                             <td className="px-4 py-3 font-medium">
                               {student.last_name} {student.first_name}
-                              {student.administrative_excluded && <span className="ml-2 rounded bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">Exclu de toutes les matières</span>}
+                              {student.administrative_excluded && <span className="ml-2 rounded bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">Exclu de toutes les matières</span>}{student.course_excluded && !student.administrative_excluded && <span className="ml-2 rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">Exclu de cette matière</span>}
                               {student.student_number && <span className="ml-2 text-xs font-normal text-muted-foreground">{student.student_number}</span>}
                             </td>
                             <td className="px-4 py-2">
                               <div className="flex gap-2">
-                                {student.administrative_excluded ? <span className="text-xs font-medium text-rose-700">Appel bloqué pendant la sanction administrative.</span> : statuses.map((status) => (
+                                {student.administrative_excluded || student.course_excluded ? <span className="text-xs font-medium text-rose-700">{student.administrative_excluded ? "Appel bloqué pendant la sanction administrative." : "Appel bloqué pour cette matière."}</span> : statuses.map((status) => (
                                   <Button
                                     key={status.value}
                                     type="button"
@@ -348,7 +348,7 @@ export default function PresencesEnseignantPage() {
                                     {status.label}
                                   </Button>
                                 ))}
-                                {!student.administrative_excluded && <Button type="button" size="sm" variant="outline" className="border-rose-200 text-rose-700 hover:bg-rose-50" onClick={() => setExclusionStudent(student)}>Exclure</Button>}
+                                {!student.administrative_excluded && !student.course_excluded && <Button type="button" size="sm" variant="outline" className="border-rose-200 text-rose-700 hover:bg-rose-50" onClick={() => setExclusionStudent(student)}>Exclure</Button>}
                               </div>
                             </td>
                           </tr>
@@ -402,8 +402,13 @@ export default function PresencesEnseignantPage() {
               scope: input.scope,
               endDate: input.endDate,
             })
+            if (input.scope === "current_lesson") {
+              setStudents((current) => current.map((student) => student.student_id === exclusionStudent.student_id
+                ? { ...student, course_excluded: true, course_exclusion_reason: input.reason, course_exclusion_end_date: null }
+                : student))
+            }
             setMessage(input.scope === "current_lesson"
-              ? "Exclusion signalée. Le parent et l'administration ont été informés."
+              ? "Exclusion signalée. La présence est conservée et le parent ainsi que l'administration ont été informés."
               : "Demande d'exclusion transmise à l'administration pour validation.")
           }}
         />

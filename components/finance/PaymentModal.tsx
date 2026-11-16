@@ -140,21 +140,27 @@ export function PaymentModal({ open, onClose, studentSchedules, onSuccess }: Pay
       return { allocations: [] as { schedule: typeof selected; amount: number }[], unallocated: numericAmount, totalAvailable: 0 }
     }
 
-    let left = numericAmount
+    // Les montants de la base sont en NUMERIC(12,2). Travailler en centimes
+    // évite qu'un arrondi indépendant de chaque échéance fasse diverger le total.
+    let leftCents = Math.round(numericAmount * 100)
     const allocations: { schedule: typeof selected; amount: number }[] = []
-    let totalAvailable = 0
+    let totalAvailableCents = 0
     for (const meta of samePayerSchedules.slice(selectedIndex)) {
       const boardSchedule = studentSchedules.find((row) => row.schedule_id === meta.id)
       if (!boardSchedule) continue
-      const remaining = Math.max(0, Number(boardSchedule.remaining_amount || 0))
-      if (remaining <= 0) continue
-      totalAvailable += remaining
-      if (left <= 0) continue
-      const allocated = Math.min(left, remaining)
-      if (allocated > 0) allocations.push({ schedule: boardSchedule, amount: allocated })
-      left -= allocated
+      const remainingCents = Math.max(0, Math.round(Number(boardSchedule.remaining_amount || 0) * 100))
+      if (remainingCents <= 0) continue
+      totalAvailableCents += remainingCents
+      if (leftCents <= 0) continue
+      const allocatedCents = Math.min(leftCents, remainingCents)
+      if (allocatedCents > 0) allocations.push({ schedule: boardSchedule, amount: allocatedCents / 100 })
+      leftCents -= allocatedCents
     }
-    return { allocations, unallocated: Math.max(0, left), totalAvailable }
+    return {
+      allocations,
+      unallocated: Math.max(0, leftCents) / 100,
+      totalAvailable: totalAvailableCents / 100,
+    }
   }, [selected, numericAmount, allocationSchedules, allocationSchedulesLoading, allocationLoadError, studentSchedules])
 
   if (!studentSchedules || studentSchedules.length === 0) return null
@@ -195,7 +201,7 @@ export function PaymentModal({ open, onClose, studentSchedules, onSuccess }: Pay
         }
         allocations = allocationPreview.allocations.map((item) => ({
           payment_schedule_id: item.schedule!.schedule_id,
-          amount: Math.round(item.amount),
+          amount: item.amount,
         }))
       }
 

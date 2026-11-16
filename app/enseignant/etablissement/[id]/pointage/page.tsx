@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ArrowLeft, CheckCircle2, QrCode, RefreshCw } from "lucide-react"
+import { ArrowLeft, CheckCircle2, QrCode } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useAuthentification } from "@/providers/authentification.provider"
@@ -9,6 +9,7 @@ import { TeacherShell } from "@/components/enseignant/teacher-shell"
 import { servicePointage } from "@/services/pointage.service"
 import { enseignantPointageService, type TeacherLessonSlot, type TeacherLessonPointage } from "@/services/enseignant-pointage.service"
 import { toast } from "sonner"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 const localDate = () => {
   const d = new Date()
@@ -26,6 +27,7 @@ export default function EnseignantPointagePage() {
   const establishmentId = params.id
   const { utilisateur, contexte, estEnCoursDeChargement } = useAuthentification()
   const establishment = contexte?.establishments?.find(item => item.id === establishmentId)
+  const realtimeRevision = useSchoolRealtime(["teacher_lesson_attendance", "timetable_slots", "pointage_alerts", "pointage_event_history"])
 
   const [course, setCourse] = useState<any>(null)
   const [slot, setSlot] = useState<TeacherLessonSlot | null>(null)
@@ -68,7 +70,7 @@ export default function EnseignantPointagePage() {
       return
     }
     if (!estEnCoursDeChargement && establishment) void load()
-  }, [estEnCoursDeChargement, utilisateur, establishment, router, load])
+  }, [estEnCoursDeChargement, utilisateur, establishment, router, load, realtimeRevision])
 
   const stopScanner = useCallback(() => {
     if (scanTimerRef.current) window.clearInterval(scanTimerRef.current)
@@ -154,7 +156,7 @@ export default function EnseignantPointagePage() {
             <p className="text-sm text-[#6d7280]">Pointage enseignant</p>
             <h1 className="text-xl font-semibold text-[#172033] sm:text-2xl">{establishment.name}</h1>
           </div>
-          <div className="ml-auto flex flex-wrap gap-2"><Button onClick={() => void openScanner(course?.status === "in_progress" ? "finish" : "start")} disabled={working} className="bg-[#0b2b83] text-white hover:bg-[#09236b] hover:text-white"><QrCode className="mr-2 h-4 w-4" />{course?.status === "in_progress" ? "Terminer le cours" : "Démarrer le cours"}</Button><Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button></div>
+          <div className="ml-auto flex flex-wrap gap-2"><Button onClick={() => void openScanner(course?.status === "in_progress" ? "finish" : "start")} disabled={working} className="bg-[#0b2b83] text-white hover:bg-[#09236b] hover:text-white"><QrCode className="mr-2 h-4 w-4" />{course?.status === "in_progress" ? "Terminer le cours" : "Démarrer le cours"}</Button></div>
         </header>
 
         <section className="border-b border-[#e2e4eb] pb-5">

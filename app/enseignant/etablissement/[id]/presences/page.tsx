@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAuthentification } from "@/providers/authentification.provider"
+import { supabaseBrowser } from "@/lib/supabase/client"
 import { TeacherShell } from "@/components/enseignant/teacher-shell"
 import { CourseExclusionDialog } from "@/components/enseignant/CourseExclusionDialog"
 import { enseignantPortalService, type TeacherAttendanceStudent, type TeacherClass, type TeacherScheduleSlot } from "@/services/enseignant-portal.service"
@@ -131,6 +132,23 @@ export default function PresencesEnseignantPage() {
       .catch((e) => setError(e instanceof Error ? e.message : "Impossible de charger les élèves."))
       .finally(() => setLoading(false))
   }, [classId, currentCourse, id])
+
+  useEffect(() => {
+    if (!id || !classId || !currentCourse) return
+    const refreshExclusions = () => {
+      void enseignantPortalService.getAttendance(id, classId, currentCourse.slot_id, localDate())
+        .then((rows) => {
+          const uniqueRows = Array.from(new Map(rows.map((row) => [row.student_id, row])).values())
+          setStudents(uniqueRows)
+        })
+        .catch((e) => setError(e instanceof Error ? e.message : "Impossible d’actualiser les exclusions."))
+    }
+    const channel = supabaseBrowser.channel("teacher-attendance-exclusions-" + id + "-" + classId)
+      .on("postgres_changes", { event: "*", schema: "public", table: "administrative_exclusions", filter: "establishment_id=eq." + id }, refreshExclusions)
+      .on("postgres_changes", { event: "*", schema: "public", table: "course_exclusions", filter: "establishment_id=eq." + id }, refreshExclusions)
+      .subscribe()
+    return () => { void supabaseBrowser.removeChannel(channel) }
+  }, [id, classId, currentCourse])
 
   const filteredStudents = useMemo(() => {
     const q = search.trim().toLowerCase()

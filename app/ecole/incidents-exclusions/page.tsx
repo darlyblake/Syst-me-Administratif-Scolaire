@@ -4,6 +4,7 @@ import { AlertTriangle,CheckCircle2,Loader2,ShieldCheck,XCircle } from "lucide-r
 import { Button } from "@/components/ui/button"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useAuthentification } from "@/providers/authentification.provider"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 import { TeacherCourseExclusionReview } from "@/components/ecole/TeacherCourseExclusionReview"
 
 type Enrol={student_id:string;class_id:string;student_name:string;student_number:string|null;class_name:string}

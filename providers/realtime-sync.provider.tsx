@@ -34,10 +34,21 @@ const LIVE_TABLES = [
   "staff_attendance",
   "staff_members",
   "sponsoring_organizations",
+  "audit_logs",
+  "enrollment_discount_snapshots",
+  "establishment_members",
+  "establishment_subscriptions",
+  "family_discount_rules",
+  "organization_coverage_rules",
+  "organization_student_assignments",
+  "parent_document_requests",
+  "school_classes",
+  "school_families",
+  "student_family_members",
 ] as const
 
 // Tables sans establishment_id : Realtime applique leurs politiques RLS à chaque abonné.
-const LIVE_RLS_TABLES = ["payment_schedules", "payment_allocations", "grades", "class_subjects"] as const
+const LIVE_RLS_TABLES = ["payment_schedules", "payment_allocations", "grades", "class_subjects", "establishment_registration_requests", "parent_document_request_attachments", "student_transfer_requests", "establishments"] as const
 
 export function RealtimeSyncProvider({ children }: { children: ReactNode }) {
   const { utilisateur, etablissementActif, contexte } = useAuthentification()
@@ -73,28 +84,30 @@ export function RealtimeSyncProvider({ children }: { children: ReactNode }) {
       .subscribe()
     channels.push(notificationChannel)
 
-    if (activeEstablishmentId && contexte?.account_type !== "parent") {
-      const channel = supabaseBrowser.channel("nova-school-data-" + userId + "-" + activeEstablishmentId)
-      for (const table of LIVE_TABLES) {
-        channel.on("postgres_changes", {
-          event: "*",
-          schema: "public",
-          table,
-          filter: "establishment_id=eq." + activeEstablishmentId,
-        }, (payload) => {
-          const row = (payload.new ?? payload.old) as Record<string, unknown>
-          emitSchoolRealtime({
+    if (contexte?.account_type !== "parent") {
+      const channel = supabaseBrowser.channel("nova-school-data-" + userId + "-" + (activeEstablishmentId ?? "all"))
+      if (activeEstablishmentId) {
+        for (const table of LIVE_TABLES) {
+          channel.on("postgres_changes", {
+            event: "*",
+            schema: "public",
             table,
-            eventType: payload.eventType,
-            establishmentId: activeEstablishmentId,
-            record: row,
+            filter: "establishment_id=eq." + activeEstablishmentId,
+          }, (payload) => {
+            const row = (payload.new ?? payload.old) as Record<string, unknown>
+            emitSchoolRealtime({
+              table,
+              eventType: payload.eventType,
+              establishmentId: activeEstablishmentId,
+              record: row,
+            })
           })
-        })
+        }
       }
       for (const table of LIVE_RLS_TABLES) {
         channel.on("postgres_changes", { event: "*", schema: "public", table }, (payload) => {
           const row = (payload.new ?? payload.old) as Record<string, unknown>
-          emitSchoolRealtime({ table, eventType: payload.eventType, establishmentId: activeEstablishmentId, record: row })
+          emitSchoolRealtime({ table, eventType: payload.eventType, establishmentId: activeEstablishmentId ?? undefined, record: row })
         })
       }
       channels.push(channel.subscribe())

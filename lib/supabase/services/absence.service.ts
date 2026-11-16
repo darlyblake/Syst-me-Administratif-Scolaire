@@ -81,6 +81,7 @@ export async function listAttendanceForClassDate(classId: string, date: string):
 export interface LessonAttendanceRecord extends AttendanceRecordForDate {
   subject_id?: string | null
   lesson_key: string
+  created_at?: string | null
 }
 
 export interface TeacherClassSubject {
@@ -106,7 +107,7 @@ export async function listTeacherClassSubjects(establishmentId: string): Promise
 export async function listAttendanceForLesson(classId: string, date: string, lessonKey: string): Promise<LessonAttendanceRecord[]> {
   const { data, error } = await supabaseBrowser
     .from("attendance_records")
-    .select("id, student_id, class_id, attendance_date, status, reason, subject_id, lesson_key")
+    .select("id, student_id, class_id, attendance_date, status, reason, subject_id, lesson_key, created_at")
     .eq("class_id", classId)
     .eq("attendance_date", date)
     .eq("lesson_key", lessonKey)

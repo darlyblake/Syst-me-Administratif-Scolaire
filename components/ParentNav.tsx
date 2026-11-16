@@ -74,7 +74,7 @@ const SECTIONS = [
     items: [
       { href: "/parents/enfants",         label: "Mes enfants",          icon: Users },
       { href: "/parents/absences",         label: "Présences & absences", icon: ShieldCheck },
-      { href: "/parents/exclusions",       label: "Exclusions de cours", icon: ClipboardList },
+      { href: "/parents/exclusions",       label: "Décisions disciplinaires", icon: ClipboardList },
       { href: "/parents/emploi-du-temps",  label: "Emploi du temps",      icon: CalendarDays },
       { href: "/parents/cahier-de-textes", label: "Cahier de textes",     icon: BookOpen },
       { href: "/parents/evenements",       label: "Événements",           icon: CalendarDays },

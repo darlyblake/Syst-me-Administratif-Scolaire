@@ -369,6 +369,7 @@ export const financeService = {
       .order("priority_rank", { ascending: true, nullsFirst: false })
       .order("installment_number", { ascending: true })
       .order("due_date", { ascending: true })
+      .order("id", { ascending: true })
     if (error) throw new Error("Impossible de vérifier les prochaines échéances à affecter.")
     return (data ?? []) as {
       id: string

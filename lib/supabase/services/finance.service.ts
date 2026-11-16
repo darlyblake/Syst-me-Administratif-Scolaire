@@ -361,6 +361,28 @@ export const financeService = {
     return data as { id: string; schedule_id?: string | null; already_exists?: boolean }
   },
 
+  async getPaymentAllocationSchedules(enrollmentId: string) {
+    const { data, error } = await supabaseBrowser
+      .from("payment_schedules")
+      .select("id,payer_type,organization_id,category,priority_rank,installment_number,due_date,amount_due,amount_paid")
+      .eq("enrollment_id", enrollmentId)
+      .order("priority_rank", { ascending: true, nullsFirst: false })
+      .order("installment_number", { ascending: true })
+      .order("due_date", { ascending: true })
+    if (error) throw new Error("Impossible de vérifier les prochaines échéances à affecter.")
+    return (data ?? []) as {
+      id: string
+      payer_type: string | null
+      organization_id: string | null
+      category: string | null
+      priority_rank: number | null
+      installment_number: number
+      due_date: string | null
+      amount_due: number
+      amount_paid: number
+    }[]
+  },
+
   // 6. Encaissement atomique (RPC)
   async createPaymentWithAllocations(
     enrollmentId: string, 

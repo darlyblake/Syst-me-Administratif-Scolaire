@@ -28,6 +28,9 @@ const LIVE_TABLES = [
   "student_options",
 ] as const
 
+// Tables sans establishment_id : Realtime applique leurs politiques RLS à chaque abonné.
+const LIVE_RLS_TABLES = ["payment_schedules", "payment_allocations", "grades", "class_subjects"] as const
+
 export function RealtimeSyncProvider({ children }: { children: ReactNode }) {
   const { utilisateur, etablissementActif, contexte } = useAuthentification()
   const userId = utilisateur?.id ?? null
@@ -78,6 +81,12 @@ export function RealtimeSyncProvider({ children }: { children: ReactNode }) {
             establishmentId: activeEstablishmentId,
             record: row,
           })
+        })
+      }
+      for (const table of LIVE_RLS_TABLES) {
+        channel.on("postgres_changes", { event: "*", schema: "public", table }, (payload) => {
+          const row = (payload.new ?? payload.old) as Record<string, unknown>
+          emitSchoolRealtime({ table, eventType: payload.eventType, establishmentId: activeEstablishmentId, record: row })
         })
       }
       channels.push(channel.subscribe())

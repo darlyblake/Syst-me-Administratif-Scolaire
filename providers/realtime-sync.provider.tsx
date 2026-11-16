@@ -43,6 +43,7 @@ const LIVE_TABLES = [
   "organization_student_assignments",
   "parent_document_requests",
   "school_classes",
+  "school_promotions",
   "school_families",
   "student_family_members",
 ] as const

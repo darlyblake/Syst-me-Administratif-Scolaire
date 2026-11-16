@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { enseignantPortalService, type TeacherClass, type TeacherContext, type TeacherScheduleSlot, type TeacherStudent } from "@/services/enseignant-portal.service"
 import { TeacherShell } from "@/components/enseignant/teacher-shell"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 const days = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
 
@@ -26,6 +27,7 @@ export default function EspaceEtablissementEnseignantPage() {
   const [schedule, setSchedule] = useState<TeacherScheduleSlot[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const realtimeRevision = useSchoolRealtime(["timetable_slots", "administrative_exclusions", "course_exclusions", "attendance_records", "teacher_lesson_entries", "grades"])
 
   const load = async () => {
     if (!id) return
@@ -56,7 +58,7 @@ export default function EspaceEtablissementEnseignantPage() {
     }
     if (!estEnCoursDeChargement && establishment) void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [estEnCoursDeChargement, utilisateur, establishment, id, router])
+  }, [estEnCoursDeChargement, utilisateur, establishment, id, router, realtimeRevision])
 
   const today = new Date()
   const todayNumber = today.getDay()
@@ -86,7 +88,6 @@ export default function EspaceEtablissementEnseignantPage() {
               <h1 className="mt-1 text-2xl font-bold tracking-tight">Bonjour {firstName}</h1>
               <p className="mt-1 text-sm text-[#6d7280]">{context?.specialty || "Votre journée d’enseignement"} · {todaySlots.length} cours prévu{todaySlots.length > 1 ? "s" : ""}</p>
             </div>
-            <button type="button" onClick={() => void load()} className="rounded-md border border-[#dfe2ec] bg-white px-3 py-2 text-sm font-medium hover:bg-[#f3f4f8]">Actualiser</button>
           </section>
 
           {error && <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}

@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, History, RefreshCw, Search, UserRound } from "lucide-react"
+import { ArrowLeft, History, Search, UserRound } from "lucide-react"
 import { supabaseBrowser } from "@/lib/supabase/client"
 import { useUserContext } from "@/hooks/useUserContext"
 import { isEstablishmentAdmin } from "@/lib/organization/runtime-permissions"
+import { useSchoolRealtime } from "@/hooks/use-school-realtime"
 
 type ActivityRow = {
   id: string
@@ -97,19 +98,18 @@ export default function JournalActivitePage() {
   const canViewAudit = isEstablishmentAdmin({ etablissementRole: primaryEstablishment?.role })
   const [rows, setRows] = useState<ActivityRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
+  const realtimeRevision = useSchoolRealtime(["audit_logs"])
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
 
-  const load = useCallback(async (manual = false) => {
+  const load = useCallback(async () => {
     if (!establishmentId || !canViewAudit) {
       setRows([])
       setLoading(false)
       setError(null)
       return
     }
-    if (manual) setRefreshing(true)
-    else setLoading(true)
+    setLoading(true)
     setError(null)
     try {
       const { data, error: queryError } = await supabaseBrowser.rpc("list_audit_logs", {
@@ -124,11 +124,10 @@ export default function JournalActivitePage() {
       setRows([])
     } finally {
       setLoading(false)
-      setRefreshing(false)
     }
   }, [establishmentId, canViewAudit])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load() }, [load, realtimeRevision])
 
   if (!canViewAudit) {
     return (
@@ -166,9 +165,6 @@ export default function JournalActivitePage() {
           </h1>
           <p className="mt-1 text-sm text-[#515f74]">Consultez les actions effectuées dans votre établissement : inscriptions, paiements et modifications.</p>
         </div>
-        <button type="button" onClick={() => void load(true)} disabled={loading || refreshing} className="inline-flex h-9 items-center justify-center gap-2 rounded border border-[#c5c5d3]/70 bg-white px-3 text-sm font-medium text-[#00236f] hover:bg-[#f2f3ff] disabled:opacity-50">
-          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Actualiser
-        </button>
       </div>
 
       <div className="flex flex-col gap-3 rounded border border-[#c5c5d3]/55 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">

@@ -119,10 +119,12 @@ export default function PresencesEnseignantPage() {
     setError(null)
     setMessage(null)
     setSearch("")
-    enseignantPortalService.getAttendance(id, classId, localDate())
+    enseignantPortalService.getAttendance(id, classId, currentCourse.slot_id, localDate())
       .then((rows) => {
-        setStudents(rows)
-        setStatusesByStudent(Object.fromEntries(rows.map((row) => [row.student_id, row.status ?? "present"])))
+        // Une ligne par identifiant élève : protection supplémentaire contre les doublons API.
+        const uniqueRows = Array.from(new Map(rows.map((row) => [row.student_id, row])).values())
+        setStudents(uniqueRows)
+        setStatusesByStudent(Object.fromEntries(uniqueRows.map((row) => [row.student_id, row.status ?? "present"])))
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Impossible de charger les élèves."))
       .finally(() => setLoading(false))
@@ -185,7 +187,7 @@ export default function PresencesEnseignantPage() {
 
   return (
     <TeacherShell establishmentId={id} establishmentName={establishment.name} active="attendance">
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-7xl pb-24 md:pb-0">
         <header className="mb-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Button variant="ghost" size="sm" onClick={() => router.push(`/enseignant/etablissement/${id}`)}>
@@ -258,49 +260,113 @@ export default function PresencesEnseignantPage() {
             ) : !students.length ? (
               <div className="border bg-white p-8 text-center text-sm text-muted-foreground">Aucun élève dans cette classe.</div>
             ) : (
-              <div className="overflow-x-auto border bg-white">
-                <table className="w-full min-w-[760px] text-sm">
-                  <thead className="border-b bg-muted/30 text-left text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3">Élève</th>
-                      <th className="px-4 py-3">Présence</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {filteredStudents.map((student) => {
-                      const selected = statusesByStudent[student.student_id] ?? "present"
-                      return (
-                        <tr key={student.student_id}>
-                          <td className="px-4 py-3 font-medium">
-                            {student.last_name} {student.first_name}
-                            {student.student_number && <span className="ml-2 text-xs font-normal text-muted-foreground">{student.student_number}</span>}
-                          </td>
-                          <td className="px-4 py-2">
-                            <div className="flex gap-2">
-                              {statuses.map((status) => (
-                                <Button
-                                  key={status.value}
-                                  type="button"
-                                  size="sm"
-                                  variant={selected === status.value ? "default" : "outline"}
-                                  onClick={() => { setSavedCount(null); setMessage(null); setStatusesByStudent((current) => ({ ...current, [student.student_id]: status.value })) }}
-                                >
-                                  {selected === status.value && <Check className="mr-1 h-3.5 w-3.5" />}
-                                  {status.label}
-                                </Button>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-                {!filteredStudents.length && <p className="p-8 text-center text-sm text-muted-foreground">Aucun élève trouvé.</p>}
-              </div>
+              <>
+                {/* Présentation mobile : une fiche compacte par élève, sans tableau à faire défiler horizontalement. */}
+                <div className="space-y-2 pb-28 md:hidden">
+                  {filteredStudents.map((student, index) => {
+                    const selected = statusesByStudent[student.student_id] ?? "present"
+                    return (
+                      <section key={student.student_id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                        <div className="mb-3 flex min-w-0 items-center gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">{index + 1}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-slate-900">{student.last_name} {student.first_name}</p>
+                            {student.student_number && <p className="mt-0.5 text-xs text-slate-500">N° {student.student_number}</p>}
+                          </div>
+                          <span className={selected === "present" ? "rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700" : selected === "absent" ? "rounded-full bg-rose-50 px-2 py-1 text-[11px] font-medium text-rose-700" : "rounded-full bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700"}>
+                            {statuses.find((status) => status.value === selected)?.label ?? "Présent"}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2" role="group" aria-label={`Présence de ${student.first_name} ${student.last_name}`}>
+                          {statuses.map((status) => {
+                            const active = selected === status.value
+                            const activeClass = status.value === "present"
+                              ? "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700"
+                              : status.value === "absent"
+                                ? "border-rose-600 bg-rose-600 text-white hover:bg-rose-700"
+                                : "border-amber-500 bg-amber-500 text-white hover:bg-amber-600"
+                            return (
+                              <Button
+                                key={status.value}
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                aria-pressed={active}
+                                className={`h-10 min-w-0 rounded-lg px-2 text-xs font-semibold ${active ? activeClass : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"}`}
+                                onClick={() => { setSavedCount(null); setMessage(null); setStatusesByStudent((current) => ({ ...current, [student.student_id]: status.value })) }}
+                              >
+                                {active && <Check className="mr-1 h-3.5 w-3.5 shrink-0" />}
+                                <span className="truncate">{status.label}</span>
+                              </Button>
+                            )
+                          })}
+                        </div>
+                      </section>
+                    )
+                  })}
+                  {!filteredStudents.length && <p className="rounded-xl border bg-white p-8 text-center text-sm text-muted-foreground">Aucun élève trouvé.</p>}
+                </div>
+
+                {/* Tableau classique conservé pour les écrans moyens et grands. */}
+                <div className="hidden overflow-x-auto border bg-white md:block">
+                  <table className="w-full min-w-[600px] text-sm">
+                    <thead className="border-b bg-muted/30 text-left text-muted-foreground">
+                      <tr>
+                        <th className="px-4 py-3">Élève</th>
+                        <th className="px-4 py-3">Présence</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {filteredStudents.map((student) => {
+                        const selected = statusesByStudent[student.student_id] ?? "present"
+                        return (
+                          <tr key={student.student_id}>
+                            <td className="px-4 py-3 font-medium">
+                              {student.last_name} {student.first_name}
+                              {student.student_number && <span className="ml-2 text-xs font-normal text-muted-foreground">{student.student_number}</span>}
+                            </td>
+                            <td className="px-4 py-2">
+                              <div className="flex gap-2">
+                                {statuses.map((status) => (
+                                  <Button
+                                    key={status.value}
+                                    type="button"
+                                    size="sm"
+                                    variant={selected === status.value ? "default" : "outline"}
+                                    aria-pressed={selected === status.value}
+                                    onClick={() => { setSavedCount(null); setMessage(null); setStatusesByStudent((current) => ({ ...current, [student.student_id]: status.value })) }}
+                                  >
+                                    {selected === status.value && <Check className="mr-1 h-3.5 w-3.5" />}
+                                    {status.label}
+                                  </Button>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                  {!filteredStudents.length && <p className="p-8 text-center text-sm text-muted-foreground">Aucun élève trouvé.</p>}
+                </div>
+              </>
             )}
 
-            <div className="mt-4 flex items-center justify-between border-t pt-4">
+            {/* Action fixe au bas de l'écran sur mobile, accessible sans remonter la liste. */}
+            <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+              <div className="mx-auto flex max-w-lg items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-slate-900">{students.length} élève(s)</p>
+                  <p className="truncate text-[11px] text-slate-500">{counts.present ?? 0} présents · {counts.absent ?? 0} absents · {counts.late ?? 0} retards</p>
+                </div>
+                <Button className="h-11 shrink-0 rounded-xl px-5" onClick={() => void saveAll()} disabled={saving || loading || !students.length}>
+                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  {saving ? "Enregistrement…" : "Valider l’appel"}
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-4 hidden items-center justify-between border-t pt-4 md:flex">
               <p className="text-sm text-muted-foreground">Les modifications sont enregistrées en une seule fois pour toute la classe.</p>
               <Button onClick={() => void saveAll()} disabled={saving || loading || !students.length}>
                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}

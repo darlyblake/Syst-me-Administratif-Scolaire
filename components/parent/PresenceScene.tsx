@@ -30,7 +30,7 @@ export function PresenceScene({kind}:{kind:SceneKind}) {
         <path d="m150 83 12 9" stroke="#D69B38" strokeWidth="3" strokeLinecap="round"/>
         <path d="M160 90l7-4" stroke="#1E293B" strokeWidth="2" strokeLinecap="round"/>
         <path d="M112 95v18m31-18v18" stroke="#26364B" strokeWidth="7" strokeLinecap="round"/>
-        {kind==="pending"&&<circle cx="196" cy="31" r="13" fill="#EFF6FF" stroke="#3B82F6" strokeWidth="2"/><path d="M196 23v9l6 3" stroke="#2563EB" strokeWidth="2" strokeLinecap="round"/>}
+        {kind==="pending"&&<><circle cx="196" cy="31" r="13" fill="#EFF6FF" stroke="#3B82F6" strokeWidth="2"/><path d="M196 23v9l6 3" stroke="#2563EB" strokeWidth="2" strokeLinecap="round"/></>}
         {kind==="writing"&&<path d="m169 79 8-7" stroke="#D69B38" strokeWidth="3" strokeLinecap="round"><animate attributeName="d" values="m169 79 8-7;m169 80 8-6;m169 79 8-7" dur="1.4s" repeatCount="indefinite"/></path>}
       </>}
       {kind==="recess"&&<>

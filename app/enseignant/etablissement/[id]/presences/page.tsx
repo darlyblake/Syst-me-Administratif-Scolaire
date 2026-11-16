@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAuthentification } from "@/providers/authentification.provider"
 import { TeacherShell } from "@/components/enseignant/teacher-shell"
+import { CourseExclusionDialog } from "@/components/enseignant/CourseExclusionDialog"
 import { enseignantPortalService, type TeacherAttendanceStudent, type TeacherClass, type TeacherScheduleSlot } from "@/services/enseignant-portal.service"
 
 const statuses = [
@@ -49,6 +50,7 @@ export default function PresencesEnseignantPage() {
   const [error, setError] = useState<string | null>(null)
   const [savedCount, setSavedCount] = useState<number | null>(null)
   const [clockNow, setClockNow] = useState(() => new Date())
+  const [exclusionStudent, setExclusionStudent] = useState<TeacherAttendanceStudent | null>(null)
 
   const establishment = contexte?.establishments?.find((item) => item.id === id)
 
@@ -272,6 +274,7 @@ export default function PresencesEnseignantPage() {
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-slate-900">{student.last_name} {student.first_name}</p>
                             {student.student_number && <p className="mt-0.5 text-xs text-slate-500">N° {student.student_number}</p>}
+                            <button type="button" onClick={() => setExclusionStudent(student)} className="mt-1 text-xs font-semibold text-rose-700 underline-offset-2 hover:underline">Exclure du cours</button>
                           </div>
                           <span className={selected === "present" ? "rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700" : selected === "absent" ? "rounded-full bg-rose-50 px-2 py-1 text-[11px] font-medium text-rose-700" : "rounded-full bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700"}>
                             {statuses.find((status) => status.value === selected)?.label ?? "Présent"}
@@ -340,6 +343,7 @@ export default function PresencesEnseignantPage() {
                                     {status.label}
                                   </Button>
                                 ))}
+                                <Button type="button" size="sm" variant="outline" className="border-rose-200 text-rose-700 hover:bg-rose-50" onClick={() => setExclusionStudent(student)}>Exclure</Button>
                               </div>
                             </td>
                           </tr>
@@ -376,6 +380,29 @@ export default function PresencesEnseignantPage() {
           </>
         )}
       </div>
+      {exclusionStudent && currentCourse && (
+        <CourseExclusionDialog
+          studentName={`${exclusionStudent.last_name} ${exclusionStudent.first_name}`}
+          subjectName={currentCourse.subject_name}
+          onClose={() => setExclusionStudent(null)}
+          onSubmit={async (input) => {
+            await enseignantPortalService.reportCourseExclusion({
+              establishmentId: id,
+              studentId: exclusionStudent.student_id,
+              classId,
+              subjectId: currentCourse.subject_id,
+              timetableSlotId: currentCourse.slot_id,
+              lessonDate: localDate(),
+              reason: input.reason,
+              scope: input.scope,
+              endDate: input.endDate,
+            })
+            setMessage(input.scope === "current_lesson"
+              ? "Exclusion signalée. Le parent et l'administration ont été informés."
+              : "Demande d'exclusion transmise à l'administration pour validation.")
+          }}
+        />
+      )}
       <style jsx>{`
         @keyframes attendance-success-pop {
           0% { transform: scale(.55); opacity: .25; }

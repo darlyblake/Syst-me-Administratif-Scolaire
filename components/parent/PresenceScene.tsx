@@ -1,6 +1,6 @@
 "use client"
 
-type SceneKind = "writing" | "recess" | "break" | "late" | "absent" | "excluded" | "going-home" | "free" | "before" | "pending" | "payment-ok" | "payment-attention"
+type SceneKind = "writing" | "recess" | "break" | "late" | "absent" | "excluded" | "going-home" | "free" | "before" | "pending" | "payment-ok" | "payment-attention" | "results-ok" | "results-attention"
 
 export function PresenceScene({kind}:{kind:SceneKind}) {
   const label:Record<SceneKind,string>={
@@ -16,6 +16,8 @@ export function PresenceScene({kind}:{kind:SceneKind}) {
     pending:"Élève assis en classe, appel pas encore effectué",
     "payment-ok":"Élève souriant et rassuré, échéances de scolarité à jour",
     "payment-attention":"Élève préoccupé qui consulte son échéancier, un règlement reste à effectuer",
+    "results-ok":"Élève heureux qui tient sa copie avec une note moyenne ou supérieure à 10 sur 20",
+    "results-attention":"Élève légèrement déçu qui regarde sa copie avec une moyenne inférieure à 10 sur 20",
   }
   return <div role="img" aria-label={label[kind]} className="mx-auto flex h-36 w-full max-w-[250px] items-center justify-center">
     <svg viewBox="0 0 260 170" className="h-full w-full" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -122,6 +124,42 @@ export function PresenceScene({kind}:{kind:SceneKind}) {
         <path d="M194 29v5" stroke="#DC2626" strokeWidth="2" strokeLinecap="round">
           <animate attributeName="opacity" values=".35;1;.35" dur="1.8s" repeatCount="indefinite"/>
         </path>
+      </>}
+
+      {kind==="results-ok"&&<>
+        <path d="M39 137h182" stroke="#CBD5E1" strokeWidth="3" strokeLinecap="round"/>
+        <circle cx="111" cy="43" r="21" fill="#8B573D"/>
+        <path d="M90 40q2-23 24-22 17 2 19 22-15-10-43 0Z" fill="#202B3D"/>
+        <circle cx="104" cy="44" r="2" fill="#172033"/><circle cx="119" cy="44" r="2" fill="#172033"/>
+        <path d="M101 53q10 10 20 0" stroke="#6B3829" strokeWidth="2.5" strokeLinecap="round"/>
+        <path d="M89 70q22-13 45 0l9 48H80z" fill="#2563EB"/>
+        <path d="M94 78 77 58m53 20 17-20" stroke="#8B573D" strokeWidth="9" strokeLinecap="round"/>
+        <path d="M146 117 139 137m-44-20-8 20" stroke="#26364B" strokeWidth="9" strokeLinecap="round"/>
+        <path d="M166 49h53v70h-53z" rx="4" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="2"/>
+        <path d="M176 63h32m-32 8h25m-25 8h28" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round"/>
+        <path d="m180 96 8 8 16-18" stroke="#15803D" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="m66 30 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" fill="#FBBF24">
+          <animate attributeName="opacity" values=".4;1;.4" dur="2s" repeatCount="indefinite"/>
+        </path>
+        <path d="m151 26 2 5 5 1-4 3 1 5-4-2-4 2 1-5-4-3 5-1z" fill="#FBBF24">
+          <animate attributeName="opacity" values="1;.35;1" dur="2.2s" repeatCount="indefinite"/>
+        </path>
+      </>}
+      {kind==="results-attention"&&<>
+        <path d="M39 137h182" stroke="#CBD5E1" strokeWidth="3" strokeLinecap="round"/>
+        <circle cx="111" cy="43" r="21" fill="#8B573D"/>
+        <path d="M90 40q2-23 24-22 17 2 19 22-15-10-43 0Z" fill="#202B3D"/>
+        <path d="m101 43 7-2m8 0 7 2" stroke="#172033" strokeWidth="2.5" strokeLinecap="round"/>
+        <circle cx="105" cy="47" r="2" fill="#172033"/><circle cx="119" cy="47" r="2" fill="#172033"/>
+        <path d="M105 57q7-5 14 0" stroke="#6B3829" strokeWidth="2.5" strokeLinecap="round"/>
+        <path d="M89 70q22-13 45 0l9 48H80z" fill="#2563EB"/>
+        <path d="M94 78 82 91m48-13 13 13" stroke="#8B573D" strokeWidth="9" strokeLinecap="round"/>
+        <path d="M146 117 139 137m-44-20-8 20" stroke="#26364B" strokeWidth="9" strokeLinecap="round"/>
+        <path d="M166 49h53v70h-53z" rx="4" fill="#FFF7ED" stroke="#FDBA74" strokeWidth="2"/>
+        <path d="M176 63h32m-32 8h25m-25 8h28" stroke="#C08457" strokeWidth="2" strokeLinecap="round"/>
+        <path d="M184 96q8-7 16 0" stroke="#B45309" strokeWidth="2.5" strokeLinecap="round"/>
+        <path d="M195 91v7m0 5v.5" stroke="#B45309" strokeWidth="2.5" strokeLinecap="round"/>
+        <path d="M82 91q-12 6-10 18" stroke="#8B573D" strokeWidth="8" strokeLinecap="round"/>
       </>}
     </svg>
   </div>

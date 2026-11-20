@@ -10,7 +10,7 @@ import { PresenceScene } from "@/components/parent/PresenceScene"
 
 type GradeFilter = "tous" | "moyenne" | "sous-moyenne"
 
-const scoreOnTwenty = (grade: { score: number | string; max_score?: number | string | null }) => {
+const scoreOnTwenty = (grade: { score: unknown; max_score?: unknown }) => {
   const score = Number(grade.score)
   const maxScore = Number(grade.max_score) > 0 ? Number(grade.max_score) : 20
   return Number.isFinite(score) ? (score / maxScore) * 20 : null

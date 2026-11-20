@@ -1,6 +1,6 @@
 "use client"
 
-type SceneKind = "writing" | "recess" | "break" | "late" | "absent" | "excluded" | "going-home" | "free" | "before" | "pending"
+type SceneKind = "writing" | "recess" | "break" | "late" | "absent" | "excluded" | "going-home" | "free" | "before" | "pending" | "payment-ok" | "payment-attention"
 
 export function PresenceScene({kind}:{kind:SceneKind}) {
   const label:Record<SceneKind,string>={
@@ -14,6 +14,8 @@ export function PresenceScene({kind}:{kind:SceneKind}) {
     free:"Élève qui attend calmement le prochain cours",
     before:"Élève qui se prépare avant le début des cours",
     pending:"Élève assis en classe, appel pas encore effectué",
+    "payment-ok":"Élève souriant et rassuré, échéances de scolarité à jour",
+    "payment-attention":"Élève préoccupé qui consulte son échéancier, un règlement reste à effectuer",
   }
   return <div role="img" aria-label={label[kind]} className="mx-auto flex h-36 w-full max-w-[250px] items-center justify-center">
     <svg viewBox="0 0 260 170" className="h-full w-full" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -79,6 +81,47 @@ export function PresenceScene({kind}:{kind:SceneKind}) {
         <path d="M107 72q23-13 46 0l8 44h-62z" fill="#64748B"/><path d="M112 115v19m32-19v19" stroke="#26364B" strokeWidth="8" strokeLinecap="round"/>
         <path d="M93 84 80 102m81-18 13 18" stroke="#8B573D" strokeWidth="8" strokeLinecap="round"/>
         <path d="M188 60q14-12 28 0v48h-28z" fill="#1D4ED8"/><path d="M188 71h28m-28 10h28" stroke="#93C5FD" strokeWidth="2"/>
+      </>}
+      {kind==="payment-ok"&&<>
+        <path d="M39 137h182" stroke="#CBD5E1" strokeWidth="3" strokeLinecap="round"/>
+        <circle cx="111" cy="43" r="21" fill="#8B573D"/>
+        <path d="M90 40q2-23 24-22 17 2 19 22-15-10-43 0Z" fill="#202B3D"/>
+        <circle cx="104" cy="44" r="2" fill="#172033"/><circle cx="119" cy="44" r="2" fill="#172033"/>
+        <path d="M102 53q9 9 19 0" stroke="#6B3829" strokeWidth="2.5" strokeLinecap="round"/>
+        <path d="M89 70q22-13 45 0l9 48H80z" fill="#2563EB"/>
+        <path d="M94 78 78 57m53 21 17-19" stroke="#8B573D" strokeWidth="9" strokeLinecap="round"/>
+        <path d="M78 57q-5-8 2-13" stroke="#8B573D" strokeWidth="8" strokeLinecap="round"/>
+        <path d="M146 117 139 137m-44-20-8 20" stroke="#26364B" strokeWidth="9" strokeLinecap="round"/>
+        <path d="M173 53h45v62h-45z" rx="5" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="2"/>
+        <path d="M182 66h27m-27 8h20" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round"/>
+        <circle cx="195" cy="96" r="12" fill="#DCFCE7"/>
+        <path d="m189 96 4 4 8-9" stroke="#15803D" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="m65 34 3 6 6 1-5 4 1 6-5-3-5 3 1-6-5-4 7-1z" fill="#FBBF24">
+          <animate attributeName="opacity" values=".45;1;.45" dur="2.4s" repeatCount="indefinite"/>
+        </path>
+        <path d="m155 30 2 4 5 1-4 3 1 5-4-2-4 2 1-5-4-3 5-1z" fill="#FBBF24">
+          <animate attributeName="opacity" values="1;.4;1" dur="2.4s" repeatCount="indefinite"/>
+        </path>
+      </>}
+      {kind==="payment-attention"&&<>
+        <path d="M39 137h182" stroke="#CBD5E1" strokeWidth="3" strokeLinecap="round"/>
+        <circle cx="111" cy="43" r="21" fill="#8B573D"/>
+        <path d="M90 40q2-23 24-22 17 2 19 22-15-10-43 0Z" fill="#202B3D"/>
+        <path d="m101 43 7-2m8 0 7 2" stroke="#172033" strokeWidth="2.5" strokeLinecap="round"/>
+        <circle cx="105" cy="47" r="2" fill="#172033"/><circle cx="119" cy="47" r="2" fill="#172033"/>
+        <path d="M105 57q7-5 14 0" stroke="#6B3829" strokeWidth="2.5" strokeLinecap="round"/>
+        <path d="M89 70q22-13 45 0l9 48H80z" fill="#2563EB"/>
+        <path d="M94 78 83 91m48-13 13 13" stroke="#8B573D" strokeWidth="9" strokeLinecap="round"/>
+        <path d="M146 117 139 137m-44-20-8 20" stroke="#26364B" strokeWidth="9" strokeLinecap="round"/>
+        <path d="M168 48h52v72h-52z" rx="5" fill="#FFF7ED" stroke="#FDBA74" strokeWidth="2"/>
+        <path d="M178 62h31m-31 8h23m-23 8h18" stroke="#C08457" strokeWidth="2" strokeLinecap="round"/>
+        <circle cx="194" cy="100" r="13" fill="#FEE2E2" stroke="#DC2626" strokeWidth="1.5"/>
+        <path d="M194 92v10m0 4v.5" stroke="#B91C1C" strokeWidth="3" strokeLinecap="round"/>
+        <path d="M82 92q-13 5-12 18" stroke="#8B573D" strokeWidth="8" strokeLinecap="round"/>
+        <path d="M70 111q7-8 14-2" stroke="#8B573D" strokeWidth="7" strokeLinecap="round"/>
+        <path d="M194 29v5" stroke="#DC2626" strokeWidth="2" strokeLinecap="round">
+          <animate attributeName="opacity" values=".35;1;.35" dur="1.8s" repeatCount="indefinite"/>
+        </path>
       </>}
     </svg>
   </div>

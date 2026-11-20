@@ -15,6 +15,7 @@ import { useParentPortal } from "@/hooks/use-parent-portal"
 import { ParentPageHeader } from "@/components/parent/ParentPageHeader"
 import { ParentChildSelect } from "@/components/parent/ParentChildSelect"
 import { ParentEmptyState } from "@/components/parent/ParentEmptyState"
+import { PresenceScene } from "@/components/parent/PresenceScene"
 
 const money = (n: number) => new Intl.NumberFormat("fr-FR").format(n) + " FCFA"
 
@@ -146,6 +147,16 @@ export default function ParentPaiements() {
   )
   const attentionCount = overdueSchedules.length + partialSchedules.length + upcomingSchedules.length
 
+  // Une échéance future n'est pas encore exigible : l'avatar ne passe en alerte
+  // que lorsqu'une échéance arrivée à date reste partiellement ou totalement due.
+  const dueNowUnpaidSchedules = familyTuitionSchedules.filter((schedule) => {
+    const dueDate = new Date(schedule.due_date)
+    dueDate.setHours(0, 0, 0, 0)
+    return dueDate <= today && schedule.amount_due - schedule.amount_paid > 0.01
+  })
+  const paymentStatusUpToDate = dueNowUnpaidSchedules.length === 0
+
+
   const modes = [...new Set(selectedChildren.map((child) => child.payment_mode).filter(Boolean))]
   const modeLabel = modes.length === 1
     ? paymentModeLabel(modes[0])
@@ -232,6 +243,32 @@ export default function ParentPaiements() {
             />
             <span className="text-xs font-medium text-slate-500">Paiement {modeLabel.toLowerCase()}</span>
           </div>
+
+          {familyTuitionSchedules.length > 0 && (
+            <section
+              aria-live="polite"
+              className={`flex flex-col items-center gap-2 rounded-[22px] border px-4 py-4 text-center sm:flex-row sm:gap-4 sm:px-5 sm:text-left ${paymentStatusUpToDate ? "border-emerald-100 bg-[#f4fbf7]" : "border-amber-200 bg-[#fffaf3]"}`}
+            >
+              <div className="w-full shrink-0 sm:w-[150px]">
+                <PresenceScene kind={paymentStatusUpToDate ? "payment-ok" : "payment-attention"} />
+              </div>
+              <div className="min-w-0">
+                <p className={`text-sm font-bold ${paymentStatusUpToDate ? "text-emerald-800" : "text-amber-900"}`}>
+                  {paymentStatusUpToDate ? "Scolarité à jour" : "Une échéance reste à régler"}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                  {paymentStatusUpToDate
+                    ? "Toutes les échéances arrivées à échéance sont réglées. Bravo, votre situation est à jour."
+                    : `${dueNowUnpaidSchedules.length} échéance${dueNowUnpaidSchedules.length > 1 ? "s" : ""} arrivée${dueNowUnpaidSchedules.length > 1 ? "s" : ""} à échéance demande${dueNowUnpaidSchedules.length > 1 ? "nt" : ""} encore votre attention.`}
+                </p>
+                {!paymentStatusUpToDate && (
+                  <p className="mt-1.5 text-xs font-semibold tabular-nums text-amber-800">
+                    Reste à régler sur ces échéances : {money(dueNowUnpaidSchedules.reduce((sum, schedule) => sum + Math.max(schedule.amount_due - schedule.amount_paid, 0), 0))}
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
 
           <section className="overflow-hidden rounded-[24px] border border-[#dce8f5] bg-white shadow-sm">
             <div className="bg-[#0b3158] px-5 py-5 text-white sm:px-6">

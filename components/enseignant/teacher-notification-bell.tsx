@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Bell, Check, CheckCheck, Loader2 } from "lucide-react"
 import { enseignantPortalService, type TeacherNotification } from "@/services/enseignant-portal.service"
@@ -42,7 +42,7 @@ export function TeacherNotificationBell({ establishmentId }: Props) {
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -52,9 +52,9 @@ export function TeacherNotificationBell({ establishmentId }: Props) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  useEffect(() => { void load() }, [revision])
+  useEffect(() => { void load() }, [load, revision])
 
   const unread = items.filter((item) => !item.read_at)
   const visible = unread.slice(0, 8)

@@ -1,12 +1,10 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { Bell, BookOpenText, CalendarDays, ClipboardCheck, FileText, LogOut, Settings, UserRound } from "lucide-react"
+import { BookOpenText, CalendarDays, ClipboardCheck, FileText, LogOut, Settings, UserRound } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuthentification } from "@/providers/authentification.provider"
-import { useSchoolRealtime } from "@/hooks/use-school-realtime"
-import { enseignantPortalService } from "@/services/enseignant-portal.service"
-import { useEffect, useState } from "react"
+import { TeacherNotificationBell } from "@/components/enseignant/teacher-notification-bell"
 
 type Props = {
   establishmentId: string
@@ -19,17 +17,6 @@ type Props = {
 export function TeacherShell({ establishmentId, establishmentName, teacherName, active, children }: Props) {
   const router = useRouter()
   const { contexte, selectionnerEtablissement, deconnecter } = useAuthentification()
-  const [unreadNotifications, setUnreadNotifications] = useState(0)
-  const notificationRevision = useSchoolRealtime(["notifications"])
-
-  useEffect(() => {
-    let active = true
-    void enseignantPortalService.getNotifications().then((rows) => {
-      if (active) setUnreadNotifications(rows.filter((item) => !item.read_at).length)
-    }).catch((error) => console.error("Compteur des notifications enseignant indisponible", error))
-    return () => { active = false }
-  }, [notificationRevision])
-
   const go = (path: string) => router.push(`/enseignant/etablissement/${establishmentId}${path}`)
   const items = [
     { key: "today" as const, label: "Aujourd’hui", icon: CalendarDays, path: "" },
@@ -62,10 +49,7 @@ export function TeacherShell({ establishmentId, establishmentName, teacherName, 
               <p className="mt-1 truncate text-xs text-[#6d7280]">{teacherName || "Espace enseignant"} · {establishmentName}</p>
             </div>
             <button type="button" aria-label="Paramètres" onClick={() => router.push("/enseignant/profil")} className="rounded-md p-2 hover:bg-[#f3f4f8]"><Settings className="h-5 w-5 text-[#172033]" /></button>
-            <button type="button" aria-label="Notifications" onClick={() => router.push("/enseignant/notifications")} className="relative rounded-md p-2 hover:bg-[#f3f4f8]">
-              <Bell className="h-5 w-5 text-[#172033]" />
-              {unreadNotifications > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#1e40af] px-1 text-[9px] font-bold text-white ring-2 ring-white">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>}
-            </button>
+            <TeacherNotificationBell establishmentId={establishmentId} />
             <button type="button" aria-label="Profil" onClick={() => router.push("/enseignant/profil")} className="rounded-md bg-[#0b2677] p-2 text-white hover:bg-[#09236d]">
               <UserRound className="h-4 w-4" />
             </button>
